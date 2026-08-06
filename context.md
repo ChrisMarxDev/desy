@@ -107,7 +107,8 @@ The full wording and other decisions are in `CORE_PRINCIPLES.md`. Principle
 - The desktop sidebar expands and collapses with a 180 ms animation. Its
   collapsible groups are Workspace, Catalogue, and AI; Catalogue renders the
   consumer's folder tree (including Atoms and Components). The sidebar is
-  intentionally dense because the system will grow.
+  intentionally dense because the system will grow. Clicking either a section
+  heading or its chevron toggles that section.
 - Theme switching is global and reactive. The active theme index rebuilds the
   root `FTheme` and Flutter `Theme`; it is selected from the sidebar's top
   dropdown, not a separate primary workflow.
@@ -284,8 +285,8 @@ task sample:run
 ```
 
 `task check` runs root analysis and all three test suites. Verified on
-2026-08-06: analyzer clean; 50 `desy_bench` tests, 2 screenshot-builder tests,
-and 23 sample tests passed (75 total). Root `flutter test` is not equivalent
+2026-08-06: analyzer clean; 51 `desy_bench` tests, 2 screenshot-builder tests,
+and 23 sample tests passed (76 total). Root `flutter test` is not equivalent
 because it does not express this package-by-package workspace coverage.
 Focused commands are
 `task bench:test`, `task screenshot_builder:test`, and `task sample:test`.

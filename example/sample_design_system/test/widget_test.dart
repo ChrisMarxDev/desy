@@ -118,11 +118,12 @@ void main() {
     await tester.pumpWidget(_sampleBench());
 
     await tester.tap(
-      find.byKey(const ValueKey('sidebar-section-workspace-toggle')),
+      find.byKey(const ValueKey('sidebar-section-workspace-header')),
     );
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('showcases-nav')), findsNothing);
 
+    // The chevron remains an equivalent disclosure control.
     await tester.tap(
       find.byKey(const ValueKey('sidebar-section-workspace-toggle')),
     );
@@ -130,7 +131,7 @@ void main() {
     expect(find.byKey(const ValueKey('showcases-nav')), findsOneWidget);
 
     await tester.tap(
-      find.byKey(const ValueKey('sidebar-section-catalogue-toggle')),
+      find.byKey(const ValueKey('sidebar-section-catalogue-header')),
     );
     await tester.pumpAndSettle();
     expect(find.text('Colors'), findsNothing);

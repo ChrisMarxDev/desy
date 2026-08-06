@@ -261,6 +261,8 @@ class _CollapsibleSidebarGroup extends StatefulWidget {
 class _CollapsibleSidebarGroupState extends State<_CollapsibleSidebarGroup> {
   var _expanded = true;
 
+  void _toggle() => setState(() => _expanded = !_expanded);
+
   @override
   Widget build(BuildContext context) => FSidebarGroup(
     key: ValueKey('sidebar-section-${widget.id}'),
@@ -283,7 +285,20 @@ class _CollapsibleSidebarGroupState extends State<_CollapsibleSidebarGroup> {
         ),
       ),
     ),
-    label: widget.label,
+    label: MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        key: ValueKey('sidebar-section-${widget.id}-header'),
+        behavior: HitTestBehavior.opaque,
+        onTap: _toggle,
+        child: Semantics(
+          button: true,
+          toggled: _expanded,
+          label: '${widget.id} section, ${_expanded ? 'collapse' : 'expand'}',
+          child: widget.label,
+        ),
+      ),
+    ),
     action: KeyedSubtree(
       key: ValueKey('sidebar-section-${widget.id}-toggle'),
       child: Semantics(
@@ -295,7 +310,7 @@ class _CollapsibleSidebarGroupState extends State<_CollapsibleSidebarGroup> {
         ),
       ),
     ),
-    onActionPress: () => setState(() => _expanded = !_expanded),
+    onActionPress: _toggle,
     children: _expanded ? widget.children : const [],
   );
 }
