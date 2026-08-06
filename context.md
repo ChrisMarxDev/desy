@@ -141,6 +141,8 @@ The relevant code is
 - The preview has a compact in-canvas control strip containing Canvas, iPhone
   15 Pro, and iPad Pro 11. There is no accessibility-debugger/A11y mode; that
   feature was removed deliberately.
+- That control strip shows a small registry-derived breadcrumb row above the
+  bezel choices: folder ancestry followed by the current entry name.
 - The stage has a dotted background. It is painted *only* by
   `_DottedPreviewPainter`; the background color is supplied by `ColoredBox`.
   Do not add `canvas.drawColor()` to the painter: an earlier CustomPaint

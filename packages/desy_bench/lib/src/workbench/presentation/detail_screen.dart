@@ -14,8 +14,14 @@ import '../widget_preview.dart';
 import '../workbench_session.dart';
 
 const _minimumBoxExtent = 8.0;
+const _detailToolbarTop = 12.0;
+const _detailToolbarReservedHeight = 58.0;
+const _toolbarSelectionGap = 8.0;
 const _selectionLabelGap = 6.0;
 const _selectionLabelReservedHeight = 28.0;
+
+const _selectionMinimumTop =
+    _detailToolbarTop + _detailToolbarReservedHeight + _toolbarSelectionGap;
 
 double _boundedBoxExtent(double value) =>
     value < _minimumBoxExtent ? _minimumBoxExtent : value;
@@ -56,7 +62,11 @@ class DesyDetailScreen extends StatelessWidget {
         session: session,
         theme: theme,
         bezel: bezel,
-        toolbar: _DetailPreviewToolbar(session: session, selectedBezel: bezel),
+        toolbar: _DetailPreviewToolbar(
+          session: session,
+          entry: entry,
+          selectedBezel: bezel,
+        ),
         child: preview,
       ),
       inspector: _DetailInspector(
@@ -111,10 +121,12 @@ class _DetailBody extends StatelessWidget {
 class _DetailPreviewToolbar extends StatelessWidget {
   const _DetailPreviewToolbar({
     required this.session,
+    required this.entry,
     required this.selectedBezel,
   });
 
   final DesyWorkbenchSession session;
+  final DesyRegistryEntry entry;
   final DesyPreviewBezel? selectedBezel;
 
   @override
@@ -128,20 +140,28 @@ class _DetailPreviewToolbar extends StatelessWidget {
         border: Border.all(color: colors.border),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Wrap(
-        spacing: 6,
-        runSpacing: 6,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _button(context, label: 'Canvas', bezel: null),
-          _button(
-            context,
-            label: 'iPhone 15 Pro',
-            bezel: DesyPreviewBezel.iPhone15Pro,
-          ),
-          _button(
-            context,
-            label: 'iPad Pro 11',
-            bezel: DesyPreviewBezel.iPadPro11,
+          _DetailBreadcrumbs(entry: entry),
+          const SizedBox(height: 5),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _button(context, label: 'Canvas', bezel: null),
+              _button(
+                context,
+                label: 'iPhone 15 Pro',
+                bezel: DesyPreviewBezel.iPhone15Pro,
+              ),
+              _button(
+                context,
+                label: 'iPad Pro 11',
+                bezel: DesyPreviewBezel.iPadPro11,
+              ),
+            ],
           ),
         ],
       ),
@@ -161,6 +181,44 @@ class _DetailPreviewToolbar extends StatelessWidget {
     onPress: () => session.selectPreviewBezel(bezel),
     child: Text(label),
   );
+}
+
+class _DetailBreadcrumbs extends StatelessWidget {
+  const _DetailBreadcrumbs({required this.entry});
+
+  final DesyRegistryEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final segments = [...entry.folderNames, entry.name];
+    final style = Theme.of(context).textTheme.labelSmall?.copyWith(
+      color: context.theme.colors.mutedForeground,
+    );
+    return Semantics(
+      label: 'Breadcrumb ${segments.join(', ')}',
+      excludeSemantics: true,
+      child: Wrap(
+        key: const ValueKey('detail-breadcrumbs'),
+        spacing: 3,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          for (var index = 0; index < segments.length; index++) ...[
+            if (index > 0)
+              Icon(
+                FLucideIcons.chevronRight,
+                size: 11,
+                color: context.theme.colors.mutedForeground,
+              ),
+            Text(
+              segments[index],
+              key: ValueKey('detail-breadcrumb-$index'),
+              style: style,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _DetailInspector extends StatelessWidget {
@@ -335,7 +393,8 @@ class DesyPreviewCanvas extends StatelessWidget {
         );
         final maxHeight =
             (constraints.maxHeight -
-                    24 -
+                    _selectionMinimumTop -
+                    12 -
                     _selectionLabelGap -
                     _selectionLabelReservedHeight)
                 .clamp(_minimumBoxExtent, double.infinity);
@@ -353,13 +412,13 @@ class DesyPreviewCanvas extends StatelessWidget {
             (constraints.maxWidth - size.width - 12).clamp(12, double.infinity),
           ),
           stage.offset.dy.clamp(
-            12,
+            _selectionMinimumTop,
             (constraints.maxHeight -
                     size.height -
                     12 -
                     _selectionLabelGap -
                     _selectionLabelReservedHeight)
-                .clamp(12, double.infinity),
+                .clamp(_selectionMinimumTop, double.infinity),
           ),
         );
         return ColoredBox(
@@ -376,7 +435,7 @@ class DesyPreviewCanvas extends StatelessWidget {
               fit: StackFit.expand,
               clipBehavior: Clip.hardEdge,
               children: [
-                Positioned(top: 12, left: 12, child: toolbar),
+                Positioned(top: _detailToolbarTop, left: 12, child: toolbar),
                 Positioned(
                   left: offset.dx,
                   top: offset.dy,

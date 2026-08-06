@@ -274,6 +274,20 @@ void main() {
     await tester.pumpAndSettle();
     final toolbar = find.byKey(const ValueKey('detail-preview-toolbar'));
     expect(toolbar, findsOneWidget);
+    final breadcrumbs = find.byKey(const ValueKey('detail-breadcrumbs'));
+    expect(breadcrumbs, findsOneWidget);
+    expect(
+      find.descendant(of: breadcrumbs, matching: find.text('Components')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: breadcrumbs, matching: find.text('Action')),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel('Breadcrumb Components, Action, Primary button'),
+      findsOneWidget,
+    );
     expect(tester.getSize(toolbar).height, greaterThanOrEqualTo(36));
     final canvas = find.byKey(const ValueKey('detail-preview-canvas'));
     final artboard = find.byKey(const ValueKey('detail-artboard'));
