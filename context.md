@@ -91,9 +91,9 @@ The full wording and other decisions are in `CORE_PRINCIPLES.md`. Principle
 - `DesyComponentInstance.icon` supplies the icon for component-instance swap
   controls. The selected instance and every option row use it, with a neutral
   component glyph when the consumer omits one.
-- `DesyAssetEntry.image` is intentionally image-only. Put consumer-owned image
-  resources such as logos and illustrations under `Atoms/Assets`; UI glyphs
-  and icon-font values are not asset entries.
+- `DesyAssetEntry` is media-resource-only. Put consumer-owned still images,
+  animated GIFs, videos, and sounds under `Atoms/Assets` using its typed
+  constructors; UI glyphs and arbitrary widget builders are not asset entries.
 - Component instances are owned by their component. Palette leaves should be
   instances; selecting one reveals the same knob UI used by details/sketch.
 - Effects currently mean widget decorators with box shadows. Shaders and

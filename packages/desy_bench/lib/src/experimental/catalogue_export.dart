@@ -95,9 +95,9 @@ class DesyCatalogueExport {
           _entry(
             id: asset.id,
             name: asset.name,
-            value: asset.value,
+            value: asset.displayValue,
             description: asset.description,
-            extra: {'group': asset.group},
+            extra: {'group': asset.group, 'kind': asset.kind.name},
           ),
       ],
     },

@@ -79,9 +79,12 @@ void main() {
       expect(sampleRegistry.allEffects, hasLength(2));
       expect(sampleRegistry.allAssets, hasLength(greaterThanOrEqualTo(2)));
       expect(
-        sampleRegistry.allAssets.every((asset) => asset.image is AssetImage),
+        sampleRegistry.allAssets.every(
+          (asset) =>
+              asset.kind == DesyAssetKind.image && asset.image is AssetImage,
+        ),
         isTrue,
-        reason: 'Assets should be packaged image resources, not icon widgets.',
+        reason: 'Sample logos should be packaged image resources.',
       );
       expect(
         sampleRegistry.allComponents.map((component) => component.id),

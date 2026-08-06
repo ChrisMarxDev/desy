@@ -20,18 +20,40 @@ void main() {
     expect(theme.id, 'sample.light');
   });
 
-  test('asset entries are constrained to image resources', () {
+  test('asset entries retain typed image, GIF, video, and audio resources', () {
     const provider = AssetImage('assets/logo.png');
-    const asset = DesyAssetEntry.image(
+    const image = DesyAssetEntry.image(
       id: 'asset.logo',
       name: 'Logo',
       image: provider,
       semanticLabel: 'Company logo',
     );
+    const gif = DesyAssetEntry.gif(
+      id: 'asset.loading',
+      name: 'Loading',
+      image: AssetImage('assets/loading.gif'),
+    );
+    final video = DesyAssetEntry.video(
+      id: 'asset.intro',
+      name: 'Introduction',
+      source: Uri.parse('assets/video/intro.mp4'),
+    );
+    final audio = DesyAssetEntry.audio(
+      id: 'asset.confirmation',
+      name: 'Confirmation',
+      source: Uri.parse('assets/audio/confirmation.wav'),
+    );
 
-    expect(asset.image, same(provider));
-    expect(asset.semanticLabel, 'Company logo');
-    expect(asset.fit, BoxFit.contain);
+    expect(image.image, same(provider));
+    expect(image.kind, DesyAssetKind.image);
+    expect(image.semanticLabel, 'Company logo');
+    expect(image.fit, BoxFit.contain);
+    expect(gif.kind, DesyAssetKind.gif);
+    expect(gif.image, isA<AssetImage>());
+    expect(video.kind, DesyAssetKind.video);
+    expect(video.displayValue, 'assets/video/intro.mp4');
+    expect(audio.kind, DesyAssetKind.audio);
+    expect(audio.group, 'Sounds');
   });
 
   test('workspace extension builder does not require sidebar metadata', () {

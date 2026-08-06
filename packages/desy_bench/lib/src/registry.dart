@@ -58,7 +58,7 @@ class DesyRegistry {
   /// Widget decorators such as consumer-owned shadow recipes.
   final List<DesyEffectEntry> effects;
 
-  /// Consumer-owned image resources such as logos and illustrations.
+  /// Consumer-owned image, GIF, video, and audio resources.
   final List<DesyAssetEntry> assets;
 
   /// Real consumer widgets available in the catalogue.
@@ -623,7 +623,7 @@ List<DesyRegistryEntry> _entriesFor({
       builder: asset.build,
       source: asset,
       description: asset.description,
-      value: asset.value,
+      value: asset.displayValue,
     ),
   for (final component in components)
     DesyRegistryEntry(
@@ -884,7 +884,22 @@ class DesyMotionEntry {
   String get displayValue => '${duration.inMilliseconds} ms · $curve';
 }
 
-/// A consumer-owned image resource such as a logo or illustration.
+/// The media type of a consumer-owned asset resource.
+enum DesyAssetKind {
+  /// A still image such as a logo or illustration.
+  image,
+
+  /// An animated GIF image.
+  gif,
+
+  /// A video resource.
+  video,
+
+  /// An audio resource such as music, speech, or a sound effect.
+  audio,
+}
+
+/// A consumer-owned image, GIF, video, or audio resource.
 class DesyAssetEntry {
   /// Creates an image asset primitive.
   const DesyAssetEntry.image({
@@ -897,7 +912,50 @@ class DesyAssetEntry {
     this.fit = BoxFit.contain,
     this.alignment = Alignment.center,
     this.semanticLabel,
-  });
+  }) : kind = DesyAssetKind.image,
+       source = null;
+
+  /// Creates an animated GIF image asset.
+  const DesyAssetEntry.gif({
+    required this.id,
+    required this.name,
+    required this.image,
+    this.group = 'GIFs',
+    this.description,
+    this.value,
+    this.fit = BoxFit.contain,
+    this.alignment = Alignment.center,
+    this.semanticLabel,
+  }) : kind = DesyAssetKind.gif,
+       source = null;
+
+  /// Creates a video resource entry.
+  const DesyAssetEntry.video({
+    required this.id,
+    required this.name,
+    required this.source,
+    this.group = 'Videos',
+    this.description,
+    this.value,
+    this.semanticLabel,
+  }) : kind = DesyAssetKind.video,
+       image = null,
+       fit = BoxFit.contain,
+       alignment = Alignment.center;
+
+  /// Creates an audio resource entry.
+  const DesyAssetEntry.audio({
+    required this.id,
+    required this.name,
+    required this.source,
+    this.group = 'Sounds',
+    this.description,
+    this.value,
+    this.semanticLabel,
+  }) : kind = DesyAssetKind.audio,
+       image = null,
+       fit = BoxFit.contain,
+       alignment = Alignment.center;
 
   /// Stable identifier for the entry.
   final String id;
@@ -905,8 +963,14 @@ class DesyAssetEntry {
   /// Human-readable name.
   final String name;
 
-  /// The real consumer-owned image resource.
-  final ImageProvider<Object> image;
+  /// The resource's media type.
+  final DesyAssetKind kind;
+
+  /// The real image provider for [DesyAssetKind.image] and [DesyAssetKind.gif].
+  final ImageProvider<Object>? image;
+
+  /// The resource URI for [DesyAssetKind.video] and [DesyAssetKind.audio].
+  final Uri? source;
 
   /// Optional display metadata for asset-oriented surfaces.
   final String group;
@@ -926,13 +990,41 @@ class DesyAssetEntry {
   /// Optional accessibility description for the image.
   final String? semanticLabel;
 
-  /// Renders the image resource without allowing arbitrary asset widgets.
-  Widget build(BuildContext context) => Image(
-    image: image,
-    fit: fit,
-    alignment: alignment,
-    semanticLabel: semanticLabel,
-  );
+  /// Concise source metadata shown by catalogue and export surfaces.
+  String get displayValue => value ?? source?.toString() ?? kind.name;
+
+  /// Renders images directly and a dependency-free resource card for media.
+  Widget build(BuildContext context) => switch (kind) {
+    DesyAssetKind.image || DesyAssetKind.gif => Image(
+      image: image!,
+      fit: fit,
+      alignment: alignment,
+      semanticLabel: semanticLabel,
+      gaplessPlayback: kind == DesyAssetKind.gif,
+    ),
+    DesyAssetKind.video || DesyAssetKind.audio => Semantics(
+      label: semanticLabel ?? '$name ${kind.name} resource',
+      child: SizedBox(
+        width: 220,
+        height: 120,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(kind == DesyAssetKind.video ? 'VIDEO' : 'AUDIO'),
+              const SizedBox(height: 8),
+              Text(
+                source.toString(),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  };
 }
 
 /// A typed effect that decorates a widget supplied by the consumer.
