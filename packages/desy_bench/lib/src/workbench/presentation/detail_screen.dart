@@ -398,14 +398,29 @@ class DesyPreviewCanvas extends StatelessWidget {
                     _selectionLabelGap -
                     _selectionLabelReservedHeight)
                 .clamp(_minimumBoxExtent, double.infinity);
-        final scale = math.min(
-          1,
-          math.min(maxWidth / stage.size.width, maxHeight / stage.size.height),
-        );
-        final size = Size(
-          (stage.size.width * scale).clamp(_minimumBoxExtent, maxWidth),
-          (stage.size.height * scale).clamp(_minimumBoxExtent, maxHeight),
-        );
+        // A free canvas is the component's real responsive viewport: resizing
+        // it must change the constraints delivered to the consumer widget,
+        // never scale an already-laid-out result. Device frames are the sole
+        // exception because their fixed logical dimensions may need to be
+        // scaled down as one complete preview to fit the Desy canvas.
+        final scale = bezel == null
+            ? 1.0
+            : math.min(
+                1,
+                math.min(
+                  maxWidth / stage.size.width,
+                  maxHeight / stage.size.height,
+                ),
+              );
+        final size = bezel == null
+            ? Size(
+                math.max(stage.size.width, _minimumBoxExtent),
+                math.max(stage.size.height, _minimumBoxExtent),
+              )
+            : Size(
+                (stage.size.width * scale).clamp(_minimumBoxExtent, maxWidth),
+                (stage.size.height * scale).clamp(_minimumBoxExtent, maxHeight),
+              );
         final offset = Offset(
           stage.offset.dx.clamp(
             12,
@@ -454,18 +469,22 @@ class DesyPreviewCanvas extends StatelessWidget {
                       final resizeFromTop =
                           corner == _ArtboardCorner.topLeft ||
                           corner == _ArtboardCorner.topRight;
+                      final logicalDelta = Offset(
+                        details.delta.dx / scale,
+                        details.delta.dy / scale,
+                      );
                       final nextSize = Size(
                         _boundedBoxExtent(
                           stage.size.width +
                               (resizeFromLeft
-                                  ? -details.delta.dx
-                                  : details.delta.dx),
+                                  ? -logicalDelta.dx
+                                  : logicalDelta.dx),
                         ),
                         _boundedBoxExtent(
                           stage.size.height +
                               (resizeFromTop
-                                  ? -details.delta.dy
-                                  : details.delta.dy),
+                                  ? -logicalDelta.dy
+                                  : logicalDelta.dy),
                         ),
                       );
                       session.updateStage(
@@ -474,10 +493,12 @@ class DesyPreviewCanvas extends StatelessWidget {
                               offset +
                               Offset(
                                 resizeFromLeft
-                                    ? stage.size.width - nextSize.width
+                                    ? (stage.size.width - nextSize.width) *
+                                          scale
                                     : 0,
                                 resizeFromTop
-                                    ? stage.size.height - nextSize.height
+                                    ? (stage.size.height - nextSize.height) *
+                                          scale
                                     : 0,
                               ),
                           size: nextSize,
@@ -566,7 +587,7 @@ class _Artboard extends StatelessWidget {
               child: ClipRect(
                 child: Center(
                   child: bezel == null
-                      ? DesyFittedPreview(child: child)
+                      ? child
                       : _DeviceBezel(bezel: bezel!, child: child),
                 ),
               ),
@@ -666,6 +687,7 @@ class _ArtboardHandle extends StatelessWidget {
       child: MouseRegion(
         cursor: cursor,
         child: GestureDetector(
+          key: ValueKey('detail-resize-${corner.name}'),
           behavior: HitTestBehavior.opaque,
           onPanUpdate: (details) => onResize(details, corner),
           child: SizedBox(

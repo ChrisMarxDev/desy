@@ -8,12 +8,13 @@ import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
+import 'package:state_beacon/state_beacon.dart';
 
 void main() {
   const theme = DesyTheme(id: 'test', name: 'Test', wrap: _wrap);
 
   testWidgets(
-    'detail measures responsive previews before scaling them to the artboard',
+    'detail resizes responsive widgets and only scales fixed device previews',
     (tester) async {
       BoxConstraints? receivedConstraints;
       final session = DesyWorkbenchSession(
@@ -26,26 +27,28 @@ void main() {
           child: SizedBox(
             width: 560,
             height: 440,
-            child: DesyPreviewCanvas(
-              session: session,
-              theme: theme,
-              bezel: null,
-              toolbar: const SizedBox.shrink(),
-              child: DesyWidgetPreview(
+            child: Builder(
+              builder: (context) => DesyPreviewCanvas(
+                session: session,
                 theme: theme,
-                builder: (context) => LayoutBuilder(
-                  builder: (context, constraints) {
-                    receivedConstraints = constraints;
-                    return SizedBox(
-                      key: ValueKey(
-                        constraints.maxWidth >= 600
-                            ? 'responsive-wide-detail'
-                            : 'responsive-compact-detail',
-                      ),
-                      width: constraints.maxWidth >= 600 ? 800 : 120,
-                      height: 64,
-                    );
-                  },
+                bezel: session.previewBezel.watch(context),
+                toolbar: const SizedBox.shrink(),
+                child: DesyWidgetPreview(
+                  theme: theme,
+                  builder: (context) => LayoutBuilder(
+                    builder: (context, constraints) {
+                      receivedConstraints = constraints;
+                      return SizedBox(
+                        key: ValueKey(
+                          constraints.maxWidth >= 600
+                              ? 'responsive-wide-detail'
+                              : 'responsive-compact-detail',
+                        ),
+                        width: constraints.maxWidth >= 600 ? 800 : 120,
+                        height: 64,
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -55,18 +58,40 @@ void main() {
 
       expect(
         find.byKey(const ValueKey('responsive-wide-detail')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('responsive-compact-detail')),
+        findsOneWidget,
+      );
+      expect(receivedConstraints!.maxWidth, 320);
+      expect(
+        tester.getSize(find.byKey(const ValueKey('detail-artboard'))),
+        const Size(320, 240),
+      );
+      expect(find.text('320 × 240 px'), findsOneWidget);
+
+      await tester.drag(
+        find.byKey(const ValueKey('detail-resize-bottomRight')),
+        const Offset(580, 0),
+      );
+      await tester.pump();
+
+      expect(session.stage.value.size, const Size(880, 240));
+      expect(
+        tester.getSize(find.byKey(const ValueKey('detail-artboard'))),
+        const Size(880, 240),
+      );
+      expect(
+        find.byKey(const ValueKey('responsive-wide-detail')),
         findsOneWidget,
       );
       expect(
         find.byKey(const ValueKey('responsive-compact-detail')),
         findsNothing,
       );
-      expect(receivedConstraints!.maxWidth, 1024);
-      expect(
-        tester.getSize(find.byKey(const ValueKey('detail-artboard'))),
-        const Size(320, 240),
-      );
-      expect(find.text('320 × 240 px'), findsOneWidget);
+      expect(receivedConstraints!.maxWidth, 880);
+      expect(find.text('880 × 240 px'), findsOneWidget);
 
       session.selectPreviewBezel(DesyPreviewBezel.iPhone15Pro);
       await tester.pumpAndSettle();
@@ -76,6 +101,11 @@ void main() {
       expect(
         phoneSize.aspectRatio,
         closeTo(Devices.ios.iPhone15Pro.frameSize.aspectRatio, 0.001),
+        reason: 'displayed $phoneSize from logical ${session.stage.value.size}',
+      );
+      expect(
+        receivedConstraints!.maxWidth,
+        Devices.ios.iPhone15Pro.screenSize.width,
       );
       expect(
         find.text(
