@@ -204,6 +204,10 @@ selection were unreliable. The current central replacement is:
   values without recreating the controller during normal typing, enables
   interactive selection, and uses the platform native context menu/keyboard
   semantics.
+- Its visible decoration is deliberately limited to hint text and optional
+  prefix/suffix icons. It has no floating label, fill, border, custom padding,
+  error line, or theme-colored cursor; labels and validation guidance remain
+  accessibility semantics only.
 - It is used by Atlas search, font preview text, string knobs, instance-picker
   search, and the sample `SampleTextField`. There should be no `FTextField`
   usages in maintained `.dart` sources.

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:forui/forui.dart';
 
 /// A reliable, native Flutter text editor for Desy-owned text entry.
 ///
@@ -7,12 +6,14 @@ import 'package:forui/forui.dart';
 /// multiple field implementations. The underlying [TextField] retains Flutter
 /// platform editing, selection, caret, and context-menu behaviour.
 class DesyTextField extends StatefulWidget {
-  /// Creates a native text field styled from the active Desy theme.
+  /// Creates a native text field without decorative field chrome.
   const DesyTextField({
     super.key,
     this.label,
     this.hintText,
     this.errorText,
+    this.prefixIcon,
+    this.suffixIcon,
     this.value,
     this.onChanged,
     this.onSubmitted,
@@ -24,14 +25,20 @@ class DesyTextField extends StatefulWidget {
     this.minLines,
   });
 
-  /// An optional persistent accessible label.
+  /// An optional accessible label. It is never rendered as field chrome.
   final String? label;
 
   /// A short example or prompt shown for an empty field.
   final String? hintText;
 
-  /// Inline validation guidance.
+  /// Accessible validation guidance. It is not rendered below the field.
   final String? errorText;
+
+  /// Optional icon before the editable text.
+  final Widget? prefixIcon;
+
+  /// Optional icon after the editable text.
+  final Widget? suffixIcon;
 
   /// An optional externally controlled text value.
   ///
@@ -93,53 +100,39 @@ class _DesyTextFieldState extends State<DesyTextField> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.theme.colors;
-    final errorColor = colors.destructive;
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: BorderSide(color: colors.border),
-    );
     return Material(
       type: MaterialType.transparency,
-      child: TextField(
-        controller: _controller,
-        autofocus: widget.autofocus,
-        enabled: widget.enabled,
-        keyboardType: widget.keyboardType,
-        textInputAction: widget.textInputAction,
-        maxLines: widget.maxLines,
-        minLines: widget.minLines,
-        enableInteractiveSelection: true,
-        cursorColor: colors.primary,
-        onChanged: widget.onChanged,
-        onSubmitted: widget.onSubmitted,
-        decoration: InputDecoration(
-          isDense: true,
-          labelText: widget.label,
-          hintText: widget.hintText,
-          errorText: widget.errorText,
-          filled: true,
-          fillColor: colors.secondary,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 10,
+      child: Semantics(
+        container: true,
+        label: widget.label,
+        hint: widget.errorText,
+        child: TextField(
+          controller: _controller,
+          autofocus: widget.autofocus,
+          enabled: widget.enabled,
+          keyboardType: widget.keyboardType,
+          textInputAction: widget.textInputAction,
+          maxLines: widget.maxLines,
+          minLines: widget.minLines,
+          enableInteractiveSelection: true,
+          onChanged: widget.onChanged,
+          onSubmitted: widget.onSubmitted,
+          decoration: InputDecoration(
+            isCollapsed: true,
+            hintText: widget.hintText,
+            prefixIcon: widget.prefixIcon,
+            prefixIconConstraints: const BoxConstraints(),
+            suffixIcon: widget.suffixIcon,
+            suffixIconConstraints: const BoxConstraints(),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
+            filled: false,
+            contentPadding: EdgeInsets.zero,
           ),
-          enabledBorder: border,
-          disabledBorder: border.copyWith(
-            borderSide: BorderSide(color: colors.border.withValues(alpha: .55)),
-          ),
-          focusedBorder: border.copyWith(
-            borderSide: BorderSide(color: colors.primary, width: 1.5),
-          ),
-          errorBorder: border.copyWith(
-            borderSide: BorderSide(color: errorColor),
-          ),
-          focusedErrorBorder: border.copyWith(
-            borderSide: BorderSide(color: errorColor, width: 1.5),
-          ),
-          errorStyle: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: errorColor),
         ),
       ),
     );

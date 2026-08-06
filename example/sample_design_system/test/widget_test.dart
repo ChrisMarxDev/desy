@@ -1,7 +1,7 @@
 import 'package:desy_bench/desy_bench.dart';
 import 'package:desy_screenshot_builder/desy_screenshot_builder.dart';
 import 'package:flutter/material.dart'
-    show Brightness, SelectionArea, TextField, Theme;
+    show Brightness, InputBorder, SelectionArea, TextField, Theme;
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,6 +30,12 @@ void main() {
     final field = find.byKey(const ValueKey('atlas-search'));
     final editor = find.descendant(of: field, matching: find.byType(TextField));
     expect(editor, findsOneWidget);
+    final decoration = tester.widget<TextField>(editor).decoration!;
+    expect(decoration.hintText, 'Search');
+    expect(decoration.labelText, isNull);
+    expect(decoration.errorText, isNull);
+    expect(decoration.filled, isFalse);
+    expect(decoration.border, InputBorder.none);
     expect(
       find.descendant(of: field, matching: find.byType(EditableText)),
       findsOneWidget,
@@ -419,7 +425,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Knobs'), findsOneWidget);
-      expect(find.text('Action label'), findsOneWidget);
+      expect(find.text('Action label'), findsNothing);
     },
   );
 
