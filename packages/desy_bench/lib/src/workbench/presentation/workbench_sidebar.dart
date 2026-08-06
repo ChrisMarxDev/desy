@@ -106,19 +106,12 @@ class DesyWorkbenchSidebar extends StatelessWidget {
               onPress: () => _go(context, DesyWorkbenchRoutes.atlasPath),
             ),
             FSidebarItem(
+              key: const ValueKey('workspace-components-nav'),
               icon: const Icon(FLucideIcons.boxes),
               label: const Text('Components'),
               selected:
                   currentLocation.path == DesyWorkbenchRoutes.componentsPath,
               onPress: () => _go(context, DesyWorkbenchRoutes.componentsPath),
-            ),
-            FSidebarItem(
-              key: const ValueKey('showcases-nav'),
-              icon: const Icon(FLucideIcons.layers),
-              label: const Text('Showcases · experimental'),
-              selected:
-                  currentLocation.path == DesyWorkbenchRoutes.showcasesPath,
-              onPress: () => _go(context, DesyWorkbenchRoutes.showcasesPath),
             ),
             for (final extension in session.extensions)
               FSidebarItem(
@@ -152,6 +145,20 @@ class DesyWorkbenchSidebar extends StatelessWidget {
               icon: Icon(FLucideIcons.sparkles),
               label: Text('Prompt library'),
               children: [FSidebarItem(label: Text('No prompts yet'))],
+            ),
+          ],
+        ),
+        _CollapsibleSidebarGroup(
+          id: 'showcases',
+          label: const Text('Showcases'),
+          children: [
+            FSidebarItem(
+              key: const ValueKey('showcases-nav'),
+              icon: const Icon(FLucideIcons.layers),
+              label: const Text('Overview · experimental'),
+              selected:
+                  currentLocation.path == DesyWorkbenchRoutes.showcasesPath,
+              onPress: () => _go(context, DesyWorkbenchRoutes.showcasesPath),
             ),
           ],
         ),

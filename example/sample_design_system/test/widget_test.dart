@@ -127,13 +127,21 @@ void main() {
       find.byKey(const ValueKey('sidebar-section-workspace-header')),
     );
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('showcases-nav')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('workspace-components-nav')),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('showcases-nav')), findsOneWidget);
 
     // The chevron remains an equivalent disclosure control.
     await tester.tap(
       find.byKey(const ValueKey('sidebar-section-workspace-toggle')),
     );
     await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('workspace-components-nav')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('showcases-nav')), findsOneWidget);
 
     await tester.tap(
@@ -142,6 +150,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Colors'), findsNothing);
     expect(find.text('Action'), findsNothing);
+
+    final aiSection = find.byKey(const ValueKey('sidebar-section-ai'));
+    final showcaseSection = find.byKey(
+      const ValueKey('sidebar-section-showcases'),
+    );
+    expect(
+      tester.getTopLeft(showcaseSection).dy,
+      greaterThan(tester.getTopLeft(aiSection).dy),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('sidebar-section-showcases-header')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('showcases-nav')), findsNothing);
   });
 
   testWidgets('collapses and restores the desktop sidebar', (tester) async {

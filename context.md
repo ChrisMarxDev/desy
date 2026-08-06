@@ -111,8 +111,9 @@ The full wording and other decisions are in `CORE_PRINCIPLES.md`. Principle
 - Desktop normal routes are mounted in a `ShellRoute` with a collapsible
   sidebar. The shell owns the sidebar; detail pages do not replace it.
 - The desktop sidebar expands and collapses with a 180 ms animation. Its
-  collapsible groups are Workspace, Catalogue, and AI; Catalogue renders the
-  consumer's folder tree (including Atoms and Components). The sidebar is
+  collapsible groups are Workspace, Catalogue, AI, and a final standalone
+  Showcases section; Catalogue renders the consumer's folder tree (including
+  Atoms and Components). The sidebar is
   intentionally dense because the system will grow. Clicking either a section
   heading or its chevron toggles that section.
 - Theme switching is global and reactive. The active theme index rebuilds the
