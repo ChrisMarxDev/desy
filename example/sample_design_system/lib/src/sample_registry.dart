@@ -9,6 +9,7 @@ final _cardTrailingInstances = [
   DesyComponentInstance.widget(
     id: 'status.clear',
     name: 'Clear status',
+    icon: FLucideIcons.badgeCheck,
     description: 'Confirmed operational state.',
     builder: (context) => const SampleStatusBadge(
       label: 'On schedule',
@@ -18,6 +19,7 @@ final _cardTrailingInstances = [
   DesyComponentInstance.widget(
     id: 'status.review',
     name: 'Review status',
+    icon: FLucideIcons.triangleAlert,
     description: 'State that needs follow-up before publishing.',
     builder: (context) => const SampleStatusBadge(
       label: 'Review needed',
@@ -27,6 +29,7 @@ final _cardTrailingInstances = [
   DesyComponentInstance.widget(
     id: 'status.delayed',
     name: 'Delayed status',
+    icon: FLucideIcons.octagonAlert,
     description: 'State that blocks the expected plan.',
     builder: (context) => const SampleStatusBadge(
       label: 'Delayed',

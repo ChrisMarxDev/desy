@@ -102,6 +102,11 @@ void main() {
         instanceKnob.options.map((instance) => instance.id),
         contains('status.delayed'),
       );
+      expect(
+        instanceKnob.options.every((instance) => instance.icon != null),
+        isTrue,
+        reason: 'Every declared instance swap should have its own icon.',
+      );
 
       for (final component in sampleRegistry.allComponents) {
         expect(

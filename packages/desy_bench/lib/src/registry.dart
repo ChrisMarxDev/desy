@@ -1043,6 +1043,7 @@ class DesyComponentInstance {
     required this.id,
     required this.name,
     required this.builder,
+    this.icon,
     this.description,
   }) : knobValues = DesyKnobValues();
 
@@ -1054,6 +1055,7 @@ class DesyComponentInstance {
   DesyComponentInstance.preset({
     required this.id,
     required this.name,
+    this.icon,
     this.description,
     DesyKnobValues? knobValues,
   }) : builder = null,
@@ -1064,6 +1066,9 @@ class DesyComponentInstance {
 
   /// Human-readable option name.
   final String name;
+
+  /// Optional icon used when this instance is offered as a swap choice.
+  final IconData? icon;
 
   /// Builds the actual consumer widget placed in a component slot.
   ///

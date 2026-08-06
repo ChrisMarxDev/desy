@@ -60,8 +60,8 @@ product.
    surfaces, and shell stay Forui. Consumer previews can use any library.
 9. **Native text-entry exception.** All editable Desy/sample fields now use
    the central `DesyTextField`, backed by Flutter `TextField`/`EditableText`.
-   It uses a transparent `Material` host required by Flutter, but its visuals
-   derive from the Desy Forui theme. Do not reintroduce `FTextField`.
+   It uses a transparent `Material` host required by Flutter and deliberately
+   omits decorative field chrome. Do not reintroduce `FTextField`.
 10. **Real preview sizing.** Render consumer widgets at their intended logical
    dimensions, then scale the completed preview into the available canvas.
    Never make previews look compact by giving the consumer artificial tiny
@@ -88,6 +88,9 @@ The full wording and other decisions are in `CORE_PRINCIPLES.md`. Principle
 - All declaration collections are immutable. `DesyWorkbenchApp` calls
   `registry.validate` with extension IDs in `initState`, so duplicate stable
   IDs fail at startup rather than becoming ambiguous navigation.
+- `DesyComponentInstance.icon` supplies the icon for component-instance swap
+  controls. The selected instance and every option row use it, with a neutral
+  component glyph when the consumer omits one.
 - Component instances are owned by their component. Palette leaves should be
   instances; selecting one reveals the same knob UI used by details/sketch.
 - Effects currently mean widget decorators with box shadows. Shaders and
@@ -289,8 +292,8 @@ task sample:run
 ```
 
 `task check` runs root analysis and all three test suites. Verified on
-2026-08-06: analyzer clean; 51 `desy_bench` tests, 2 screenshot-builder tests,
-and 23 sample tests passed (76 total). Root `flutter test` is not equivalent
+2026-08-06: analyzer clean; 52 `desy_bench` tests, 2 screenshot-builder tests,
+and 23 sample tests passed (77 total). Root `flutter test` is not equivalent
 because it does not express this package-by-package workspace coverage.
 Focused commands are
 `task bench:test`, `task screenshot_builder:test`, and `task sample:test`.

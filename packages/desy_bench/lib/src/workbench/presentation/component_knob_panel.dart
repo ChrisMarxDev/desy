@@ -72,6 +72,8 @@ class _ComponentInstanceKnob extends StatelessWidget {
       Text(knob.name, style: Theme.of(context).textTheme.labelLarge),
       const SizedBox(height: 8),
       FTile(
+        key: ValueKey('instance-swap-current-${knob.id}'),
+        prefix: Icon(selected.icon ?? FLucideIcons.component),
         title: Text('Swap · ${selected.name}', overflow: TextOverflow.ellipsis),
         suffix: const Icon(FLucideIcons.chevronsUpDown),
         onPress: () => _openPicker(context),
@@ -136,6 +138,8 @@ class _InstancePickerState extends State<_InstancePicker> {
                 itemBuilder: (context, index) {
                   final option = options[index];
                   return FTile(
+                    key: ValueKey('instance-swap-option-${option.id}'),
+                    prefix: Icon(option.icon ?? FLucideIcons.component),
                     title: Text(option.name, overflow: TextOverflow.ellipsis),
                     onPress: () => Navigator.of(context).pop(option),
                   );
