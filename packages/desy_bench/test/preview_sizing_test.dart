@@ -4,6 +4,7 @@ import 'package:desy_bench/src/workbench/components_canvas/components_canvas_scr
 import 'package:desy_bench/src/workbench/presentation/detail_screen.dart';
 import 'package:desy_bench/src/workbench/widget_preview.dart';
 import 'package:desy_bench/src/workbench/workbench_session.dart';
+import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
@@ -65,6 +66,27 @@ void main() {
         tester.getSize(find.byKey(const ValueKey('detail-artboard'))),
         const Size(320, 240),
       );
+
+      session.selectPreviewBezel(DesyPreviewBezel.iPhone15Pro);
+      await tester.pumpAndSettle();
+      final phoneSize = tester.getSize(
+        find.byKey(const ValueKey('detail-artboard')),
+      );
+      expect(
+        phoneSize.aspectRatio,
+        closeTo(Devices.ios.iPhone15Pro.frameSize.aspectRatio, 0.001),
+      );
+
+      session.selectPreviewBezel(DesyPreviewBezel.iPadPro11);
+      await tester.pumpAndSettle();
+      final tabletSize = tester.getSize(
+        find.byKey(const ValueKey('detail-artboard')),
+      );
+      expect(
+        tabletSize.aspectRatio,
+        closeTo(Devices.ios.iPadPro11Inches.frameSize.aspectRatio, 0.001),
+      );
+      expect(tabletSize.width, greaterThan(phoneSize.width));
     },
   );
 

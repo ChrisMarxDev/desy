@@ -1,6 +1,7 @@
 // Internal workbench session state; it is not consumer-facing package API.
 // ignore_for_file: public_member_api_docs
 
+import 'package:device_preview/device_preview.dart';
 import 'package:flutter/widgets.dart';
 import 'package:state_beacon/state_beacon.dart';
 
@@ -11,6 +12,13 @@ import '../workspace_extension.dart';
 ///
 /// This is local workbench state and never changes the consumer registry.
 enum DesyPreviewBezel { iPhone15Pro, iPadPro11 }
+
+extension DesyPreviewBezelDevice on DesyPreviewBezel {
+  DeviceInfo get device => switch (this) {
+    DesyPreviewBezel.iPhone15Pro => Devices.ios.iPhone15Pro,
+    DesyPreviewBezel.iPadPro11 => Devices.ios.iPadPro11Inches,
+  };
+}
 
 /// Ephemeral interaction state for one open Desy workbench.
 ///
@@ -94,8 +102,12 @@ class DesyWorkbenchSession {
     _ => false,
   };
 
-  void selectPreviewBezel(DesyPreviewBezel? bezel) =>
-      previewBezel.value = bezel;
+  void selectPreviewBezel(DesyPreviewBezel? bezel) {
+    stage.value = stage.value.copyWith(
+      size: bezel?.device.frameSize ?? const DesyPreviewStage().size,
+    );
+    previewBezel.value = bezel;
+  }
 
   void updateStage(DesyPreviewStage next) => stage.value = next;
 

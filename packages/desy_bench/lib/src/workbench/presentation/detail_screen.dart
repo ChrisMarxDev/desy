@@ -1,6 +1,8 @@
 // Internal workbench presentation.
 // ignore_for_file: public_member_api_docs
 
+import 'dart:math' as math;
+
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
@@ -333,9 +335,13 @@ class DesyPreviewCanvas extends StatelessWidget {
           _minimumBoxExtent,
           double.infinity,
         );
+        final scale = math.min(
+          1,
+          math.min(maxWidth / stage.size.width, maxHeight / stage.size.height),
+        );
         final size = Size(
-          stage.size.width.clamp(_minimumBoxExtent, maxWidth),
-          stage.size.height.clamp(_minimumBoxExtent, maxHeight),
+          (stage.size.width * scale).clamp(_minimumBoxExtent, maxWidth),
+          (stage.size.height * scale).clamp(_minimumBoxExtent, maxHeight),
         );
         final offset = Offset(
           stage.offset.dx.clamp(
@@ -476,14 +482,9 @@ class _DeviceBezel extends StatelessWidget {
   final DesyPreviewBezel bezel;
   final Widget child;
 
-  DeviceInfo get _device => switch (bezel) {
-    DesyPreviewBezel.iPhone15Pro => Devices.ios.iPhone15Pro,
-    DesyPreviewBezel.iPadPro11 => Devices.ios.iPadPro11Inches,
-  };
-
   @override
   Widget build(BuildContext context) {
-    final device = _device;
+    final device = bezel.device;
     return Semantics(
       label: '${bezel.label} preview bezel',
       child: FittedBox(

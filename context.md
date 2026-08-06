@@ -155,6 +155,9 @@ The relevant code is
   `Align(child: child)` specifically so the registered widget keeps its normal
   intrinsic size instead of expanding to fill the device screen. The full
   device is then scaled down to fit the artboard.
+- Selecting a detail bezel resets the artboard to that device's real frame
+  dimensions. The selection is proportionally scaled to fit the available
+  canvas, so switching devices also changes the selection's aspect and width.
 - The detail canvas and the components sketch have separate interaction state.
   The detail stage is ephemeral session state, not a saved screen manifest.
 

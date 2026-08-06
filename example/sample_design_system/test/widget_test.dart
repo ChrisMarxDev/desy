@@ -290,6 +290,8 @@ void main() {
       find.bySemanticsLabel('iPhone 15 Pro preview bezel'),
       findsOneWidget,
     );
+    final phoneSelection = tester.getSize(artboard);
+    expect(phoneSelection.height, greaterThan(phoneSelection.width));
     expect(
       tester.getSize(find.widgetWithText(FButton, 'Publish schedule')).height,
       lessThan(100),
@@ -299,6 +301,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.bySemanticsLabel('iPad Pro 11 preview bezel'), findsOneWidget);
+    final tabletSelection = tester.getSize(artboard);
+    expect(
+      tabletSelection.aspectRatio,
+      greaterThan(phoneSelection.aspectRatio),
+    );
+    expect(tabletSelection.width, greaterThan(phoneSelection.width));
   });
 
   testWidgets('renders atlas previews at their natural widget size', (
