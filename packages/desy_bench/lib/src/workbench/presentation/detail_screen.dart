@@ -14,6 +14,8 @@ import '../widget_preview.dart';
 import '../workbench_session.dart';
 
 const _minimumBoxExtent = 8.0;
+const _selectionLabelGap = 6.0;
+const _selectionLabelReservedHeight = 28.0;
 
 double _boundedBoxExtent(double value) =>
     value < _minimumBoxExtent ? _minimumBoxExtent : value;
@@ -331,10 +333,12 @@ class DesyPreviewCanvas extends StatelessWidget {
           _minimumBoxExtent,
           double.infinity,
         );
-        final maxHeight = (constraints.maxHeight - 24).clamp(
-          _minimumBoxExtent,
-          double.infinity,
-        );
+        final maxHeight =
+            (constraints.maxHeight -
+                    24 -
+                    _selectionLabelGap -
+                    _selectionLabelReservedHeight)
+                .clamp(_minimumBoxExtent, double.infinity);
         final scale = math.min(
           1,
           math.min(maxWidth / stage.size.width, maxHeight / stage.size.height),
@@ -350,10 +354,12 @@ class DesyPreviewCanvas extends StatelessWidget {
           ),
           stage.offset.dy.clamp(
             12,
-            (constraints.maxHeight - size.height - 12).clamp(
-              12,
-              double.infinity,
-            ),
+            (constraints.maxHeight -
+                    size.height -
+                    12 -
+                    _selectionLabelGap -
+                    _selectionLabelReservedHeight)
+                .clamp(12, double.infinity),
           ),
         );
         return ColoredBox(
@@ -422,11 +428,50 @@ class DesyPreviewCanvas extends StatelessWidget {
                     child: child,
                   ),
                 ),
+                Positioned(
+                  left: offset.dx,
+                  top: offset.dy + size.height + _selectionLabelGap,
+                  child: _SelectionSizeLabel(size: stage.size),
+                ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _SelectionSizeLabel extends StatelessWidget {
+  const _SelectionSizeLabel({required this.size});
+
+  final Size size;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = '${size.width.round()} × ${size.height.round()} px';
+    final colors = context.theme.colors;
+    return IgnorePointer(
+      child: Semantics(
+        label:
+            'Selection size ${size.width.round()} by ${size.height.round()} pixels',
+        child: DecoratedBox(
+          key: const ValueKey('detail-selection-size'),
+          decoration: BoxDecoration(
+            color: colors.primary,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            child: Text(
+              label,
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: colors.primaryForeground),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

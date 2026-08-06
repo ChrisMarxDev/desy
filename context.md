@@ -158,6 +158,8 @@ The relevant code is
 - Selecting a detail bezel resets the artboard to that device's real frame
   dimensions. The selection is proportionally scaled to fit the available
   canvas, so switching devices also changes the selection's aspect and width.
+- A compact badge immediately below the detail selection reports its current
+  logical `width × height px`; it follows manual resizing and bezel changes.
 - The detail canvas and the components sketch have separate interaction state.
   The detail stage is ephemeral session state, not a saved screen manifest.
 

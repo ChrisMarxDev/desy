@@ -66,6 +66,7 @@ void main() {
         tester.getSize(find.byKey(const ValueKey('detail-artboard'))),
         const Size(320, 240),
       );
+      expect(find.text('320 × 240 px'), findsOneWidget);
 
       session.selectPreviewBezel(DesyPreviewBezel.iPhone15Pro);
       await tester.pumpAndSettle();
@@ -75,6 +76,13 @@ void main() {
       expect(
         phoneSize.aspectRatio,
         closeTo(Devices.ios.iPhone15Pro.frameSize.aspectRatio, 0.001),
+      );
+      expect(
+        find.text(
+          '${session.stage.value.size.width.round()} × '
+          '${session.stage.value.size.height.round()} px',
+        ),
+        findsOneWidget,
       );
 
       session.selectPreviewBezel(DesyPreviewBezel.iPadPro11);
@@ -87,6 +95,13 @@ void main() {
         closeTo(Devices.ios.iPadPro11Inches.frameSize.aspectRatio, 0.001),
       );
       expect(tabletSize.width, greaterThan(phoneSize.width));
+      expect(
+        find.text(
+          '${session.stage.value.size.width.round()} × '
+          '${session.stage.value.size.height.round()} px',
+        ),
+        findsOneWidget,
+      );
     },
   );
 

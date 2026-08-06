@@ -277,12 +277,17 @@ void main() {
     expect(tester.getSize(toolbar).height, greaterThanOrEqualTo(36));
     final canvas = find.byKey(const ValueKey('detail-preview-canvas'));
     final artboard = find.byKey(const ValueKey('detail-artboard'));
+    expect(find.byKey(const ValueKey('detail-selection-size')), findsOneWidget);
+    expect(find.text('320 × 240 px'), findsOneWidget);
     expect(
       tester.getRect(toolbar).top,
       greaterThan(tester.getRect(canvas).top),
     );
     expect(tester.getRect(artboard).left - tester.getRect(canvas).left, 88);
-    expect(tester.getRect(artboard).top - tester.getRect(canvas).top, 72);
+    expect(
+      tester.getRect(artboard).top,
+      greaterThanOrEqualTo(tester.getRect(toolbar).bottom + 2),
+    );
     await tester.tap(find.text('iPhone 15 Pro'));
     await tester.pumpAndSettle();
 
