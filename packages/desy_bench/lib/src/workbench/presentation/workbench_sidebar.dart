@@ -279,17 +279,17 @@ class _CollapsibleSidebarGroupState extends State<_CollapsibleSidebarGroup> {
       headerPadding: EdgeInsetsGeometryDelta.value(
         EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       ),
-      childrenSpacing: 1,
+      childrenSpacing: 6,
       childrenPadding: EdgeInsetsGeometryDelta.value(EdgeInsets.zero),
       itemStyle: FSidebarItemStyleDelta.delta(
         iconSpacing: 6,
         collapsibleIconSpacing: 6,
-        childrenSpacing: 1,
+        childrenSpacing: 6,
         childrenPadding: EdgeInsetsGeometryDelta.value(
           EdgeInsets.only(left: 12),
         ),
         padding: EdgeInsetsGeometryDelta.value(
-          EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         ),
       ),
     ),
