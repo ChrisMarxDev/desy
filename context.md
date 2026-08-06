@@ -170,6 +170,10 @@ The relevant code is
   components store device-local logical coordinates, render under that
   device's real `MediaQuery`/safe area, and receive exactly one scene scale.
   Dragging outside the path detaches the component back to stage coordinates.
+  During a move, the component keeps one stable interaction subtree and a
+  transient scene rectangle; attach/detach ownership commits only on pointer
+  up. This lets multi-update mouse drags continue across either screen
+  boundary without disposing the active gesture recognizer.
 - Device artboard resizing is aspect-locked, keeps the stationary resize edge
   fixed at scene boundaries, and remains safe in compact bounds. Attached
   components belong to their parent artboard's z-order group: local child
@@ -280,8 +284,8 @@ task sample:run
 ```
 
 `task check` runs root analysis and all three test suites. Verified on
-2026-08-06: analyzer clean; 49 `desy_bench` tests, 2 screenshot-builder tests,
-and 23 sample tests passed (74 total). Root `flutter test` is not equivalent
+2026-08-06: analyzer clean; 50 `desy_bench` tests, 2 screenshot-builder tests,
+and 23 sample tests passed (75 total). Root `flutter test` is not equivalent
 because it does not express this package-by-package workspace coverage.
 Focused commands are
 `task bench:test`, `task screenshot_builder:test`, and `task sample:test`.
@@ -294,23 +298,19 @@ cd packages/desy_screenshot_builder && flutter test
 cd example/sample_design_system && flutter test
 ```
 
-The previous handoff environment did not expose a usable `.git` directory;
-preserve that caveat if it remains true instead of assuming Git metadata is
-available.
+Treat the native macOS app as the primary runtime target. The current native
+smoke commands are:
 
-For debug inspection, start `task sample:run` in one terminal. In debug mode
-the sample starts SimDeck's Flutter inspector on loopback port 4310. Then use
-`task simdeck` to open it, or `task simdeck:describe:flutter` from a second
-terminal for Flutter widget inspection. `task simdeck:status` and
-`task simdeck:list` are diagnostic helpers. Do not use Computer Use for
-routine project work.
+```sh
+cd example/sample_design_system
+flutter build macos
+flutter run -d macos --route /atlas/sketch
+```
 
-Verified runtime record (2026-08-06): isolated iPhone 16e SimDeck native
-accessibility and screenshot validation passed for the catalogue, the direct
-Primary detail route, and Canvas, iPhone 15 Pro, and iPad Pro 11 preview
-modes. The Atlas-card native-semantics activation defect was fixed and is
-covered. Marionette tooling was not present, so this validation used the
-repository-installed SimDeck inspector; the tools are not equivalent.
+Verified runtime record (2026-08-06): the release macOS app built
+successfully, and a debug launch directly into `/atlas/sketch` reached its VM
+service without Flutter exceptions before a clean shutdown. Simulator tooling
+is optional secondary coverage, not the default acceptance path.
 
 ## Suggested first move for the next agent
 
