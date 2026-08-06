@@ -20,6 +20,20 @@ void main() {
     expect(theme.id, 'sample.light');
   });
 
+  test('asset entries are constrained to image resources', () {
+    const provider = AssetImage('assets/logo.png');
+    const asset = DesyAssetEntry.image(
+      id: 'asset.logo',
+      name: 'Logo',
+      image: provider,
+      semanticLabel: 'Company logo',
+    );
+
+    expect(asset.image, same(provider));
+    expect(asset.semanticLabel, 'Company logo');
+    expect(asset.fit, BoxFit.contain);
+  });
+
   test('workspace extension builder does not require sidebar metadata', () {
     final extension = DesyWorkspaceExtension.builder(
       id: 'release-notes',

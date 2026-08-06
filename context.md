@@ -91,6 +91,9 @@ The full wording and other decisions are in `CORE_PRINCIPLES.md`. Principle
 - `DesyComponentInstance.icon` supplies the icon for component-instance swap
   controls. The selected instance and every option row use it, with a neutral
   component glyph when the consumer omits one.
+- `DesyAssetEntry.image` is intentionally image-only. Put consumer-owned image
+  resources such as logos and illustrations under `Atoms/Assets`; UI glyphs
+  and icon-font values are not asset entries.
 - Component instances are owned by their component. Palette leaves should be
   instances; selecting one reveals the same knob UI used by details/sketch.
 - Effects currently mean widget decorators with box shadows. Shaders and
@@ -292,8 +295,8 @@ task sample:run
 ```
 
 `task check` runs root analysis and all three test suites. Verified on
-2026-08-06: analyzer clean; 52 `desy_bench` tests, 2 screenshot-builder tests,
-and 23 sample tests passed (77 total). Root `flutter test` is not equivalent
+2026-08-06: analyzer clean; 53 `desy_bench` tests, 2 screenshot-builder tests,
+and 23 sample tests passed (78 total). Root `flutter test` is not equivalent
 because it does not express this package-by-package workspace coverage.
 Focused commands are
 `task bench:test`, `task screenshot_builder:test`, and `task sample:test`.

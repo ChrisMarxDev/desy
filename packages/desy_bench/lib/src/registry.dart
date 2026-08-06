@@ -58,7 +58,7 @@ class DesyRegistry {
   /// Widget decorators such as consumer-owned shadow recipes.
   final List<DesyEffectEntry> effects;
 
-  /// Icons, illustrations, and other consumer-owned visual assets.
+  /// Consumer-owned image resources such as logos and illustrations.
   final List<DesyAssetEntry> assets;
 
   /// Real consumer widgets available in the catalogue.
@@ -620,7 +620,7 @@ List<DesyRegistryEntry> _entriesFor({
       name: asset.name,
       folderIds: folderIds,
       folderNames: folderNames,
-      builder: asset.builder,
+      builder: asset.build,
       source: asset,
       description: asset.description,
       value: asset.value,
@@ -884,16 +884,19 @@ class DesyMotionEntry {
   String get displayValue => '${duration.inMilliseconds} ms · $curve';
 }
 
-/// A consumer-owned icon, illustration, or visual asset entry.
+/// A consumer-owned image resource such as a logo or illustration.
 class DesyAssetEntry {
-  /// Creates an asset primitive.
-  const DesyAssetEntry({
+  /// Creates an image asset primitive.
+  const DesyAssetEntry.image({
     required this.id,
     required this.name,
-    required this.builder,
+    required this.image,
     this.group = 'Assets',
     this.description,
     this.value,
+    this.fit = BoxFit.contain,
+    this.alignment = Alignment.center,
+    this.semanticLabel,
   });
 
   /// Stable identifier for the entry.
@@ -902,8 +905,8 @@ class DesyAssetEntry {
   /// Human-readable name.
   final String name;
 
-  /// Renders the real consumer asset.
-  final DesyPrimitiveBuilder builder;
+  /// The real consumer-owned image resource.
+  final ImageProvider<Object> image;
 
   /// Optional display metadata for asset-oriented surfaces.
   final String group;
@@ -913,6 +916,23 @@ class DesyAssetEntry {
 
   /// Optional concise source value.
   final String? value;
+
+  /// How the image is inscribed into its preview bounds.
+  final BoxFit fit;
+
+  /// How the image is aligned within its preview bounds.
+  final AlignmentGeometry alignment;
+
+  /// Optional accessibility description for the image.
+  final String? semanticLabel;
+
+  /// Renders the image resource without allowing arbitrary asset widgets.
+  Widget build(BuildContext context) => Image(
+    image: image,
+    fit: fit,
+    alignment: alignment,
+    semanticLabel: semanticLabel,
+  );
 }
 
 /// A typed effect that decorates a widget supplied by the consumer.

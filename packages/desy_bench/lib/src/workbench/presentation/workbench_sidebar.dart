@@ -226,6 +226,7 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     'Spacing' || 'Sizing' || 'Shape' => FLucideIcons.ruler,
     'Motion' => FLucideIcons.sparkles,
     'Effects' => FLucideIcons.layers,
+    'Assets' => FLucideIcons.image,
     _ => FLucideIcons.folder,
   };
 

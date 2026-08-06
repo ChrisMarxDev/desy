@@ -289,29 +289,23 @@ final _sampleEffects = [
 ];
 
 final _sampleAssets = [
-  DesyAssetEntry(
-    id: 'icon.anchor',
-    name: 'Anchor',
-    group: 'Icons',
-    value: 'FLucideIcons.anchor',
-    description: 'Navigation destination for berth availability.',
-    builder: (context) => Icon(
-      FLucideIcons.anchor,
-      size: 36,
-      color: Theme.of(context).colorScheme.primary,
-    ),
+  DesyAssetEntry.image(
+    id: 'asset.app-mark.small',
+    name: 'Application mark',
+    image: AssetImage('web/icons/Icon-192.png'),
+    group: 'Logos',
+    value: 'web/icons/Icon-192.png',
+    description: 'Compact square application mark for small placements.',
+    semanticLabel: 'Harbor Operations application mark',
   ),
-  DesyAssetEntry(
-    id: 'icon.schedule',
-    name: 'Schedule',
-    group: 'Icons',
-    value: 'FLucideIcons.calendar',
-    description: 'Represents a planned operating window or timetable.',
-    builder: (context) => Icon(
-      FLucideIcons.calendar,
-      size: 36,
-      color: Theme.of(context).colorScheme.primary,
-    ),
+  DesyAssetEntry.image(
+    id: 'asset.app-mark.large',
+    name: 'Application mark · large',
+    image: AssetImage('web/icons/Icon-512.png'),
+    group: 'Logos',
+    value: 'web/icons/Icon-512.png',
+    description: 'High-resolution application mark for larger placements.',
+    semanticLabel: 'Harbor Operations application mark',
   ),
 ];
 

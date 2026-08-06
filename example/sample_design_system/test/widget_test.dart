@@ -184,7 +184,7 @@ void main() {
     expect(find.text('Publish schedule'), findsOneWidget);
   });
 
-  testWidgets('opens the color, font, and effects atlas screens', (
+  testWidgets('opens the color, font, effects, and assets atlas screens', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
@@ -211,6 +211,12 @@ void main() {
     tester.widget<FSidebarItem>(effects).onPress!.call();
     await tester.pump(const Duration(milliseconds: 150));
     expect(find.text('Floating surface'), findsWidgets);
+
+    final assets = find.byKey(const ValueKey('sidebar-folder-atoms.assets'));
+    tester.widget<FSidebarItem>(assets).onPress!.call();
+    await tester.pumpAndSettle();
+    expect(find.text('Application mark'), findsWidgets);
+    expect(find.byType(Image), findsNWidgets(2));
   });
 
   testWidgets('keeps the ShellRoute sidebar while inspecting an entry', (

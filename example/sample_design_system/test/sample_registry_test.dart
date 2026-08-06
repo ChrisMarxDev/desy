@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/widgets.dart';
 import 'package:desy_bench/desy_bench.dart';
 import 'package:sample_design_system/sample_design_system.dart';
 
@@ -77,6 +78,11 @@ void main() {
       expect(sampleRegistry.allMotion, hasLength(greaterThanOrEqualTo(1)));
       expect(sampleRegistry.allEffects, hasLength(2));
       expect(sampleRegistry.allAssets, hasLength(greaterThanOrEqualTo(2)));
+      expect(
+        sampleRegistry.allAssets.every((asset) => asset.image is AssetImage),
+        isTrue,
+        reason: 'Assets should be packaged image resources, not icon widgets.',
+      );
       expect(
         sampleRegistry.allComponents.map((component) => component.id),
         containsAll([

@@ -24,3 +24,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+flutter:
+  assets:
+    - web/icons/Icon-192.png
+    - web/icons/Icon-512.png
