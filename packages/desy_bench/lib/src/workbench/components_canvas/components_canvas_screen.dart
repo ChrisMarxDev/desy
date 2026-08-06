@@ -997,8 +997,9 @@ class _PathTransformableNodeState extends State<_PathTransformableNode> {
   );
 
   void _startMoveGesture(DragStartDetails details) {
-    if (!widget.node.isArtboard)
+    if (!widget.node.isArtboard) {
       widget.controller.beginComponentMove(widget.node);
+    }
     _startGesture(details);
   }
 
@@ -1104,8 +1105,9 @@ class _PathTransformableNodeState extends State<_PathTransformableNode> {
   }
 
   void _endMoveGesture() {
-    if (!widget.node.isArtboard)
+    if (!widget.node.isArtboard) {
       widget.controller.endComponentMove(widget.node);
+    }
     _endGesture();
   }
 
