@@ -3,6 +3,38 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('typography folders expose only typed typography content', () {
+    final folder = DesyTypographyFolder(
+      id: 'fonts',
+      name: 'Fonts',
+      typography: [
+        DesyTypographyEntry(
+          id: 'type.body',
+          name: 'Body',
+          builder: (_, text) => Text(text),
+        ),
+      ],
+      children: [
+        DesyTypographyFolder(
+          id: 'fonts.emphasis',
+          name: 'Emphasis',
+          typography: [
+            DesyTypographyEntry(
+              id: 'type.emphasis',
+              name: 'Emphasis',
+              builder: (_, text) => Text(text),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    expect(folder.allTypography, hasLength(2));
+    expect(folder.allTokens, isEmpty);
+    expect(folder.allColors, isEmpty);
+    expect(folder.allComponents, isEmpty);
+  });
+
   test('registry requires at least one consumer theme', () {
     expect(
       () => DesyRegistry(name: 'Empty', themes: const []),

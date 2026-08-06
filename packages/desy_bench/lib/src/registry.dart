@@ -346,6 +346,21 @@ class DesyFolder {
   ]);
 }
 
+/// A recursively typed folder containing typography entries only.
+///
+/// This optional adapter keeps a Fonts branch text-specific without making
+/// typography folders mandatory for registries that prefer generic structure.
+class DesyTypographyFolder extends DesyFolder {
+  /// Creates a typography-only folder.
+  DesyTypographyFolder({
+    required super.id,
+    required super.name,
+    super.description,
+    super.typography = const [],
+    List<DesyTypographyFolder> children = const [],
+  }) : super(children: children);
+}
+
 /// Wraps a preview in the consumer's real theme context.
 typedef DesyThemeWrapper = Widget Function(BuildContext context, Widget child);
 
@@ -574,7 +589,7 @@ List<DesyRegistryEntry> _entriesFor({
       name: type.name,
       folderIds: folderIds,
       folderNames: folderNames,
-      builder: (context) => Text(type.sample, style: type.style(context)),
+      builder: (context) => type.builder(context, type.sample),
       source: type,
       description: type.description,
       value: type.value,
@@ -1430,8 +1445,9 @@ class DesyColorEntry {
   final DesyColorBuilder builder;
 }
 
-/// Resolves one of the consumer's real text styles under the active theme.
-typedef DesyTextStyleBuilder = TextStyle Function(BuildContext context);
+/// Builds a real consumer typography specimen for the supplied text.
+typedef DesyTypographyBuilder =
+    Widget Function(BuildContext context, String text);
 
 /// A consumer-owned text style shown in the typography atlas.
 class DesyTypographyEntry {
@@ -1439,7 +1455,7 @@ class DesyTypographyEntry {
   const DesyTypographyEntry({
     required this.id,
     required this.name,
-    required this.style,
+    required this.builder,
     this.value,
     this.description,
     this.sample = 'Harbor schedules are clear at a glance.',
@@ -1451,8 +1467,12 @@ class DesyTypographyEntry {
   /// Human-readable style name.
   final String name;
 
-  /// Resolves the actual consumer style in the selected theme.
-  final DesyTextStyleBuilder style;
+  /// Renders the supplied text with the consumer's actual typography widget.
+  ///
+  /// Keeping text as the only content input prevents non-text specimens from
+  /// entering the typography atlas while retaining the widget-returning
+  /// contract shared by every Desy primitive.
+  final DesyTypographyBuilder builder;
 
   /// A concise display value such as `22 sp / medium`.
   final String? value;

@@ -228,6 +228,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Dockside signal'), findsWidgets);
+    expect(find.text('Consumer token specimen'), findsNothing);
 
     final effects = find.byKey(const ValueKey('sidebar-folder-atoms.effects'));
     tester.widget<FSidebarItem>(effects).onPress!.call();

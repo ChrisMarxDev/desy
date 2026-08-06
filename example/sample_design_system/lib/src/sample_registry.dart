@@ -56,82 +56,6 @@ final _sampleThemes = [
   ),
 ];
 
-final _sampleTokens = [
-  DesyToken(
-    id: 'token.color.brand.lagoon',
-    name: 'Brand lagoon token',
-    builder: _tokenSpecimen,
-    value: '#006B63',
-    group: 'Color',
-    description: 'Primary actions and confirmed states.',
-  ),
-  DesyToken(
-    id: 'token.color.brand.iris',
-    name: 'Brand iris token',
-    builder: _tokenSpecimen,
-    value: '#6750A4',
-    group: 'Color',
-    description: 'Informative emphasis and system notices.',
-  ),
-  DesyToken(
-    id: 'token.color.signal.sun',
-    name: 'Signal sun token',
-    builder: _tokenSpecimen,
-    value: '#8D5700',
-    group: 'Color',
-    description: 'Warnings that need review.',
-  ),
-  DesyToken(
-    id: 'token.color.signal.coral',
-    name: 'Signal coral token',
-    builder: _tokenSpecimen,
-    value: '#B42318',
-    group: 'Color',
-    description: 'Errors and destructive actions.',
-  ),
-  DesyToken(
-    id: 'token.color.surface.mist',
-    name: 'Surface mist token',
-    builder: _tokenSpecimen,
-    value: '#EDF5F2',
-    group: 'Color',
-    description: 'Quiet light canvas and grouped surfaces.',
-  ),
-  DesyToken(
-    id: 'token.color.text.ink',
-    name: 'Text ink token',
-    builder: _tokenSpecimen,
-    value: '#17201F',
-    group: 'Color',
-    description: 'Default high-emphasis content.',
-  ),
-  DesyToken(
-    id: 'token.type.title',
-    name: 'Section title token',
-    builder: _tokenSpecimen,
-    value: '22 sp / medium',
-    group: 'Typography',
-  ),
-  DesyToken(
-    id: 'token.type.body',
-    name: 'Body copy token',
-    builder: _tokenSpecimen,
-    value: '14 sp / regular',
-    group: 'Typography',
-  ),
-];
-
-final _colorTokens = [
-  _sampleTokens[0],
-  _sampleTokens[1],
-  _sampleTokens[2],
-  _sampleTokens[3],
-  _sampleTokens[4],
-  _sampleTokens[5],
-];
-
-final _fontTokens = [_sampleTokens[6], _sampleTokens[7]];
-
 final _sampleColors = [
   DesyColorEntry.swatch(
     id: 'color.brand.lagoon',
@@ -202,7 +126,8 @@ final _sampleTypography = [
     name: 'Display',
     value: 'displaySmall',
     description: 'Use for a page’s single, primary idea.',
-    style: (context) => Theme.of(context).textTheme.displaySmall!,
+    builder: (context, text) =>
+        Text(text, style: Theme.of(context).textTheme.displaySmall),
     sample: 'Berths and tides',
   ),
   DesyTypographyEntry(
@@ -210,7 +135,8 @@ final _sampleTypography = [
     name: 'Section title',
     value: 'titleLarge',
     description: 'Introduces a related group of operational details.',
-    style: (context) => Theme.of(context).textTheme.titleLarge!,
+    builder: (context, text) =>
+        Text(text, style: Theme.of(context).textTheme.titleLarge),
     sample: 'Today’s berth plan',
   ),
   DesyTypographyEntry(
@@ -218,7 +144,8 @@ final _sampleTypography = [
     name: 'Body',
     value: 'bodyLarge',
     description: 'The default style for guidance and readable detail.',
-    style: (context) => Theme.of(context).textTheme.bodyLarge!,
+    builder: (context, text) =>
+        Text(text, style: Theme.of(context).textTheme.bodyLarge),
     sample: 'The north quay opens after the morning inspection.',
   ),
   DesyTypographyEntry(
@@ -226,7 +153,8 @@ final _sampleTypography = [
     name: 'Label',
     value: 'labelLarge',
     description: 'Names controls and compact interface metadata.',
-    style: (context) => Theme.of(context).textTheme.labelLarge!,
+    builder: (context, text) =>
+        Text(text, style: Theme.of(context).textTheme.labelLarge),
     sample: 'PUBLISHED SCHEDULE',
   ),
 ];
@@ -751,16 +679,10 @@ final sampleRegistry = DesyRegistry(
       id: 'atoms',
       name: 'Atoms',
       children: [
-        DesyFolder(
-          id: 'atoms.colors',
-          name: 'Colors',
-          tokens: _colorTokens,
-          colors: _sampleColors,
-        ),
-        DesyFolder(
+        DesyFolder(id: 'atoms.colors', name: 'Colors', colors: _sampleColors),
+        DesyTypographyFolder(
           id: 'atoms.fonts',
           name: 'Fonts',
-          tokens: _fontTokens,
           typography: _sampleTypography,
         ),
         DesyFolder(
@@ -1017,13 +939,4 @@ Widget _noSearchResultsEmptyState(BuildContext context) => const SizedBox(
     message: 'Try a different vessel name, reference, or berth number.',
     icon: FLucideIcons.searchX,
   ),
-);
-
-Widget _tokenSpecimen(BuildContext context) => Container(
-  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-  decoration: BoxDecoration(
-    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-    borderRadius: BorderRadius.circular(8),
-  ),
-  child: const Text('Consumer token specimen'),
 );

@@ -5,7 +5,7 @@ import 'package:sample_design_system/sample_design_system.dart';
 
 void main() {
   test(
-    'sample registry declares themes, semantic tokens, and production components',
+    'sample registry declares clean typed primitives and production components',
     () {
       expect(sampleRegistry.themes, isNotEmpty);
       expect(sampleRegistry.tokens, isEmpty);
@@ -29,6 +29,12 @@ void main() {
         'Effects',
         'Assets',
       ]);
+      final fonts = atoms.children.singleWhere(
+        (folder) => folder.name == 'Fonts',
+      );
+      expect(fonts, isA<DesyTypographyFolder>());
+      expect(fonts.tokens, isEmpty);
+      expect(fonts.typography, isNotEmpty);
       final components = sampleRegistry.folders.firstWhere(
         (folder) => folder.name == 'Components',
       );
@@ -65,7 +71,12 @@ void main() {
         sampleRegistry.allEntries.length,
         reason: 'Each catalogue leaf has one intentional declaration.',
       );
-      expect(sampleRegistry.allTokens, hasLength(greaterThanOrEqualTo(8)));
+      expect(
+        sampleRegistry.allTokens,
+        isEmpty,
+        reason:
+            'The sample should not duplicate typed primitives as generic token specimens.',
+      );
       expect(sampleRegistry.allColors, hasLength(greaterThanOrEqualTo(6)));
       expect(sampleRegistry.allTypography, hasLength(greaterThanOrEqualTo(4)));
       expect(sampleRegistry.allNumbers, hasLength(1));

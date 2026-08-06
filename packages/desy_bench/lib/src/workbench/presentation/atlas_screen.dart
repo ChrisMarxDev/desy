@@ -31,13 +31,13 @@ class DesyAtlasScreen extends StatelessWidget {
     final folder = _folderFor(folderId);
     final entries = _entriesFor(folder, query);
 
-    if (entries.any((entry) => entry.typography != null)) {
+    if (entries.isNotEmpty &&
+        entries.every((entry) => entry.typography != null)) {
       return _FontsAtlas(
-        entries: entries,
+        entries: [for (final entry in entries) entry.typography!],
         theme: theme,
         sampleText: fontSampleText,
         onSampleTextChanged: (value) => session.fontSampleText.value = value,
-        onOpen: onOpen,
       );
     }
 
@@ -215,27 +215,18 @@ class _FontsAtlas extends StatelessWidget {
     required this.theme,
     required this.sampleText,
     required this.onSampleTextChanged,
-    required this.onOpen,
   });
 
-  final List<DesyRegistryEntry> entries;
+  final List<DesyTypographyEntry> entries;
   final DesyTheme theme;
   final String sampleText;
   final ValueChanged<String> onSampleTextChanged;
-  final ValueChanged<DesyRegistryEntry> onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final typography = entries
-        .where((entry) => entry.typography != null)
-        .toList(growable: false);
-    final siblings = entries
-        .where((entry) => entry.typography == null)
-        .toList(growable: false);
-    final cards = [...typography, ...siblings];
     return ListView.separated(
       padding: const EdgeInsets.all(28),
-      itemCount: cards.length + 1,
+      itemCount: entries.length + 1,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         if (index == 0) {
@@ -261,17 +252,7 @@ class _FontsAtlas extends StatelessWidget {
             ],
           );
         }
-        final entry = cards[index - 1];
-        if (entry.typography == null) {
-          return SizedBox(
-            height: 236,
-            child: _AtlasCard(
-              entry: entry,
-              theme: theme,
-              onOpen: () => onOpen(entry),
-            ),
-          );
-        }
+        final entry = entries[index - 1];
         return FCard(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -282,8 +263,7 @@ class _FontsAtlas extends StatelessWidget {
                 const SizedBox(height: 16),
                 DesyWidgetPreview(
                   theme: theme,
-                  builder: (context) =>
-                      Text(sampleText, style: entry.typography!.style(context)),
+                  builder: (context) => entry.builder(context, sampleText),
                 ),
               ],
             ),

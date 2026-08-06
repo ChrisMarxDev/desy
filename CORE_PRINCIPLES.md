@@ -164,6 +164,19 @@ clear entry point and links to focused, maintained documents for deeper
 guidance. Examples must reflect the real registry contracts and reinforce the
 single declared system rather than introduce a parallel configuration path.
 
+## 18. Samples are maintained product surfaces
+
+The sample consumer is the canonical first experience of Desy Bench, not a
+dumping ground for test fixtures. Every visible sample entry must be
+purposeful, presentation-ready, correctly typed, and representative of the
+recommended registry contract. Do not ship placeholder labels, generic
+specimen widgets, duplicate representations of the same primitive, or
+test-only artifacts in the sample registry.
+
+Tests may define deliberately minimal fixtures inside test files. The running
+sample must remain clean after every work block, because confusing sample data
+looks like confusing Desy behavior and teaches consumers the wrong API.
+
 ## Non-goals for the first release
 
 - Figma replacement or general no-code application builder.

@@ -38,7 +38,7 @@ void main() {
                   id: 'mixed.type',
                   name: 'Mixed type',
                   sample: 'Sample',
-                  style: (_) => const TextStyle(),
+                  builder: (_, text) => Text(text),
                 ),
               ],
               tokens: [_token('mixed.token')],
@@ -53,6 +53,53 @@ void main() {
 
     expect(find.text('Mixed type'), findsWidgets);
     expect(find.text('mixed.token'), findsWidgets);
+  });
+
+  testWidgets('typography entries build only the supplied preview text', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      DesyBenchApp(
+        registry: DesyRegistry(
+          name: 'Typography builder',
+          themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+          folders: [
+            DesyFolder(
+              id: 'fonts',
+              name: 'Fonts',
+              typography: [
+                DesyTypographyEntry(
+                  id: 'type.body',
+                  name: 'Body',
+                  builder: (_, text) => Text(
+                    'Built: $text',
+                    key: const ValueKey('built-typography-specimen'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('sidebar-folder-fonts')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('built-typography-specimen')),
+      findsOneWidget,
+    );
+
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('font-preview-text')),
+        matching: find.byType(EditableText),
+      ),
+      'Dock status',
+    );
+    await tester.pump();
+
+    expect(find.text('Built: Dock status'), findsOneWidget);
   });
 
   testWidgets('Atlas cards expose one native tap action that opens the entry', (
