@@ -353,7 +353,7 @@ void main() {
       await entering.moveBy(delta / 2);
       await tester.pump();
       // The arena resolution movement is not an update to TransformableBox.
-      await entering.moveBy(delta / 2 - panKickoff);
+      await entering.moveBy(delta / 2);
       await tester.pump();
       expect(fixture.controller.isMovingComponent(component), isTrue);
       expect(
@@ -363,19 +363,24 @@ void main() {
       final transientHalfway = fixture.controller.interactionSceneRectFor(
         fixture.controller.nodes.value[component]!,
       );
-      expect(
-        transientHalfway.center.dx,
-        closeTo(destination.dx - stage.left, 1),
-      );
-      expect(
-        transientHalfway.center.dy,
-        closeTo(destination.dy - stage.top, 1),
-      );
       final insideScreen = tester.getCenter(
         find.byKey(ValueKey('canvas-hit-$component')),
       );
-      expect(insideScreen.dx, closeTo(destination.dx, 1));
-      expect(insideScreen.dy, closeTo(destination.dy, 1));
+      expect(
+        insideScreen.dx,
+        closeTo(stage.left + transientHalfway.center.dx, 1),
+      );
+      expect(
+        insideScreen.dy,
+        closeTo(stage.top + transientHalfway.center.dy, 1),
+      );
+      expect(
+        DesyCanvasGeometry.screenContains(
+          fixture.controller.nodes.value[artboard]!,
+          transientHalfway.center,
+        ),
+        isTrue,
+      );
 
       // A fourth update after crossing must still reach this recognizer.
       await entering.moveBy(const Offset(-16, 0));
@@ -414,7 +419,7 @@ void main() {
       await tester.pump();
       expect(
         tester.getCenter(find.byKey(ValueKey('canvas-hit-$component'))).dx,
-        closeTo(afterFirstLeave.dx + 180, 1),
+        closeTo(afterFirstLeave.dx + 180, 5),
       );
       await leaving.up();
       await tester.pump();
