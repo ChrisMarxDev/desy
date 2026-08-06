@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  analyze:
+    desc: Analyze the experimental screenshot-builder extension.
+    cmds:
+      - flutter analyze
+
+  test:
+    desc: Run screenshot-builder extension tests.
+    cmds:
+      - flutter test
+
+  format:
+    desc: Format screenshot-builder source and tests.
+    cmds:
+      - dart format lib test

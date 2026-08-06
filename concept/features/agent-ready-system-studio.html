@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agent-ready System Studio — Desy Bench</title>
+  <link rel="stylesheet" href="../assets/concept.css">
+  <style>
+    .toolbar{display:flex;flex-wrap:wrap;gap:.7rem;align-items:center;justify-content:space-between}.filters{display:flex;gap:.5rem;flex-wrap:wrap}.filter,.choice,.export{border:1px solid var(--line);background:#0d1425;color:var(--ink);border-radius:999px;padding:.4rem .7rem;font:inherit;cursor:pointer}.export{border-color:var(--mint);color:var(--mint);font-weight:700}.filter[aria-pressed="true"]{border-color:var(--mint);color:var(--mint)}.ideas{display:grid;gap:1rem}.idea{position:relative}.idea h3{margin-bottom:.45rem}.idea p{margin:.45rem 0;color:var(--muted)}.idea footer{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;padding:0;margin-top:1rem;width:auto}.choice input{accent-color:var(--mint);margin-right:.35rem}.score{font-size:.82rem;color:var(--muted)}.yes-yes{border-color:#70e0b8}.yes{border-color:#3c987d}.maybe{border-color:#b98d43}.no{border-color:#8c5364}.no-no{border-color:#d46b87}.decision-line{display:flex;justify-content:space-between;gap:1rem;align-items:center}.hidden{display:none}.small{font-size:.9rem;color:var(--muted)}.note{display:grid;gap:.35rem;width:100%;margin-top:.45rem;color:var(--muted);font-size:.85rem}.note textarea{width:100%;min-height:4.4rem;resize:vertical;border:1px solid var(--line);border-radius:10px;background:#0d1425;color:var(--ink);padding:.65rem;font:inherit}.note textarea:focus{outline:2px solid var(--mint);outline-offset:2px}
+  </style>
+</head>
+<body>
+  <header>
+    <nav><a href="../index.html">Concept</a><a href="index.html">Planned features</a></nav>
+    <p class="eyebrow">Exploration deck · choose the product</p>
+    <h1>Nail the vocabulary before accelerating the agent.</h1>
+    <p class="lede">Desy Bench should separate <strong>designing the vocabulary</strong> from <strong>designing screens and apps</strong>. First make the primitive system complete, inspectable, and executable; only then give agents a reliable surface to use it.</p>
+    <p><span class="tag">Flutter-native</span><span class="tag">registry-first</span><span class="tag">agent-readable</span><span class="tag">not a Figma clone</span></p>
+  </header>
+  <main>
+    <section class="decision">
+      <h2>How to use this deck</h2>
+      <p>Every idea starts as <strong>Maybe</strong>. Rank it from <strong>Yes yes</strong> to <strong>No no</strong>, then add a short note when the decision needs context. Your ratings and notes persist in this browser and can be exported as a portable JSON decision record.</p>
+      <div class="toolbar"><div class="filters" aria-label="Filter ideas"><button class="filter" data-filter="all" aria-pressed="true">All</button><button class="filter" data-filter="yes-yes" aria-pressed="false">Yes yes</button><button class="filter" data-filter="yes" aria-pressed="false">Yes</button><button class="filter" data-filter="maybe" aria-pressed="false">Maybe</button><button class="filter" data-filter="no" aria-pressed="false">No</button><button class="filter" data-filter="no-no" aria-pressed="false">No no</button></div><button class="export" id="export" type="button">Export decisions</button><p class="small" id="summary">0 yes yes · 0 yes · 0 maybe · 0 no · 0 no no</p></div>
+    </section>
+
+    <section>
+      <h2>Reason for existing</h2>
+      <div class="grid"><div class="card third"><h3>For design-system authors</h3><p>Make the contracts, states, semantics, and token usage of real components easy to inspect and evolve.</p></div><div class="card third"><h3>For product builders</h3><p>Compose screens from approved capability, responsive patterns, and representative data without re-deciding every visual primitive.</p></div><div class="card third"><h3>For agents</h3><p>Offer a precise local query surface and verification loop so an agent can select real widgets and prove the result.</p></div></div>
+    </section>
+
+    <section>
+      <h2>The separation</h2>
+      <div class="flow"><span><b>System authors</b><br>tokens · themes · components · contracts</span><b>→</b><span><b>Desy registry</b><br>typed, executable source of truth</span><b>→</b><span><b>Screen designers / agents</b><br>recipes · compositions · evidence</span><b>→</b><span><b>Flutter app</b><br>reviewed production code</span></div>
+      <p class="small">A screen composition may reference registered IDs and serializable values. It must never become a parallel home for business logic, callbacks, arbitrary styling, or a replacement component implementation.</p>
+    </section>
+
+    <section>
+      <h2>Primitive foundations first</h2>
+      <p class="small">These are the essential building blocks of a serious Flutter design system. They precede screen composition and agent workflows; Desy should expose them as optional typed adapters over widget-returning primitives, never force a visual language.</p>
+      <div class="ideas">
+        <article class="card idea" data-id="numeric-values"><div class="decision-line"><h3>F1 · Numeric values: spacing, size, radius, and duration</h3><span class="score">Impact 5 · Complexity 2</span></div><p>Add typed numeric entries with a unit, semantic name, display format, and visual specimen. This unifies spacing, sizing, border radius, icon size, stroke width, breakpoint values, and animation durations without turning every number into a special model.</p><footer></footer></article>
+        <article class="card idea" data-id="typography"><div class="decision-line"><h3>F2 · Typography roles and text specimens</h3><span class="score">Impact 5 · Complexity 2</span></div><p>Represent named text roles with real Flutter text builders, font details, line-height, fallback behavior, and long-content specimens. Show roles in context rather than treating a font family as sufficient documentation.</p><footer></footer></article>
+        <article class="card idea" data-id="color-modes"><div class="decision-line"><h3>F3 · Semantic color roles, themes, and modes</h3><span class="score">Impact 5 · Complexity 3</span></div><p>Expand the current color atlas into semantic roles, raw palettes, aliases, and theme-specific values. Show contrast and real surface context; retain the consumer theme wrapper as the runtime authority.</p><footer></footer></article>
+        <article class="card idea" data-id="motion"><div class="decision-line"><h3>F4 · Motion tokens and animation specimens</h3><span class="score">Impact 5 · Complexity 3</span></div><p>Catalog named durations, curves, delays, and motion intents such as enter, exit, emphasis, and feedback. Let a consumer supply a live widget specimen so Desy can preview real movement without owning an animation framework.</p><footer></footer></article>
+        <article class="card idea" data-id="icons-assets"><div class="decision-line"><h3>F5 · Icons, illustrations, and asset contracts</h3><span class="score">Impact 4 · Complexity 3</span></div><p>Make approved icon names, sizing, semantic labels, color behavior, and asset variants discoverable. Begin with widget-returning entries and source links; avoid a second asset pipeline or binary store.</p><footer></footer></article>
+        <article class="card idea" data-id="elevation"><div class="decision-line"><h3>F6 · Surfaces, borders, and elevation treatments</h3><span class="score">Impact 4 · Complexity 2</span></div><p>Expose the visual treatments that make components feel coherent: fills, borders, opacity, shadow/elevation, blur, and shape. A treatment is previewed as the consumer’s real widget, not recreated as a generic Desy card.</p><footer></footer></article>
+        <article class="card idea" data-id="layout-values"><div class="decision-line"><h3>F7 · Layout primitives and responsive thresholds</h3><span class="score">Impact 5 · Complexity 3</span></div><p>Document approved page gutters, content widths, grids, gaps, safe areas, and breakpoints. Show each at representative device widths so designers can use the system’s layout vocabulary before composing a screen.</p><footer></footer></article>
+        <article class="card idea" data-id="interaction"><div class="decision-line"><h3>F8 · Interaction states as first-class primitives</h3><span class="score">Impact 5 · Complexity 3</span></div><p>Define hover, focus, pressed, selected, disabled, loading, and validation behavior as inspectable states across components. This is where a polished system becomes implementable rather than merely attractive.</p><footer></footer></article>
+        <article class="card idea" data-id="content-rules"><div class="decision-line"><h3>F9 · Content rules and overflow specimens</h3><span class="score">Impact 4 · Complexity 2</span></div><p>Capture practical content limits, capitalization, truncation, localization expansion, and empty-state expectations beside components. Preview short, long, missing, and translated strings with consumer-owned fixtures.</p><footer></footer></article>
+        <article class="card idea" data-id="primitive-coverage"><div class="decision-line"><h3>F10 · Primitive coverage map</h3><span class="score">Impact 4 · Complexity 3</span></div><p>A simple matrix shows which components consume which colors, text roles, spacing, motion, icons, and states. It reveals orphaned values and hard-coded gaps without pretending to fully infer design intent.</p><footer></footer></article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Agent and composition ideas — after the vocabulary</h2>
+      <p class="small">Scores are initial product-owner estimates: impact / complexity on a 1–5 scale. They are prompts for a decision, not commitments.</p>
+      <div class="ideas" id="ideas">
+        <article class="card idea" data-id="agent-query"><div class="decision-line"><h3>01 · Local registry query for agents</h3><span class="score">Impact 5 · Complexity 2</span></div><p>A small local interface answers: “Which components accept a trailing action?”, “What is the approved destructive action?”, “Show the properties and slots of Card.” It returns typed, compact results with source links—not a giant Markdown dump.</p><footer></footer></article>
+        <article class="card idea" data-id="context-packet"><div class="decision-line"><h3>02 · Task-sized agent context packets</h3><span class="score">Impact 5 · Complexity 2</span></div><p>Generate a focused, machine-readable packet for a task or screen: relevant themes, tokens, components, contracts, examples, and verification commands. This follows minimum necessary declaration at the context level.</p><footer></footer></article>
+        <article class="card idea" data-id="contracts"><div class="decision-line"><h3>03 · Component contract inspector</h3><span class="score">Impact 5 · Complexity 3</span></div><p>Turn each real widget into an inspectable contract: typed properties, legal slots, defaults, states, semantics, source location, related components, and examples. This is Desy’s equivalent of Figma’s component playground—backed by executable Flutter.</p><footer></footer></article>
+        <article class="card idea" data-id="state-matrix"><div class="decision-line"><h3>04 · State matrix and interaction stories</h3><span class="score">Impact 5 · Complexity 3</span></div><p>Capture loading, disabled, focus, validation, empty, overflow, and error states as named scenarios. Agents can choose and test a state rather than inventing one from a default preview.</p><footer></footer></article>
+        <article class="card idea" data-id="a11y"><div class="decision-line"><h3>05 · Accessibility evidence panel</h3><span class="score">Impact 5 · Complexity 3</span></div><p>Show semantics, keyboard traversal, text-scale behavior, contrast checks, and author-supplied accessibility guidance beside each component and scenario. Start as evidence and warnings, not a pretend universal accessibility score.</p><footer></footer></article>
+        <article class="card idea" data-id="token-graph"><div class="decision-line"><h3>06 · Token modes and alias graph</h3><span class="score">Impact 4 · Complexity 3</span></div><p>Make theme values, aliases, and raw values traversable: “surface.positive → green.500” across Daylight, Midnight, and future brands. Figma’s variable modes are useful inspiration; the Flutter theme remains authoritative.</p><footer></footer></article>
+        <article class="card idea" data-id="responsive"><div class="decision-line"><h3>07 · Responsive and environment matrix</h3><span class="score">Impact 5 · Complexity 3</span></div><p>Run the same component or screen through device size, text scale, locale, directionality, theme, and platform inputs. Save known-good environments as named scenarios agents can invoke.</p><footer></footer></article>
+        <article class="card idea" data-id="goldens"><div class="decision-line"><h3>08 · Scenario runner with visual evidence</h3><span class="score">Impact 5 · Complexity 4</span></div><p>Render registered scenarios deterministically, keep goldens, and report a focused diff. An agent’s handoff includes the exact scenario names and proof that the target states passed.</p><footer></footer></article>
+        <article class="card idea" data-id="recipes"><div class="decision-line"><h3>09 · Screen recipes, not freeform screens</h3><span class="score">Impact 4 · Complexity 3</span></div><p>Provide reusable product patterns—settings, form, list-detail, onboarding, empty state—with named regions and constraints. A recipe is a composition guide and starter manifest, never a new visual component system.</p><footer></footer></article>
+        <article class="card idea" data-id="manifest"><div class="decision-line"><h3>10 · Declarative composition manifests</h3><span class="score">Impact 4 · Complexity 4</span></div><p>Allow a Bench user or agent to save a screen composition of registered IDs, legal slots, and serializable values. Render it locally for review; keep callbacks, business logic, and production-code generation out of the manifest.</p><footer></footer></article>
+        <article class="card idea" data-id="fixtures"><div class="decision-line"><h3>11 · Typed preview fixtures</h3><span class="score">Impact 4 · Complexity 3</span></div><p>Let consumer-owned, typed fixtures provide realistic names, long strings, zero states, permissions, and failure data. Agents select fixture IDs, never fabricate fragile UI data in prompts.</p><footer></footer></article>
+        <article class="card idea" data-id="usage"><div class="decision-line"><h3>12 · System health and adoption lens</h3><span class="score">Impact 4 · Complexity 4</span></div><p>Find raw values where semantic tokens exist, deprecated component use, unexercised states, and missing scenario coverage. Begin with static registry and project analysis; do not add surveillance analytics or a hosted dashboard.</p><footer></footer></article>
+        <article class="card idea" data-id="lifecycle"><div class="decision-line"><h3>13 · Component lifecycle and migration guidance</h3><span class="score">Impact 4 · Complexity 3</span></div><p>Record experimental, stable, deprecated, and replacement relationships in the registry. Give agents an actionable migration path rather than a vague warning.</p><footer></footer></article>
+        <article class="card idea" data-id="source-links"><div class="decision-line"><h3>14 · Evidence links to source, tests, and docs</h3><span class="score">Impact 4 · Complexity 2</span></div><p>Every registry item can expose optional local links to its Dart source, tests, usage guidance, and issue context. Inspired by Figma Dev Mode resources, but repository-native and offline-first.</p><footer></footer></article>
+        <article class="card idea" data-id="agent-review"><div class="decision-line"><h3>15 · Agent design-review gate</h3><span class="score">Impact 5 · Complexity 4</span></div><p>Before a change lands, compare its widget tree, selected components, token usage, semantics, and scenario evidence against the registry. Produce review findings with concrete replacements, not aesthetic opinions.</p><footer></footer></article>
+        <article class="card idea" data-id="figma-import"><div class="decision-line"><h3>16 · Figma import or continuous sync</h3><span class="score">Impact 2 · Complexity 5</span></div><p>Useful only if a team already treats Figma as the source of truth. For Desy’s repository-owned model, it risks creating competing definitions and conflict resolution work.</p><footer></footer></article>
+        <article class="card idea" data-id="freeform"><div class="decision-line"><h3>17 · Freeform pixel canvas</h3><span class="score">Impact 1 · Complexity 5</span></div><p>A Figma-like editor would be impressive but undermines component contracts and turns Desy into a parallel app builder. It conflicts directly with the source-of-truth and compose-before-configuring principles.</p><footer></footer></article>
+        <article class="card idea" data-id="codegen"><div class="decision-line"><h3>18 · Automatic production Dart generation</h3><span class="score">Impact 2 · Complexity 5</span></div><p>Potentially useful much later, but risky before composition contracts and application ownership are proven. Desy should first make agents faster at producing reviewed normal Flutter code.</p><footer></footer></article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Scope for the next coherent release</h2>
+      <div class="grid"><div class="card half"><h3>Strong default</h3><ul><li>Numeric values, typography roles, color modes, and treatments</li><li>Motion, icon/asset, layout, and responsive primitives</li><li>Interaction and content-state specimens</li><li>Primitive coverage before broad component tooling</li></ul></div><div class="card half"><h3>Sequence later</h3><ul><li>Component contracts and typed preview fixtures</li><li>Environment matrix and deterministic scenario evidence</li><li>Local query and task-sized agent context packets</li><li>Screen recipes, manifests, and an agent review gate</li></ul></div></div>
+    </section>
+
+    <section>
+      <h2>Non-goals</h2>
+      <ul><li>A competing design-system source of truth, hosted asset library, or Figma clone.</li><li>Arbitrary visual overrides, freeform pixel layout, or a general no-code app builder.</li><li>Serializing callbacks, business logic, navigation, secrets, or application state into screen manifests.</li><li>Automatic production Dart generation before the normal source-and-review loop is demonstrably improved.</li><li>Forcing consumers to write verbose schemas when rich typed objects can provide the same information.</li></ul>
+    </section>
+
+    <section>
+      <h2>Implementation sketch</h2>
+      <p><code>DesyRegistry → typed primitive adapters → live specimens → component contracts → scenarios → local query / packet exporter → evidence → agent review</code></p>
+      <p>Extend the existing widget-returning registry in layers. A consumer with colors and fonts already gets an Atlas; it can opt into numeric, motion, assets, or layout values independently; components later reference those entries where useful; agent context is derived only from the selected, living system.</p>
+    </section>
+
+    <section class="caution">
+      <h2>Do or don’t</h2>
+      <table><thead><tr><th>Bet</th><th>Reward</th><th>Risk</th><th>Initial call</th></tr></thead><tbody><tr><td>Numeric, typography, colors, motion, and layouts</td><td>Complete usable vocabulary</td><td>Creating an over-prescriptive taxonomy</td><td>Do first; retain thin, widget-returning adapters</td></tr><tr><td>Interaction and content specimens</td><td>Components become genuinely implementable</td><td>Fixture upkeep</td><td>Do; make fixtures consumer-owned and typed</td></tr><tr><td>Primitive coverage map</td><td>Find system gaps before app complexity</td><td>False precision from inference</td><td>Maybe; begin with explicit links</td></tr><tr><td>Contracts, scenarios, and visual evidence</td><td>Reliable component evolution</td><td>Metadata and test cost</td><td>Do after primitive vocabulary is stable</td></tr><tr><td>Queries, manifests, and agent review</td><td>Faster trustworthy agent work</td><td>Premature agent-first abstractions</td><td>Sequence after the preceding layers</td></tr><tr><td>Figma sync / freeform canvas / codegen</td><td>Broad appeal</td><td>Competing source of truth and large scope</td><td>Don’t in the current product cycle</td></tr></tbody></table>
+    </section>
+
+    <section>
+      <h2>Open questions</h2>
+      <ul><li>Which numeric groups deserve dedicated adapters first: spacing, radius, duration, breakpoints, or all of them?</li><li>Should motion be organized by physical values (duration/curve) or semantic intent (enter/emphasis/exit), or both?</li><li>How do we expose layout rules without trying to replace Flutter’s own layout model?</li><li>What is the smallest component contract object that adds value without duplicating widget implementation?</li><li>When the primitive system is ready, should agents query it through a Dart API, CLI, MCP server, generated files, or a deliberately small combination?</li></ul>
+    </section>
+  </main>
+  <footer>Desy Bench exploration · decisions are stored locally in this browser only.</footer>
+  <script>
+    const ideas=[...document.querySelectorAll('.idea')];let filter='all';
+    const labels={'yes-yes':'Yes yes',yes:'Yes',maybe:'Maybe',no:'No','no-no':'No no'};
+    function status(id){return localStorage.getItem('desy-idea-'+id)||'maybe'}
+    function setStatus(id,value){localStorage.setItem('desy-idea-'+id,value);render()}
+    function note(id){return localStorage.getItem('desy-idea-note-'+id)||''}
+    function escapeHtml(value){return value.replace(/[&<>"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char]))}
+    function render(){let counts={'yes-yes':0,yes:0,maybe:0,no:0,'no-no':0};ideas.forEach(idea=>{const value=status(idea.dataset.id);counts[value]++;idea.dataset.status=value;idea.classList.toggle('hidden',filter!=='all'&&value!==filter);const footer=idea.querySelector('footer');footer.innerHTML=Object.entries(labels).map(([key,label])=>`<label class="choice ${key}"><input type="checkbox" ${value===key?'checked':''} data-value="${key}"> ${label}</label>`).join('')+`<label class="note">Decision note<textarea placeholder="Why this rating?" data-note>${escapeHtml(note(idea.dataset.id))}</textarea></label>`;footer.querySelectorAll('input').forEach(input=>input.addEventListener('change',()=>setStatus(idea.dataset.id,input.dataset.value)));footer.querySelector('[data-note]').addEventListener('input',event=>localStorage.setItem('desy-idea-note-'+idea.dataset.id,event.target.value));});document.getElementById('summary').textContent=`${counts['yes-yes']} yes yes · ${counts.yes} yes · ${counts.maybe} maybe · ${counts.no} no · ${counts['no-no']} no no`;document.querySelectorAll('.filter').forEach(button=>button.setAttribute('aria-pressed',button.dataset.filter===filter));}
+    function exportDecisions(){const payload={schemaVersion:1,concept:'desy-bench-agent-ready-system-studio',exportedAt:new Date().toISOString(),decisions:ideas.map(idea=>({id:idea.dataset.id,title:idea.querySelector('h3').textContent.trim(),rating:status(idea.dataset.id),note:note(idea.dataset.id)}))};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`desy-bench-decisions-${new Date().toISOString().slice(0,10)}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0)}
+    document.querySelectorAll('.filter').forEach(button=>button.addEventListener('click',()=>{filter=button.dataset.filter;render()}));render();
+    document.getElementById('export').addEventListener('click',exportDecisions);
+  </script>
+</body>
+</html>

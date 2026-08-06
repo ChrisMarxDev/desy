@@ -1,0 +1,67 @@
+version: '3'
+
+includes:
+  bench:
+    taskfile: ./packages/desy_bench/Taskfile.yml
+    dir: ./packages/desy_bench
+  screenshot_builder:
+    taskfile: ./packages/desy_screenshot_builder/Taskfile.yml
+    dir: ./packages/desy_screenshot_builder
+  sample:
+    taskfile: ./example/sample_design_system/Taskfile.yml
+    dir: ./example/sample_design_system
+
+tasks:
+  default:
+    desc: List available workspace commands.
+    cmds:
+      - task --list
+
+  pub:get:
+    desc: Resolve dependencies for every package in the workspace.
+    cmds:
+      - flutter pub get
+
+  analyze:
+    desc: Analyze the complete workspace.
+    deps: [pub:get]
+    cmds:
+      - flutter analyze
+
+  test:
+    desc: Run all package test suites.
+    cmds:
+      - task: bench:test
+      - task: screenshot_builder:test
+      - task: sample:test
+
+  check:
+    desc: Run the complete local verification suite.
+    cmds:
+      - task: analyze
+      - task: test
+
+  format:
+    desc: Format maintained Dart sources without touching seed material.
+    cmds:
+      - dart format packages example
+
+  simdeck:
+    desc: Open SimDeck on port 4310 for debug Flutter inspection.
+    cmds:
+      - simdeck --open -p 4310
+
+  simdeck:list:
+    desc: List simulators and emulators available to SimDeck.
+    cmds:
+      - simdeck list
+
+  simdeck:status:
+    desc: Show SimDeck service status.
+    cmds:
+      - simdeck status
+
+  simdeck:describe:flutter:
+    desc: Describe the running sample through Flutter widget inspection.
+    cmds:
+      - simdeck describe --source flutter --format agent --max-depth 4 --interactive

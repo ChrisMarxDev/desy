@@ -1,0 +1,22 @@
+name: desy_screenshot_builder
+description: Experimental screenshot-builder workspace extension for Desy Bench.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.8.0
+  flutter: '>=3.29.0'
+
+resolution: workspace
+
+dependencies:
+  desy_bench:
+    path: ../desy_bench
+  flutter:
+    sdk: flutter
+  forui: ^0.25.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

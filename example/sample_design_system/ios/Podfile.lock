@@ -1,0 +1,22 @@
+PODS:
+  - Flutter (1.0.0)
+  - simdeck_flutter_inspector (0.1.0):
+    - Flutter
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - simdeck_flutter_inspector (from `.symlinks/plugins/simdeck_flutter_inspector/ios`)
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  simdeck_flutter_inspector:
+    :path: ".symlinks/plugins/simdeck_flutter_inspector/ios"
+
+SPEC CHECKSUMS:
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  simdeck_flutter_inspector: 962a5d766c3076ef65f04e86c42cdb060a3720cf
+
+PODFILE CHECKSUM: 3c63482e143d1b91d2d2560aee9fb04ecc74ac7e
+
+COCOAPODS: 1.16.2

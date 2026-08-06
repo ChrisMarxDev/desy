@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Desy Bench — cohesive foundation plan</title>
+  <style>
+    :root { --ink:#17201f; --muted:#5d6b68; --line:#d8e1de; --bg:#f3f7f5; --card:#fff; --mint:#006c63; --mint-soft:#dff5ef; --amber:#8d5700; --amber-soft:#fff3dc; --radius:14px; }
+    * { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.55 Inter,ui-sans-serif,system-ui,sans-serif }
+    main { width:min(1120px,calc(100% - 32px)); margin:auto; padding:32px 0 64px } header,section { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:24px; margin-bottom:16px }
+    h1,h2,h3,p { margin:0 } h1 { font-size:clamp(30px,5vw,48px); line-height:1.05; letter-spacing:-.04em } h2 { font-size:21px } h3 { font-size:15px; margin-bottom:6px } p,li { max-width:88ch }
+    .eyebrow,.chip { display:inline-flex; align-items:center; border-radius:999px; font-size:12px; font-weight:750; letter-spacing:.04em; text-transform:uppercase }.eyebrow { padding:5px 9px; background:var(--mint-soft); color:var(--mint) }.chip { padding:4px 8px; background:#edf2f0; color:var(--muted) }
+    .meta,.tools { display:flex; gap:8px; flex-wrap:wrap; align-items:center }.meta { margin-bottom:18px }.lead { margin-top:14px; color:var(--muted); font-size:17px }.head { display:flex; justify-content:space-between; gap:16px; align-items:start; margin-bottom:14px }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px }.box { padding:14px; background:#f8fbfa; border:1px solid var(--line); border-radius:10px }.decision { background:var(--amber-soft); border-color:#eac26e }
+    table { width:100%; border-collapse:collapse; border:1px solid var(--line); border-radius:10px; overflow:hidden } th,td { padding:10px; text-align:left; vertical-align:top; border-bottom:1px solid var(--line) } th { background:#f1f5f3; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em } tr:last-child td { border-bottom:0 }
+    ul,ol { margin:0; padding-left:20px } li+li { margin-top:6px } label.item { display:flex; gap:9px; padding:9px; border:1px solid var(--line); border-radius:9px; background:#fff; margin-top:7px } input { margin-top:4px } select,textarea,button { font:inherit } select,textarea { border:1px solid var(--line); border-radius:8px; padding:7px; background:#fff } textarea { width:100%; min-height:72px; margin-top:8px } button { cursor:pointer; border:0; border-radius:999px; background:var(--mint); color:#fff; padding:10px 15px; font-weight:750 } pre { padding:14px; overflow:auto; border-radius:10px; background:#10201c; color:#e7f6f0; font:13px/1.5 ui-monospace,monospace }
+    .small { color:var(--muted); font-size:13px }.status { display:flex; gap:6px; align-items:center }.out { min-height:170px; background:#10201c; color:#e7f6f0 }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="meta"><span class="eyebrow">Implementation plan</span><span class="chip">desy_bench</span><span class="chip">2026-08-05</span></div>
+    <h1>Make Desy Bench a polished, folder-native Widgetbook for Flutter systems.</h1>
+    <p class="lead">Finish the recovery from the prototype by replacing the temporary legacy adapter with one app-wide registry tree, then make the Harbor sample demonstrate the intended consumer experience.</p>
+  </header>
+
+  <section class="decision">
+    <div class="head"><h2>Decisions needed</h2><div class="status"><span class="small">Status</span><select data-status="Decisions"><option selected>Approve defaults</option><option>Revise</option><option>Defer</option></select></div></div>
+    <label class="item"><input type="checkbox" checked data-check="Use code-declared DesyFolder trees now; defer saved user manifests."><span><strong>Recommended:</strong> ship code-declared `DesyFolder` trees now; define user-composed manifests as the next milestone after the registry tree is stable.</span></label>
+    <label class="item"><input type="checkbox" checked data-check="Treat Forui as the full Desy chrome foundation."><span><strong>Recommended:</strong> replace remaining Material scaffold controls in Desy-owned UI with Forui; consumer previews remain unrestricted.</span></label>
+    <label class="item"><input type="checkbox" checked data-check="Preserve backward-compatible root lists during a short migration."><span><strong>Recommended:</strong> retain root lists for one release, mark them as fallback, and migrate Harbor fully into folders in this slice.</span></label>
+    <textarea data-note="Decision notes" placeholder="Change any recommendation before implementation."></textarea>
+  </section>
+
+  <section>
+    <div class="head"><h2>Goal and scope</h2><div class="status"><span class="small">Status</span><select data-status="Scope"><option selected>Approved</option><option>Revise</option><option>Defer</option></select></div></div>
+    <div class="grid"><div class="box"><h3>In scope</h3><ul><li>Folder-native registry navigation and discoverability.</li><li>One registry scope available throughout the Bench.</li><li>Forui workbench chrome, real consumer previews, themes, Atlas, inspector, and resizeable canvas.</li><li>Harbor sample reorganized into a nested folder tree.</li><li>Removal of the temporary legacy presentation model and parallel token index.</li></ul></div><div class="box"><h3>Not in this slice</h3><ul><li>CLI implementation, cloud backend, authentication, or collaboration.</li><li>Saved interactive screen manifests, code export, or a drag-and-drop editor.</li><li>Automatic source discovery/generation.</li></ul></div></div>
+    <textarea data-note="Scope notes" placeholder="Scope changes."></textarea>
+  </section>
+
+  <section>
+    <div class="head"><h2>Touched files and classes</h2><div class="status"><span class="small">Status</span><select data-status="Files"><option selected>Approved</option><option>Revise</option></select></div></div>
+    <table><thead><tr><th>File</th><th>Change</th><th>Responsibility</th></tr></thead><tbody>
+      <tr><td><code>packages/desy_bench/lib/src/registry.dart</code></td><td>Refactor into `registry/` files.</td><td>`DesyRegistry`, `DesyFolder`, color/treatment, typography, and component widget-returning contracts, tree traversal, stable IDs. Remove the duplicate visual Atom contract.</td></tr>
+      <tr><td><code>packages/desy_bench/lib/src/registry_scope.dart</code></td><td>Create.</td><td>`InheritedWidget`/read API exposing the active registry and future screen registry to every Bench surface.</td></tr>
+      <tr><td><code>packages/desy_bench/lib/src/workbench/</code></td><td>Replace bridge files.</td><td>Forui `DesyWorkbenchApp`, folder tree, Atlas grid, inspector, preview canvas, theme chooser.</td></tr>
+      <tr><td><code>packages/desy_bench/lib/src/workbench/legacy_*.dart</code></td><td>Delete.</td><td>Remove prototype-derived duplicate models and adapter after direct registry rendering exists.</td></tr>
+      <tr><td><code>example/sample_design_system/lib/src/sample_registry.dart</code></td><td>Restructure.</td><td>Harbor folders: Atoms → Colors/Fonts/(future Spacing and Numeric); Components → Actions/Feedback/Input/Content/Navigation. Swatches, gradients, and color widgets live only under Atoms/Colors.</td></tr>
+      <tr><td><code>packages/desy_bench/test/</code> and <code>example/.../test/</code></td><td>Expand.</td><td>Tree traversal, folder UI, registry scope, theme application, real preview rendering.</td></tr>
+      <tr><td><code>docs/product-direction.md</code>, <code>CORE_PRINCIPLES.md</code>, <code>AGENTS.md</code></td><td>Align.</td><td>Document final tree ownership and deferred manifest/CLI boundaries.</td></tr>
+    </tbody></table>
+    <textarea data-note="File notes" placeholder="Add or remove files/classes."></textarea>
+  </section>
+
+  <section>
+    <div class="head"><h2>Logic and data flow</h2><div class="status"><span class="small">Status</span><select data-status="Data flow"><option selected>Approved</option><option>Revise</option></select></div></div>
+    <pre>Consumer source
+  └─ DesyRegistry(themes, root entries, folders)
+       └─ DesyRegistryScope (single app-wide access point)
+            ├─ Folder tree → nested Forui navigation
+            ├─ Atlas → entries at selected folder path (no parallel Atom inventory)
+            ├─ Inspector → selected entry metadata + real preview
+            ├─ Preview canvas → logical preview size → scale transform → fit surface
+            └─ Future ScreenRegistry → code screens + saved manifests
+
+No adapter owns a second registry. Folders retain paths; flattening is a derived
+query only for search and global counts.</pre>
+    <label class="item"><input type="checkbox" checked data-check="Use one registry scope and derived tree queries."><span>Registry resolution is direct; views never receive copied lists as their source of truth.</span></label>
+    <textarea data-note="Data flow notes" placeholder="Data-flow changes."></textarea>
+  </section>
+
+  <section>
+    <div class="head"><h2>State model</h2><div class="status"><span class="small">Status</span><select data-status="State model"><option selected>Approved</option><option>Revise</option></select></div></div>
+    <table><thead><tr><th>Owner</th><th>State</th><th>Lifecycle / readers</th></tr></thead><tbody>
+      <tr><td><code>DesyRegistryScope</code></td><td>Immutable active registry; later an explicit registry notifier only if dynamic extensions arrive.</td><td>Created by `DesyBenchApp`; read by all workbench routes and extension surfaces.</td></tr>
+      <tr><td><code>WorkbenchController</code></td><td>Selected folder path, selected entry ID, selected theme ID, search query, preview dimensions.</td><td>Created with workbench; retains selection while navigation changes; disposes text/focus controllers.</td></tr>
+      <tr><td><code>PreviewController</code></td><td>Knob values, logical preview size, zoom mode, and computed display scale.</td><td>Resets knobs only when a different component is selected; logical size and manual zoom persist per session; callbacks remain runtime-only.</td></tr>
+      <tr><td>Future <code>ScreenManifestStore</code></td><td>Saved manifests and load/error states.</td><td>Explicitly deferred; manifests never live inside widget-local state.</td></tr>
+    </tbody></table>
+    <textarea data-note="State notes" placeholder="State ownership changes."></textarea>
+  </section>
+
+  <section>
+    <div class="head"><h2>UI states and transitions</h2><div class="status"><span class="small">Status</span><select data-status="UI states"><option selected>Approved</option><option>Revise</option></select></div></div>
+    <ul><li><strong>Initial:</strong> select the first non-empty folder/entry; show an intentional empty Atlas if the tree has no entries.</li><li><strong>Folder switch:</strong> preserve search when appropriate; crossfade Atlas content and animate sidebar selection.</li><li><strong>Entry open:</strong> animate grid-to-inspector transition; keep preview dimensions and theme selection stable.</li><li><strong>Scaled preview:</strong> render the consumer widget in a declared logical viewport, calculate the fit scale from available canvas bounds, and animate scale changes with a short ease-out. Pointer interaction follows the transform; a visible scale readout makes the canvas honest.</li><li><strong>Theme switch:</strong> crossfade only the consumer preview wrapper; Desy chrome stays in its own Forui theme.</li><li><strong>Search:</strong> query the derived tree index; show a useful “No declared entries match” state, not a blank grid.</li><li><strong>Preview errors:</strong> catch preview-builder exceptions in a bounded error card with entry ID and retry; one faulty consumer widget must not crash navigation.</li></ul>
+    <textarea data-note="UI state notes" placeholder="Transition or visual-direction changes."></textarea>
+  </section>
+
+  <section>
+    <div class="head"><h2>Backend and database changes</h2><div class="status"><span class="small">Status</span><select data-status="Backend"><option selected>Approved</option><option>Revise</option></select></div></div>
+    <p><strong>None planned.</strong> The registry is repository-local Dart source. The later manifest store will need a separate persistence decision (file format and location) before any database, backend, migration, RLS, or deploy work is introduced.</p>
+    <textarea data-note="Backend notes" placeholder="Backend changes, if any."></textarea>
+  </section>
+
+  <section>
+    <div class="head"><h2>Tests and verification</h2><div class="status"><span class="small">Status</span><select data-status="Verification"><option selected>Approved</option><option>Revise</option></select></div></div>
+    <label class="item"><input type="checkbox" checked data-check="Unit-test nested folder traversal, IDs, paths, and root fallback lists."><span>Registry tests cover recursive traversal and duplicate-ID validation.</span></label>
+    <label class="item"><input type="checkbox" checked data-check="Widget-test folder navigation, search, theme wrapper, empty state, preview errors, and scaled logical previews."><span>Verify that fitting a preview changes only its canvas transform, not the logical constraints received by the consumer widget.</span></label>
+    <label class="item"><input type="checkbox" checked data-check="Verify Harbor renders declared widgets from nested folders."><span>Sample integration test opens representative action, feedback, input, and visual-treatment entries.</span></label>
+    <label class="item"><input type="checkbox" checked data-check="Run task format, task check, then capture manual macOS screenshots."><span>Visual QA compares the restored workbench at desktop width and compact width.</span></label>
+    <textarea data-note="Verification notes" placeholder="Additional checks."></textarea>
+  </section>
+
+  <section>
+    <div class="head"><h2>Risks and seams to watch</h2><div class="status"><span class="small">Status</span><select data-status="Risks"><option selected>Approved</option><option>Revise</option></select></div></div>
+    <ul><li>The current prototype port contains duplicate legacy models. Treat the adapter as a migration bridge, not a public API.</li><li>Atoms is a structural folder only. Color/treatment entries must live at Atoms/Colors and must not also appear as generic atoms.</li><li>Folder nesting must not turn into a required taxonomy; an entry can remain at root.</li><li>Forui governs Desy chrome only. Accidentally applying it inside a consumer preview violates the real-context principle.</li><li>Folder traversal needs duplicate-ID and cycle-safe validation before user-composed manifests use it.</li><li>Saved-screen composition is intentionally deferred; no implicit persistence or generated Dart code belongs in this foundation slice.</li></ul>
+    <textarea data-note="Risk notes" placeholder="Risks or constraints."></textarea>
+  </section>
+
+  <section>
+    <div class="head"><h2>Handoff</h2><div class="tools"><button onclick="exportPlan()">Generate handoff</button><button onclick="navigator.clipboard?.writeText(document.querySelector('#handoff').value)">Copy</button></div></div>
+    <textarea id="handoff" class="out" readonly>Use “Generate handoff” after reviewing this plan.</textarea>
+  </section>
+</main>
+<script>
+function exportPlan() {
+  const statuses=[...document.querySelectorAll('[data-status]')].map(x=>`${x.dataset.status}: ${x.value}`);
+  const checks=[...document.querySelectorAll('[data-check]:checked')].map(x=>`- ${x.dataset.check}`);
+  const notes=[...document.querySelectorAll('[data-note]')].filter(x=>x.value.trim()).map(x=>`${x.dataset.note}: ${x.value.trim()}`);
+  document.querySelector('#handoff').value=`Proceed with the Desy Bench foundation plan.\n\n${statuses.join('\n')}\n\nApproved items:\n${checks.join('\n') || '- None'}\n\nNotes:\n${notes.join('\n') || '- None'}`;
+}
+</script>
+</body>
+</html>

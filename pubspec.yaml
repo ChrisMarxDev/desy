@@ -1,0 +1,11 @@
+name: desy_bench_workspace
+description: Workspace for Desy Bench and its sample consumer design system.
+publish_to: none
+
+environment:
+  sdk: ^3.8.0
+
+workspace:
+  - packages/desy_bench
+  - packages/desy_screenshot_builder
+  - example/sample_design_system

@@ -1,0 +1,26 @@
+name: sample_design_system
+description: A complete example design system that consumes Desy Bench.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.8.0
+  flutter: '>=3.29.0'
+
+resolution: workspace
+
+dependencies:
+  desy_bench:
+    path: ../../packages/desy_bench
+  desy_screenshot_builder:
+    path: ../../packages/desy_screenshot_builder
+  flutter:
+    sdk: flutter
+  forui: ^0.25.0
+  simdeck_flutter_inspector: ^0.1.1
+  window_manager: ^0.5.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
