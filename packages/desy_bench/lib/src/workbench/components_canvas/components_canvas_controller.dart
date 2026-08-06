@@ -3,7 +3,6 @@
 // ignore_for_file: public_member_api_docs
 
 import 'dart:collection';
-import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:device_preview/device_preview.dart';
@@ -13,7 +12,7 @@ import 'package:state_beacon/state_beacon.dart';
 /// The kind of local layer represented on a composition canvas.
 enum DesyCanvasNodeKind { component, artboard }
 
-/// The small initial set of device artboards available in a composition.
+/// The small initial set of visual device bezels available in a composition.
 enum DesyCanvasArtboard { iPhone15Pro, iPadPro11 }
 
 /// The ephemeral arrangement of one layer on the canvas.
@@ -26,7 +25,6 @@ class DesyCanvasNode {
     required this.instanceId,
     required this.rect,
     Map<String, Object> knobValues = const {},
-    this.parentArtboardId,
     this.flip = Flip.none,
   }) : kind = DesyCanvasNodeKind.component,
        artboard = null,
@@ -39,7 +37,6 @@ class DesyCanvasNode {
     this.flip = Flip.none,
   }) : kind = DesyCanvasNodeKind.artboard,
        instanceId = null,
-       parentArtboardId = null,
        knobValues = const {};
 
   /// Unique local node ID. It allows the same named instance more than once.
@@ -50,13 +47,10 @@ class DesyCanvasNode {
   /// Registry-scoped ID of the component instance rendered by this node.
   final String? instanceId;
 
-  /// Device frame rendered by an artboard node.
+  /// Device frame rendered by a visual bezel node.
   final DesyCanvasArtboard? artboard;
   final Rect rect;
 
-  /// The artboard which owns this component's logical screen coordinates.
-  /// A null value means [rect] is expressed directly in stage coordinates.
-  final String? parentArtboardId;
   final Map<String, Object> knobValues;
   final Flip flip;
 
@@ -64,8 +58,6 @@ class DesyCanvasNode {
     Rect? rect,
     Map<String, Object>? knobValues,
     Flip? flip,
-    String? parentArtboardId,
-    bool clearParentArtboard = false,
   }) => kind == DesyCanvasNodeKind.component
       ? DesyCanvasNode.component(
           id: id,
@@ -73,9 +65,6 @@ class DesyCanvasNode {
           rect: rect ?? this.rect,
           knobValues: knobValues ?? this.knobValues,
           flip: flip ?? this.flip,
-          parentArtboardId: clearParentArtboard
-              ? null
-              : parentArtboardId ?? this.parentArtboardId,
         )
       : DesyCanvasNode.artboard(
           id: id,
@@ -96,11 +85,6 @@ class DesyCanvasNode {
 class DesyComponentsCanvasController with BeaconController {
   late final nodes = B.writable<Map<String, DesyCanvasNode>>({});
   late final selectedId = B.writable<String?>(null);
-  // Moving a component must not change the subtree that owns its active
-  // gesture recognizer.  Keep its stage rectangle transient until the drag
-  // completes, then commit the appropriate artboard ownership in one step.
-  late final interactionSceneRects = B.writable<Map<String, Rect>>({});
-  late final movingComponentId = B.writable<String?>(null);
   var _nextNode = 0;
   Rect? _stageBounds;
 
@@ -146,34 +130,23 @@ class DesyComponentsCanvasController with BeaconController {
   String add(String instanceId, {Map<String, Object> knobValues = const {}}) {
     final index = nodes.value.length;
     final nodeId = '$instanceId#${_nextNode++}';
-    final selectedArtboard = _selectedArtboard;
-    final logicalRect = const Rect.fromLTWH(0, 0, 220, 120);
     final node = DesyCanvasNode.component(
       id: nodeId,
       instanceId: instanceId,
       knobValues: knobValues,
-      parentArtboardId: selectedArtboard?.id,
-      rect: selectedArtboard == null
-          ? Rect.fromLTWH(
-              48.0 + (index % 3) * 44,
-              44.0 + (index % 3) * 36,
-              220,
-              120,
-            )
-          : Rect.fromCenter(
-              center: DesyCanvasGeometry.deviceFor(
-                selectedArtboard.artboard!,
-              ).screenSize.center(Offset.zero),
-              width: logicalRect.width,
-              height: logicalRect.height,
-            ),
+      rect: Rect.fromLTWH(
+        48.0 + (index % 3) * 44,
+        44.0 + (index % 3) * 36,
+        220,
+        120,
+      ),
     );
     nodes.value = {...nodes.value, nodeId: node};
     selectedId.value = nodeId;
     return nodeId;
   }
 
-  /// Adds a device frame as a regular, selectable canvas layer.
+  /// Adds a device frame as one regular, selectable canvas layer.
   String addArtboard(DesyCanvasArtboard artboard) {
     final index = nodes.value.length;
     final nodeId = 'artboard.${artboard.name}#${_nextNode++}';
@@ -216,114 +189,14 @@ class DesyComponentsCanvasController with BeaconController {
   }
 
   void remove(String nodeId) {
-    final removed = nodes.value[nodeId];
-    if (removed == null) return;
-    final next = Map<String, DesyCanvasNode>.from(nodes.value)..remove(nodeId);
-    // Removing an artboard deliberately detaches its children at their
-    // equivalent stage positions; this keeps a sketch intact and is easier to
-    // reason about than silently deleting consumer components.
-    if (removed.isArtboard) {
-      for (final entry in next.entries.toList()) {
-        final child = entry.value;
-        if (child.parentArtboardId == nodeId) {
-          next[entry.key] = child.copyWith(
-            rect: sceneRectFor(child),
-            clearParentArtboard: true,
-          );
-        }
-      }
-    }
-    nodes.value = next;
+    if (!nodes.value.containsKey(nodeId)) return;
+    nodes.value = Map<String, DesyCanvasNode>.from(nodes.value)..remove(nodeId);
     if (selectedId.value == nodeId) selectedId.value = null;
   }
 
   void clear() {
     nodes.value = {};
     selectedId.value = null;
-    interactionSceneRects.value = {};
-    movingComponentId.value = null;
-  }
-
-  DesyCanvasNode? get _selectedArtboard {
-    final id = selectedId.value;
-    final node = id == null ? null : nodes.value[id];
-    return node?.isArtboard == true ? node : null;
-  }
-
-  /// Resolves a component rectangle into the stage coordinate system.
-  Rect sceneRectFor(DesyCanvasNode node) {
-    final parent = node.parentArtboardId == null
-        ? null
-        : nodes.value[node.parentArtboardId];
-    if (parent == null || !parent.isArtboard) return node.rect;
-    return DesyCanvasGeometry.logicalToScene(parent, node.rect);
-  }
-
-  /// The visual stage position while a component is being dragged.
-  Rect interactionSceneRectFor(DesyCanvasNode node) =>
-      interactionSceneRects.value[node.id] ?? sceneRectFor(node);
-
-  bool isMovingComponent(String nodeId) => movingComponentId.value == nodeId;
-
-  /// Begins a component move without changing its parent artboard.
-  void beginComponentMove(DesyCanvasNode node) {
-    if (!node.isComponent || isMovingComponent(node.id)) return;
-    movingComponentId.value = node.id;
-    interactionSceneRects.value = {
-      ...interactionSceneRects.value,
-      node.id: sceneRectFor(node),
-    };
-  }
-
-  /// Updates only the transient visual position of an in-flight component
-  /// move. Ownership is committed by [endComponentMove].
-  void updateComponentMove(DesyCanvasNode node, Rect sceneRect) {
-    if (!node.isComponent) return;
-    if (!isMovingComponent(node.id)) beginComponentMove(node);
-    interactionSceneRects.value = {
-      ...interactionSceneRects.value,
-      node.id: sceneRect,
-    };
-  }
-
-  /// Commits the final drag position and reparents only after the pointer's
-  /// recognizer has completed. This prevents boundary crossing from disposing
-  /// the active TransformableBox / gesture detector.
-  void endComponentMove(DesyCanvasNode node) {
-    if (!node.isComponent || !isMovingComponent(node.id)) return;
-    final sceneRect =
-        interactionSceneRects.value[node.id] ?? sceneRectFor(node);
-    movingComponentId.value = null;
-    interactionSceneRects.value = Map<String, Rect>.from(
-      interactionSceneRects.value,
-    )..remove(node.id);
-    updateComponentFromSceneRect(node, sceneRect);
-  }
-
-  /// Updates a component from an interaction performed in stage coordinates.
-  /// The topmost artboard whose actual screen contains the rectangle's center
-  /// owns it; bezel pixels are deliberately excluded.
-  void updateComponentFromSceneRect(DesyCanvasNode node, Rect sceneRect) {
-    final hit = _topmostArtboardAt(sceneRect.center);
-    if (hit == null) {
-      update(node.copyWith(rect: sceneRect, clearParentArtboard: true));
-      return;
-    }
-    update(
-      node.copyWith(
-        rect: DesyCanvasGeometry.sceneToLogical(hit, sceneRect),
-        parentArtboardId: hit.id,
-      ),
-    );
-  }
-
-  DesyCanvasNode? _topmostArtboardAt(Offset point) {
-    for (final node in nodes.value.values.toList().reversed) {
-      if (node.isArtboard && DesyCanvasGeometry.screenContains(node, point)) {
-        return node;
-      }
-    }
-    return null;
   }
 
   double _initialFrameHeight(DeviceInfo device) {
@@ -416,121 +289,6 @@ class DesyCanvasGeometry {
         DesyCanvasArtboard.iPhone15Pro => Devices.ios.iPhone15Pro,
         DesyCanvasArtboard.iPadPro11 => Devices.ios.iPadPro11Inches,
       };
-
-  static Rect screenSceneRect(DesyCanvasNode artboard) {
-    final device = deviceFor(artboard.artboard!);
-    final bounds = device.screenPath.getBounds();
-    final proposedScale = artboard.rect.width / device.frameSize.width;
-    final scale = proposedScale.isFinite && proposedScale > 0
-        ? proposedScale
-        : 0.0;
-    final left = artboard.rect.left.isFinite ? artboard.rect.left : 0.0;
-    final top = artboard.rect.top.isFinite ? artboard.rect.top : 0.0;
-    return Rect.fromLTWH(
-      left + bounds.left * scale,
-      top + bounds.top * scale,
-      bounds.width * scale,
-      bounds.height * scale,
-    );
-  }
-
-  static bool screenContains(DesyCanvasNode artboard, Offset scenePoint) {
-    final device = deviceFor(artboard.artboard!);
-    final scale = artboard.rect.width / device.frameSize.width;
-    if (!scale.isFinite ||
-        scale <= 0 ||
-        !scenePoint.dx.isFinite ||
-        !scenePoint.dy.isFinite) {
-      return false;
-    }
-    return device.screenPath.contains(
-      Offset(
-        (scenePoint.dx - artboard.rect.left) / scale,
-        (scenePoint.dy - artboard.rect.top) / scale,
-      ),
-    );
-  }
-
-  /// The device's screen path mapped into an arbitrary physical frame size.
-  ///
-  /// Painting and hit testing use this same path, so a device's rounded
-  /// corners and cutout never become an invisible rectangular target.
-  static Path screenPathInFrame(DesyCanvasNode artboard, Size frameSize) {
-    final device = deviceFor(artboard.artboard!);
-    final proposedScaleX = frameSize.width / device.frameSize.width;
-    final proposedScaleY = frameSize.height / device.frameSize.height;
-    final scaleX = proposedScaleX.isFinite && proposedScaleX > 0
-        ? proposedScaleX
-        : 0.0;
-    final scaleY = proposedScaleY.isFinite && proposedScaleY > 0
-        ? proposedScaleY
-        : 0.0;
-    return device.screenPath.transform(
-      Float64List.fromList([
-        scaleX,
-        0,
-        0,
-        0,
-        0,
-        scaleY,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-      ]),
-    );
-  }
-
-  /// The device screen path in stage coordinates.
-  static Path screenPathInScene(DesyCanvasNode artboard) => screenPathInFrame(
-    artboard,
-    artboard.rect.size,
-  ).shift(artboard.rect.topLeft);
-
-  static Rect logicalToScene(DesyCanvasNode artboard, Rect logicalRect) {
-    final device = deviceFor(artboard.artboard!);
-    final screen = screenSceneRect(artboard);
-    final scale = screen.width / device.screenSize.width;
-    return Rect.fromLTWH(
-      screen.left + logicalRect.left * scale,
-      screen.top + logicalRect.top * scale,
-      logicalRect.width * scale,
-      logicalRect.height * scale,
-    );
-  }
-
-  static Rect sceneToLogical(DesyCanvasNode artboard, Rect sceneRect) {
-    final device = deviceFor(artboard.artboard!);
-    final screen = screenSceneRect(artboard);
-    if (!screen.width.isFinite || screen.width <= 0) {
-      return clampLogicalRect(device.screenSize, Rect.zero);
-    }
-    final scale = device.screenSize.width / screen.width;
-    final logical = Rect.fromLTWH(
-      (sceneRect.left - screen.left) * scale,
-      (sceneRect.top - screen.top) * scale,
-      sceneRect.width * scale,
-      sceneRect.height * scale,
-    );
-    return clampLogicalRect(device.screenSize, logical);
-  }
-
-  static Rect clampLogicalRect(Size screenSize, Rect rect) {
-    final width = rect.width.clamp(8.0, screenSize.width).toDouble();
-    final height = rect.height.clamp(8.0, screenSize.height).toDouble();
-    return Rect.fromLTWH(
-      rect.left.clamp(0.0, screenSize.width - width).toDouble(),
-      rect.top.clamp(0.0, screenSize.height - height).toDouble(),
-      width,
-      height,
-    );
-  }
 
   static Rect lockFrameAspect(
     DesyCanvasNode artboard,

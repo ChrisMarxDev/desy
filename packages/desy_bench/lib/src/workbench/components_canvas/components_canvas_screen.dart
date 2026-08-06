@@ -1,11 +1,9 @@
 // This screen is an internal workbench module, not consumer-facing package API.
 // ignore_for_file: public_member_api_docs
 
-import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
-import 'package:flutter/rendering.dart';
-import 'package:flutter_box_transform/flutter_box_transform.dart';
 import 'package:device_preview/device_preview.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_box_transform/flutter_box_transform.dart';
 import 'package:forui/forui.dart';
 import 'package:state_beacon/state_beacon.dart';
 
@@ -133,7 +131,7 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
   }
 }
 
-/// Adds editable device-screen artboards to the composition.
+/// Adds editable visual device bezels to the composition.
 class _SketchPreviewToolbar extends StatelessWidget {
   const _SketchPreviewToolbar({required this.onAddArtboard});
 
@@ -154,7 +152,7 @@ class _SketchPreviewToolbar extends StatelessWidget {
         spacing: 6,
         runSpacing: 6,
         children: [
-          const Text('Add artboard'),
+          const Text('Add bezel'),
           _button(
             label: 'iPhone 15 Pro',
             value: DesyCanvasArtboard.iPhone15Pro,
@@ -542,7 +540,7 @@ class _CanvasArtboardInspector extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('ARTBOARD', style: Theme.of(context).textTheme.labelSmall),
+          Text('BEZEL', style: Theme.of(context).textTheme.labelSmall),
           const SizedBox(height: 4),
           Text(
             node.artboard!.label,
@@ -550,7 +548,7 @@ class _CanvasArtboardInspector extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Components placed on this artboard use its real device screen coordinates.',
+            'A visual canvas item. Components can overlap it, but remain independent layers.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const Spacer(),
@@ -558,7 +556,7 @@ class _CanvasArtboardInspector extends StatelessWidget {
             variant: FButtonVariant.outline,
             size: FButtonSizeVariant.sm,
             onPress: () => controller.remove(node.id),
-            child: const Text('Remove artboard'),
+            child: const Text('Remove bezel'),
           ),
         ],
       ),
@@ -619,7 +617,7 @@ class _CanvasOutline extends StatelessWidget {
                             onPress: () => onSelect(node.id),
                             prefix: Icon(node.artboard!.icon, size: 16),
                             title: Text(node.artboard!.label),
-                            subtitle: const Text('Artboard'),
+                            subtitle: const Text('Bezel'),
                           );
                         }
                         final instance = _instanceFor(node.instanceId!);
@@ -673,10 +671,6 @@ class _CanvasStage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      // Rebuild while a drag is in flight without making the node switch
-      // between free and attached interaction subtrees.
-      controller.interactionSceneRects.watch(context);
-      controller.movingComponentId.watch(context);
       final clampingRect = Rect.fromLTWH(
         0,
         0,
@@ -713,73 +707,30 @@ class _CanvasStage extends StatelessWidget {
                 const Center(
                   child: Text('Choose an instance from the palette.'),
                 ),
-              // An artboard and its attached children are one z-order group.
-              // Its child visuals and hit layers must stay below later nodes.
               for (final node in nodes.values)
-                if (node.isArtboard) ...[
+                if (node.isArtboard)
                   _CanvasTransformableNode(
                     node: node,
                     selected: selectedId == node.id,
                     clampingRect: clampingRect,
                     minSize: const Size(8, 8),
                     controller: controller,
-                    child: _CanvasArtboard(
-                      artboardNode: node,
+                    child: _CanvasArtboard(artboardNode: node, theme: theme),
+                  )
+                else if (_instanceFor(node.instanceId!) case final instance?)
+                  _CanvasTransformableNode(
+                    node: node,
+                    selected: selectedId == node.id,
+                    clampingRect: clampingRect,
+                    minSize: const Size(8, 8),
+                    controller: controller,
+                    child: _CanvasElement(
+                      instance: instance,
+                      node: node,
                       theme: theme,
-                      children: [
-                        for (final child in nodes.values)
-                          if (child.parentArtboardId == node.id)
-                            if (!controller.isMovingComponent(child.id))
-                              if (_instanceFor(child.instanceId!)
-                                  case final instance?)
-                                _AttachedCanvasElement(
-                                  node: child,
-                                  instance: instance,
-                                  theme: theme,
-                                ),
-                      ],
+                      selected: selectedId == node.id,
                     ),
                   ),
-                  for (final child in nodes.values)
-                    if (child.parentArtboardId == node.id)
-                      if (_instanceFor(child.instanceId!) case final instance?)
-                        _CanvasTransformableNode(
-                          node: child,
-                          rect: controller.interactionSceneRectFor(child),
-                          selected: selectedId == child.id,
-                          clampingRect: clampingRect,
-                          minSize: const Size(8, 8),
-                          controller: controller,
-                          child: controller.isMovingComponent(child.id)
-                              ? _CanvasElement(
-                                  instance: instance,
-                                  node: child,
-                                  theme: theme,
-                                  selected: selectedId == child.id,
-                                )
-                              : const SizedBox.expand(),
-                        ),
-                ] else if (node.parentArtboardId == null)
-                  if (_instanceFor(node.instanceId!) case final instance?)
-                    _CanvasTransformableNode(
-                      node: node,
-                      rect: controller.interactionSceneRectFor(node),
-                      selected: selectedId == node.id,
-                      clampingRect: clampingRect,
-                      minSize: const Size(8, 8),
-                      controller: controller,
-                      // Attached nodes render inside DeviceFrame.screen. This
-                      // stage overlay owns only interaction chrome, avoiding
-                      // nested transformed boxes and ambiguous inverse mapping.
-                      child: node.parentArtboardId == null
-                          ? _CanvasElement(
-                              instance: instance,
-                              node: node,
-                              theme: theme,
-                              selected: selectedId == node.id,
-                            )
-                          : const SizedBox.expand(),
-                    ),
             ],
           ),
         ),
@@ -799,7 +750,6 @@ class _CanvasStage extends StatelessWidget {
 class _CanvasTransformableNode extends StatelessWidget {
   const _CanvasTransformableNode({
     required this.node,
-    this.rect,
     required this.selected,
     required this.clampingRect,
     required this.minSize,
@@ -808,7 +758,6 @@ class _CanvasTransformableNode extends StatelessWidget {
   });
 
   final DesyCanvasNode node;
-  final Rect? rect;
   final bool selected;
   final Rect clampingRect;
   final Size minSize;
@@ -817,22 +766,9 @@ class _CanvasTransformableNode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nodeRect = rect ?? node.rect;
-    final hitTestPathBuilder = _hitTestPathBuilder(nodeRect);
-    if (hitTestPathBuilder != null) {
-      return _PathTransformableNode(
-        node: node,
-        rect: nodeRect,
-        selected: selected,
-        clampingRect: clampingRect,
-        controller: controller,
-        pathBuilder: hitTestPathBuilder,
-        child: child,
-      );
-    }
     return TransformableBox(
       key: ValueKey(node.id),
-      rect: nodeRect,
+      rect: node.rect,
       flip: node.flip,
       clampingRect: clampingRect,
       constraints: BoxConstraints(
@@ -848,39 +784,31 @@ class _CanvasTransformableNode extends StatelessWidget {
       visibleHandles: selected ? const {...HandlePosition.values} : const {},
       enabledHandles: selected ? const {...HandlePosition.values} : const {},
       onTap: () => controller.select(node.id),
-      onDragStart: node.isComponent
-          ? (_) => controller.beginComponentMove(node)
-          : null,
-      onDragUpdate: node.isComponent
-          ? (result, _) => controller.updateComponentMove(
-              node.copyWith(flip: result.flip),
-              _CanvasGrid.snapRect(result.rect),
-            )
-          : null,
-      onDragEnd: node.isComponent
-          ? (_) => controller.endComponentMove(node)
-          : null,
-      onDragCancel: node.isComponent
-          ? () => controller.endComponentMove(node)
-          : null,
       onChanged: (result, _) {
         final snapped = _CanvasGrid.snapRect(result.rect);
         if (node.isArtboard) {
+          final isTranslation =
+              (result.rect.width - node.rect.width).abs() < 0.001 &&
+              (result.rect.height - node.rect.height).abs() < 0.001;
           controller.update(
             node.copyWith(
-              rect: DesyCanvasGeometry.lockFrameAspect(
-                node,
-                snapped,
-                clampingRect: clampingRect,
-              ),
+              rect: isTranslation
+                  ? Rect.fromLTWH(
+                      snapped.left,
+                      snapped.top,
+                      node.rect.width,
+                      node.rect.height,
+                    )
+                  : DesyCanvasGeometry.lockFrameAspect(
+                      node,
+                      snapped,
+                      clampingRect: clampingRect,
+                    ),
               flip: result.flip,
             ),
           );
-        } else if (!controller.isMovingComponent(node.id)) {
-          controller.updateComponentFromSceneRect(
-            node.copyWith(flip: result.flip),
-            snapped,
-          );
+        } else {
+          controller.update(node.copyWith(rect: snapped, flip: result.flip));
         }
       },
       cornerHandleBuilder: (context, handle) => DefaultCornerHandle(
@@ -909,439 +837,33 @@ class _CanvasTransformableNode extends StatelessWidget {
       ),
     );
   }
-
-  Path Function(Size)? _hitTestPathBuilder(Rect nodeRect) {
-    if (node.isArtboard) {
-      return (size) => DesyCanvasGeometry.screenPathInFrame(node, size);
-    }
-    final parentId = node.parentArtboardId;
-    final parent = parentId == null ? null : controller.nodes.value[parentId];
-    if (parent?.isArtboard != true) return null;
-    return (size) =>
-        DesyCanvasGeometry.screenPathInScene(parent!).shift(-nodeRect.topLeft);
-  }
-}
-
-/// Lets a transformed device be painted as a full physical frame while making
-/// only its real screen path interactive.
-///
-/// This is positioned directly in the canvas stack; placing a render proxy
-/// around TransformableBox would break that widget's internal Positioned.
-class _PathTransformableNode extends StatefulWidget {
-  const _PathTransformableNode({
-    required this.node,
-    required this.rect,
-    required this.selected,
-    required this.clampingRect,
-    required this.controller,
-    required this.pathBuilder,
-    required this.child,
-  });
-
-  final DesyCanvasNode node;
-  final Rect rect;
-  final bool selected;
-  final Rect clampingRect;
-  final DesyComponentsCanvasController controller;
-  final Path Function(Size) pathBuilder;
-  final Widget child;
-
-  @override
-  State<_PathTransformableNode> createState() => _PathTransformableNodeState();
-}
-
-class _PathTransformableNodeState extends State<_PathTransformableNode> {
-  Rect? _gestureStart;
-  Offset? _gestureOrigin;
-
-  @override
-  Widget build(BuildContext context) => Positioned.fromRect(
-    key: ValueKey(widget.node.id),
-    rect: widget.rect,
-    child: _PathHitTestGate(
-      pathBuilder: widget.pathBuilder,
-      allowHandleHits: widget.selected,
-      child: Stack(
-        clipBehavior: Clip.none,
-        fit: StackFit.expand,
-        children: [
-          GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            dragStartBehavior: DragStartBehavior.down,
-            onTap: () => widget.controller.select(widget.node.id),
-            onPanStart: widget.selected ? _startMoveGesture : null,
-            onPanUpdate: widget.selected ? _move : null,
-            onPanEnd: widget.selected ? (_) => _endMoveGesture() : null,
-            onPanCancel: _endMoveGesture,
-            child: Listener(
-              key: ValueKey('canvas-hit-${widget.node.id}'),
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: (_) => widget.controller.select(widget.node.id),
-              child: IgnorePointer(child: widget.child),
-            ),
-          ),
-          if (widget.selected)
-            for (final handle in _CanvasHandle.values)
-              _CanvasResizeHandle(
-                handleKey: ValueKey(
-                  'canvas-handle-${widget.node.id}-${handle.name}',
-                ),
-                handle: handle,
-                onPanStart: _startResizeGesture,
-                onPanUpdate: (details) => _resize(handle, details),
-                onPanEnd: _endGesture,
-              ),
-        ],
-      ),
-    ),
-  );
-
-  void _startMoveGesture(DragStartDetails details) {
-    if (!widget.node.isArtboard) {
-      widget.controller.beginComponentMove(widget.node);
-    }
-    _startGesture(details);
-  }
-
-  void _startResizeGesture(DragStartDetails details) {
-    _startGesture(details);
-  }
-
-  void _startGesture(DragStartDetails details) {
-    _gestureStart = widget.rect;
-    _gestureOrigin = details.globalPosition;
-  }
-
-  void _move(DragUpdateDetails details) {
-    final start = _gestureStart;
-    final origin = _gestureOrigin;
-    if (start == null || origin == null) return;
-    final shifted = start.shift(details.globalPosition - origin);
-    if (!widget.node.isArtboard) {
-      widget.controller.updateComponentMove(
-        widget.node,
-        _CanvasGrid.snapRect(shifted),
-      );
-      return;
-    }
-
-    final bounds = widget.clampingRect;
-    final maximumLeft = bounds.right - start.width;
-    final maximumTop = bounds.bottom - start.height;
-    final left = maximumLeft >= bounds.left
-        ? shifted.left.clamp(bounds.left, maximumLeft).toDouble()
-        : bounds.left;
-    final top = maximumTop >= bounds.top
-        ? shifted.top.clamp(bounds.top, maximumTop).toDouble()
-        : bounds.top;
-    widget.controller.update(
-      widget.node.copyWith(
-        // Translation keeps physical frame geometry byte-for-byte unchanged;
-        // only resize handles enter the aspect-locking path below.
-        rect: Rect.fromLTWH(left, top, start.width, start.height),
-      ),
-    );
-  }
-
-  void _resize(_CanvasHandle handle, DragUpdateDetails details) {
-    final start = _gestureStart;
-    final origin = _gestureOrigin;
-    if (start == null || origin == null) return;
-    final delta = details.globalPosition - origin;
-    var left = start.left;
-    var top = start.top;
-    var right = start.right;
-    var bottom = start.bottom;
-    if (handle.isLeft) left += delta.dx;
-    if (handle.isRight) right += delta.dx;
-    if (handle.isTop) top += delta.dy;
-    if (handle.isBottom) bottom += delta.dy;
-    if (right - left < 8) {
-      if (handle.isLeft) left = right - 8;
-      if (handle.isRight) right = left + 8;
-    }
-    if (bottom - top < 8) {
-      if (handle.isTop) top = bottom - 8;
-      if (handle.isBottom) bottom = top + 8;
-    }
-    _update(Rect.fromLTRB(left, top, right, bottom));
-  }
-
-  void _update(Rect rect) {
-    final snapped = _CanvasGrid.snapRect(rect);
-    final minimumWidth = widget.clampingRect.width.clamp(0.0, 8.0).toDouble();
-    final minimumHeight = widget.clampingRect.height.clamp(0.0, 8.0).toDouble();
-    final clamped = Rect.fromLTRB(
-      snapped.left.clamp(
-        widget.clampingRect.left,
-        widget.clampingRect.right - minimumWidth,
-      ),
-      snapped.top.clamp(
-        widget.clampingRect.top,
-        widget.clampingRect.bottom - minimumHeight,
-      ),
-      snapped.right.clamp(
-        widget.clampingRect.left + minimumWidth,
-        widget.clampingRect.right,
-      ),
-      snapped.bottom.clamp(
-        widget.clampingRect.top + minimumHeight,
-        widget.clampingRect.bottom,
-      ),
-    );
-    if (widget.node.isArtboard) {
-      widget.controller.update(
-        widget.node.copyWith(
-          rect: DesyCanvasGeometry.lockFrameAspect(
-            widget.node,
-            clamped,
-            clampingRect: widget.clampingRect,
-          ),
-        ),
-      );
-    } else {
-      widget.controller.updateComponentFromSceneRect(widget.node, clamped);
-    }
-  }
-
-  void _endMoveGesture() {
-    if (!widget.node.isArtboard) {
-      widget.controller.endComponentMove(widget.node);
-    }
-    _endGesture();
-  }
-
-  void _endGesture() {
-    _gestureStart = null;
-    _gestureOrigin = null;
-  }
-}
-
-enum _CanvasHandle {
-  topLeft(isLeft: true, isTop: true),
-  top(isRight: true, isTop: true),
-  topRight(isRight: true, isTop: true),
-  right(isRight: true),
-  bottomRight(isRight: true, isBottom: true),
-  bottom(isBottom: true),
-  bottomLeft(isLeft: true, isBottom: true),
-  left(isLeft: true);
-
-  const _CanvasHandle({
-    this.isLeft = false,
-    this.isTop = false,
-    this.isRight = false,
-    this.isBottom = false,
-  });
-
-  final bool isLeft;
-  final bool isTop;
-  final bool isRight;
-  final bool isBottom;
-}
-
-class _CanvasResizeHandle extends StatelessWidget {
-  const _CanvasResizeHandle({
-    required this.handleKey,
-    required this.handle,
-    required this.onPanStart,
-    required this.onPanUpdate,
-    required this.onPanEnd,
-  });
-
-  /// The key is intentionally on the pointer listener rather than its Align
-  /// parent so gesture tests (and tooling) resolve the actual hit target.
-  final Key handleKey;
-  final _CanvasHandle handle;
-  final GestureDragStartCallback onPanStart;
-  final GestureDragUpdateCallback onPanUpdate;
-  final VoidCallback onPanEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    const size = 18.0;
-    final alignment = switch (handle) {
-      _CanvasHandle.topLeft => Alignment.topLeft,
-      _CanvasHandle.top => Alignment.topCenter,
-      _CanvasHandle.topRight => Alignment.topRight,
-      _CanvasHandle.right => Alignment.centerRight,
-      _CanvasHandle.bottomRight => Alignment.bottomRight,
-      _CanvasHandle.bottom => Alignment.bottomCenter,
-      _CanvasHandle.bottomLeft => Alignment.bottomLeft,
-      _CanvasHandle.left => Alignment.centerLeft,
-    };
-    return Align(
-      alignment: alignment,
-      child: GestureDetector(
-        key: handleKey,
-        behavior: HitTestBehavior.opaque,
-        dragStartBehavior: DragStartBehavior.down,
-        onPanStart: onPanStart,
-        onPanUpdate: onPanUpdate,
-        onPanEnd: (_) => onPanEnd(),
-        onPanCancel: onPanEnd,
-        child: Container(
-          width: size,
-          height: size,
-          alignment: Alignment.center,
-          child: Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: context.theme.colors.background,
-              borderRadius: BorderRadius.circular(1),
-              border: Border.all(
-                color: context.theme.colors.primary,
-                width: 1.25,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PathHitTestGate extends SingleChildRenderObjectWidget {
-  const _PathHitTestGate({
-    required super.child,
-    required this.pathBuilder,
-    required this.allowHandleHits,
-  });
-
-  final Path Function(Size)? pathBuilder;
-  final bool allowHandleHits;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _RenderPathHitTestGate(
-        pathBuilder: pathBuilder,
-        allowHandleHits: allowHandleHits,
-      );
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderPathHitTestGate renderObject,
-  ) {
-    renderObject
-      ..pathBuilder = pathBuilder
-      ..allowHandleHits = allowHandleHits;
-  }
-}
-
-class _RenderPathHitTestGate extends RenderProxyBox {
-  _RenderPathHitTestGate({
-    required Path Function(Size)? pathBuilder,
-    required bool allowHandleHits,
-  }) : _pathBuilder = pathBuilder,
-       _allowHandleHits = allowHandleHits;
-
-  Path Function(Size)? _pathBuilder;
-  bool _allowHandleHits;
-
-  set pathBuilder(Path Function(Size)? value) {
-    if (_pathBuilder == value) return;
-    _pathBuilder = value;
-    markNeedsPaint();
-  }
-
-  set allowHandleHits(bool value) {
-    if (_allowHandleHits == value) return;
-    _allowHandleHits = value;
-    markNeedsPaint();
-  }
-
-  @override
-  bool hitTest(BoxHitTestResult result, {required Offset position}) {
-    final pathBuilder = _pathBuilder;
-    if (pathBuilder == null) return super.hitTest(result, position: position);
-    final inScreen = pathBuilder(size).contains(position);
-    if (!inScreen && !(_allowHandleHits && _isHandleHit(position))) {
-      return false;
-    }
-    return super.hitTest(result, position: position);
-  }
-
-  bool _isHandleHit(Offset position) {
-    const hitSize = 18.0;
-    final centers = [
-      Offset.zero,
-      Offset(size.width / 2, 0),
-      Offset(size.width, 0),
-      Offset(size.width, size.height / 2),
-      size.bottomRight(Offset.zero),
-      Offset(size.width / 2, size.height),
-      Offset(0, size.height),
-      Offset(0, size.height / 2),
-    ];
-    return centers.any(
-      (center) => Rect.fromCenter(
-        center: center,
-        width: hitSize,
-        height: hitSize,
-      ).contains(position),
-    );
-  }
 }
 
 class _CanvasArtboard extends StatelessWidget {
-  const _CanvasArtboard({
-    required this.artboardNode,
-    required this.theme,
-    required this.children,
-  });
+  const _CanvasArtboard({required this.artboardNode, required this.theme});
 
   final DesyCanvasNode artboardNode;
   final DesyTheme theme;
-  final List<Widget> children;
 
   DeviceInfo get _device =>
       DesyCanvasGeometry.deviceFor(artboardNode.artboard!);
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: _device.frameSize.width,
-    height: _device.frameSize.height,
-    child: DeviceFrame(
-      device: _device,
-      screen: SizedBox(
-        width: _device.screenSize.width,
-        height: _device.screenSize.height,
-        child: Stack(clipBehavior: Clip.hardEdge, children: children),
+  Widget build(BuildContext context) => SizedBox.expand(
+    child: FittedBox(
+      fit: BoxFit.fill,
+      child: SizedBox(
+        width: _device.frameSize.width,
+        height: _device.frameSize.height,
+        child: DeviceFrame(
+          device: _device,
+          screen: ColoredBox(
+            color:
+                theme.previewBackgroundColor ??
+                Theme.of(context).colorScheme.surface,
+          ),
+        ),
       ),
-    ),
-  );
-}
-
-/// Consumer components attached to an artboard are painted at their actual
-/// logical device coordinates. DeviceFrame supplies the simulated MediaQuery
-/// and clips this stack to the real screen path.
-class _AttachedCanvasElement extends StatelessWidget {
-  const _AttachedCanvasElement({
-    required this.node,
-    required this.instance,
-    required this.theme,
-  });
-
-  final DesyCanvasNode node;
-  final DesyRegisteredComponentInstance instance;
-  final DesyTheme theme;
-
-  @override
-  Widget build(BuildContext context) => Positioned.fromRect(
-    rect: node.rect,
-    // DeviceFrame supplies the full device MediaQuery, while this positioned
-    // node supplies the component's logical layout bounds. The frame is the
-    // only device-to-stage scale; do not fit a second device-sized canvas here.
-    child: DesyWidgetPreview(
-      theme: theme,
-      builder: (context) => instance.component.buildWithKnobs == null
-          ? instance.component.buildInstance(context, instance.instance)
-          : instance.component.buildWithKnobs!(
-              context,
-              DesyKnobValues(node.knobValues),
-            ),
     ),
   );
 }

@@ -175,33 +175,25 @@ The relevant code is
   instances. Clicking an instance exposes the canonical shared knob panel in
   the side controls.
 - The sketch has sidebar tabs for Assets and the current Canvas stack, a small
-  grid, transform controls, and real device artboards. The iPhone 15 Pro
+  grid, transform controls, and visual device bezels. The iPhone 15 Pro
   screen is **393×852** logical pixels; the iPad Pro 11 screen is **834×1194**.
-  Their `DeviceFrame` and `screenPath` are the source of bezel geometry, and
-  the full frame scales uniformly into the scene without changing its aspect
-  ratio.
-- A component dropped on a screen attaches only when the pointer is inside its
-  transformed `screenPath` (not merely the enclosing rectangle). Attached
-  components store device-local logical coordinates, render under that
-  device's real `MediaQuery`/safe area, and receive exactly one scene scale.
-  Dragging outside the path detaches the component back to stage coordinates.
-  During a move, the component keeps one stable interaction subtree and a
-  transient scene rectangle; attach/detach ownership commits only on pointer
-  up. This lets multi-update mouse drags continue across either screen
-  boundary without disposing the active gesture recognizer.
-- Device artboard resizing is aspect-locked, keeps the stationary resize edge
-  fixed at scene boundaries, and remains safe in compact bounds. Attached
-  components belong to their parent artboard's z-order group: local child
-  insertion order is retained, while a later artboard stays above an earlier
-  one and all of its children.
+  Each bezel is one ordinary canvas stack item: a scaled `DeviceFrame` visual
+  with no component ownership, drop target, nested coordinate system, device
+  `MediaQuery`, or child rendering logic.
+- Every sketch node uses stage coordinates and insertion-order z-index.
+  Components can overlap bezels visually, but crossing a screen boundary does
+  not attach, detach, reparent, rescale, or otherwise alter either item.
+- Device bezel resizing is aspect-locked, keeps the stationary resize edge
+  fixed at scene boundaries, and remains safe in compact bounds. Translation
+  preserves the exact frame size; resizing is the only operation that enters
+  aspect-ratio correction.
 - When stage bounds first become known or shrink, an existing out-of-bounds
-  device artboard is aspect-fit into the available stage. Artboards already
+  device bezel is aspect-fit into the available stage. Bezels already
   contained by the stage, and stage growth, are no-ops. This normalization
-  preserves each attached child's device-local logical geometry and alignment.
+  never changes overlapping component nodes.
 - A transient non-positive stage size after artboards exist preserves the last
-  valid stage bounds and the exact artboard/child geometry. A genuinely
-  zero-sized initial layout is safe and normalizes on its first positive size;
-  coordinate conversion also guards zero and non-finite scene scales.
+  valid stage bounds and exact bezel geometry. A genuinely zero-sized initial
+  layout is safe and normalizes on its first positive size.
 - Composition state is currently mutable and ephemeral in
   `components_canvas/components_canvas_controller.dart`. It is **not** yet a
   durable serializable manifest. If persistence is added, serialize registry
