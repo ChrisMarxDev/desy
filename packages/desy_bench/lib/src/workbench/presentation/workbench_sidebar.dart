@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:state_beacon/state_beacon.dart';
 
 import '../../registry.dart';
+import '../widget_preview.dart';
 import '../workbench_routes.dart';
 import '../workbench_session.dart';
 
@@ -128,11 +129,16 @@ class DesyWorkbenchSidebar extends StatelessWidget {
               ),
           ],
         ),
-        if (folders.isNotEmpty)
-          _CollapsibleSidebarGroup(
-            id: 'catalogue',
-            label: const Text('Catalogue'),
-            children: [
+        if (session.registry.allEntries.isNotEmpty)
+          _CatalogueSidebarGroup(
+            entries: session.registry.allEntries,
+            theme: session.registry.themes[theme],
+            selectedEntryId: _selectedEntryId(currentLocation),
+            onOpen: (entry) {
+              session.prepareEntry(entry);
+              _go(context, DesyWorkbenchRoutes.entry(entry.id));
+            },
+            treeChildren: [
               for (final folder in folders)
                 _folderItem(context, folder, currentLocation),
             ],
@@ -244,6 +250,151 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     }
     context.go(location);
   }
+}
+
+String? _selectedEntryId(Uri location) {
+  if (location.pathSegments.length != 2 ||
+      location.pathSegments.first !=
+          DesyWorkbenchRoutes.entriesPath.substring(1)) {
+    return null;
+  }
+  return Uri.decodeComponent(location.pathSegments.last);
+}
+
+/// An opt-in visual catalogue that experiments with recognition over recall.
+///
+/// The folder tree remains the stable default. This mode owns presentation
+/// state only and resolves every preview and destination from the same active
+/// registry used by the rest of the workbench.
+class _CatalogueSidebarGroup extends StatefulWidget {
+  const _CatalogueSidebarGroup({
+    required this.entries,
+    required this.theme,
+    required this.selectedEntryId,
+    required this.onOpen,
+    required this.treeChildren,
+  });
+
+  final List<DesyRegistryEntry> entries;
+  final DesyTheme theme;
+  final String? selectedEntryId;
+  final ValueChanged<DesyRegistryEntry> onOpen;
+  final List<Widget> treeChildren;
+
+  @override
+  State<_CatalogueSidebarGroup> createState() => _CatalogueSidebarGroupState();
+}
+
+class _CatalogueSidebarGroupState extends State<_CatalogueSidebarGroup> {
+  var _showPreviewGrid = false;
+
+  void _toggleMode() => setState(() => _showPreviewGrid = !_showPreviewGrid);
+
+  @override
+  Widget build(BuildContext context) => _CollapsibleSidebarGroup(
+    id: 'catalogue',
+    label: const Text('Catalogue'),
+    children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: DesyButton(
+          key: const ValueKey('sidebar-catalogue-preview-toggle'),
+          semanticsLabel: _showPreviewGrid
+              ? 'Use catalogue folder tree'
+              : 'Try experimental catalogue preview grid',
+          semanticsTooltip: _showPreviewGrid
+              ? 'Show folder tree'
+              : 'Preview grid · experimental',
+          variant: DesyButtonVariant.outline,
+          size: DesyButtonSize.xs,
+          onPress: _toggleMode,
+          child: Icon(
+            _showPreviewGrid ? DesyIcons.folder : DesyIcons.layoutGrid,
+            size: 14,
+          ),
+        ),
+      ),
+      if (_showPreviewGrid)
+        _SidebarPreviewGrid(
+          entries: widget.entries,
+          theme: widget.theme,
+          selectedEntryId: widget.selectedEntryId,
+          onOpen: widget.onOpen,
+        )
+      else
+        ...widget.treeChildren,
+    ],
+  );
+}
+
+class _SidebarPreviewGrid extends StatelessWidget {
+  const _SidebarPreviewGrid({
+    required this.entries,
+    required this.theme,
+    required this.selectedEntryId,
+    required this.onOpen,
+  });
+
+  final List<DesyRegistryEntry> entries;
+  final DesyTheme theme;
+  final String? selectedEntryId;
+  final ValueChanged<DesyRegistryEntry> onOpen;
+
+  @override
+  Widget build(BuildContext context) => GridView.builder(
+    key: const ValueKey('sidebar-catalogue-preview-grid'),
+    shrinkWrap: true,
+    primary: false,
+    physics: const NeverScrollableScrollPhysics(),
+    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 2,
+      mainAxisExtent: 128,
+      crossAxisSpacing: 8,
+      mainAxisSpacing: 8,
+    ),
+    itemCount: entries.length,
+    itemBuilder: (context, index) {
+      final entry = entries[index];
+      return DesyButton(
+        key: ValueKey('sidebar-preview-${entry.id}'),
+        semanticsLabel: 'Open ${entry.name}',
+        semanticsTooltip: 'Open catalogue entry',
+        selected: entry.id == selectedEntryId,
+        variant: DesyButtonVariant.outline,
+        size: DesyButtonSize.xs,
+        onPress: () => onOpen(entry),
+        child: SizedBox(
+          width: 74,
+          height: 104,
+          child: Column(
+            children: [
+              Expanded(
+                child: ClipRect(
+                  child: IgnorePointer(
+                    child: DesyFittedPreview(
+                      key: ValueKey('sidebar-preview-widget-${entry.id}'),
+                      child: DesyWidgetPreview(
+                        theme: theme,
+                        builder: entry.builder,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                entry.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
 
 /// A compact, independent disclosure for a top-level navigation section.
