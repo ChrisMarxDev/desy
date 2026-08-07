@@ -23,6 +23,12 @@ void main() {
               height: 32,
             ),
           ),
+          for (var index = 0; index < 3; index++)
+            DesyToken(
+              id: 'extra.token.$index',
+              name: 'Extra token $index',
+              builder: (_) => const SizedBox(width: 32, height: 32),
+            ),
         ],
         folders: [
           DesyFolder(
@@ -48,19 +54,24 @@ void main() {
       final session = DesyWorkbenchSession(registry: registry);
       addTearDown(session.dispose);
 
-      await tester.pumpWidget(
-        FTheme(
-          data: FTheme.neutral.light.desktop,
-          child: Directionality(
-            textDirection: TextDirection.ltr,
-            child: DesyWorkbenchSidebar(
-              session: session,
-              location: Uri.parse('/atlas'),
-              onNavigate: (location) => destination = location,
+      Widget buildSidebar(double width) => FTheme(
+        data: FTheme.neutral.light.desktop,
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: SizedBox(
+              width: width,
+              child: DesyWorkbenchSidebar(
+                session: session,
+                location: Uri.parse('/atlas'),
+                onNavigate: (location) => destination = location,
+              ),
             ),
           ),
         ),
       );
+
+      await tester.pumpWidget(buildSidebar(248));
 
       expect(
         find.byKey(const ValueKey('sidebar-folder-components')),
@@ -102,6 +113,19 @@ void main() {
         findsNothing,
       );
 
+      await tester.pumpWidget(buildSidebar(400));
+      await tester.pump();
+      final widerDelegate =
+          tester
+                  .widget<GridView>(
+                    find.byKey(
+                      const ValueKey('sidebar-catalogue-preview-grid'),
+                    ),
+                  )
+                  .gridDelegate
+              as SliverGridDelegateWithFixedCrossAxisCount;
+      expect(widerDelegate.crossAxisCount, 4);
+
       await tester.tap(
         find.byKey(const ValueKey('sidebar-preview-root.token')),
       );
@@ -118,6 +142,48 @@ void main() {
       );
     },
   );
+
+  testWidgets('desktop sidebar resizes by drag', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final registry = DesyRegistry(
+      name: 'Resizable sidebar',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      tokens: [
+        for (var index = 0; index < 6; index++)
+          DesyToken(
+            id: 'token.$index',
+            name: 'Token $index',
+            builder: (_) => const SizedBox(width: 32, height: 32),
+          ),
+      ],
+    );
+
+    await tester.pumpWidget(DesyBenchApp(registry: registry));
+    await tester.pumpAndSettle();
+
+    final sidebar = find.byKey(const ValueKey('workbench-sidebar'));
+    final handle = find.byKey(const ValueKey('desktop-sidebar-resize-handle'));
+    expect(tester.getSize(sidebar).width, 248);
+    expect(handle, findsOneWidget);
+
+    await tester.drag(handle, const Offset(144, 0));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(sidebar).width, greaterThan(360));
+
+    await tester.tap(
+      find.byKey(const ValueKey('sidebar-catalogue-preview-toggle')),
+    );
+    await tester.pumpAndSettle();
+    final delegate =
+        tester
+                .widget<GridView>(
+                  find.byKey(const ValueKey('sidebar-catalogue-preview-grid')),
+                )
+                .gridDelegate
+            as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, greaterThan(2));
+  });
 }
 
 Widget _wrap(BuildContext context, Widget child) => child;

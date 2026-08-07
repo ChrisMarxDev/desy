@@ -35,6 +35,7 @@ class DesyWorkbenchSidebar extends StatelessWidget {
 
     return FSidebar(
       style: const FSidebarStyleDelta.delta(
+        constraints: BoxConstraints(minWidth: double.infinity),
         headerPadding: EdgeInsetsGeometryDelta.value(EdgeInsets.zero),
         contentPadding: EdgeInsetsGeometryDelta.value(
           EdgeInsets.symmetric(horizontal: 8),
@@ -328,6 +329,9 @@ class _CatalogueSidebarGroupState extends State<_CatalogueSidebarGroup> {
 }
 
 class _SidebarPreviewGrid extends StatelessWidget {
+  static const _minimumTileWidth = 88.0;
+  static const _tileSpacing = 8.0;
+
   const _SidebarPreviewGrid({
     required this.entries,
     required this.theme,
@@ -341,57 +345,67 @@ class _SidebarPreviewGrid extends StatelessWidget {
   final ValueChanged<DesyRegistryEntry> onOpen;
 
   @override
-  Widget build(BuildContext context) => GridView.builder(
-    key: const ValueKey('sidebar-catalogue-preview-grid'),
-    shrinkWrap: true,
-    primary: false,
-    physics: const NeverScrollableScrollPhysics(),
-    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 2,
-      mainAxisExtent: 128,
-      crossAxisSpacing: 8,
-      mainAxisSpacing: 8,
-    ),
-    itemCount: entries.length,
-    itemBuilder: (context, index) {
-      final entry = entries[index];
-      return DesyButton(
-        key: ValueKey('sidebar-preview-${entry.id}'),
-        semanticsLabel: 'Open ${entry.name}',
-        semanticsTooltip: 'Open catalogue entry',
-        selected: entry.id == selectedEntryId,
-        variant: DesyButtonVariant.outline,
-        size: DesyButtonSize.xs,
-        onPress: () => onOpen(entry),
-        child: SizedBox(
-          width: 74,
-          height: 104,
-          child: Column(
-            children: [
-              Expanded(
-                child: ClipRect(
-                  child: IgnorePointer(
-                    child: DesyFittedPreview(
-                      key: ValueKey('sidebar-preview-widget-${entry.id}'),
-                      child: DesyWidgetPreview(
-                        theme: theme,
-                        builder: entry.builder,
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final columnCount =
+          ((constraints.maxWidth + _tileSpacing) /
+                  (_minimumTileWidth + _tileSpacing))
+              .floor()
+              .clamp(1, entries.length)
+              .toInt();
+      return GridView.builder(
+        key: const ValueKey('sidebar-catalogue-preview-grid'),
+        shrinkWrap: true,
+        primary: false,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columnCount,
+          mainAxisExtent: 128,
+          crossAxisSpacing: _tileSpacing,
+          mainAxisSpacing: _tileSpacing,
+        ),
+        itemCount: entries.length,
+        itemBuilder: (context, index) {
+          final entry = entries[index];
+          return DesyButton(
+            key: ValueKey('sidebar-preview-${entry.id}'),
+            semanticsLabel: 'Open ${entry.name}',
+            semanticsTooltip: 'Open catalogue entry',
+            selected: entry.id == selectedEntryId,
+            variant: DesyButtonVariant.outline,
+            size: DesyButtonSize.xs,
+            onPress: () => onOpen(entry),
+            child: SizedBox(
+              width: 64,
+              height: 104,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ClipRect(
+                      child: IgnorePointer(
+                        child: DesyFittedPreview(
+                          key: ValueKey('sidebar-preview-widget-${entry.id}'),
+                          child: DesyWidgetPreview(
+                            theme: theme,
+                            builder: entry.builder,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 6),
+                  Text(
+                    entry.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                entry.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       );
     },
   );

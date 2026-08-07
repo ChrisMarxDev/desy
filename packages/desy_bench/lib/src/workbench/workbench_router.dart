@@ -2,6 +2,7 @@
 // ignore_for_file: public_member_api_docs
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:forui/forui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:state_beacon/state_beacon.dart';
@@ -167,7 +168,14 @@ class DesyWorkbenchShell extends StatefulWidget {
 }
 
 class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
+  static const _defaultSidebarWidth = 248.0;
+  static const _minimumSidebarWidth = 200.0;
+  static const _maximumSidebarWidth = 520.0;
+  static const _minimumWorkspaceWidth = 320.0;
+
   var _sidebarVisible = true;
+  var _sidebarWidth = _defaultSidebarWidth;
+  var _resizingSidebar = false;
 
   @override
   Widget build(BuildContext context) {
@@ -201,12 +209,23 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
           if (isSketch) {
             return FScaffold(child: widget.child);
           }
+          final maximumSidebarWidth =
+              (constraints.maxWidth - _minimumWorkspaceWidth).clamp(
+                _minimumSidebarWidth,
+                _maximumSidebarWidth,
+              );
+          final sidebarWidth = _sidebarWidth.clamp(
+            _minimumSidebarWidth,
+            maximumSidebarWidth,
+          );
           return Row(
             children: [
               AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
+                duration: _resizingSidebar
+                    ? Duration.zero
+                    : const Duration(milliseconds: 180),
                 curve: Curves.easeOutCubic,
-                width: _sidebarVisible ? 248 : 0,
+                width: _sidebarVisible ? sidebarWidth : 0,
                 child: _AnimatedWorkbenchSidebar(
                   visible: _sidebarVisible,
                   child: DesyWorkbenchSidebar(
@@ -215,6 +234,18 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
                   ),
                 ),
               ),
+              if (_sidebarVisible)
+                _SidebarResizeHandle(
+                  width: sidebarWidth,
+                  onResizeStart: () => setState(() => _resizingSidebar = true),
+                  onResize: (delta) => setState(
+                    () => _sidebarWidth = (sidebarWidth + delta).clamp(
+                      _minimumSidebarWidth,
+                      maximumSidebarWidth,
+                    ),
+                  ),
+                  onResizeEnd: () => setState(() => _resizingSidebar = false),
+                ),
               Expanded(
                 child: FScaffold(
                   header: _sidebarVisible
@@ -244,6 +275,97 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
       ),
     );
   }
+}
+
+class _SidebarResizeHandle extends StatefulWidget {
+  const _SidebarResizeHandle({
+    required this.width,
+    required this.onResizeStart,
+    required this.onResize,
+    required this.onResizeEnd,
+  });
+
+  final double width;
+  final VoidCallback onResizeStart;
+  final ValueChanged<double> onResize;
+  final VoidCallback onResizeEnd;
+
+  @override
+  State<_SidebarResizeHandle> createState() => _SidebarResizeHandleState();
+}
+
+class _SidebarResizeHandleState extends State<_SidebarResizeHandle> {
+  static const _keyboardStep = 24.0;
+
+  final _focusNode = FocusNode(debugLabel: 'Sidebar resize handle');
+  var _active = false;
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _resize(double delta) => widget.onResize(delta);
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    label: 'Resize sidebar',
+    value: '${widget.width.round()} pixels',
+    increasedValue: '${(widget.width + _keyboardStep).round()} pixels',
+    decreasedValue: '${(widget.width - _keyboardStep).round()} pixels',
+    onIncrease: () => _resize(_keyboardStep),
+    onDecrease: () => _resize(-_keyboardStep),
+    child: Focus(
+      focusNode: _focusNode,
+      onKeyEvent: (_, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+          _resize(-_keyboardStep);
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+          _resize(_keyboardStep);
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: MouseRegion(
+        cursor: SystemMouseCursors.resizeColumn,
+        onEnter: (_) => setState(() => _active = true),
+        onExit: (_) => setState(() => _active = _focusNode.hasFocus),
+        child: GestureDetector(
+          key: const ValueKey('desktop-sidebar-resize-handle'),
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragStart: (_) {
+            _focusNode.requestFocus();
+            widget.onResizeStart();
+            setState(() => _active = true);
+          },
+          onHorizontalDragUpdate: (details) => _resize(details.delta.dx),
+          onHorizontalDragEnd: (_) {
+            widget.onResizeEnd();
+            setState(() => _active = _focusNode.hasFocus);
+          },
+          onHorizontalDragCancel: () {
+            widget.onResizeEnd();
+            setState(() => _active = _focusNode.hasFocus);
+          },
+          child: SizedBox(
+            width: 8,
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 100),
+                width: _active ? 2 : 1,
+                color: Theme.of(context).dividerColor,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _DesktopSidebarRestore extends StatelessWidget {
