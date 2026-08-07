@@ -10,8 +10,9 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets(
-    'experimental preview grid shows every entry and keeps tree navigation',
+    'experimental preview grid excludes primitives and keeps tree navigation',
     (tester) async {
+      final semantics = tester.ensureSemantics();
       String? destination;
       final registry = DesyRegistry(
         name: 'Visual sidebar',
@@ -105,25 +106,30 @@ void main() {
         find.byKey(const ValueKey('sidebar-catalogue-preview-grid')),
         findsOneWidget,
       );
+      expect(find.byKey(const ValueKey('workspace-atlas-nav')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('workspace-components-nav')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('sidebar-tool-ai')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('sidebar-tool-showcases')),
+        findsOneWidget,
+      );
       expect(
         (await SharedPreferences.getInstance()).getBool(
           'desy_bench.catalogue.preview_grid',
         ),
         isTrue,
       );
-      for (final id in ['components', 'unfiled']) {
-        final header = tester.widget<Semantics>(
-          find.byKey(ValueKey('sidebar-preview-header-$id')),
-        );
-        expect(header.properties.header, isTrue);
-      }
+      final header = tester.widget<Semantics>(
+        find.byKey(const ValueKey('sidebar-preview-header-components')),
+      );
+      expect(header.properties.header, isTrue);
+      expect(header.properties.button, isTrue);
       expect(
         find.byKey(const ValueKey('sidebar-preview-divider-components')),
         findsNothing,
-      );
-      expect(
-        find.byKey(const ValueKey('sidebar-preview-divider-unfiled')),
-        findsOneWidget,
       );
       final componentGrid = tester.widget<GridView>(
         find.byKey(const ValueKey('sidebar-preview-grid-components')),
@@ -133,23 +139,15 @@ void main() {
               as SliverGridDelegateWithFixedCrossAxisCount;
       expect(componentDelegate.crossAxisCount, 1);
       expect(componentGrid.semanticChildCount, 1);
-      final grid = tester.widget<GridView>(
-        find.byKey(const ValueKey('sidebar-preview-grid-unfiled')),
-      );
-      final delegate =
-          grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
-      expect(delegate.crossAxisCount, 2);
-      expect(delegate.mainAxisExtent, 128);
-      expect(grid.semanticChildCount, 4);
       expect(
         find.byKey(const ValueKey('sidebar-preview-widget-root.token')),
-        findsOneWidget,
+        findsNothing,
       );
       expect(
         find.byKey(const ValueKey('sidebar-preview-widget-deep.component')),
         findsOneWidget,
       );
-      expect(find.byKey(const ValueKey('root-token-preview')), findsOneWidget);
+      expect(find.byKey(const ValueKey('root-token-preview')), findsNothing);
       expect(
         find.byKey(const ValueKey('deep-component-preview')),
         findsOneWidget,
@@ -159,22 +157,35 @@ void main() {
         findsNothing,
       );
 
+      tester
+          .widget<DesyButton>(
+            find.descendant(
+              of: find.byKey(
+                const ValueKey('sidebar-preview-header-components'),
+              ),
+              matching: find.byType(DesyButton),
+            ),
+          )
+          .onPress!();
+      await tester.pump();
+      expect(destination, '/atlas?folder=components');
+
       await tester.pumpWidget(buildSidebar(400));
       await tester.pump();
-      final widerDelegate =
-          tester
-                  .widget<GridView>(
-                    find.byKey(const ValueKey('sidebar-preview-grid-unfiled')),
-                  )
-                  .gridDelegate
-              as SliverGridDelegateWithFixedCrossAxisCount;
-      expect(widerDelegate.crossAxisCount, 4);
+      expect(
+        tester
+            .widget<GridView>(
+              find.byKey(const ValueKey('sidebar-preview-grid-components')),
+            )
+            .semanticChildCount,
+        1,
+      );
 
       await tester.tap(
-        find.byKey(const ValueKey('sidebar-preview-root.token')),
+        find.byKey(const ValueKey('sidebar-preview-deep.component')),
       );
       await tester.pump();
-      expect(destination, '/entries/root.token');
+      expect(destination, '/entries/deep.component');
 
       await tester.tap(
         find.byKey(const ValueKey('sidebar-catalogue-preview-toggle')),
@@ -184,10 +195,13 @@ void main() {
         find.byKey(const ValueKey('sidebar-folder-components')),
         findsOneWidget,
       );
+      semantics.dispose();
     },
   );
 
-  testWidgets('catalogue restores its saved grid view', (tester) async {
+  testWidgets('primitive-only catalogues stay on folder navigation', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({
       'desy_bench.catalogue.preview_grid': true,
     });
@@ -195,11 +209,17 @@ void main() {
       registry: DesyRegistry(
         name: 'Saved sidebar',
         themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-        tokens: [
-          DesyToken(
-            id: 'saved.token',
-            name: 'Saved token',
-            builder: (_) => const SizedBox(width: 32, height: 32),
+        folders: [
+          DesyFolder(
+            id: 'atoms',
+            name: 'Atoms',
+            tokens: [
+              DesyToken(
+                id: 'saved.token',
+                name: 'Saved token',
+                builder: (_) => const SizedBox(width: 32, height: 32),
+              ),
+            ],
           ),
         ],
       ),
@@ -225,7 +245,16 @@ void main() {
 
     expect(
       find.byKey(const ValueKey('sidebar-catalogue-preview-grid')),
-      findsOneWidget,
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('sidebar-folder-atoms')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('sidebar-entry-saved.token')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('sidebar-catalogue-preview-toggle')),
+      findsNothing,
     );
   });
 
@@ -235,13 +264,19 @@ void main() {
     final registry = DesyRegistry(
       name: 'Resizable sidebar',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-      tokens: [
-        for (var index = 0; index < 6; index++)
-          DesyToken(
-            id: 'token.$index',
-            name: 'Token $index',
-            builder: (_) => const SizedBox(width: 32, height: 32),
-          ),
+      folders: [
+        DesyFolder(
+          id: 'components',
+          name: 'Components',
+          components: [
+            for (var index = 0; index < 6; index++)
+              DesyComponent(
+                id: 'component.$index',
+                name: 'Component $index',
+                preview: (_) => const SizedBox(width: 32, height: 32),
+              ),
+          ],
+        ),
       ],
     );
 
@@ -264,7 +299,7 @@ void main() {
     final delegate =
         tester
                 .widget<GridView>(
-                  find.byKey(const ValueKey('sidebar-preview-grid-unfiled')),
+                  find.byKey(const ValueKey('sidebar-preview-grid-components')),
                 )
                 .gridDelegate
             as SliverGridDelegateWithFixedCrossAxisCount;

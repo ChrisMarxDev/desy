@@ -104,7 +104,10 @@ void main() {
     expect(iconFor('override.component').icon, FLucideIcons.anchor);
   });
 
-  testWidgets('normal catalogue keeps the compact folder tree', (tester) async {
+  testWidgets('catalogue uses one hierarchy and shows only useful leaves', (
+    tester,
+  ) async {
+    String? destination;
     final session = DesyWorkbenchSession(
       registry: DesyRegistry(
         name: 'Folder boundaries',
@@ -113,7 +116,20 @@ void main() {
           DesyFolder(
             id: 'atoms',
             name: 'Atoms',
-            components: [_component('atoms.color')],
+            children: [
+              DesyFolder(
+                id: 'atoms.colors',
+                name: 'Colors',
+                tokens: [
+                  DesyToken(
+                    id: 'atoms.color.primary',
+                    name: 'Primary color',
+                    builder: (_) => const SizedBox(),
+                  ),
+                ],
+              ),
+              DesyFolder(id: 'atoms.empty', name: 'Empty'),
+            ],
           ),
           DesyFolder(
             id: 'components',
@@ -133,6 +149,7 @@ void main() {
           child: DesyWorkbenchSidebar(
             session: session,
             location: Uri.parse('/atlas'),
+            onNavigate: (location) => destination = location,
           ),
         ),
       ),
@@ -140,16 +157,32 @@ void main() {
 
     expect(find.byKey(const ValueKey('sidebar-folder-atoms')), findsOneWidget);
     expect(
+      find.byKey(const ValueKey('sidebar-folder-atoms.colors')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('sidebar-folder-atoms.empty')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('sidebar-entry-atoms.color.primary')),
+      findsNothing,
+    );
+    expect(
       find.byKey(const ValueKey('sidebar-folder-components')),
       findsOneWidget,
     );
     expect(
+      find.byKey(const ValueKey('sidebar-entry-components.button')),
+      findsOneWidget,
+    );
+    expect(
       find.byKey(const ValueKey('sidebar-folder-header-atoms')),
-      findsNothing,
+      findsOneWidget,
     );
     expect(
       find.byKey(const ValueKey('sidebar-folder-header-components')),
-      findsNothing,
+      findsOneWidget,
     );
     expect(
       find.byKey(const ValueKey('sidebar-folder-divider-atoms')),
@@ -159,6 +192,25 @@ void main() {
       find.byKey(const ValueKey('sidebar-folder-divider-components')),
       findsNothing,
     );
+    expect(find.byKey(const ValueKey('sidebar-tool-ai')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('sidebar-tool-showcases')),
+      findsOneWidget,
+    );
+
+    final atomsLabel = tester.widget<Text>(find.text('Atoms'));
+    final componentsLabel = tester.widget<Text>(find.text('Components'));
+    expect(atomsLabel.style?.fontWeight, isNot(FontWeight.w700));
+    expect(componentsLabel.style?.fontWeight, isNot(FontWeight.w700));
+
+    tester
+        .widget<DesySidebarItem>(
+          find.byKey(const ValueKey('sidebar-folder-atoms.colors')),
+        )
+        .onPress!
+        .call();
+    await tester.pump();
+    expect(destination, '/atlas?folder=atoms.colors');
   });
 }
 

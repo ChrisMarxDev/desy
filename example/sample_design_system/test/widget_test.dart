@@ -117,54 +117,57 @@ void main() {
     expect(find.byKey(const ValueKey('workbench-sidebar')), findsOneWidget);
   });
 
-  testWidgets('folds and restores each top-level sidebar section', (
-    tester,
-  ) async {
+  testWidgets('uses one unified sidebar hierarchy', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(_sampleBench());
 
-    await tester.tap(
-      find.byKey(const ValueKey('sidebar-section-workspace-header')),
-    );
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('workspace-components-nav')),
-      findsNothing,
-    );
-    expect(find.byKey(const ValueKey('showcases-nav')), findsOneWidget);
-
-    // The chevron remains an equivalent disclosure control.
-    await tester.tap(
-      find.byKey(const ValueKey('sidebar-section-workspace-toggle')),
-    );
-    await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey('workspace-components-nav')),
       findsOneWidget,
     );
+    expect(find.byKey(const ValueKey('workspace-atlas-nav')), findsOneWidget);
     expect(find.byKey(const ValueKey('showcases-nav')), findsOneWidget);
-
-    await tester.tap(
-      find.byKey(const ValueKey('sidebar-section-catalogue-header')),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Colors'), findsNothing);
-    expect(find.text('Action'), findsNothing);
-
-    final aiSection = find.byKey(const ValueKey('sidebar-section-ai'));
-    final showcaseSection = find.byKey(
-      const ValueKey('sidebar-section-showcases'),
+    expect(find.byKey(const ValueKey('prompt-library-nav')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('sidebar-section-catalogue')),
+      findsOneWidget,
     );
     expect(
-      tester.getTopLeft(showcaseSection).dy,
-      greaterThan(tester.getTopLeft(aiSection).dy),
+      find.byKey(const ValueKey('sidebar-section-workspace')),
+      findsNothing,
     );
-    await tester.tap(
-      find.byKey(const ValueKey('sidebar-section-showcases-header')),
+    expect(find.byKey(const ValueKey('sidebar-section-ai')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('sidebar-section-showcases')),
+      findsNothing,
     );
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('showcases-nav')), findsNothing);
+
+    final atlas = find.byKey(const ValueKey('workspace-atlas-nav'));
+    final atoms = find.byKey(const ValueKey('sidebar-folder-atoms'));
+    final components = find.byKey(const ValueKey('sidebar-folder-components'));
+    final ai = find.byKey(const ValueKey('sidebar-tool-ai'));
+    final showcases = find.byKey(const ValueKey('sidebar-tool-showcases'));
+    expect(
+      [
+        atoms,
+        components,
+        ai,
+        showcases,
+      ].map((item) => tester.getTopLeft(item).dy).toList(),
+      orderedEquals(
+        [
+          atoms,
+          components,
+          ai,
+          showcases,
+        ].map((item) => tester.getTopLeft(item).dy).toList()..sort(),
+      ),
+    );
+    expect(
+      tester.getTopLeft(atoms).dy,
+      greaterThan(tester.getTopLeft(atlas).dy),
+    );
   });
 
   testWidgets('collapses and restores the desktop sidebar', (tester) async {
