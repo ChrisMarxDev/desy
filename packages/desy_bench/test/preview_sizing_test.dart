@@ -1,6 +1,7 @@
 import 'package:desy_bench/src/registry.dart';
 import 'package:desy_bench/src/workbench/components_canvas/components_canvas_controller.dart';
 import 'package:desy_bench/src/workbench/components_canvas/components_canvas_screen.dart';
+import 'package:desy_bench/src/workbench/presentation/desy_drag_box.dart';
 import 'package:desy_bench/src/workbench/presentation/detail_screen.dart';
 import 'package:desy_bench/src/workbench/widget_preview.dart';
 import 'package:desy_bench/src/workbench/workbench_session.dart';
@@ -17,6 +18,8 @@ void main() {
   testWidgets(
     'detail resizes responsive widgets and only scales fixed device previews',
     (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       BoxConstraints? receivedConstraints;
       final session = DesyWorkbenchSession(
         registry: DesyRegistry(name: 'Test', themes: const [theme]),
@@ -66,6 +69,7 @@ void main() {
         findsOneWidget,
       );
       expect(receivedConstraints!.maxWidth, 320);
+      expect(find.byType(DesyDragBox), findsOneWidget);
       expect(
         tester.getSize(find.byKey(const ValueKey('detail-artboard'))),
         const Size(320, 240),
@@ -77,8 +81,8 @@ void main() {
       );
       await tester.pump();
 
-      expect(session.stage.value.size, const Size(880, 240));
-      expect(receivedConstraints!.maxWidth, 880);
+      expect(session.stage.value.size, const Size(900, 240));
+      expect(receivedConstraints!.maxWidth, 900);
       expect(
         find.byKey(const ValueKey('responsive-wide-detail')),
         findsOneWidget,
@@ -150,6 +154,13 @@ void main() {
       matching: find.byKey(const ValueKey('responsive-sketch-compact')),
     );
     expect(compactPreview, findsOneWidget);
+    expect(find.byType(DesyDragBox), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('sketch-node-label-responsive.default#0')),
+      findsOneWidget,
+    );
+    expect(find.text('responsive.default'), findsOneWidget);
+    expect(find.text('220 × 120 px'), findsOneWidget);
     expect(tester.getSize(compactPreview), const Size(220, 120));
 
     final nodeBox = tester.getRect(
@@ -171,6 +182,8 @@ void main() {
     );
     expect(widePreview, findsOneWidget);
     expect(tester.getSize(widePreview), const Size(384, 200));
+    expect(find.text('384 × 200 px'), findsOneWidget);
+    expect(find.text('220 × 120 px'), findsNothing);
   });
 
   testWidgets('an unselected sketch node moves on its first drag', (

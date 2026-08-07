@@ -4,12 +4,12 @@
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_box_transform/flutter_box_transform.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
 
 import '../../registry.dart';
 import '../presentation/component_knob_panel.dart';
+import '../presentation/desy_drag_box.dart';
 import '../widget_preview.dart';
 import '../workbench_session.dart';
 import 'components_canvas_controller.dart';
@@ -1172,7 +1172,7 @@ class _CanvasStage extends StatelessWidget {
                 ),
               for (final node in nodes.values)
                 if (node.isArtboard)
-                  _CanvasTransformableNode(
+                  _CanvasNodeFrame(
                     node: node,
                     selected: selectedId == node.id,
                     clampingRect: clampingRect,
@@ -1181,7 +1181,7 @@ class _CanvasStage extends StatelessWidget {
                     child: _CanvasArtboard(artboardNode: node, theme: theme),
                   )
                 else if (node.isLayout)
-                  _CanvasTransformableNode(
+                  _CanvasNodeFrame(
                     node: node,
                     selected: selectedId == node.id,
                     clampingRect: clampingRect,
@@ -1198,7 +1198,7 @@ class _CanvasStage extends StatelessWidget {
                   )
                 else if (node.parentLayoutId == null)
                   if (_instanceFor(node.instanceId!) case final instance?)
-                    _CanvasTransformableNode(
+                    _CanvasNodeFrame(
                       node: node,
                       selected: selectedId == node.id,
                       clampingRect: clampingRect,
@@ -1234,8 +1234,8 @@ class _CanvasStage extends StatelessWidget {
 }
 
 /// A flat, freely overlapping canvas layer with minimal Figma-like handles.
-class _CanvasTransformableNode extends StatelessWidget {
-  const _CanvasTransformableNode({
+class _CanvasNodeFrame extends StatelessWidget {
+  const _CanvasNodeFrame({
     required this.node,
     required this.selected,
     required this.clampingRect,
@@ -1253,30 +1253,23 @@ class _CanvasTransformableNode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TransformableBox(
-      key: ValueKey(node.id),
-      rect: node.rect,
-      flip: node.flip,
+    return DesyDragBox(
+      geometry: DesyDragBoxGeometry(rect: node.rect, flip: node.flip),
       clampingRect: clampingRect,
       constraints: BoxConstraints(
         minWidth: minSize.width,
         minHeight: minSize.height,
       ),
-      allowContentFlipping: false,
-      allowFlippingWhileResizing: false,
-      handleAlignment: HandleAlignment.inside,
-      handleTapSize: 18,
-      resizable: selected,
-      draggable: true,
-      visibleHandles: selected ? const {...HandlePosition.values} : const {},
-      enabledHandles: selected ? const {...HandlePosition.values} : const {},
-      onTap: () => controller.select(node.id),
-      onChanged: (result, _) {
-        final snapped = _CanvasGrid.snapRect(result.rect);
+      frameKey: ValueKey(node.id),
+      contentKey: ValueKey('canvas-hit-${node.id}'),
+      selected: selected,
+      onSelect: () => controller.select(node.id),
+      onChanged: (geometry) {
+        final snapped = _CanvasGrid.snapRect(geometry.rect);
         if (node.isArtboard) {
           final isTranslation =
-              (result.rect.width - node.rect.width).abs() < 0.001 &&
-              (result.rect.height - node.rect.height).abs() < 0.001;
+              (geometry.rect.width - node.rect.width).abs() < 0.001 &&
+              (geometry.rect.height - node.rect.height).abs() < 0.001;
           controller.update(
             node.copyWith(
               rect: isTranslation
@@ -1291,36 +1284,27 @@ class _CanvasTransformableNode extends StatelessWidget {
                       snapped,
                       clampingRect: clampingRect,
                     ),
-              flip: result.flip,
+              flip: geometry.flip,
             ),
           );
         } else {
-          controller.update(node.copyWith(rect: snapped, flip: result.flip));
+          controller.update(node.copyWith(rect: snapped, flip: geometry.flip));
         }
       },
-      cornerHandleBuilder: (context, handle) => DefaultCornerHandle(
-        handle: handle,
-        size: 6,
-        decoration: BoxDecoration(
-          color: context.theme.colors.background,
-          borderRadius: BorderRadius.circular(1),
-          border: Border.all(color: context.theme.colors.primary, width: 1.25),
-        ),
-      ),
-      sideHandleBuilder: (context, handle) => DefaultSideHandle(
-        handle: handle,
-        length: 6,
-        thickness: 6,
-        decoration: BoxDecoration(
-          color: context.theme.colors.primary,
-          borderRadius: BorderRadius.circular(1),
-        ),
-      ),
-      contentBuilder: (context, rect, flip) => Listener(
-        key: ValueKey('canvas-hit-${node.id}'),
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: (_) => controller.select(node.id),
-        child: IgnorePointer(child: child),
+      label: selected
+          ? DesyDragBoxLabel(
+              key: ValueKey('sketch-node-label-${node.id}'),
+              size: node.rect.size,
+              identifier: node.instanceId ?? node.id,
+            )
+          : null,
+      child: DecoratedBox(
+        decoration: selected
+            ? BoxDecoration(
+                border: Border.all(color: context.theme.colors.primary),
+              )
+            : const BoxDecoration(),
+        child: child,
       ),
     );
   }

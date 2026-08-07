@@ -9,6 +9,7 @@ import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
 
 import 'component_knob_panel.dart';
+import 'desy_drag_box.dart';
 import 'detail_extensions_region.dart';
 import '../../registry.dart';
 import '../widget_preview.dart';
@@ -460,70 +461,49 @@ class DesyPreviewCanvas extends StatelessWidget {
               children: [
                 if (toolbar case final toolbar?)
                   Positioned(top: _detailToolbarTop, left: 12, child: toolbar),
-                Positioned(
-                  left: offset.dx,
-                  top: offset.dy,
-                  width: size.width,
-                  height: size.height,
-                  child: _Artboard(
-                    key: artboardKey,
-                    bezel: bezel,
-                    onMove: (details) => session.updateStage(
-                      stage.copyWith(offset: offset + details.delta),
-                    ),
-                    onResize: (details, corner) {
-                      final resizeFromLeft =
-                          corner == _ArtboardCorner.topLeft ||
-                          corner == _ArtboardCorner.bottomLeft;
-                      final resizeFromTop =
-                          corner == _ArtboardCorner.topLeft ||
-                          corner == _ArtboardCorner.topRight;
-                      final logicalDelta = Offset(
-                        details.delta.dx / scale,
-                        details.delta.dy / scale,
-                      );
-                      final nextSize = Size(
-                        _boundedBoxExtent(
-                          stage.size.width +
-                              (resizeFromLeft
-                                  ? -logicalDelta.dx
-                                  : logicalDelta.dx),
-                        ),
-                        _boundedBoxExtent(
-                          stage.size.height +
-                              (resizeFromTop
-                                  ? -logicalDelta.dy
-                                  : logicalDelta.dy),
-                        ),
-                      );
-                      session.updateStage(
-                        stage.copyWith(
-                          offset:
-                              offset +
-                              Offset(
-                                resizeFromLeft
-                                    ? (stage.size.width - nextSize.width) *
-                                          scale
-                                    : 0,
-                                resizeFromTop
-                                    ? (stage.size.height - nextSize.height) *
-                                          scale
-                                    : 0,
-                              ),
-                          size: nextSize,
-                        ),
-                      );
-                    },
-                    child: child,
+                DesyDragBox(
+                  geometry: DesyDragBoxGeometry(rect: offset & size),
+                  clampingRect: Rect.fromLTRB(
+                    12,
+                    selectionMinimumTop,
+                    constraints.maxWidth - 12,
+                    constraints.maxHeight -
+                        12 -
+                        _selectionLabelGap -
+                        _selectionLabelReservedHeight,
                   ),
-                ),
-                Positioned(
-                  left: offset.dx,
-                  top: offset.dy + size.height + _selectionLabelGap,
-                  child: _SelectionSizeLabel(
+                  constraints: const BoxConstraints(
+                    minWidth: _minimumBoxExtent,
+                    minHeight: _minimumBoxExtent,
+                  ),
+                  frameKey: artboardKey,
+                  resizeHandleKeyPrefix: 'detail-resize',
+                  ignoreChildPointer: false,
+                  onChanged: (geometry) => session.updateStage(
+                    stage.copyWith(
+                      offset: geometry.rect.topLeft,
+                      size: Size(
+                        _boundedBoxExtent(geometry.rect.width / scale),
+                        _boundedBoxExtent(geometry.rect.height / scale),
+                      ),
+                    ),
+                  ),
+                  label: DesyDragBoxLabel(
+                    key: selectionLabelKey,
                     size: stage.size,
-                    instanceLabel: instanceLabel,
-                    labelKey: selectionLabelKey,
+                    identifier: instanceLabel ?? 'Default',
+                  ),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: context.theme.colors.primary),
+                    ),
+                    child: ClipRect(
+                      child: Center(
+                        child: bezel == null
+                            ? child
+                            : _DeviceBezel(bezel: bezel!, child: child),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -533,113 +513,6 @@ class DesyPreviewCanvas extends StatelessWidget {
       },
     );
   }
-}
-
-class _SelectionSizeLabel extends StatelessWidget {
-  const _SelectionSizeLabel({
-    required this.size,
-    required this.instanceLabel,
-    required this.labelKey,
-  });
-
-  final Size size;
-  final String? instanceLabel;
-  final Key labelKey;
-
-  @override
-  Widget build(BuildContext context) {
-    final sizeLabel = '${size.width.round()} × ${size.height.round()} px';
-    final colors = context.theme.colors;
-    return IgnorePointer(
-      child: Semantics(
-        label:
-            '${instanceLabel == null ? '' : '$instanceLabel, '}selection size ${size.width.round()} by ${size.height.round()} pixels',
-        child: DecoratedBox(
-          key: labelKey,
-          decoration: BoxDecoration(
-            color: colors.primary,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (instanceLabel case final instanceLabel?) ...[
-                  Text(
-                    instanceLabel,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colors.primaryForeground,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '·',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colors.primaryForeground,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
-                Text(
-                  sizeLabel,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.primaryForeground,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Artboard extends StatelessWidget {
-  const _Artboard({
-    super.key,
-    required this.child,
-    required this.bezel,
-    required this.onMove,
-    required this.onResize,
-  });
-
-  final Widget child;
-  final DesyPreviewBezel? bezel;
-  final GestureDragUpdateCallback onMove;
-  final void Function(DragUpdateDetails details, _ArtboardCorner corner)
-  onResize;
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      border: Border.all(color: context.theme.colors.primary),
-    ),
-    child: Stack(
-      children: [
-        MouseRegion(
-          cursor: SystemMouseCursors.move,
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onPanUpdate: onMove,
-            child: SizedBox.expand(
-              child: ClipRect(
-                child: Center(
-                  child: bezel == null
-                      ? child
-                      : _DeviceBezel(bezel: bezel!, child: child),
-                ),
-              ),
-            ),
-          ),
-        ),
-        for (final corner in _ArtboardCorner.values)
-          _ArtboardHandle(corner: corner, onResize: onResize),
-      ],
-    ),
-  );
 }
 
 class _DeviceBezel extends StatelessWidget {
@@ -699,58 +572,4 @@ extension on DesyPreviewBezel {
     DesyPreviewBezel.iPhone15Pro => 'iPhone 15 Pro',
     DesyPreviewBezel.iPadPro11 => 'iPad Pro 11',
   };
-}
-
-enum _ArtboardCorner { topLeft, topRight, bottomLeft, bottomRight }
-
-class _ArtboardHandle extends StatelessWidget {
-  const _ArtboardHandle({required this.corner, required this.onResize});
-
-  final _ArtboardCorner corner;
-  final void Function(DragUpdateDetails details, _ArtboardCorner corner)
-  onResize;
-
-  @override
-  Widget build(BuildContext context) {
-    final isLeft =
-        corner == _ArtboardCorner.topLeft ||
-        corner == _ArtboardCorner.bottomLeft;
-    final isTop =
-        corner == _ArtboardCorner.topLeft || corner == _ArtboardCorner.topRight;
-    final cursor = (isLeft == isTop)
-        ? SystemMouseCursors.resizeUpLeftDownRight
-        : SystemMouseCursors.resizeUpRightDownLeft;
-    return Positioned(
-      left: isLeft ? -1 : null,
-      top: isTop ? -1 : null,
-      right: isLeft ? null : -1,
-      bottom: isTop ? null : -1,
-      child: MouseRegion(
-        cursor: cursor,
-        child: GestureDetector(
-          key: ValueKey('detail-resize-${corner.name}'),
-          behavior: HitTestBehavior.opaque,
-          onPanUpdate: (details) => onResize(details, corner),
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: Align(
-              alignment: Alignment(isLeft ? -1 : 1, isTop ? -1 : 1),
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: context.theme.colors.background,
-                  border: Border.all(
-                    color: context.theme.colors.primary,
-                    width: 1.5,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
