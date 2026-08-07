@@ -145,10 +145,7 @@ DesyRegistryEntry? _entryFor(DesyRegistry registry, String id) =>
 
 bool _isNumericFolder(DesyRegistry registry, DesyFolder folder) {
   final entries = registry.allEntries
-      .where(
-        (entry) =>
-            entry.folderIds.isNotEmpty && entry.folderIds.last == folder.id,
-      )
+      .where((entry) => entry.folderIds.contains(folder.id))
       .toList(growable: false);
   return entries.isNotEmpty &&
       entries.every((entry) => entry.source is DesyNumericEntry);

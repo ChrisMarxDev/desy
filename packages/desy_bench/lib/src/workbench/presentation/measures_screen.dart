@@ -27,7 +27,7 @@ class DesyMeasuresScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = session.activeThemeIndex.watch(context);
-    final measures = folder.numbers;
+    final measures = folder.allNumbers;
     final groups = <DesyNumericKind, List<DesyNumericEntry>>{};
     for (final measure in measures) {
       (groups[measure.kind] ??= []).add(measure);

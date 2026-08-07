@@ -55,6 +55,58 @@ void main() {
     expect(find.text('mixed.token'), findsWidgets);
   });
 
+  testWidgets('parent folders include entries from every descendant folder', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      DesyBenchApp(
+        registry: DesyRegistry(
+          name: 'Nested folder entries',
+          themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+          folders: [
+            DesyFolder(
+              id: 'components',
+              name: 'Components',
+              numbers: [
+                DesyNumericEntry.spacing(
+                  id: 'parent.spacing',
+                  name: 'Parent spacing',
+                  value: 8,
+                ),
+              ],
+              children: [
+                DesyFolder(
+                  id: 'components.actions',
+                  name: 'Actions',
+                  components: [_component('nested.action')],
+                ),
+                DesyFolder(
+                  id: 'components.content',
+                  name: 'Content',
+                  children: [
+                    DesyFolder(
+                      id: 'components.content.cards',
+                      name: 'Cards',
+                      components: [_component('deep.card')],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('sidebar-folder-components')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('3 entries'), findsWidgets);
+    expect(find.text('Parent spacing'), findsWidgets);
+    expect(find.text('nested.action'), findsWidgets);
+    expect(find.text('deep.card'), findsWidgets);
+  });
+
   testWidgets('typography entries build only the supplied preview text', (
     tester,
   ) async {

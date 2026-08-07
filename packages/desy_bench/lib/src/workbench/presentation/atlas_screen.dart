@@ -96,7 +96,7 @@ class DesyAtlasScreen extends StatelessWidget {
         ? session.registry.allEntries.where(
             (entry) => entry.component != null || entry.folderIds.isEmpty,
           )
-        : _directEntries(folder);
+        : _entriesInFolderTree(folder);
     return candidates.where((entry) {
       return (normalized.isEmpty ||
           entry.name.toLowerCase().contains(normalized) ||
@@ -122,12 +122,9 @@ class DesyAtlasScreen extends StatelessWidget {
     return null;
   }
 
-  List<DesyRegistryEntry> _directEntries(DesyFolder folder) {
+  List<DesyRegistryEntry> _entriesInFolderTree(DesyFolder folder) {
     return session.registry.allEntries
-        .where(
-          (entry) =>
-              entry.folderIds.isNotEmpty && entry.folderIds.last == folder.id,
-        )
+        .where((entry) => entry.folderIds.contains(folder.id))
         .toList(growable: false);
   }
 
