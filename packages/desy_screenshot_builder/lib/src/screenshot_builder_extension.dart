@@ -1,6 +1,6 @@
 import 'package:desy_bench/desy_bench.dart';
 import 'package:flutter/material.dart';
-import 'package:forui/forui.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 
 /// A deliberately non-exporting first slice of a screenshot recipe builder.
 ///
@@ -17,7 +17,7 @@ class DesyScreenshotBuilderExtension extends DesyWorkspaceExtension {
   String get name => 'Screenshot builder';
 
   @override
-  IconData get icon => FLucideIcons.camera;
+  IconData get icon => DesyIcons.camera;
 
   @override
   String get description => 'Compose a repeatable capture recipe.';
@@ -30,7 +30,7 @@ class DesyScreenshotBuilderExtension extends DesyWorkspaceExtension {
     padding: const EdgeInsets.all(28),
     child: ListView(
       children: [
-        FBadge(child: const Text('EXPERIMENTAL')),
+        DesyBadge(child: const Text('EXPERIMENTAL')),
         const SizedBox(height: 12),
         Text(
           'Screenshot builder',
@@ -42,7 +42,7 @@ class DesyScreenshotBuilderExtension extends DesyWorkspaceExtension {
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 24),
-        FCard(
+        DesyCard(
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -58,10 +58,10 @@ class DesyScreenshotBuilderExtension extends DesyWorkspaceExtension {
                   '${extension.registry.allComponents.length} declared components',
                 ),
                 const SizedBox(height: 16),
-                FButton(
-                  size: FButtonSizeVariant.xs,
+                DesyButton(
+                  size: DesyButtonSize.xs,
                   mainAxisSize: MainAxisSize.min,
-                  variant: FButtonVariant.outline,
+                  variant: DesyButtonVariant.outline,
                   onPress: () {},
                   child: const Text('Capture coming soon'),
                 ),

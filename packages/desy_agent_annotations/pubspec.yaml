@@ -1,0 +1,23 @@
+name: desy_agent_annotations
+description: Component-scoped agent annotation detail extension for Desy Bench.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.8.0
+  flutter: '>=3.29.0'
+
+resolution: workspace
+
+dependencies:
+  desy_bench:
+    path: ../desy_bench
+  desy_design_system:
+    path: ../desy_design_system
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

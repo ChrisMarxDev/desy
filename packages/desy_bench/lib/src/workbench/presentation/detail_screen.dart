@@ -5,10 +5,11 @@ import 'dart:math' as math;
 
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
-import 'package:forui/forui.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
 
 import 'component_knob_panel.dart';
+import 'detail_extensions_region.dart';
 import '../../registry.dart';
 import '../widget_preview.dart';
 import '../workbench_session.dart';
@@ -172,12 +173,12 @@ class _DetailPreviewToolbar extends StatelessWidget {
     BuildContext context, {
     required String label,
     required DesyPreviewBezel? bezel,
-  }) => FButton(
-    size: FButtonSizeVariant.xs,
+  }) => DesyButton(
+    size: DesyButtonSize.xs,
     mainAxisSize: MainAxisSize.min,
     variant: selectedBezel == bezel
-        ? FButtonVariant.primary
-        : FButtonVariant.outline,
+        ? DesyButtonVariant.primary
+        : DesyButtonVariant.outline,
     onPress: () => session.selectPreviewBezel(bezel),
     child: Text(label),
   );
@@ -205,7 +206,7 @@ class _DetailBreadcrumbs extends StatelessWidget {
           for (var index = 0; index < segments.length; index++) ...[
             if (index > 0)
               Icon(
-                FLucideIcons.chevronRight,
+                DesyIcons.chevronRight,
                 size: 11,
                 color: context.theme.colors.mutedForeground,
               ),
@@ -288,6 +289,7 @@ class _DetailInspector extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
+        DesyDetailExtensionsRegion(session: session, entry: entry),
       ],
     ),
   );
@@ -309,22 +311,22 @@ class _InstanceSelector extends StatelessWidget {
     spacing: 8,
     runSpacing: 8,
     children: [
-      FButton(
-        size: FButtonSizeVariant.sm,
+      DesyButton(
+        size: DesyButtonSize.sm,
         mainAxisSize: MainAxisSize.min,
         variant: selected == null
-            ? FButtonVariant.primary
-            : FButtonVariant.outline,
+            ? DesyButtonVariant.primary
+            : DesyButtonVariant.outline,
         onPress: () => onChanged(null),
         child: const Text('Default'),
       ),
       for (final scenario in scenarios)
-        FButton(
-          size: FButtonSizeVariant.xs,
+        DesyButton(
+          size: DesyButtonSize.xs,
           mainAxisSize: MainAxisSize.min,
           variant: selected?.id == scenario.id
-              ? FButtonVariant.primary
-              : FButtonVariant.outline,
+              ? DesyButtonVariant.primary
+              : DesyButtonVariant.outline,
           onPress: () => onChanged(scenario),
           child: Text(scenario.name),
         ),
@@ -347,7 +349,7 @@ class _ComponentInstanceSelector extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     children: [
       for (final instance in instances)
-        FTile(
+        DesyTile(
           title: Text(instance.name, overflow: TextOverflow.ellipsis),
           subtitle: instance.description == null
               ? null
@@ -357,7 +359,7 @@ class _ComponentInstanceSelector extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
           suffix: selected?.id == instance.id
-              ? const Icon(FLucideIcons.check)
+              ? const Icon(DesyIcons.check)
               : null,
           onPress: () => onSelect(instance),
         ),

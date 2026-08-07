@@ -2,7 +2,7 @@
 // ignore_for_file: public_member_api_docs
 
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
 
 import '../../registry.dart';
@@ -28,12 +28,12 @@ class DesyThemesScreen extends StatelessWidget {
         const SizedBox(height: 4),
         const Text('Preview context'),
         const SizedBox(height: 20),
-        FCard(
+        DesyCard(
           child: Padding(
             padding: const EdgeInsets.all(20),
-            child: FSelect<int>.rich(
+            child: DesySelect<int>.rich(
               key: const ValueKey('theme-select'),
-              control: FSelectControl.lifted(
+              control: DesySelectControl.lifted(
                 value: activeIndex,
                 onChange: (index) {
                   if (index != null) session.selectTheme(index);
@@ -46,7 +46,7 @@ class DesyThemesScreen extends StatelessWidget {
               format: (index) => session.registry.themes[index].name,
               children: [
                 for (final (index, theme) in session.registry.themes.indexed)
-                  FSelectItem.item(
+                  DesySelectItem.item(
                     key: ValueKey('theme-option-${theme.id}'),
                     value: index,
                     prefix: _ThemeSwatch(color: theme.previewBackgroundColor),
@@ -72,7 +72,7 @@ class _ActiveThemeDetails extends StatelessWidget {
   final DesyTheme theme;
 
   @override
-  Widget build(BuildContext context) => FCard(
+  Widget build(BuildContext context) => DesyCard(
     child: Padding(
       padding: const EdgeInsets.all(20),
       child: Row(
@@ -92,7 +92,7 @@ class _ActiveThemeDetails extends StatelessWidget {
                   Text(description),
                 ],
                 const SizedBox(height: 12),
-                FBadge(
+                DesyBadge(
                   child: Text(
                     theme.previewBackgroundColor == null
                         ? 'System canvas background'

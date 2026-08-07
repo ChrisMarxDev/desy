@@ -1491,6 +1491,7 @@ class DesyComponent {
     required this.id,
     required this.name,
     required this.preview,
+    this.icon,
     this.description,
     this.category = 'Components',
     this.accessibility,
@@ -1509,6 +1510,11 @@ class DesyComponent {
 
   /// Display name.
   final String name;
+
+  /// Optional icon used by Desy navigation and component-picking surfaces.
+  ///
+  /// Desy supplies a neutral component glyph when this is omitted.
+  final IconData? icon;
 
   /// Renders the consumer's production widget.
   final DesyPreviewBuilder preview;

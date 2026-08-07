@@ -3,7 +3,7 @@ import 'package:desy_bench/src/workbench/workbench_router.dart';
 import 'package:desy_bench/src/workbench/workbench_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 
 void main() {
   testWidgets(

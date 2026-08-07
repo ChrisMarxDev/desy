@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  analyze:
+    desc: Analyze the agent-annotations detail extension.
+    cmds:
+      - flutter analyze
+
+  test:
+    desc: Run agent-annotations extension tests.
+    cmds:
+      - flutter test
+
+  format:
+    desc: Format agent-annotations source and tests.
+    cmds:
+      - dart format lib test

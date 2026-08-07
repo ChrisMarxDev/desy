@@ -19,10 +19,15 @@ product.
 
 - `packages/desy_bench/` is the reusable package. Keep it independent of the
   sample's visual language.
+- `packages/desy_design_system/` owns Desy's neutral workbench foundations,
+  icons, and controls. It is the only Desy-owned package with a direct Forui
+  dependency. Its `example/` app owns the exhaustive dogfood registry.
 - `example/sample_design_system/` is the real integration testbed. It owns the
   Harbor tokens, themes, production sample widgets, and its registry.
 - `packages/desy_screenshot_builder/` is a small dummy workspace extension.
   It proves the extension boundary; it is not a finished screenshot product.
+- `packages/desy_agent_annotations/` is an optional component-detail
+  extension. It owns comment UI and typed submissions, never persistence.
 - `tools/desy_cli/` is intentionally deferred until the registry API settles.
 - `concept/` is historical seed material only. Do not develop it as product
   code. There is no `prototype/` directory in the current workspace.
@@ -56,12 +61,15 @@ product.
    and knobs are optional—not a form every consumer must fill out.
 7. **Typed, object-shaped APIs.** Prefer rich domain objects and composable
    primitives over string maps, flag-heavy configuration, or copied lists.
-8. **Forui owns bench chrome.** Navigation, panels, controls, workbench
-   surfaces, and shell stay Forui. Consumer previews can use any library.
+8. **The Desy design system owns bench chrome.** Its controls are founded on
+   Forui. `desy_bench` and Desy-owned extensions import
+   `desy_design_system`, never Forui directly. Consumer previews can use any
+   library.
 9. **Native text-entry exception.** All editable Desy/sample fields now use
-   the central `DesyTextField`, backed by Flutter `TextField`/`EditableText`.
-   It uses a transparent `Material` host required by Flutter and deliberately
-   omits decorative field chrome. Do not reintroduce `FTextField`.
+   the `desy_design_system` `DesyTextField`, backed by Flutter
+   `TextField`/`EditableText`. It uses a transparent `Material` host required
+   by Flutter and deliberately omits decorative field chrome. Do not
+   reintroduce `FTextField`.
 10. **Real preview sizing.** Render consumer widgets at their intended logical
    dimensions, then scale the completed preview into the available canvas.
    Never make previews look compact by giving the consumer artificial tiny
@@ -69,8 +77,9 @@ product.
 11. **Local first.** No account, backend, cloud source of truth, or production
     code generation in this first release.
 12. **Extensions are typed and narrow.** Workspace extensions get a read-only
-    registry/theme helper context, supply only their screen, and do not own a
-    second registry or core routing.
+    registry/theme helper context and supply only their screen. Detail
+    extensions get a read-only component context and supply only their section
+    body. Neither owns a second registry or core routing.
 
 The full wording and other decisions are in `CORE_PRINCIPLES.md`. Principle
 7 contains the explicit text-editor exception.
@@ -78,9 +87,15 @@ The full wording and other decisions are in `CORE_PRINCIPLES.md`. Principle
 ## Current public model
 
 - Public entrypoint: `packages/desy_bench/lib/desy_bench.dart`.
+- Desy chrome entrypoint:
+  `packages/desy_design_system/lib/desy_design_system.dart`.
+- The dogfood registry at
+  `packages/desy_design_system/example/lib/src/desy_design_system_registry.dart`
+  declares both theme foundations and every exported visible component family.
+  It is the inventory; do not introduce a parallel component list.
 - Main public contracts: `DesyRegistry`, `DesyFolder`, `DesyTheme`, primitive
   entries, `DesyComponent`, typed knobs, component instances, and
-  `DesyWorkspaceExtension`.
+  `DesyWorkspaceExtension` / `DesyDetailExtension`.
 - `DesyFolder` supports nested `children` and recursive `all*` accessors.
 - Workbench routes, navigation, atlas, details, and extensions consume the
   public registry directly. Keep that single path; do not introduce adapters
@@ -204,8 +219,9 @@ The relevant code is
 Text input previously used `FTextField` and was visibly broken: caret and
 selection were unreliable. The current central replacement is:
 
-- [`DesyTextField`](packages/desy_bench/lib/src/desy_text_field.dart), exported
-  from `desy_bench.dart`.
+- [`DesyTextField`](packages/desy_design_system/lib/src/desy_text_field.dart),
+  owned by `desy_design_system` and compatibility-exported from
+  `desy_bench.dart`.
 - It owns a persistent `TextEditingController`, supports controlled external
   values without recreating the controller during normal typing, enables
   interactive selection, and uses the platform native context menu/keyboard
@@ -248,6 +264,12 @@ test passes.
   consumer theme, preview helper, component lookup, and instance lookup.
 - `desy_screenshot_builder` is installed in the sample as the dummy extension
   and appears under Workspace.
+- `desy_agent_annotations` is registered through `detailExtensions` and
+  appears only inside component details. The package receives one typed async
+  callback. The sample owns its conditional macOS Markdown callback, sandboxed
+  user-selected repository access, and hosted server-side GitHub issue function
+  seam. Its repository selection is canonicalized and session-only; no
+  security-scoped bookmark is persisted.
 - There is an experimental Showcases surface and experimental catalogue export
   code. Treat both as opt-in demonstrations, not proven product APIs.
 - The feature-ranking HTML in `concept/features/` is seed/planning material.
@@ -292,19 +314,32 @@ From the repository root, the canonical complete check is:
 ```sh
 task check
 task sample:run
+task dogfood:run_mac
 ```
 
-`task check` runs root analysis and all three test suites. Verified on
-2026-08-06: analyzer clean; 53 `desy_bench` tests, 2 screenshot-builder tests,
-and 23 sample tests passed (78 total). Root `flutter test` is not equivalent
-because it does not express this package-by-package workspace coverage.
-Focused commands are
-`task bench:test`, `task screenshot_builder:test`, and `task sample:test`.
+`task check` runs root analysis, the direct-Forui dependency boundary, all six
+test suites, and a production Harbor web compile. Root `flutter test` is not
+equivalent because it does not express this package-by-package workspace
+coverage. Focused commands are
+`task design_system:test`, `task dogfood:test`, `task bench:test`,
+`task agent_annotations:test`, `task screenshot_builder:test`, and
+`task sample:test`.
+
+Verified on 2026-08-06: analyzer and dependency boundary clean; 62
+`desy_bench`, 6 agent-annotations, 3 design-system, 3 dogfood, 2
+screenshot-builder, and 31 Harbor tests passed (107 total). The Harbor sample
+also built successfully for web and macOS; the dogfood executable built for web
+and macOS. Run `task sample:compile:macos` explicitly on macOS; Harbor keeps App
+Sandbox enabled and grants user-selected read/write access so its consumer-owned
+callback can publish only after the user chooses a repository with Powerbox.
 
 For direct focused commands, run them inside the relevant package:
 
 ```sh
 cd packages/desy_bench && flutter test
+cd packages/desy_agent_annotations && flutter test
+cd packages/desy_design_system && flutter test
+cd packages/desy_design_system/example && flutter test
 cd packages/desy_screenshot_builder && flutter test
 cd example/sample_design_system && flutter test
 ```

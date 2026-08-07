@@ -3,7 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:forui/forui.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 import 'package:go_router/go_router.dart';
 import 'package:state_beacon/state_beacon.dart';
 
@@ -195,7 +195,7 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
         builder: (context, constraints) {
           if (constraints.maxWidth < 640) {
             return SafeArea(
-              child: FScaffold(
+              child: DesyScaffold(
                 header: isSketch
                     ? null
                     : _CompactWorkbenchHeader(
@@ -207,7 +207,7 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
             );
           }
           if (isSketch) {
-            return FScaffold(child: widget.child);
+            return DesyScaffold(child: widget.child);
           }
           final maximumSidebarWidth =
               (constraints.maxWidth - _minimumWorkspaceWidth).clamp(
@@ -247,7 +247,7 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
                   onResizeEnd: () => setState(() => _resizingSidebar = false),
                 ),
               Expanded(
-                child: FScaffold(
+                child: DesyScaffold(
                   header: _sidebarVisible
                       ? null
                       : _DesktopSidebarRestore(
@@ -381,15 +381,15 @@ class _DesktopSidebarRestore extends StatelessWidget {
       child: Semantics(
         button: true,
         label: 'Show sidebar',
-        child: FButton(
+        child: DesyButton(
           key: const ValueKey('desktop-sidebar-restore'),
-          variant: FButtonVariant.outline,
-          size: FButtonSizeVariant.sm,
+          variant: DesyButtonVariant.outline,
+          size: DesyButtonSize.sm,
           onPress: onRestore,
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(FLucideIcons.panelLeftOpen, size: 16),
+              Icon(DesyIcons.panelLeftOpen, size: 16),
               SizedBox(width: 6),
               Text('Show sidebar'),
             ],
@@ -446,9 +446,9 @@ class _CompactWorkbenchHeader extends StatelessWidget {
     child: Row(
       children: [
         const Expanded(child: Text('DESY BENCH')),
-        FButton(
-          variant: FButtonVariant.outline,
-          size: FButtonSizeVariant.sm,
+        DesyButton(
+          variant: DesyButtonVariant.outline,
+          size: DesyButtonSize.sm,
           onPress: () => _showNavigation(context),
           child: const Text('Navigate'),
         ),
@@ -456,25 +456,26 @@ class _CompactWorkbenchHeader extends StatelessWidget {
     ),
   );
 
-  Future<void> _showNavigation(BuildContext routerContext) => showFDialog<void>(
-    context: routerContext,
-    builder: (dialogContext, _, animation) => FDialog(
-      animation: animation,
-      semanticsLabel: 'Workbench navigation',
-      builder: (context, _) => SizedBox(
-        width: 320,
-        height: 560,
-        child: DesyWorkbenchSidebar(
-          session: session,
-          location: location,
-          onNavigate: (destination) {
-            Navigator.of(dialogContext).pop();
-            GoRouter.of(routerContext).go(destination);
-          },
+  Future<void> _showNavigation(BuildContext routerContext) =>
+      showDesyDialog<void>(
+        context: routerContext,
+        builder: (dialogContext, _, animation) => DesyDialog(
+          animation: animation,
+          semanticsLabel: 'Workbench navigation',
+          builder: (context, _) => SizedBox(
+            width: 320,
+            height: 560,
+            child: DesyWorkbenchSidebar(
+              session: session,
+              location: location,
+              onNavigate: (destination) {
+                Navigator.of(dialogContext).pop();
+                GoRouter.of(routerContext).go(destination);
+              },
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 }
 
 /// Prepares detail-local state once when a deep link or user navigation opens
@@ -512,8 +513,8 @@ class _UnknownEntryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: FButton(
-      variant: FButtonVariant.outline,
+    child: DesyButton(
+      variant: DesyButtonVariant.outline,
       onPress: onReturn,
       child: const Text('Return to catalogue'),
     ),

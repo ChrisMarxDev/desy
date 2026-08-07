@@ -130,6 +130,11 @@ void main() {
 
       for (final component in sampleRegistry.allComponents) {
         expect(
+          component.icon,
+          isNotNull,
+          reason: '${component.name} should demonstrate a catalogue icon.',
+        );
+        expect(
           component.instances,
           hasLength(greaterThanOrEqualTo(1)),
           reason: '${component.name} needs a named reusable instance.',

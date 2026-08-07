@@ -2,7 +2,7 @@ import 'package:desy_bench/desy_bench.dart';
 import 'package:desy_screenshot_builder/desy_screenshot_builder.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 
 void main() {
   const extension = DesyScreenshotBuilderExtension();

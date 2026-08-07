@@ -2,10 +2,9 @@
 // ignore_for_file: public_member_api_docs
 
 import 'package:flutter/material.dart';
-import 'package:forui/forui.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
 
-import '../../desy_text_field.dart';
 import '../../registry.dart';
 import '../widget_preview.dart';
 import '../workbench_session.dart';
@@ -157,7 +156,7 @@ class _AtlasCard extends StatelessWidget {
       // pointer input without adding a second, competing accessibility action.
       excludeFromSemantics: true,
       onTap: onOpen,
-      child: FCard(
+      child: DesyCard(
         clipBehavior: Clip.antiAlias,
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -250,7 +249,7 @@ class _FontsAtlas extends StatelessWidget {
           );
         }
         final entry = entries[index - 1];
-        return FCard(
+        return DesyCard(
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(

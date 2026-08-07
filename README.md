@@ -10,7 +10,7 @@ Flutter code your product actually ships.
 
 ## Start here
 
-Run the included consumer application to see the complete workflow:
+Run the independent Harbor consumer to see the normal integration workflow:
 
 ```sh
 task pub:get
@@ -24,6 +24,19 @@ Then read the sample registry at
 [`example/sample_design_system/lib/src/sample_registry.dart`](example/sample_design_system/lib/src/sample_registry.dart).
 It is the reference implementation: its Flutter widgets and themes remain
 consumer-owned; Desy only presents them.
+
+Then run Desy's inside-out dogfood catalogue:
+
+```sh
+task dogfood:run_mac
+# or
+task dogfood:web
+```
+
+Its registry at
+[`packages/desy_design_system/example/lib/src/desy_design_system_registry.dart`](packages/desy_design_system/example/lib/src/desy_design_system_registry.dart)
+lists the themes, foundations, icons, and every exported UI family used by the
+workbench. The same `desy_design_system` widgets build Desy Bench itself.
 
 ## Add Desy to a Flutter design system
 
@@ -40,9 +53,9 @@ dependencies:
 Create one registry. A minimal registry only needs a name and at least one real
 theme; entries are opt-in. Registry and folder collections are immutable, so
 declare them once and use stable, unique IDs for every theme, folder, artifact,
-showcase, and installed workspace extension. `DesyBenchApp` validates this
-shared ID space at startup and reports declaration errors before the workbench
-opens.
+showcase, workspace extension, and detail extension. `DesyBenchApp` validates
+this shared ID space at startup and reports declaration errors before the
+workbench opens.
 
 ```dart
 import 'package:desy_bench/desy_bench.dart';
@@ -101,6 +114,36 @@ void main() => runApp(DesyBenchApp(registry: designSystem));
 approximations. The theme wrapper is especially important: it gives every
 preview the same inherited theme context as your application.
 
+### Add a component detail extension
+
+Optional detail extensions render inside a singular component inspector and
+receive a read-only view of that component, its folders, the registry, and the
+active theme. The proving `desy_agent_annotations` package accepts one typed
+async callback; the consumer still owns persistence and authentication:
+
+```dart
+DesyBenchApp(
+  registry: designSystem,
+  detailExtensions: [
+    DesyAgentAnnotationsExtension(
+      onSubmit: (annotation) => myConsumerOwnedSink(annotation),
+    ),
+  ],
+)
+```
+
+The Harbor sample asks the user to select a repository through the sandboxed
+macOS folder picker, then writes repository Markdown for that running session.
+Its hosted-web example adapts an authenticated server-side GitHub issue
+function to the same callback; no GitHub token is compiled into the Flutter
+application.
+
+The detail host isolates failures thrown synchronously while evaluating an
+extension's `appliesTo` method or calling its `build` declaration. After
+`build` returns a widget, failures thrown later by that widget or a descendant
+follow Flutter's normal element error reporting and `ErrorWidget` behavior.
+Async submission and other runtime failures remain extension-owned state.
+
 ## Declare a system that remains useful
 
 Build from the smallest truthful declaration. Add only information Desy cannot
@@ -154,6 +197,7 @@ production integration. See [Flutter debug introspection](docs/flutter-debug-int
 | Understand why the CLI is deferred | [CLI roadmap](docs/cli-roadmap.md) |
 | Compare the catalogue boundary with Widgetbook | [Widgetbook inspiration](docs/widgetbook-inspiration.md) |
 | See a complete runnable consumer | [Sample Design System](example/sample_design_system/README.md) |
+| Inspect Desy's own complete UI inventory | [Desy Design System](packages/desy_design_system/README.md) |
 | Review the project’s durable design constraints | [Core principles](CORE_PRINCIPLES.md) |
 
 The `docs/` directory is the maintained wiki. `concept/` is historical seed
@@ -162,6 +206,9 @@ material and is not the source of current product direction.
 ## Repository map
 
 - `packages/desy_bench/` — reusable Flutter registry contracts and workbench.
+- `packages/desy_design_system/` — Desy's Forui-backed foundations, controls,
+  and executable self-catalogue.
+- `packages/desy_agent_annotations/` — optional component detail extension.
 - `packages/desy_screenshot_builder/` — optional workspace extension.
 - `example/sample_design_system/` — complete consumer integration and primary
   reference implementation.
@@ -176,7 +223,12 @@ From the repository root, use the canonical workspace check:
 task check
 ```
 
-This runs root analysis and the `desy_bench`, `desy_screenshot_builder`, and
-sample test suites. As of 2026-08-06, that is 56 tests (31 + 2 + 23).
-Root `flutter test` is not equivalent to `task check`; for focused test runs,
-use `task bench:test`, `task screenshot_builder:test`, or `task sample:test`.
+This runs root analysis, the direct-Forui dependency boundary, all six
+package/application test suites, and a production Harbor web compile. Root
+`flutter test` is not equivalent to
+`task check`; for focused test runs, use `task design_system:test`,
+`task dogfood:test`, `task bench:test`, `task agent_annotations:test`,
+`task screenshot_builder:test`, or `task sample:test`.
+
+On macOS, run `task sample:compile:macos` as the native platform gate for the
+repository annotation adapter and the sample's explicit sandbox entitlements.

@@ -2,7 +2,7 @@
 // ignore_for_file: public_member_api_docs
 
 import 'package:flutter/material.dart';
-import 'package:forui/forui.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
 
 import '../../registry.dart';
@@ -89,7 +89,7 @@ class _MeasureCard extends StatelessWidget {
   final DesyTheme theme;
 
   @override
-  Widget build(BuildContext context) => FCard(
+  Widget build(BuildContext context) => DesyCard(
     child: Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -103,7 +103,7 @@ class _MeasureCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
-              FBadge(child: Text(entry.kind.label)),
+              DesyBadge(child: Text(entry.kind.label)),
             ],
           ),
           const SizedBox(height: 4),

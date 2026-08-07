@@ -20,7 +20,18 @@ tasks:
   web:build:
     desc: Create a production web build of the sample consumer application.
     cmds:
-      - flutter build web {{.CLI_ARGS}}
+      - flutter build web --no-wasm-dry-run {{.CLI_ARGS}}
+
+  compile:web:
+    desc: Verify the sample and optional extensions compile for production web.
+    cmds:
+      - flutter build web --no-wasm-dry-run {{.CLI_ARGS}}
+
+  compile:macos:
+    desc: Verify the sample and sandboxed Powerbox annotation sink compile for macOS.
+    platforms: [darwin]
+    cmds:
+      - flutter build macos {{.CLI_ARGS}}
 
   analyze:
     desc: Analyze the sample consumer application.

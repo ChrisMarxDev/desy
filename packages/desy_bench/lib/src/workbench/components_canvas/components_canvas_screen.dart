@@ -4,10 +4,9 @@
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_box_transform/flutter_box_transform.dart';
-import 'package:forui/forui.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
 
-import '../../keyboard_shortcut_label.dart';
 import '../../registry.dart';
 import '../presentation/component_knob_panel.dart';
 import '../widget_preview.dart';
@@ -16,8 +15,8 @@ import 'components_canvas_controller.dart';
 
 /// A local composition surface built entirely from named registry instances.
 ///
-/// The palette preserves catalogue folders, then component names, with actual
-/// named instances as its only selectable leaves. Canvas state stays ephemeral.
+/// The palette presents every named component instance as a live preview.
+/// Canvas state stays ephemeral.
 class DesyComponentsCanvas extends StatefulWidget {
   const DesyComponentsCanvas({
     super.key,
@@ -75,6 +74,7 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
               child: _SketchWorkspace(
                 palette: _ComponentPalette(
                   registry: widget.session.registry,
+                  theme: theme,
                   onSelect: _addInstance,
                 ),
                 outline: _CanvasOutline(
@@ -164,11 +164,11 @@ class _SketchPreviewToolbar extends StatelessWidget {
   }
 
   Widget _button({required String label, required DesyCanvasArtboard value}) =>
-      FButton(
+      DesyButton(
         key: ValueKey('sketch-add-artboard-${value.name}'),
-        size: FButtonSizeVariant.xs,
+        size: DesyButtonSize.xs,
         mainAxisSize: MainAxisSize.min,
-        variant: FButtonVariant.outline,
+        variant: DesyButtonVariant.outline,
         onPress: () => onAddArtboard(value),
         child: Text(label),
       );
@@ -254,28 +254,28 @@ class _SketchSidebar extends StatelessWidget {
   final Widget outline;
 
   @override
-  Widget build(BuildContext context) => FTabs(
+  Widget build(BuildContext context) => DesyTabs(
     key: const ValueKey('sketch-sidebar-tabs'),
     expands: true,
     children: [
-      FTabEntry(
+      DesyTabEntry(
         label: Semantics(
-          label: 'Assets',
+          label: 'Components',
           button: true,
           child: const Icon(
-            FLucideIcons.boxes,
-            key: ValueKey('sketch-tab-assets'),
+            DesyIcons.boxes,
+            key: ValueKey('sketch-tab-components'),
             size: 16,
           ),
         ),
         child: palette,
       ),
-      FTabEntry(
+      DesyTabEntry(
         label: Semantics(
           label: 'Layers',
           button: true,
           child: const Icon(
-            FLucideIcons.layers,
+            DesyIcons.layers,
             key: ValueKey('sketch-tab-layers'),
             size: 16,
           ),
@@ -298,14 +298,14 @@ class _SketchHeader extends StatelessWidget {
       Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          FButton(
-            variant: FButtonVariant.ghost,
-            size: FButtonSizeVariant.sm,
+          DesyButton(
+            variant: DesyButtonVariant.ghost,
+            size: DesyButtonSize.sm,
             mainAxisSize: MainAxisSize.min,
             onPress: onBack,
             child: const Row(
               children: [
-                Icon(FLucideIcons.arrowLeft, size: 16),
+                Icon(DesyIcons.arrowLeft, size: 16),
                 SizedBox(width: 6),
                 Text('Back'),
               ],
@@ -332,139 +332,129 @@ class _SketchHeader extends StatelessWidget {
           ],
         ),
       ),
-      FButton.icon(
-        variant: FButtonVariant.outline,
-        size: FButtonSizeVariant.sm,
+      DesyButton.icon(
+        variant: DesyButtonVariant.outline,
+        size: DesyButtonSize.sm,
         onPress: onClear,
-        child: const Icon(FLucideIcons.layers),
+        child: const Icon(DesyIcons.layers),
       ),
     ],
   );
 }
 
 class _ComponentPalette extends StatelessWidget {
-  const _ComponentPalette({required this.registry, required this.onSelect});
+  const _ComponentPalette({
+    required this.registry,
+    required this.theme,
+    required this.onSelect,
+  });
 
   final DesyRegistry registry;
+  final DesyTheme theme;
   final ValueChanged<DesyRegisteredComponentInstance> onSelect;
 
   @override
-  Widget build(BuildContext context) => FCard(
-    child: Padding(
-      padding: const EdgeInsets.all(12),
+  Widget build(BuildContext context) {
+    final instances = registry.allComponentInstances;
+    final textScale = MediaQuery.textScalerOf(context).scale(12) / 12;
+    final tileExtent = (132 + (textScale.clamp(1, 2) - 1) * 36).toDouble();
+    return DesyCard(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('COMPONENTS', style: Theme.of(context).textTheme.labelSmall),
+            const SizedBox(height: 4),
+            Text(
+              '${instances.length} elements · choose to add',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: instances.isEmpty
+                  ? const Center(child: Text('No component instances yet'))
+                  : GridView.builder(
+                      key: const ValueKey('sketch-component-grid'),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisExtent: tileExtent,
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                      ),
+                      itemCount: instances.length,
+                      itemBuilder: (context, index) => _ComponentPreviewTile(
+                        instance: instances[index],
+                        theme: theme,
+                        height: tileExtent - 24,
+                        onSelect: onSelect,
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ComponentPreviewTile extends StatelessWidget {
+  const _ComponentPreviewTile({
+    required this.instance,
+    required this.theme,
+    required this.height,
+    required this.onSelect,
+  });
+
+  final DesyRegisteredComponentInstance instance;
+  final DesyTheme theme;
+  final double height;
+  final ValueChanged<DesyRegisteredComponentInstance> onSelect;
+
+  @override
+  Widget build(BuildContext context) => DesyButton(
+    key: ValueKey('palette-instance-${instance.id}'),
+    semanticsLabel:
+        'Add ${instance.componentName}, ${instance.instance.name} to sketch',
+    semanticsTooltip: 'Add to sketch',
+    variant: DesyButtonVariant.outline,
+    size: DesyButtonSize.xs,
+    onPress: () => onSelect(instance),
+    child: SizedBox(
+      width: 76,
+      height: height,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('ASSETS', style: Theme.of(context).textTheme.labelSmall),
-          const SizedBox(height: 4),
-          Text(
-            'Registry folders · instance leaves',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 10),
           Expanded(
-            child: SingleChildScrollView(
-              child: _PaletteFolderView(
-                registry: registry,
-                folders: registry.folders,
-                components: registry.components,
-                onSelect: onSelect,
-                root: true,
+            child: ClipRect(
+              child: IgnorePointer(
+                child: DesyFittedPreview(
+                  key: ValueKey('palette-preview-${instance.id}'),
+                  child: DesyWidgetPreview(
+                    theme: theme,
+                    builder: instance.build,
+                  ),
+                ),
               ),
             ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            instance.instance.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+          Text(
+            instance.componentName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelSmall,
           ),
         ],
       ),
     ),
-  );
-}
-
-class _PaletteFolderView extends StatelessWidget {
-  const _PaletteFolderView({
-    required this.registry,
-    required this.folders,
-    required this.components,
-    required this.onSelect,
-    required this.root,
-  });
-
-  final DesyRegistry registry;
-  final List<DesyFolder> folders;
-  final List<DesyComponent> components;
-  final ValueChanged<DesyRegisteredComponentInstance> onSelect;
-  final bool root;
-
-  @override
-  Widget build(BuildContext context) => FAccordion(
-    children: [
-      for (final child in folders)
-        FAccordionItem(
-          key: ValueKey('palette-folder-${child.id}'),
-          initiallyExpanded: root,
-          title: Row(
-            children: [
-              const Icon(FLucideIcons.folder, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(child.name, overflow: TextOverflow.ellipsis),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.only(left: 12),
-            child: _PaletteFolderView(
-              registry: registry,
-              folders: child.children,
-              components: child.components,
-              onSelect: onSelect,
-              root: false,
-            ),
-          ),
-        ),
-      for (final component in components)
-        FAccordionItem(
-          key: ValueKey('palette-component-${component.id}'),
-          title: Row(
-            children: [
-              const Icon(FLucideIcons.boxes, size: 16),
-              const SizedBox(width: 8),
-              Expanded(child: Text(component.name)),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.only(left: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final instance in component.instances.map(
-                  (instance) => DesyRegisteredComponentInstance(
-                    component: component,
-                    instance: instance,
-                  ),
-                ))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: FButton(
-                      key: ValueKey('palette-instance-${instance.id}'),
-                      variant: FButtonVariant.outline,
-                      size: FButtonSizeVariant.sm,
-                      mainAxisSize: MainAxisSize.min,
-                      onPress: () => onSelect(instance),
-                      child: SizedBox(
-                        width: 128,
-                        child: Text(
-                          instance.instance.name,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-    ],
   );
 }
 
@@ -480,7 +470,7 @@ class _CanvasInspector extends StatelessWidget {
   final DesyComponentsCanvasController controller;
 
   @override
-  Widget build(BuildContext context) => FCard(
+  Widget build(BuildContext context) => DesyCard(
     child: ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -513,9 +503,9 @@ class _CanvasInspector extends StatelessWidget {
               controller.setKnob(node.id, knob.id, value),
         ),
         const SizedBox(height: 16),
-        FButton(
-          variant: FButtonVariant.outline,
-          size: FButtonSizeVariant.sm,
+        DesyButton(
+          variant: DesyButtonVariant.outline,
+          size: DesyButtonSize.sm,
           onPress: () => controller.remove(node.id),
           child: const Text('Remove'),
         ),
@@ -534,7 +524,7 @@ class _CanvasArtboardInspector extends StatelessWidget {
   final DesyComponentsCanvasController controller;
 
   @override
-  Widget build(BuildContext context) => FCard(
+  Widget build(BuildContext context) => DesyCard(
     child: Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -552,9 +542,9 @@ class _CanvasArtboardInspector extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const Spacer(),
-          FButton(
-            variant: FButtonVariant.outline,
-            size: FButtonSizeVariant.sm,
+          DesyButton(
+            variant: DesyButtonVariant.outline,
+            size: DesyButtonSize.sm,
             onPress: () => controller.remove(node.id),
             child: const Text('Remove bezel'),
           ),
@@ -584,7 +574,7 @@ class _CanvasOutline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final placedNodes = nodes.toList(growable: false);
-    return FCard(
+    return DesyCard(
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Column(
@@ -611,7 +601,7 @@ class _CanvasOutline extends StatelessWidget {
                       itemBuilder: (context, index) {
                         final node = placedNodes[index];
                         if (node.isArtboard) {
-                          return FTile(
+                          return DesyTile(
                             key: ValueKey('canvas-node-${node.id}'),
                             selected: selectedId == node.id,
                             onPress: () => onSelect(node.id),
@@ -622,11 +612,11 @@ class _CanvasOutline extends StatelessWidget {
                         }
                         final instance = _instanceFor(node.instanceId!);
                         if (instance == null) return const SizedBox.shrink();
-                        return FTile(
+                        return DesyTile(
                           key: ValueKey('canvas-node-${node.id}'),
                           selected: selectedId == node.id,
                           onPress: () => onSelect(node.id),
-                          prefix: const Icon(FLucideIcons.boxes, size: 16),
+                          prefix: const Icon(DesyIcons.boxes, size: 16),
                           title: Text(
                             instance.instance.name,
                             overflow: TextOverflow.ellipsis,
@@ -875,8 +865,8 @@ extension on DesyCanvasArtboard {
   };
 
   IconData get icon => switch (this) {
-    DesyCanvasArtboard.iPhone15Pro => FLucideIcons.smartphone,
-    DesyCanvasArtboard.iPadPro11 => FLucideIcons.tablet,
+    DesyCanvasArtboard.iPhone15Pro => DesyIcons.smartphone,
+    DesyCanvasArtboard.iPadPro11 => DesyIcons.tablet,
   };
 }
 

@@ -18,10 +18,11 @@ validated when the app starts.
 
 ## First-release experience
 
-- A polished Forui desktop workbench with a searchable Atlas, consumer folder
-  tree, theme selection, component inspector, live previews, movable canvas,
-  and knobs. Desktop navigation animates between shown and collapsed states;
-  its current groups are Workspace, Catalogue, and AI.
+- A polished desktop workbench built from the Forui-backed
+  `desy_design_system`, with a searchable Atlas, consumer folder tree, theme
+  selection, component inspector, live previews, movable canvas, and knobs.
+  Desktop navigation animates between shown and collapsed states; its current
+  groups are Workspace, Catalogue, and AI.
 - An `Atoms` top-level folder for foundational primitives: Colors (including
   swatches, gradients, and custom visual treatments), Fonts, Measurements,
   Motion, Effects, and Assets. Typed numeric values (spacing, radius, layout
@@ -32,6 +33,9 @@ validated when the app starts.
   tokens, a color/treatment atlas, typography, real motion and asset specimens,
   production components, component contracts, named scenarios, and composable
   component-instance knobs.
+- A second executable dogfood consumer that declares and manages Desy's own
+  themes, foundations, icons, and complete workbench-component inventory through
+  the same public `DesyRegistry` contract.
 
 ## Extensibility path
 

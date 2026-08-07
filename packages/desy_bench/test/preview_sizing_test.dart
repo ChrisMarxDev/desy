@@ -7,7 +7,7 @@ import 'package:desy_bench/src/workbench/workbench_session.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
 
 void main() {
@@ -144,7 +144,13 @@ void main() {
       ),
     );
 
-    expect(find.byKey(const ValueKey('responsive-sketch')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('responsive.default#0')),
+        matching: find.byKey(const ValueKey('responsive-sketch')),
+      ),
+      findsOneWidget,
+    );
     expect(receivedConstraints!.maxWidth, 1024);
   });
 
@@ -187,7 +193,13 @@ void main() {
     await tester.pump();
 
     expect(fixture.controller.nodes.value[component]!.rect, componentAfterDrag);
-    expect(find.byKey(const ValueKey('gesture-visual')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(ValueKey(component)),
+        matching: find.byKey(const ValueKey('gesture-visual')),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('components over a bezel keep the workspace media context', (
@@ -239,7 +251,13 @@ void main() {
       ),
     );
 
-    expect(find.byKey(const ValueKey('media-aware-visual')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(ValueKey(item)),
+        matching: find.byKey(const ValueKey('media-aware-visual')),
+      ),
+      findsOneWidget,
+    );
     expect(mediaSize, const Size(800, 600));
     expect(mediaSize, isNot(Devices.ios.iPhone15Pro.screenSize));
   });

@@ -241,6 +241,7 @@ final _sampleComponents = [
   DesyComponent(
     id: 'harbor.button.primary',
     name: 'Primary button',
+    icon: FLucideIcons.mousePointerClick,
     category: 'Action',
     description: 'The one dominant action in a focused task.',
     accessibility: 'Use a specific visible label that describes the outcome.',
@@ -277,6 +278,7 @@ final _sampleComponents = [
   DesyComponent(
     id: 'harbor.button.secondary',
     name: 'Secondary button',
+    icon: FLucideIcons.slidersHorizontal,
     category: 'Action',
     description: 'A supporting action that stays visually subordinate.',
     accessibility: 'Do not use this styling for destructive actions.',
@@ -311,6 +313,7 @@ final _sampleComponents = [
   DesyComponent(
     id: 'harbor.badge.status',
     name: 'Status badge',
+    icon: FLucideIcons.badgeCheck,
     category: 'Feedback',
     description: 'A concise, always-visible state label.',
     accessibility:
@@ -333,6 +336,7 @@ final _sampleComponents = [
   DesyComponent(
     id: 'harbor.notice.info',
     name: 'Information notice',
+    icon: FLucideIcons.info,
     category: 'Feedback',
     description: 'Directs attention to a changed condition and the next step.',
     accessibility:
@@ -363,6 +367,7 @@ final _sampleComponents = [
   DesyComponent(
     id: 'harbor.field.text',
     name: 'Text field',
+    icon: FLucideIcons.formInput,
     category: 'Input',
     description:
         'Collects one concise piece of information with a persistent label.',
@@ -415,6 +420,7 @@ final _sampleComponents = [
   DesyComponent(
     id: 'harbor.card.content',
     name: 'Content card',
+    icon: FLucideIcons.layoutPanelTop,
     category: 'Content',
     description: 'Groups a short update with a visible operational state.',
     accessibility: 'Keep headings meaningful and preserve reading order.',
@@ -506,6 +512,7 @@ final _sampleComponents = [
   DesyComponent(
     id: 'harbor.row.navigation',
     name: 'Navigation row',
+    icon: FLucideIcons.navigation,
     category: 'Navigation',
     description: 'Moves someone to a setting or detailed operational view.',
     accessibility:
@@ -535,6 +542,7 @@ final _sampleComponents = [
   DesyComponent(
     id: 'harbor.metric.operational',
     name: 'Operational metric',
+    icon: FLucideIcons.chartNoAxesColumnIncreasing,
     category: 'Metrics',
     description: 'Pairs one high-value measure with concise operating context.',
     accessibility: 'Keep the value and its meaning available as text.',
@@ -564,6 +572,7 @@ final _sampleComponents = [
   DesyComponent(
     id: 'harbor.capacity.indicator',
     name: 'Capacity indicator',
+    icon: FLucideIcons.gauge,
     category: 'Metrics',
     description:
         'Shows used and total capacity without relying on the bar alone.',
@@ -594,6 +603,7 @@ final _sampleComponents = [
   DesyComponent(
     id: 'harbor.schedule.item',
     name: 'Schedule item',
+    icon: FLucideIcons.calendarClock,
     category: 'Schedule',
     description:
         'Presents one timed event with its supporting detail and state.',
@@ -626,6 +636,7 @@ final _sampleComponents = [
   DesyComponent(
     id: 'harbor.empty-state',
     name: 'Empty state',
+    icon: FLucideIcons.inbox,
     category: 'Empty states',
     description:
         'Explains why a useful collection is empty and offers recovery.',

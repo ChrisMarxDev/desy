@@ -4,6 +4,15 @@ includes:
   bench:
     taskfile: ./packages/desy_bench/Taskfile.yml
     dir: ./packages/desy_bench
+  agent_annotations:
+    taskfile: ./packages/desy_agent_annotations/Taskfile.yml
+    dir: ./packages/desy_agent_annotations
+  design_system:
+    taskfile: ./packages/desy_design_system/Taskfile.yml
+    dir: ./packages/desy_design_system
+  dogfood:
+    taskfile: ./packages/desy_design_system/example/Taskfile.yml
+    dir: ./packages/desy_design_system/example
   screenshot_builder:
     taskfile: ./packages/desy_screenshot_builder/Taskfile.yml
     dir: ./packages/desy_screenshot_builder
@@ -32,6 +41,9 @@ tasks:
     desc: Run all package test suites.
     cmds:
       - task: bench:test
+      - task: agent_annotations:test
+      - task: design_system:test
+      - task: dogfood:test
       - task: screenshot_builder:test
       - task: sample:test
 
@@ -39,7 +51,9 @@ tasks:
     desc: Run the complete local verification suite.
     cmds:
       - task: analyze
+      - task: design_system:forui-boundary
       - task: test
+      - task: sample:compile:web
 
   format:
     desc: Format maintained Dart sources without touching seed material.

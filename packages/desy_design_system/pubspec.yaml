@@ -1,0 +1,21 @@
+name: desy_design_system
+description: Desy-owned Flutter foundations and workbench UI built on Forui.
+version: 0.1.0
+repository: https://github.com/example/desy_bench
+
+environment:
+  sdk: ^3.8.0
+  flutter: '>=3.29.0'
+
+resolution: workspace
+
+dependencies:
+  cupertino_icons: ^1.0.8
+  flutter:
+    sdk: flutter
+  forui: ^0.25.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

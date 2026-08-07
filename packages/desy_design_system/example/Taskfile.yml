@@ -1,0 +1,44 @@
+version: '3'
+
+tasks:
+  run:
+    desc: Launch Desy's own design-system catalogue on a selected device.
+    cmds:
+      - flutter run {{.CLI_ARGS}}
+
+  run_mac:
+    desc: Launch the dogfood catalogue on macOS.
+    platforms: [darwin]
+    cmds:
+      - flutter run -d macos {{.CLI_ARGS}}
+
+  web:
+    desc: Launch the dogfood catalogue in Chrome.
+    cmds:
+      - flutter run -d chrome {{.CLI_ARGS}}
+
+  build:web:
+    desc: Build the dogfood catalogue for web.
+    cmds:
+      - flutter build web {{.CLI_ARGS}}
+
+  build:mac:
+    desc: Build the dogfood catalogue for macOS.
+    platforms: [darwin]
+    cmds:
+      - flutter build macos {{.CLI_ARGS}}
+
+  analyze:
+    desc: Analyze the dogfood catalogue application.
+    cmds:
+      - flutter analyze
+
+  test:
+    desc: Run dogfood catalogue tests.
+    cmds:
+      - flutter test
+
+  format:
+    desc: Format dogfood catalogue sources and tests.
+    cmds:
+      - dart format lib test

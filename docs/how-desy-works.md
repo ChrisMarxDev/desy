@@ -16,7 +16,7 @@ Consumer Flutter code
       ├─ components + contracts
       └─ scenarios, named instances, and knobs
             ↓
-       Desy Bench (Forui scaffold)
+       Desy Bench (desy_design_system scaffold)
             ↓
        real themed Flutter previews
 ```
@@ -27,10 +27,55 @@ outside the consumer theme: only the preview is wrapped with the selected
 `DesyTheme`, so the Bench chrome stays neutral while the inspected widget runs
 in its actual production context.
 
+Desy's own chrome is supplied by `packages/desy_design_system`. It centralizes
+the Forui dependency, neutral themes, Material bridge, icon vocabulary,
+controls, and native text editor. `desy_bench` and Desy-owned extensions import
+that package rather than Forui directly; this does not constrain the component
+library used by consumer previews.
+
 Registry and folder lists are defensive immutable declarations. Each theme,
-folder, artifact, showcase, and workspace extension shares one unique stable
-ID namespace. `DesyBenchApp` runs `registry.validate(...)` at startup and
-rejects duplicate declarations before creating the workbench session.
+folder, artifact, showcase, workspace extension, and detail extension shares
+one unique stable ID namespace. `DesyBenchApp` runs
+`registry.validate(...)` at startup and rejects duplicate declarations before
+creating the workbench session.
+
+## Typed extension boundaries
+
+Workspace extensions own routed screens. Detail extensions are a parallel,
+narrower boundary: `DesyDetailExtension` renders in the inspector for one
+resolved component and creates no navigation. It receives a read-only
+`DesyDetailExtensionContext` containing the same registry object, the active
+theme, resolved registry entry, and component. The host owns placement,
+heading, lifecycle, validation, and registration-order rendering; an extension
+owns only its body and local state.
+
+The host's error isolation is intentionally narrow. It reports and replaces an
+extension section only when `appliesTo` or the declaration's `build` callback
+throws synchronously. Once that callback returns a widget, later failures from
+the widget or its descendants follow Flutter's normal element-level reporting
+and `ErrorWidget` replacement. The host does not install a global widget error
+boundary, and extensions remain responsible for their own asynchronous errors.
+
+`packages/desy_agent_annotations` proves this boundary with a multiline comment
+composer. It snapshots stable component identity, folder ancestry, optional
+source path, active theme ID, comment, and creation time into one immutable
+`DesyAgentAnnotation`. The package calls the consumer's required
+`DesyAgentAnnotationSubmit` callback and displays its typed receipt. It has no
+filesystem, GitHub client, credential, backend, registry mutation, or routing.
+
+The Harbor sample supplies two consumer-side adapter patterns:
+
+- On macOS, a conditionally imported callback uses the sandbox Powerbox to ask
+  for a repository directory. It canonicalizes that selection, caches it only
+  for the running session, rejects existing symlink path components, and
+  atomically publishes Markdown beneath the fixed
+  `.desy/agent_annotations/` directory. Cancellation stays retryable; Harbor
+  stores no persistent security-scoped bookmark. Pending files are claimed
+  exclusively and final filenames use independent random 128-bit tokens,
+  providing UUID-style probabilistic uniqueness.
+- A hosted deployment can pass its authenticated server-side GitHub issue
+  function through `createHostedGitHubIssueSubmit`. The browser receives only
+  the public issue URI; repository credentials remain on the server.
 
 ## Primitives are typed, but not prescriptive
 
@@ -148,6 +193,21 @@ typography, motion, icons, production components, contracts, a delayed state
 scenario, and a card whose trailing status is selected through a
 component-instance knob.
 
+## Desy's inside-out dogfood catalogue
+
+`packages/desy_design_system/example/` is a second maintained consumer. Its
+single `desyDesignSystemRegistry` declares the light/dark workbench themes,
+colors, typography, measurements, motion, effect, icon vocabulary, and every
+visible component family currently used by Desy: accordion, badge, button,
+card, dialog, scaffold, select, sidebar, switch, tabs, tile, native text field,
+and keyboard shortcut label.
+
+The dependency direction remains acyclic: `desy_design_system` owns production
+widgets without importing Desy Bench; the example app imports both packages and
+passes its registry to `DesyBenchApp`. The workbench therefore uses the same
+design system it is cataloguing, while Harbor continues to prove that an
+external consumer owns its visual language independently.
+
 ## Boundaries
 
 Desy Bench is not a Figma replacement, a hosted design-system source of truth,
@@ -158,4 +218,6 @@ system.
 
 Manifest persistence, the CLI, and a Desy-owned accessibility inspector remain
 deliberately deferred. The screenshot builder is an experimental workspace
-extension, not a persisted-manifest implementation.
+extension, not a persisted-manifest implementation. Agent annotation history,
+cloud sync, identity, and direct browser-side GitHub authentication are also
+outside the detail-extension boundary.

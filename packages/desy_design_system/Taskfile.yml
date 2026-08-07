@@ -1,0 +1,29 @@
+version: '3'
+
+tasks:
+  analyze:
+    desc: Analyze the reusable Desy design-system package.
+    cmds:
+      - flutter analyze
+
+  test:
+    desc: Run the Desy design-system widget tests.
+    cmds:
+      - flutter test
+
+  format:
+    desc: Format Desy design-system sources and tests.
+    cmds:
+      - dart format lib test
+
+  forui-boundary:
+    desc: Verify Desy-owned consumers import Forui only through this package.
+    dir: ../..
+    cmds:
+      - >-
+        if rg -n "package:forui/forui.dart"
+        packages/desy_bench packages/desy_agent_annotations
+        packages/desy_screenshot_builder; then
+        echo "Direct Forui import found outside desy_design_system";
+        exit 1;
+        fi

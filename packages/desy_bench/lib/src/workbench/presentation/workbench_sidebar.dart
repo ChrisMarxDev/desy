@@ -2,7 +2,7 @@
 // ignore_for_file: public_member_api_docs
 
 import 'package:flutter/material.dart';
-import 'package:forui/forui.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 import 'package:go_router/go_router.dart';
 import 'package:state_beacon/state_beacon.dart';
 
@@ -33,8 +33,8 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     final theme = session.activeThemeIndex.watch(context);
     final folders = session.registry.folders;
 
-    return FSidebar(
-      style: const FSidebarStyleDelta.delta(
+    return DesySidebar(
+      style: const DesySidebarStyleDelta.delta(
         constraints: BoxConstraints(minWidth: double.infinity),
         headerPadding: EdgeInsetsGeometryDelta.value(EdgeInsets.zero),
         contentPadding: EdgeInsetsGeometryDelta.value(
@@ -55,20 +55,20 @@ class DesyWorkbenchSidebar extends StatelessWidget {
                     container: true,
                     button: true,
                     label: 'Collapse sidebar',
-                    child: FButton(
+                    child: DesyButton(
                       key: const ValueKey('desktop-sidebar-collapse'),
-                      variant: FButtonVariant.outline,
-                      size: FButtonSizeVariant.sm,
+                      variant: DesyButtonVariant.outline,
+                      size: DesyButtonSize.sm,
                       onPress: collapse,
-                      child: const Icon(FLucideIcons.panelLeftClose, size: 16),
+                      child: const Icon(DesyIcons.panelLeftClose, size: 16),
                     ),
                   ),
               ],
             ),
             const SizedBox(height: 10),
-            FSelect<int>.rich(
+            DesySelect<int>.rich(
               key: const ValueKey('sidebar-theme-select'),
-              control: FSelectControl.lifted(
+              control: DesySelectControl.lifted(
                 value: theme,
                 onChange: (index) {
                   if (index != null) session.selectTheme(index);
@@ -77,7 +77,7 @@ class DesyWorkbenchSidebar extends StatelessWidget {
               format: (index) => session.registry.themes[index].name,
               children: [
                 for (final (index, option) in session.registry.themes.indexed)
-                  FSelectItem.item(
+                  DesySelectItem.item(
                     key: ValueKey('sidebar-theme-${option.id}'),
                     value: index,
                     title: Text(option.name),
@@ -90,7 +90,7 @@ class DesyWorkbenchSidebar extends StatelessWidget {
       ),
       footer: Padding(
         padding: const EdgeInsets.all(12),
-        child: FBadge(
+        child: DesyBadge(
           child: Text('${session.registry.allEntries.length} entries'),
         ),
       ),
@@ -99,26 +99,26 @@ class DesyWorkbenchSidebar extends StatelessWidget {
           id: 'workspace',
           label: const Text('Workspace'),
           children: [
-            FSidebarItem(
-              icon: const Icon(FLucideIcons.layoutGrid),
+            DesySidebarItem(
+              icon: const Icon(DesyIcons.layoutGrid),
               label: const Text('Atlas'),
               selected:
                   currentLocation.path == DesyWorkbenchRoutes.atlasPath &&
                   currentLocation.queryParameters['folder'] == null,
               onPress: () => _go(context, DesyWorkbenchRoutes.atlasPath),
             ),
-            FSidebarItem(
+            DesySidebarItem(
               key: const ValueKey('workspace-components-nav'),
-              icon: const Icon(FLucideIcons.boxes),
+              icon: const Icon(DesyIcons.boxes),
               label: const Text('Components'),
               selected:
                   currentLocation.path == DesyWorkbenchRoutes.componentsPath,
               onPress: () => _go(context, DesyWorkbenchRoutes.componentsPath),
             ),
             for (final extension in session.extensions)
-              FSidebarItem(
+              DesySidebarItem(
                 key: ValueKey('workspace-extension-${extension.id}'),
-                icon: Icon(extension.icon ?? FLucideIcons.boxes),
+                icon: Icon(extension.icon ?? DesyIcons.boxes),
                 label: Text(extension.name),
                 selected:
                     currentLocation.path ==
@@ -148,10 +148,10 @@ class DesyWorkbenchSidebar extends StatelessWidget {
           id: 'ai',
           label: const Text('AI'),
           children: const [
-            FSidebarItem(
-              icon: Icon(FLucideIcons.sparkles),
+            DesySidebarItem(
+              icon: Icon(DesyIcons.sparkles),
               label: Text('Prompt library'),
-              children: [FSidebarItem(label: Text('No prompts yet'))],
+              children: [DesySidebarItem(label: Text('No prompts yet'))],
             ),
           ],
         ),
@@ -159,9 +159,9 @@ class DesyWorkbenchSidebar extends StatelessWidget {
           id: 'showcases',
           label: const Text('Showcases'),
           children: [
-            FSidebarItem(
+            DesySidebarItem(
               key: const ValueKey('showcases-nav'),
-              icon: const Icon(FLucideIcons.layers),
+              icon: const Icon(DesyIcons.layers),
               label: const Text('Overview · experimental'),
               selected:
                   currentLocation.path == DesyWorkbenchRoutes.showcasesPath,
@@ -173,13 +173,13 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     );
   }
 
-  FSidebarItem _folderItem(
+  DesySidebarItem _folderItem(
     BuildContext context,
     DesyFolder folder,
     Uri location,
   ) {
     final entries = _directEntries(folder);
-    return FSidebarItem(
+    return DesySidebarItem(
       key: ValueKey('sidebar-folder-${folder.id}'),
       icon: Icon(_folderIcon(folder.name)),
       label: Text(folder.name),
@@ -193,8 +193,9 @@ class DesyWorkbenchSidebar extends StatelessWidget {
         for (final child in folder.children)
           _folderItem(context, child, location),
         for (final entry in entries)
-          FSidebarItem(
-            icon: Icon(_folderIcon(entry.path), size: 16),
+          DesySidebarItem(
+            key: ValueKey('sidebar-entry-${entry.id}'),
+            icon: Icon(_entryIcon(entry), size: 16),
             label: Text(entry.name),
             onPress: () {
               session.prepareEntry(entry);
@@ -234,14 +235,18 @@ class DesyWorkbenchSidebar extends StatelessWidget {
       _directEntries(folder).any((entry) => entry.id == id) ||
       folder.children.any((child) => _containsEntry(child, id));
 
+  IconData _entryIcon(DesyRegistryEntry entry) =>
+      entry.component?.icon ??
+      (entry.component == null ? _folderIcon(entry.path) : DesyIcons.component);
+
   IconData _folderIcon(String name) => switch (name) {
-    'Colors' => FLucideIcons.palette,
-    'Fonts' => FLucideIcons.type,
-    'Spacing' || 'Sizing' || 'Shape' => FLucideIcons.ruler,
-    'Motion' => FLucideIcons.sparkles,
-    'Effects' => FLucideIcons.layers,
-    'Assets' => FLucideIcons.image,
-    _ => FLucideIcons.folder,
+    'Colors' => DesyIcons.palette,
+    'Fonts' => DesyIcons.type,
+    'Spacing' || 'Sizing' || 'Shape' => DesyIcons.ruler,
+    'Motion' => DesyIcons.sparkles,
+    'Effects' => DesyIcons.layers,
+    'Assets' => DesyIcons.image,
+    _ => DesyIcons.folder,
   };
 
   void _go(BuildContext context, String location) {
@@ -437,16 +442,16 @@ class _CollapsibleSidebarGroupState extends State<_CollapsibleSidebarGroup> {
   void _toggle() => setState(() => _expanded = !_expanded);
 
   @override
-  Widget build(BuildContext context) => FSidebarGroup(
+  Widget build(BuildContext context) => DesySidebarGroup(
     key: ValueKey('sidebar-section-${widget.id}'),
-    style: const FSidebarGroupStyleDelta.delta(
+    style: const DesySidebarGroupStyleDelta.delta(
       padding: EdgeInsetsDelta.value(EdgeInsets.symmetric(vertical: 3)),
       headerPadding: EdgeInsetsGeometryDelta.value(
         EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       ),
       childrenSpacing: 6,
       childrenPadding: EdgeInsetsGeometryDelta.value(EdgeInsets.zero),
-      itemStyle: FSidebarItemStyleDelta.delta(
+      itemStyle: DesySidebarItemStyleDelta.delta(
         iconSpacing: 6,
         collapsibleIconSpacing: 6,
         childrenSpacing: 6,
@@ -478,7 +483,7 @@ class _CollapsibleSidebarGroupState extends State<_CollapsibleSidebarGroup> {
         button: true,
         label: '${widget.id} section, ${_expanded ? 'collapse' : 'expand'}',
         child: Icon(
-          _expanded ? FLucideIcons.chevronUp : FLucideIcons.chevronDown,
+          _expanded ? DesyIcons.chevronUp : DesyIcons.chevronDown,
           size: 15,
         ),
       ),

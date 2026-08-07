@@ -2,7 +2,7 @@
 // ignore_for_file: public_member_api_docs
 
 import 'package:flutter/material.dart';
-import 'package:forui/forui.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
 
 import '../../registry.dart';
@@ -26,7 +26,7 @@ class DesyShowcasesScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              FBadge(child: const Text('EXPERIMENTAL')),
+              DesyBadge(child: const Text('EXPERIMENTAL')),
               const SizedBox(width: 10),
               Text(
                 'COMPOSITIONS',
@@ -67,7 +67,7 @@ class _ShowcaseCard extends StatelessWidget {
   final DesyTheme theme;
 
   @override
-  Widget build(BuildContext context) => FCard(
+  Widget build(BuildContext context) => DesyCard(
     clipBehavior: Clip.antiAlias,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,7 +110,7 @@ class _EmptyShowcases extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: FCard(
+    child: DesyCard(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Text(

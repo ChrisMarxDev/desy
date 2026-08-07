@@ -1,3 +1,4 @@
+import 'package:desy_agent_annotations/desy_agent_annotations.dart';
 import 'package:desy_bench/desy_bench.dart';
 import 'package:desy_screenshot_builder/desy_screenshot_builder.dart';
 import 'package:flutter/material.dart'
@@ -266,6 +267,53 @@ void main() {
     expect(find.text('Primary button'), findsWidgets);
   });
 
+  testWidgets(
+    'routes a concrete annotation extension through component details',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      DesyAgentAnnotation? received;
+      await tester.pumpWidget(
+        DesyBenchApp(
+          registry: sampleRegistry,
+          detailExtensions: [
+            DesyAgentAnnotationsExtension(
+              onSubmit: (annotation) async {
+                received = annotation;
+                return const DesyAgentAnnotationReceipt(
+                  message: 'Queued for the sample agent.',
+                );
+              },
+            ),
+          ],
+        ),
+      );
+
+      tester
+          .widget<FSidebarItem>(
+            find.byKey(const ValueKey('sidebar-folder-components.action')),
+          )
+          .onPress!
+          .call();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Primary button').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Agent annotation'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const ValueKey('agent-annotation-comment')),
+        'Check the sample focus treatment.',
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('agent-annotation-submit')));
+      await tester.pumpAndSettle();
+
+      expect(received?.componentId, 'harbor.button.primary');
+      expect(received?.comment, 'Check the sample focus treatment.');
+      expect(find.text('Queued for the sample agent.'), findsOneWidget);
+    },
+  );
+
   testWidgets('adapts nested component-instance preset values for knobs', (
     tester,
   ) async {
@@ -397,7 +445,7 @@ void main() {
     expect(find.text('Compact threshold'), findsWidgets);
   });
 
-  testWidgets('offers named component instances as palette tree leaves', (
+  testWidgets('shows every named instance in a two-column preview grid', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1400, 900));
@@ -407,23 +455,40 @@ void main() {
     await tester.tap(find.text('Components').first);
     await tester.pumpAndSettle();
 
+    final gridFinder = find.byKey(const ValueKey('sketch-component-grid'));
+    final grid = tester.widget<GridView>(gridFinder);
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+
+    expect(delegate.crossAxisCount, 2);
+    expect(delegate.mainAxisExtent, 132);
     expect(
-      find.byKey(const ValueKey('palette-folder-components.action')),
+      grid.semanticChildCount,
+      sampleRegistry.allComponentInstances.length,
+    );
+    expect(
+      find.byKey(
+        const ValueKey(
+          'palette-preview-harbor.button.primary.publish-schedule',
+        ),
+      ),
       findsOneWidget,
     );
-    await tester.tap(
-      find.byKey(const ValueKey('palette-folder-components.action')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(const ValueKey('palette-component-harbor.button.primary')),
-    );
-    await tester.pumpAndSettle();
 
-    expect(find.text('Publish schedule'), findsOneWidget);
+    final last = sampleRegistry.allComponentInstances.last;
+    final lastTile = find.byKey(ValueKey('palette-instance-${last.id}'));
+    await tester.scrollUntilVisible(
+      lastTile,
+      280,
+      scrollable: find
+          .descendant(of: gridFinder, matching: find.byType(Scrollable))
+          .first,
+    );
+    expect(lastTile, findsOneWidget);
+    expect(find.byKey(ValueKey('palette-preview-${last.id}')), findsOneWidget);
   });
 
-  testWidgets('preserves intermediate registry folders in the palette', (
+  testWidgets('shows deeply nested instances without folder disclosure', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1400, 900));
@@ -432,32 +497,31 @@ void main() {
 
     await tester.tap(find.text('Components').first);
     await tester.pumpAndSettle();
-    final operations = find.byKey(
-      const ValueKey('palette-folder-components.operations'),
-    );
-    await tester.ensureVisible(operations);
-    await tester.tap(operations);
-    await tester.pumpAndSettle();
-    final overview = find.byKey(
-      const ValueKey('palette-folder-components.operations.overview'),
-    );
-    await tester.ensureVisible(overview);
-    await tester.tap(overview);
-    await tester.pumpAndSettle();
-    final metrics = find.byKey(
-      const ValueKey('palette-folder-components.operations.overview.metrics'),
-    );
-    await tester.ensureVisible(metrics);
-    await tester.tap(metrics);
-    await tester.pumpAndSettle();
     final metric = find.byKey(
-      const ValueKey('palette-component-harbor.metric.operational'),
+      const ValueKey(
+        'palette-instance-harbor.metric.operational.available-berths',
+      ),
     );
-    await tester.ensureVisible(metric);
-    await tester.tap(metric);
-    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      metric,
+      280,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('sketch-component-grid')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
 
-    expect(find.text('Available berths'), findsWidgets);
+    expect(metric, findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey(
+          'palette-preview-harbor.metric.operational.available-berths',
+        ),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
@@ -470,14 +534,12 @@ void main() {
       await tester.tap(find.text('Components').first);
       await tester.pumpAndSettle();
       await tester.tap(
-        find.byKey(const ValueKey('palette-folder-components.action')),
+        find.byKey(
+          const ValueKey(
+            'palette-instance-harbor.button.primary.publish-schedule',
+          ),
+        ),
       );
-      await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(const ValueKey('palette-component-harbor.button.primary')),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Publish schedule'));
       await tester.pumpAndSettle();
 
       expect(find.text('Knobs'), findsOneWidget);
@@ -493,14 +555,6 @@ void main() {
     await tester.pumpWidget(DesyBenchApp(registry: sampleRegistry));
 
     await tester.tap(find.text('Components').first);
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(const ValueKey('palette-folder-components.action')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(const ValueKey('palette-component-harbor.button.primary')),
-    );
     await tester.pumpAndSettle();
     final publishSchedule = find.byKey(
       const ValueKey('palette-instance-harbor.button.primary.publish-schedule'),

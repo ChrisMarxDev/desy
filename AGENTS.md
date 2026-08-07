@@ -4,6 +4,9 @@
 
 - `packages/desy_bench/` is the reusable Flutter package. Keep it independent
   of any specific design system.
+- `packages/desy_design_system/` owns Desy's workbench foundations and UI. It
+  is the only Desy-owned package that depends directly on Forui. Its
+  `example/` app owns the dogfood registry and is a maintained executable.
 - `example/sample_design_system/` is a consuming app and the primary integration
   testbed. It owns tokens, components, and the registry it passes to the bench.
 - `concept/` and `prototype/` are read-only seed material. Do not evolve them
@@ -32,6 +35,9 @@
 - Build all Desy-owned scaffold UI with Forui. This includes workbench chrome,
   navigation, panels, controls, and studio surfaces; it does not constrain a
   consumer preview's component library.
+- Desy-owned packages consume Forui through `desy_design_system`; do not add a
+  direct Forui import to `desy_bench` or a Desy-owned extension. The dogfood
+  app's `DesyRegistry` is the only runtime inventory of Desy's exported UI.
 - Render consumer previews at their intended logical dimensions, then scale the
   result down within the Desy canvas. Do not make a widget look smaller by
   giving it artificial compact constraints.
@@ -61,8 +67,9 @@
 ## Verification
 
 From the repository root, `task check` is the canonical verification command.
-It runs root analysis plus all three test suites, including the experimental
-screenshot-builder extension:
+It runs root analysis, the Forui dependency-boundary check, all six test
+suites, and a production sample web compile, including the dogfood app and
+optional extensions:
 
 ```sh
 task check
@@ -70,4 +77,6 @@ task check
 
 `flutter test` at the repository root is not equivalent: it does not express
 the workspace's package-by-package test coverage. For focused work, use
-`task bench:test`, `task screenshot_builder:test`, or `task sample:test`.
+`task design_system:test`, `task dogfood:test`, `task bench:test`,
+`task agent_annotations:test`, `task screenshot_builder:test`, or
+`task sample:test`.

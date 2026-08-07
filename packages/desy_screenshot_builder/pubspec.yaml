@@ -12,9 +12,10 @@ resolution: workspace
 dependencies:
   desy_bench:
     path: ../desy_bench
+  desy_design_system:
+    path: ../desy_design_system
   flutter:
     sdk: flutter
-  forui: ^0.25.0
 
 dev_dependencies:
   flutter_test:

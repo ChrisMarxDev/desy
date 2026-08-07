@@ -65,6 +65,12 @@ controls, and future studio surfaces—use Forui. This rule applies to Desy Benc
 chrome, not to consumer previews: consumers continue to render their actual
 production widgets under their own theme and component library.
 
+`packages/desy_design_system` is the single Desy-owned home of that dependency.
+The workbench and Desy-owned extensions consume its public theme, icon, and
+control surface rather than importing Forui directly. Its colocated executable
+declares those real widgets in one dogfood `DesyRegistry`; that registry is the
+catalogue inventory, not a second component list maintained by the package.
+
 ### Native text-entry exception
 
 All Desy-owned editable fields use the centralized `DesyTextField`, which is
@@ -166,16 +172,19 @@ single declared system rather than introduce a parallel configuration path.
 
 ## 18. Samples are maintained product surfaces
 
-The sample consumer is the canonical first experience of Desy Bench, not a
-dumping ground for test fixtures. Every visible sample entry must be
-purposeful, presentation-ready, correctly typed, and representative of the
-recommended registry contract. Do not ship placeholder labels, generic
-specimen widgets, duplicate representations of the same primitive, or
-test-only artifacts in the sample registry.
+The Harbor sample and Desy's own dogfood catalogue are canonical product
+surfaces, not dumping grounds for test fixtures. Harbor proves that an
+independent consumer keeps ownership of its visual language; the dogfood app
+proves that Desy's own system can be fully declared and managed through the
+same public registry contract. Every visible entry must be purposeful,
+presentation-ready, correctly typed, and representative of that contract. Do
+not ship placeholder labels, generic specimen widgets, duplicate
+representations of the same primitive, or test-only artifacts in either
+registry.
 
-Tests may define deliberately minimal fixtures inside test files. The running
-sample must remain clean after every work block, because confusing sample data
-looks like confusing Desy behavior and teaches consumers the wrong API.
+Tests may define deliberately minimal fixtures inside test files. Both running
+catalogues must remain clean after every work block, because confusing sample
+data looks like confusing Desy behavior and teaches consumers the wrong API.
 
 ## Non-goals for the first release
 

@@ -2,7 +2,7 @@ import 'package:desy_bench/desy_bench.dart';
 import 'package:desy_bench/src/workbench/presentation/component_knob_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 
 void main() {
   testWidgets('instance swaps render each declared instance icon', (

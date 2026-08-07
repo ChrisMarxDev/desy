@@ -2,9 +2,8 @@
 // ignore_for_file: public_member_api_docs
 
 import 'package:flutter/material.dart';
-import 'package:forui/forui.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 
-import '../../desy_text_field.dart';
 import '../../registry.dart';
 
 /// One canonical knob UI used wherever Desy renders a component instance.
@@ -31,7 +30,7 @@ class DesyComponentKnobPanel extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: switch (knob) {
-            DesyBooleanKnob() => FSwitch(
+            DesyBooleanKnob() => DesySwitch(
               label: Text(knob.name),
               value: values[knob.id] as bool? ?? knob.initial,
               onChange: (value) => onChanged(knob, value),
@@ -71,20 +70,20 @@ class _ComponentInstanceKnob extends StatelessWidget {
     children: [
       Text(knob.name, style: Theme.of(context).textTheme.labelLarge),
       const SizedBox(height: 8),
-      FTile(
+      DesyTile(
         key: ValueKey('instance-swap-current-${knob.id}'),
-        prefix: Icon(selected.icon ?? FLucideIcons.component),
+        prefix: Icon(selected.icon ?? DesyIcons.component),
         title: Text('Swap · ${selected.name}', overflow: TextOverflow.ellipsis),
-        suffix: const Icon(FLucideIcons.chevronsUpDown),
+        suffix: const Icon(DesyIcons.chevronsUpDown),
         onPress: () => _openPicker(context),
       ),
     ],
   );
 
   Future<void> _openPicker(BuildContext context) async {
-    final result = await showFDialog<DesyComponentInstance>(
+    final result = await showDesyDialog<DesyComponentInstance>(
       context: context,
-      builder: (context, _, animation) => FDialog(
+      builder: (context, _, animation) => DesyDialog(
         animation: animation,
         semanticsLabel: 'Swap ${knob.name}',
         builder: (context, _) => _InstancePicker(options: knob.options),
@@ -137,9 +136,9 @@ class _InstancePickerState extends State<_InstancePicker> {
                 separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final option = options[index];
-                  return FTile(
+                  return DesyTile(
                     key: ValueKey('instance-swap-option-${option.id}'),
-                    prefix: Icon(option.icon ?? FLucideIcons.component),
+                    prefix: Icon(option.icon ?? DesyIcons.component),
                     title: Text(option.name, overflow: TextOverflow.ellipsis),
                     onPress: () => Navigator.of(context).pop(option),
                   );

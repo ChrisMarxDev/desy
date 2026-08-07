@@ -5,6 +5,7 @@ import 'package:device_preview/device_preview.dart';
 import 'package:flutter/widgets.dart';
 import 'package:state_beacon/state_beacon.dart';
 
+import '../detail_extension.dart';
 import '../registry.dart';
 import '../workspace_extension.dart';
 
@@ -25,10 +26,16 @@ extension DesyPreviewBezelDevice on DesyPreviewBezel {
 /// The registry remains immutable consumer data. Routes own navigation; this
 /// controller only holds preview geometry and the values a person is trying.
 class DesyWorkbenchSession {
-  DesyWorkbenchSession({required this.registry, this.extensions = const []});
+  DesyWorkbenchSession({
+    required this.registry,
+    List<DesyWorkspaceExtension> extensions = const [],
+    List<DesyDetailExtension> detailExtensions = const [],
+  }) : extensions = List.unmodifiable(extensions),
+       detailExtensions = List.unmodifiable(detailExtensions);
 
   final DesyRegistry registry;
   final List<DesyWorkspaceExtension> extensions;
+  final List<DesyDetailExtension> detailExtensions;
 
   final activeThemeIndex = Beacon.writable(0);
   final selectedScenario = Beacon.writable<DesyComponentScenario?>(null);
@@ -50,6 +57,14 @@ class DesyWorkbenchSession {
         registry: registry,
         activeTheme: registry.themes[activeThemeIndex.value],
       );
+
+  DesyDetailExtensionContext detailExtensionContext(DesyRegistryEntry entry) {
+    return DesyDetailExtensionContext(
+      registry: registry,
+      activeTheme: registry.themes[activeThemeIndex.value],
+      entry: entry,
+    );
+  }
 
   /// Starts a fresh inspection for the entry currently addressed by a route.
   void prepareEntry(DesyRegistryEntry entry) {
