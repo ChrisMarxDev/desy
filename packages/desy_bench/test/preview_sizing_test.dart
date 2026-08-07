@@ -6,6 +6,7 @@ import 'package:desy_bench/src/workbench/widget_preview.dart';
 import 'package:desy_bench/src/workbench/workbench_session.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
@@ -99,19 +100,25 @@ void main() {
     },
   );
 
-  testWidgets('sketch elements keep their own logical preview measurement', (
+  testWidgets('sketch resize supplies real responsive widget constraints', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1400, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    BoxConstraints? receivedConstraints;
     final component = DesyComponent(
       id: 'responsive',
       name: 'Responsive',
       preview: (context) => LayoutBuilder(
         builder: (context, constraints) {
-          receivedConstraints = constraints;
-          return const SizedBox(key: ValueKey('responsive-sketch'));
+          return SizedBox(
+            key: ValueKey(
+              constraints.maxWidth >= 320
+                  ? 'responsive-sketch-wide'
+                  : 'responsive-sketch-compact',
+            ),
+            width: constraints.maxWidth,
+            height: constraints.maxHeight,
+          );
         },
       ),
       instances: [DesyComponentInstance(id: 'default', name: 'Default')],
@@ -138,14 +145,91 @@ void main() {
       ),
     );
 
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('responsive.default#0')),
-        matching: find.byKey(const ValueKey('responsive-sketch')),
-      ),
-      findsOneWidget,
+    final compactPreview = find.descendant(
+      of: find.byKey(const ValueKey('responsive.default#0')),
+      matching: find.byKey(const ValueKey('responsive-sketch-compact')),
     );
-    expect(receivedConstraints!.maxWidth, 1024);
+    expect(compactPreview, findsOneWidget);
+    expect(tester.getSize(compactPreview), const Size(220, 120));
+
+    final nodeBox = tester.getRect(
+      find.byKey(const ValueKey('responsive.default#0')),
+    );
+    await tester.dragFrom(
+      nodeBox.bottomRight - const Offset(3, 3),
+      const Offset(160, 80),
+    );
+    await tester.pump();
+
+    expect(
+      controller.nodes.value['responsive.default#0']!.rect.size,
+      const Size(384, 200),
+    );
+    final widePreview = find.descendant(
+      of: find.byKey(const ValueKey('responsive.default#0')),
+      matching: find.byKey(const ValueKey('responsive-sketch-wide')),
+    );
+    expect(widePreview, findsOneWidget);
+    expect(tester.getSize(widePreview), const Size(384, 200));
+  });
+
+  testWidgets('an unselected sketch node moves on its first drag', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final fixture = _CanvasFixture();
+    final component = fixture.controller.add('gesture.default');
+    fixture.controller.select(null);
+    addTearDown(fixture.dispose);
+
+    await tester.pumpWidget(_TestHarness(child: fixture.canvas()));
+    final before = fixture.controller.nodes.value[component]!.rect;
+
+    await tester.drag(
+      find.byKey(ValueKey('canvas-hit-$component')),
+      const Offset(64, 32),
+    );
+    await tester.pump();
+
+    expect(fixture.controller.selectedId.value, component);
+    expect(
+      fixture.controller.nodes.value[component]!.rect.topLeft,
+      isNot(before.topLeft),
+    );
+  });
+
+  testWidgets('Backspace and Delete remove the selected sketch node', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final fixture = _CanvasFixture();
+    final first = fixture.controller.add('gesture.default');
+    addTearDown(fixture.dispose);
+
+    await tester.pumpWidget(_TestHarness(child: fixture.canvas()));
+
+    await tester.tap(find.byKey(const ValueKey('sketch-component-filter')));
+    await tester.enterText(
+      find.byKey(const ValueKey('sketch-component-filter')),
+      'ge',
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.pump();
+    expect(fixture.controller.nodes.value, contains(first));
+
+    await tester.tap(find.byKey(ValueKey('canvas-hit-$first')));
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.pump();
+    expect(fixture.controller.nodes.value, isEmpty);
+
+    final second = fixture.controller.add('gesture.default');
+    await tester.pump();
+    await tester.tap(find.byKey(ValueKey('canvas-hit-$second')));
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.pump();
+    expect(fixture.controller.nodes.value, isEmpty);
   });
 
   testWidgets('bezel and component are independent flat stack items', (

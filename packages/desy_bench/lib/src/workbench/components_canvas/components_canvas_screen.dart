@@ -38,9 +38,11 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
   late final DesyComponentsCanvasController _controller =
       widget.controller ?? DesyComponentsCanvasController();
   late final bool _ownsController = widget.controller == null;
+  final _sketchFocusNode = FocusNode(debugLabel: 'Sketch canvas');
 
   @override
   void dispose() {
+    _sketchFocusNode.dispose();
     if (_ownsController) _controller.dispose();
     super.dispose();
   }
@@ -64,76 +66,110 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
         ? null
         : _instanceFor(instances, selectedNode!.instanceId!);
 
-    return SelectionContainer.disabled(
-      key: const ValueKey('sketch-selection-disabled'),
-      // The Sketch is a drag surface, not a document. Keep all of its live
-      // responsive panels out of the shell's document-selection registrar;
-      // selection remains available in the persistent catalogue chrome.
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _SketchHeader(onBack: widget.onBack, onClear: _controller.clear),
-            const SizedBox(height: 12),
-            _SketchPreviewToolbar(
-              spacingEntries: spacingEntries,
-              onAddArtboard: _controller.addArtboard,
-              onAddLayout: (preset, spacing) => _controller.addLayout(
-                preset,
-                spacingEntryId: spacing?.id,
-                spacing: spacing?.value ?? 0,
-              ),
+    return Focus(
+      focusNode: _sketchFocusNode,
+      autofocus: true,
+      onKeyEvent: _handleKeyEvent,
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) => _sketchFocusNode.requestFocus(),
+        child: SelectionContainer.disabled(
+          key: const ValueKey('sketch-selection-disabled'),
+          // The Sketch is a drag surface, not a document. Keep all of its live
+          // responsive panels out of the shell's document-selection registrar;
+          // selection remains available in the persistent catalogue chrome.
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SketchHeader(
+                  onBack: widget.onBack,
+                  onClear: _controller.clear,
+                ),
+                const SizedBox(height: 12),
+                _SketchPreviewToolbar(
+                  spacingEntries: spacingEntries,
+                  onAddArtboard: _controller.addArtboard,
+                  onAddLayout: (preset, spacing) => _controller.addLayout(
+                    preset,
+                    spacingEntryId: spacing?.id,
+                    spacing: spacing?.value ?? 0,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: _SketchWorkspace(
+                    palette: _ComponentPalette(
+                      registry: widget.session.registry,
+                      theme: theme,
+                      onSelect: _addInstance,
+                    ),
+                    outline: _CanvasOutline(
+                      nodes: nodes.values.toList().reversed,
+                      instances: instances,
+                      selectedId: selectedId,
+                      onSelect: _controller.select,
+                    ),
+                    canvas: _CanvasStage(
+                      registry: widget.session.registry,
+                      instances: instances,
+                      nodes: nodes,
+                      selectedId: selectedId,
+                      theme: theme,
+                      controller: _controller,
+                    ),
+                    inspector: selectedNode == null
+                        ? null
+                        : selectedNode.isArtboard
+                        ? _CanvasArtboardInspector(
+                            node: selectedNode,
+                            controller: _controller,
+                          )
+                        : selectedNode.isLayout
+                        ? _CanvasLayoutInspector(
+                            node: selectedNode,
+                            spacingEntries: spacingEntries,
+                            controller: _controller,
+                          )
+                        : selectedInstance == null
+                        ? null
+                        : _CanvasInspector(
+                            registry: widget.session.registry,
+                            node: selectedNode,
+                            instance: selectedInstance,
+                            controller: _controller,
+                          ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: _SketchWorkspace(
-                palette: _ComponentPalette(
-                  registry: widget.session.registry,
-                  theme: theme,
-                  onSelect: _addInstance,
-                ),
-                outline: _CanvasOutline(
-                  nodes: nodes.values.toList().reversed,
-                  instances: instances,
-                  selectedId: selectedId,
-                  onSelect: _controller.select,
-                ),
-                canvas: _CanvasStage(
-                  registry: widget.session.registry,
-                  instances: instances,
-                  nodes: nodes,
-                  selectedId: selectedId,
-                  theme: theme,
-                  controller: _controller,
-                ),
-                inspector: selectedNode == null
-                    ? null
-                    : selectedNode.isArtboard
-                    ? _CanvasArtboardInspector(
-                        node: selectedNode,
-                        controller: _controller,
-                      )
-                    : selectedNode.isLayout
-                    ? _CanvasLayoutInspector(
-                        node: selectedNode,
-                        spacingEntries: spacingEntries,
-                        controller: _controller,
-                      )
-                    : selectedInstance == null
-                    ? null
-                    : _CanvasInspector(
-                        registry: widget.session.registry,
-                        node: selectedNode,
-                        instance: selectedInstance,
-                        controller: _controller,
-                      ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey != LogicalKeyboardKey.backspace &&
+        event.logicalKey != LogicalKeyboardKey.delete) {
+      return KeyEventResult.ignored;
+    }
+    if (_isEditingText()) return KeyEventResult.ignored;
+    final selected = _controller.selectedId.value;
+    if (selected == null) return KeyEventResult.ignored;
+    _controller.remove(selected);
+    return KeyEventResult.handled;
+  }
+
+  bool _isEditingText() {
+    final focusContext = FocusManager.instance.primaryFocus?.context;
+    if (focusContext == null) return false;
+    return focusContext.widget is EditableText ||
+        focusContext.findAncestorWidgetOfExactType<EditableText>() != null;
   }
 
   void _addInstance(DesyRegisteredComponentInstance instance) {
@@ -1231,7 +1267,7 @@ class _CanvasTransformableNode extends StatelessWidget {
       handleAlignment: HandleAlignment.inside,
       handleTapSize: 18,
       resizable: selected,
-      draggable: selected,
+      draggable: true,
       visibleHandles: selected ? const {...HandlePosition.values} : const {},
       enabledHandles: selected ? const {...HandlePosition.values} : const {},
       onTap: () => controller.select(node.id),
@@ -1589,21 +1625,19 @@ class _CanvasElement extends StatelessWidget {
       ClipRect(
         child: Align(
           alignment: Alignment.topLeft,
-          child: DesyFittedPreview(
-            child: DesyWidgetPreview(
-              theme: theme,
-              builder: (context) => instance.component.buildWithKnobs == null
-                  ? instance.component.buildInstance(
-                      context,
-                      instance.instance,
-                      widgets: registry.widgetBuilder,
-                    )
-                  : instance.component.buildWithKnobs!(
-                      context,
-                      DesyKnobValues(node.knobValues),
-                      registry.widgetBuilder,
-                    ),
-            ),
+          child: DesyWidgetPreview(
+            theme: theme,
+            builder: (context) => instance.component.buildWithKnobs == null
+                ? instance.component.buildInstance(
+                    context,
+                    instance.instance,
+                    widgets: registry.widgetBuilder,
+                  )
+                : instance.component.buildWithKnobs!(
+                    context,
+                    DesyKnobValues(node.knobValues),
+                    registry.widgetBuilder,
+                  ),
           ),
         ),
       ),

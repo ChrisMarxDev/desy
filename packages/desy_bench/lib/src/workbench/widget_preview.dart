@@ -71,12 +71,10 @@ class DesyWidgetPreview extends StatelessWidget {
 /// Measures a consumer preview at a usable logical size, then scales that
 /// completed result down to its Desy-owned display frame.
 ///
-/// A canvas element's rect is a presentation affordance: it must not become
-/// the constraints that select a consumer widget's responsive layout. The
-/// finite measurement bounds keep normal Flutter layout safe for widgets that
-/// expand, while allowing naturally sized widgets to retain their intrinsic
-/// size. Device previews are the exception: their screen dimensions are known
-/// typed constraints and are supplied by the device frame itself.
+/// This is intended for bounded catalogue thumbnails where the consumer widget
+/// needs a meaningful measurement pass before fitting. Interactive sketch
+/// nodes deliberately do not use it: their resize rectangle supplies the real
+/// logical constraints so responsive widget behavior remains inspectable.
 class DesyFittedPreview extends StatelessWidget {
   const DesyFittedPreview({required this.child, super.key});
 
