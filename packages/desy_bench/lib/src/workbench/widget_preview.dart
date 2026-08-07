@@ -144,3 +144,88 @@ class _RenderLogicalPreviewMeasurement extends RenderProxyBox {
     size = constraints.constrain(child.size);
   }
 }
+
+/// Measures a child's natural size under the finite loose pass and reports it
+/// after layout, without imposing a fixed display size.
+///
+/// This powers content-based drag-box sizing. The workbench drops a
+/// placeholder frame, this probe lays the real widget out at its true
+/// preferred size, and the frame is then resized to the reported natural size.
+/// A real render pass is used (not dry layout), so the reported size follows
+/// layout changes such as a consumer text-scaling knob.
+class DesyContentSizeProbe extends StatelessWidget {
+  const DesyContentSizeProbe({
+    required this.onNaturalSize,
+    required this.child,
+    super.key,
+  });
+
+  /// Reports the child's natural size once settled after a layout pass.
+  final ValueChanged<Size> onNaturalSize;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => _DesyContentSizeProbeBox(
+    onNaturalSize: onNaturalSize,
+    child: child,
+  );
+}
+
+class _DesyContentSizeProbeBox extends SingleChildRenderObjectWidget {
+  const _DesyContentSizeProbeBox({
+    required this.onNaturalSize,
+    required super.child,
+  });
+
+  final ValueChanged<Size> onNaturalSize;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderContentSizeProbe(
+        DesyFittedPreview._maximumLogicalSize,
+        onNaturalSize,
+      );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderContentSizeProbe renderObject,
+  ) {
+    renderObject.onNaturalSize = onNaturalSize;
+  }
+}
+
+class _RenderContentSizeProbe extends RenderProxyBox {
+  _RenderContentSizeProbe(this._cap, this.onNaturalSize);
+
+  final Size _cap;
+  ValueChanged<Size> onNaturalSize;
+
+  @override
+  void performLayout() {
+    final child = this.child;
+    if (child == null) {
+      size = constraints.constrain(Size.zero);
+      return;
+    }
+    child.layout(BoxConstraints.loose(_cap), parentUsesSize: true);
+    final natural = child.size;
+    final isFullBleed =
+        natural.width >= _cap.width || natural.height >= _cap.height;
+    if (isFullBleed) {
+      // Responsive or full-bleed content has no intrinsic size. Lay it out at
+      // the frame so it fills correctly, and never grow the box past it.
+      child.layout(constraints.loosen(), parentUsesSize: true);
+      size = constraints.constrain(child.size);
+      final frameSize = child.size;
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => onNaturalSize(frameSize),
+      );
+      return;
+    }
+    size = constraints.constrain(child.size);
+    final settled = child.size;
+    WidgetsBinding.instance.addPostFrameCallback((_) => onNaturalSize(settled));
+  }
+}

@@ -196,8 +196,13 @@ class DesyComponentsCanvasController with BeaconController {
   late final nodes = B.writable<Map<String, DesyCanvasNode>>({});
   late final selectedId = B.writable<String?>(null);
   final _nodeSignals = <String, ValueNotifier<DesyCanvasNode>>{};
+  final _manuallySized = <String>{};
+  final _externallySized = <String>{};
   var _nextNode = 0;
   Rect? _stageBounds;
+
+  static const _autoFitMaximumSize = Size(1024, 768);
+  static const _minimumAutoFitExtent = 8.0;
 
   /// The live interaction state for one existing node.
   ///
@@ -365,7 +370,13 @@ class DesyComponentsCanvasController with BeaconController {
   }
 
   void update(DesyCanvasNode node) {
-    if (!nodes.value.containsKey(node.id)) return;
+    final current = nodes.value[node.id];
+    if (current == null) return;
+    // An explicit geometry change means the caller has taken control of the
+    // node's size; content-based auto-fitting stops competing with it.
+    if (current.rect != node.rect) {
+      _externallySized.add(node.id);
+    }
     _replaceNodes({...nodes.value, node.id: node});
   }
 
@@ -381,10 +392,46 @@ class DesyComponentsCanvasController with BeaconController {
   /// committed collection.
   void commitInteraction(DesyCanvasNode node) {
     if (!nodes.value.containsKey(node.id)) return;
+    declareManual(node.id);
     _replaceNodes({...nodes.value, node.id: node});
   }
 
   void select(String? componentId) => selectedId.value = componentId;
+
+  /// Marks a node as manually sized so content-based auto-fitting stops
+  /// competing with the user's own drag-box geometry once they resize it.
+  void declareManual(String nodeId) => _manuallySized.add(nodeId);
+
+  /// Fits a component node's drag box to its content's natural size.
+  ///
+  /// The size comes from a real layout pass (_RenderContentSizeProbe), so it
+  /// already reflects the widget under the current theme and text scale. A
+  /// widget that filled the loose measurement pass has no intrinsic size;
+  /// those stay at the placeholder so full-bleed components do not explode.
+  void fitToContent(String nodeId, Size size) {
+    if (_manuallySized.contains(nodeId) ||
+        _externallySized.contains(nodeId)) {
+      return;
+    }
+    final node = nodes.value[nodeId];
+    if (node == null || node.parentLayoutId != null) return;
+    if (size.width >= _autoFitMaximumSize.width ||
+        size.height >= _autoFitMaximumSize.height) {
+      return;
+    }
+    final width = size.width < _minimumAutoFitExtent
+        ? _minimumAutoFitExtent
+        : size.width;
+    final height = size.height < _minimumAutoFitExtent
+        ? _minimumAutoFitExtent
+        : size.height;
+    final rect = node.rect;
+    final fitted = Rect.fromLTWH(rect.left, rect.top, width, height);
+    if (fitted == rect) return;
+    // Settle via the node collection directly rather than update(), so the fit
+    // is not itself treated as external sizing and can keep following content.
+    _replaceNodes({...nodes.value, node.id: node.copyWith(rect: fitted)});
+  }
 
   void setKnob(String nodeId, String knobId, Object value) {
     final node = nodes.value[nodeId];
@@ -397,6 +444,8 @@ class DesyComponentsCanvasController with BeaconController {
     final next = Map<String, DesyCanvasNode>.from(nodes.value)..remove(nodeId);
     next.removeWhere((_, node) => node.parentLayoutId == nodeId);
     _replaceNodes(next);
+    _manuallySized.remove(nodeId);
+    _externallySized.remove(nodeId);
     if (selectedId.value == nodeId || !next.containsKey(selectedId.value)) {
       selectedId.value = null;
     }
@@ -404,6 +453,8 @@ class DesyComponentsCanvasController with BeaconController {
 
   void clear() {
     _replaceNodes({});
+    _manuallySized.clear();
+    _externallySized.clear();
     selectedId.value = null;
   }
 

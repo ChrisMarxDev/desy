@@ -57,6 +57,42 @@ void main() {
     controller.dispose();
   });
 
+  test('fitToContent resizes the box to the content natural size', () {
+    final controller = DesyComponentsCanvasController();
+    final node = controller.add('button.fallback');
+
+    controller.fitToContent(node, const Size(140, 36));
+
+    expect(
+      controller.nodes.value[node]!.rect.size,
+      const Size(140, 36),
+    );
+    controller.dispose();
+  });
+
+  test('fitToContent keeps the placeholder for greedy full-bleed content', () {
+    final controller = DesyComponentsCanvasController();
+    final node = controller.add('button.fallback');
+    final before = controller.nodes.value[node]!.rect;
+
+    controller.fitToContent(node, const Size(1024, 768));
+
+    expect(controller.nodes.value[node]!.rect, before);
+    controller.dispose();
+  });
+
+  test('fitToContent stops once a node is manually sized', () {
+    final controller = DesyComponentsCanvasController();
+    final node = controller.add('button.fallback');
+    final before = controller.nodes.value[node]!.rect;
+
+    controller.declareManual(node);
+    controller.fitToContent(node, const Size(140, 36));
+
+    expect(controller.nodes.value[node]!.rect, before);
+    controller.dispose();
+  });
+
   test('canvas nodes take an immutable snapshot of knob values', () {
     final values = <String, Object>{'label': 'Publish schedule'};
     final node = DesyCanvasNode.component(

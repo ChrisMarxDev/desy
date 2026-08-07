@@ -1393,6 +1393,7 @@ class _ReactiveCanvasNode extends StatelessWidget {
         instances: instances,
         selectedId: selectedId,
         theme: theme,
+        controller: controller,
       );
     }
     if (node.parentLayoutId != null) return null;
@@ -1404,6 +1405,7 @@ class _ReactiveCanvasNode extends StatelessWidget {
       node: node,
       theme: theme,
       selected: selectedId == node.id,
+      controller: controller,
     );
   }
 
@@ -1454,7 +1456,13 @@ class _CanvasNodeFrame extends StatelessWidget {
         contentKey: ValueKey('canvas-hit-${node.id}'),
         selected: selected,
         onSelect: () => controller.select(node.id),
-        onChanged: (geometry) => controller.updateTransient(_nodeFor(geometry)),
+        onChanged: (geometry) {
+          final current = controller.nodeValue(node.id);
+          if (current != null && current.rect.size != geometry.rect.size) {
+            controller.declareManual(node.id);
+          }
+          controller.updateTransient(_nodeFor(geometry));
+        },
         onChangeEnd: (geometry) =>
             controller.commitInteraction(_nodeFor(geometry)),
         label: selected
@@ -1540,6 +1548,7 @@ class _CanvasLayout extends StatelessWidget {
     required this.instances,
     required this.selectedId,
     required this.theme,
+    required this.controller,
   });
 
   final DesyCanvasNode node;
@@ -1548,6 +1557,7 @@ class _CanvasLayout extends StatelessWidget {
   final List<DesyRegisteredComponentInstance> instances;
   final String? selectedId;
   final DesyTheme theme;
+  final DesyComponentsCanvasController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -1660,6 +1670,7 @@ class _CanvasLayout extends StatelessWidget {
               node: child,
               theme: theme,
               selected: selectedId == child.id,
+              controller: controller,
             ),
     );
   }
@@ -1787,6 +1798,7 @@ class _CanvasElement extends StatelessWidget {
     required this.node,
     required this.theme,
     required this.selected,
+    required this.controller,
   });
 
   final DesyRegistry registry;
@@ -1794,35 +1806,47 @@ class _CanvasElement extends StatelessWidget {
   final DesyCanvasNode node;
   final DesyTheme theme;
   final bool selected;
+  final DesyComponentsCanvasController controller;
 
   @override
-  Widget build(BuildContext context) => Stack(
-    fit: StackFit.expand,
-    children: [
-      ClipRect(
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: DesyWidgetPreview(
-            theme: theme,
-            builder: (context) => instance.component.buildWithValues(
-              context,
-              node.knobValues,
-              widgets: registry.widgetBuilder,
-            ),
+  Widget build(BuildContext context) {
+    final preview = DesyWidgetPreview(
+      theme: theme,
+      builder: (context) => instance.component.buildWithValues(
+        context,
+        node.knobValues,
+        widgets: registry.widgetBuilder,
+      ),
+    );
+    // Without a declared size the drag box auto-fits to the content's natural
+    // size after the first real layout pass.
+    final measured = instance.component.defaultSize == null
+        ? DesyContentSizeProbe(
+            onNaturalSize: (size) => controller.fitToContent(node.id, size),
+            child: preview,
+          )
+        : preview;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ClipRect(
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: measured,
           ),
         ),
-      ),
-      if (selected)
-        IgnorePointer(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: context.theme.colors.primary,
-                width: 1.5,
+        if (selected)
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: context.theme.colors.primary,
+                  width: 1.5,
+                ),
               ),
             ),
           ),
-        ),
-    ],
-  );
+      ],
+    );
+  }
 }
