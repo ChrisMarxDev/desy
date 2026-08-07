@@ -14,6 +14,23 @@ void main() {
     );
   });
 
+  test('Desy themes use the Space Grotesk type family', () {
+    for (final variant in DesyDesignSystemTheme.values) {
+      final theme = DesyDesignSystemFoundation.themeData(variant);
+
+      expect(
+        theme.typography.body.fontFamily,
+        DesyDesignSystemTokens.fontFamily,
+      );
+      expect(
+        DesyDesignSystemFoundation.materialTheme(
+          variant,
+        ).textTheme.bodyMedium?.fontFamily,
+        DesyDesignSystemTokens.fontFamily,
+      );
+    }
+  });
+
   testWidgets('scope supplies Desy and Material theme bridges', (tester) async {
     late Color foruiBackground;
     late Color materialBackground;

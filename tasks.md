@@ -15,18 +15,52 @@ source of truth. New capabilities should derive from declared registry IDs,
 real widget builders, themes, contracts, and typed values rather than creating a
 parallel catalogue or hosted backend.
 
-## Priority and dependency legend
+## Impact and complexity ranking
+
+The backlog is sorted here by **leverage**: expected product impact divided by
+implementation complexity. Scores are relative estimates for sequencing, not
+commitments. Re-score a feature when discovery materially changes its scope.
+
+- **Impact 5** — foundational to trust, adoption, or the core daily workflow.
+- **Impact 3** — meaningful value for an important but narrower workflow.
+- **Impact 1** — specialized or incremental value.
+- **Complexity 5** — new cross-package contracts, tooling, and workflows with
+  substantial discovery or determinism risk.
+- **Complexity 3** — a multi-surface feature built mostly on known contracts.
+- **Complexity 1** — a focused, well-understood change.
+- **Discovery first** means the interface and contract need to be designed
+  before implementation.
+
+| Rank | Task | Feature | Impact | Complexity | Leverage | Why it sits here |
+| ---: | :---: | --- | :---: | :---: | :---: | --- |
+| 1 | #1 | Deploy the dogfood sample | 4 | 2 | 2.00 | Creates a stable feedback and review surface with little product-contract risk. |
+| 2 | #3 | Agent integration and design-sweep skills | 4 | 3 | 1.33 | Makes the registry legible and reviewable without first requiring a new runtime product surface. |
+| 3 | #2 | Predefined sketch layouts | 4 | 3 | 1.33 | Directly improves a core composition workflow using numeric entries that already exist. |
+| 4 | #10 | Better UX | 5 | 4 | 1.25 | Highest breadth of user value, but it must ship as measured slices rather than one unbounded redesign. |
+| 5 | #8 | Hit testing and accessibility testing | 5 | 4 | 1.25 | Establishes product trust and objective findings, with meaningful framework and cross-viewport work. |
+| 6 | #4 | Automatic or AI-driven golden tests | 5 | 5 | 1.00 | High trust value, but reproducible capture, diffing, approval, and CI make the deterministic foundation expensive. |
+| 7 | #7 | Lab prototyping flows | 4 | 5 | 0.80 | Strong product potential, but the interaction model and serializable boundary need discovery first. |
+| 8 | #9 | GitHub issue loop and annotations | 3 | 4 | 0.75 | Useful once audits produce findings; automation, authorization, screenshots, and lifecycle handling broaden the scope. |
+| 9 | #5 | Desy CLI | 3 | 5 | 0.60 | Valuable workflow consolidation, but intentionally depends on stable registry and golden contracts. |
+| 10 | #6 | Animation support and scrubbing | 2 | 4 | 0.50 | Specialized value with difficult determinism and consumer-integration questions. |
+
+Ranks 2 and 3, and ranks 4 and 5, are effectively ties. Favor the item that
+unblocks the next validated user workflow. The detailed feature descriptions
+below retain their original identifiers so existing references remain stable.
+
+The existing priority labels have a different purpose:
 
 - **P0** — foundational or blocking capability.
 - **P1** — high-value product capability for the next major iteration.
 - **P2** — exploratory or advanced capability.
-- **Discovery** means the interface and contract need to be designed before implementation.
 
 ---
 
 ## 1. Deploy the dogfood sample to the web with automatic deployments
 
 **Priority:** P0  
+**Status:** Implemented on Firebase Hosting with GitHub OIDC deployment.
+
 **Outcome:** The Harbor Operations dogfood sample is available from a stable web
 URL and every approved change automatically produces a new deployment.
 
@@ -63,6 +97,8 @@ URL and every approved change automatically produces a new deployment.
 ## 2. Improve sketching with predefined rows, columns, and spacing primitives
 
 **Priority:** P1  
+**Status:** Implemented with six ephemeral presets and registry-derived gaps.
+
 **Outcome:** The Components sketch becomes a useful layout playground instead of
 only a freeform canvas. Users can create repeatable layouts using declared
 spacing values and sensible row/column presets.
@@ -106,6 +142,8 @@ spacing values and sensible row/column presets.
 ## 3. Build better agent integration, Desy teaching skills, and design-sweep skills
 
 **Priority:** P0/P1  
+**Status:** Initial repository-owned teaching and review-only sweep skills implemented.
+
 **Outcome:** Agents can reliably understand a consumer’s Desy registry, inspect
 real components, propose changes within project constraints, and perform a
 repeatable design-quality sweep.
@@ -509,28 +547,31 @@ meaningful workbench change rather than treating UX as an unbounded redesign.
 ### Phase 0 — Foundations
 
 1. Confirm branch/rebase strategy and repository ownership.
-2. Deploy the dogfood sample with automatic web deployments.
-3. Set up the GitHub issue loop and annotation contract.
-4. Write the Desy agent skill and initial design-sweep skill.
-5. Fix the current analysis lint failures and stabilize the canonical check.
+2. Fix the current analysis lint failures and stabilize the canonical check.
+3. Deploy the dogfood sample with automatic web deployments.
+4. Establish the UX scorecard and ship the first onboarding/diagnostic slice.
+5. Write the Desy agent skill and initial review-only design-sweep skill.
 
-### Phase 1 — Trustworthy inspection
+### Phase 1 — Core workflow and trustworthy inspection
 
-1. Hit testing and accessibility reports.
-2. Deterministic golden-test model and focused capture commands.
-3. UX scorecard, onboarding, diagnostics, and preview navigation improvements.
+1. Add predefined sketch layouts driven by registry measurements.
+2. Add hit-testing and accessibility reports.
+3. Define the deterministic golden-test model and focused capture commands.
+4. Continue measured UX slices around preview navigation and composition.
 
-### Phase 2 — Better composition
+### Phase 2 — Validated workflow expansion
 
-1. Predefined sketch layouts driven by registry measurements.
-2. Lab discovery and a small prototype-flow experiment.
-3. CLI support for setup, registry inspection, and golden workflows.
+1. Run Lab discovery and a small disposable prototype-flow experiment.
+2. Define annotations from real sweep, accessibility, and golden findings.
+3. Add the smallest authorized GitHub issue handoff around those annotations.
+4. Stabilize the registry and golden contracts needed by external tooling.
 
 ### Phase 3 — Advanced inspection and authoring support
 
-1. Animation controller contract and deterministic scrubbing prototype.
-2. AI-assisted golden review and design sweeps.
-3. Expanded Lab and annotation workflows based on validated usage.
+1. Add CLI support for setup, registry inspection, and golden workflows.
+2. Add AI-assisted golden review and design sweeps on top of deterministic checks.
+3. Expand Lab and annotation workflows based on validated usage.
+4. Explore an animation controller contract and deterministic scrubbing prototype.
 
 ## Definition of done for future tasks
 

@@ -4,6 +4,17 @@ import 'package:desy_bench/desy_bench.dart';
 import 'package:sample_design_system/sample_design_system.dart';
 
 void main() {
+  test('sample themes use the Space Grotesk type family', () {
+    expect(
+      sampleLightTheme.textTheme.bodyMedium?.fontFamily,
+      SampleTypography.fontFamily,
+    );
+    expect(
+      sampleDarkTheme.textTheme.bodyMedium?.fontFamily,
+      SampleTypography.fontFamily,
+    );
+  });
+
   test(
     'sample registry declares clean typed primitives and production components',
     () {

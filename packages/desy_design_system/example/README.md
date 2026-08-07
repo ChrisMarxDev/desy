@@ -12,8 +12,8 @@ Its registry is intentionally owned by this app rather than by
   `DesyBenchApp`.
 
 The dogfood executable also installs `DesyAgentAnnotationsExtension` in every
-component detail. On macOS, the first annotation opens a native Save dialog for
-one Markdown file (suggested name: `desy-agent-annotations.md`). Every later
+registry-entry detail. On macOS, the first annotation opens a native Save
+dialog for one Markdown file (suggested name: `desy-agent-annotations.md`). Every later
 annotation in that app session is appended to the same file, and the success
 receipt shows its `file:` URI so the file can be handed to an agent. Other
 platforms use a non-persistent demonstration callback. Tests and deployments

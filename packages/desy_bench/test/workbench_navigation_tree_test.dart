@@ -94,6 +94,58 @@ void main() {
       DesyWorkbenchRoutes.atlas(folderId: 'one.two.three'),
     );
   });
+
+  test('primitive entries are browsed through folder destinations', () {
+    final registry = DesyRegistry(
+      name: 'Primitive navigation',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      folders: [
+        DesyFolder(
+          id: 'atoms',
+          name: 'Atoms',
+          children: [
+            DesyFolder(
+              id: 'atoms.colors',
+              name: 'Colors',
+              tokens: [
+                DesyToken(
+                  id: 'color.primary',
+                  name: 'Primary',
+                  builder: (_) => const SizedBox(),
+                ),
+              ],
+            ),
+            DesyFolder(id: 'atoms.empty', name: 'Empty'),
+          ],
+        ),
+        DesyFolder(
+          id: 'components',
+          name: 'Components',
+          components: [_component('button.primary')],
+        ),
+      ],
+    );
+
+    final tree = DesyWorkbenchNavigationTree.fromRegistry(
+      registry,
+      extensions: const [],
+    );
+    final locations = _destinations(tree.roots);
+
+    expect(
+      locations,
+      contains(DesyWorkbenchRoutes.atlas(folderId: 'atoms.colors')),
+    );
+    expect(
+      locations,
+      isNot(contains(DesyWorkbenchRoutes.entry('color.primary'))),
+    );
+    expect(
+      locations,
+      isNot(contains(DesyWorkbenchRoutes.atlas(folderId: 'atoms.empty'))),
+    );
+    expect(locations, contains(DesyWorkbenchRoutes.entry('button.primary')));
+  });
 }
 
 DesyComponent _component(String id) =>

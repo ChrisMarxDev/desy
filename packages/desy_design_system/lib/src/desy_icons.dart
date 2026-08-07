@@ -45,11 +45,17 @@ abstract final class DesyIcons {
   /// Color foundations.
   static const IconData palette = FLucideIcons.palette;
 
+  /// Pause an active preview timeline.
+  static const IconData pause = FLucideIcons.pause;
+
   /// Hide the desktop navigation panel.
   static const IconData panelLeftClose = FLucideIcons.panelLeftClose;
 
   /// Show the desktop navigation panel.
   static const IconData panelLeftOpen = FLucideIcons.panelLeftOpen;
+
+  /// Start or resume a preview timeline.
+  static const IconData play = FLucideIcons.play;
 
   /// Numeric measurements.
   static const IconData ruler = FLucideIcons.ruler;
@@ -65,6 +71,9 @@ abstract final class DesyIcons {
 
   /// A tablet preview bezel.
   static const IconData tablet = FLucideIcons.tablet;
+
+  /// A warning that requires investigation.
+  static const IconData triangleAlert = FLucideIcons.triangleAlert;
 
   /// Typography foundations.
   static const IconData type = FLucideIcons.type;

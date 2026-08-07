@@ -1,0 +1,4 @@
+interface:
+  display_name: "Desy Design Sweep"
+  short_description: "Audit a Desy consumer with evidence"
+  default_prompt: "Use $desy-design-sweep to review this Desy consumer and report actionable findings."

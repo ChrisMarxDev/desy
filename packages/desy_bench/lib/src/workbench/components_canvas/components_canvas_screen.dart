@@ -2,7 +2,9 @@
 // ignore_for_file: public_member_api_docs
 
 import 'package:device_preview/device_preview.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
@@ -39,6 +41,7 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
       widget.controller ?? DesyComponentsCanvasController();
   late final bool _ownsController = widget.controller == null;
   final _sketchFocusNode = FocusNode(debugLabel: 'Sketch canvas');
+  var _repaintRainbowEnabled = kDebugMode ? debugRepaintRainbowEnabled : false;
 
   @override
   void dispose() {
@@ -49,8 +52,6 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
 
   @override
   Widget build(BuildContext context) {
-    final nodes = _controller.nodes.watch(context);
-    final selectedId = _controller.selectedId.watch(context);
     final themeIndex = widget.session.activeThemeIndex.watch(context);
     final theme = widget.session.registry.themes[themeIndex];
     final instances = widget.session.registry.allComponentInstances;
@@ -61,11 +62,6 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
               entry.unit == DesyNumberUnit.dp,
         )
         .toList(growable: false);
-    final selectedNode = selectedId == null ? null : nodes[selectedId];
-    final selectedInstance = selectedNode?.isComponent != true
-        ? null
-        : _instanceFor(instances, selectedNode!.instanceId!);
-
     return Focus(
       focusNode: _sketchFocusNode,
       autofocus: true,
@@ -96,50 +92,18 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
                     spacingEntryId: spacing?.id,
                     spacing: spacing?.value ?? 0,
                   ),
+                  repaintRainbowEnabled: _repaintRainbowEnabled,
+                  onToggleRepaintRainbow: _toggleRepaintRainbow,
                 ),
                 const SizedBox(height: 12),
                 Expanded(
-                  child: _SketchWorkspace(
-                    palette: _ComponentPalette(
-                      registry: widget.session.registry,
-                      theme: theme,
-                      onSelect: _addInstance,
-                    ),
-                    outline: _CanvasOutline(
-                      nodes: nodes.values.toList().reversed,
-                      instances: instances,
-                      selectedId: selectedId,
-                      onSelect: _controller.select,
-                    ),
-                    canvas: _CanvasStage(
-                      registry: widget.session.registry,
-                      instances: instances,
-                      nodes: nodes,
-                      selectedId: selectedId,
-                      theme: theme,
-                      controller: _controller,
-                    ),
-                    inspector: selectedNode == null
-                        ? null
-                        : selectedNode.isArtboard
-                        ? _CanvasArtboardInspector(
-                            node: selectedNode,
-                            controller: _controller,
-                          )
-                        : selectedNode.isLayout
-                        ? _CanvasLayoutInspector(
-                            node: selectedNode,
-                            spacingEntries: spacingEntries,
-                            controller: _controller,
-                          )
-                        : selectedInstance == null
-                        ? null
-                        : _CanvasInspector(
-                            registry: widget.session.registry,
-                            node: selectedNode,
-                            instance: selectedInstance,
-                            controller: _controller,
-                          ),
+                  child: _ReactiveSketchWorkspace(
+                    registry: widget.session.registry,
+                    instances: instances,
+                    spacingEntries: spacingEntries,
+                    theme: theme,
+                    controller: _controller,
+                    onAddInstance: _addInstance,
                   ),
                 ),
               ],
@@ -148,6 +112,19 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
         ),
       ),
     );
+  }
+
+  void _toggleRepaintRainbow() {
+    if (!kDebugMode) return;
+    setState(() {
+      _repaintRainbowEnabled = !_repaintRainbowEnabled;
+      debugRepaintRainbowEnabled = _repaintRainbowEnabled;
+    });
+    if (!_repaintRainbowEnabled) {
+      for (final renderView in RendererBinding.instance.renderViews) {
+        renderView.markNeedsPaint();
+      }
+    }
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -179,6 +156,154 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
     };
     _controller.add(instance.id, knobValues: values);
   }
+}
+
+class _ReactiveSketchWorkspace extends StatelessWidget {
+  const _ReactiveSketchWorkspace({
+    required this.registry,
+    required this.instances,
+    required this.spacingEntries,
+    required this.theme,
+    required this.controller,
+    required this.onAddInstance,
+  });
+
+  final DesyRegistry registry;
+  final List<DesyRegisteredComponentInstance> instances;
+  final List<DesyNumericEntry> spacingEntries;
+  final DesyTheme theme;
+  final DesyComponentsCanvasController controller;
+  final ValueChanged<DesyRegisteredComponentInstance> onAddInstance;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasSelection = controller.selectedId.watch(context) != null;
+    return _SketchWorkspace(
+      palette: RepaintBoundary(
+        child: _ComponentPalette(
+          registry: registry,
+          theme: theme,
+          onSelect: onAddInstance,
+        ),
+      ),
+      outline: _ReactiveCanvasOutline(
+        instances: instances,
+        controller: controller,
+      ),
+      canvas: _ReactiveCanvasStage(
+        registry: registry,
+        instances: instances,
+        theme: theme,
+        controller: controller,
+      ),
+      inspector: hasSelection
+          ? _ReactiveCanvasInspector(
+              registry: registry,
+              instances: instances,
+              spacingEntries: spacingEntries,
+              controller: controller,
+            )
+          : null,
+    );
+  }
+}
+
+class _ReactiveCanvasOutline extends StatelessWidget {
+  const _ReactiveCanvasOutline({
+    required this.instances,
+    required this.controller,
+  });
+
+  final List<DesyRegisteredComponentInstance> instances;
+  final DesyComponentsCanvasController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final nodes = controller.nodes.watch(context);
+    final selectedId = controller.selectedId.watch(context);
+    return RepaintBoundary(
+      child: _CanvasOutline(
+        nodes: nodes.values.toList().reversed,
+        instances: instances,
+        selectedId: selectedId,
+        onSelect: controller.select,
+      ),
+    );
+  }
+}
+
+class _ReactiveCanvasStage extends StatelessWidget {
+  const _ReactiveCanvasStage({
+    required this.registry,
+    required this.instances,
+    required this.theme,
+    required this.controller,
+  });
+
+  final DesyRegistry registry;
+  final List<DesyRegisteredComponentInstance> instances;
+  final DesyTheme theme;
+  final DesyComponentsCanvasController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final nodes = controller.nodes.watch(context);
+    final selectedId = controller.selectedId.watch(context);
+    return RepaintBoundary(
+      key: const ValueKey('sketch-stage-repaint-boundary'),
+      child: _CanvasStage(
+        registry: registry,
+        instances: instances,
+        nodes: nodes,
+        selectedId: selectedId,
+        theme: theme,
+        controller: controller,
+      ),
+    );
+  }
+}
+
+class _ReactiveCanvasInspector extends StatelessWidget {
+  const _ReactiveCanvasInspector({
+    required this.registry,
+    required this.instances,
+    required this.spacingEntries,
+    required this.controller,
+  });
+
+  final DesyRegistry registry;
+  final List<DesyRegisteredComponentInstance> instances;
+  final List<DesyNumericEntry> spacingEntries;
+  final DesyComponentsCanvasController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final nodes = controller.nodes.watch(context);
+    final selectedId = controller.selectedId.watch(context);
+    final selectedNode = selectedId == null ? null : nodes[selectedId];
+    if (selectedNode == null) return const SizedBox.shrink();
+    if (selectedNode.isArtboard) {
+      return _CanvasArtboardInspector(
+        node: selectedNode,
+        controller: controller,
+      );
+    }
+    if (selectedNode.isLayout) {
+      return _CanvasLayoutInspector(
+        node: selectedNode,
+        spacingEntries: spacingEntries,
+        controller: controller,
+      );
+    }
+    final selectedInstance = _instanceFor(instances, selectedNode.instanceId!);
+    if (selectedInstance == null) return const SizedBox.shrink();
+    return _CanvasInspector(
+      registry: registry,
+      node: selectedNode,
+      instance: selectedInstance,
+      controller: controller,
+    );
+  }
 
   DesyRegisteredComponentInstance? _instanceFor(
     List<DesyRegisteredComponentInstance> instances,
@@ -200,11 +325,15 @@ class _SketchPreviewToolbar extends StatefulWidget {
     required this.spacingEntries,
     required this.onAddArtboard,
     required this.onAddLayout,
+    required this.repaintRainbowEnabled,
+    required this.onToggleRepaintRainbow,
   });
 
   final List<DesyNumericEntry> spacingEntries;
   final ValueChanged<DesyCanvasArtboard> onAddArtboard;
   final _AddSketchLayout onAddLayout;
+  final bool repaintRainbowEnabled;
+  final VoidCallback onToggleRepaintRainbow;
 
   @override
   State<_SketchPreviewToolbar> createState() => _SketchPreviewToolbarState();
@@ -303,6 +432,28 @@ class _SketchPreviewToolbarState extends State<_SketchPreviewToolbar> {
                   label: 'iPad Pro 11',
                   value: DesyCanvasArtboard.iPadPro11,
                 ),
+                if (kDebugMode) ...[
+                  const SizedBox(width: 12),
+                  DesyButton(
+                    key: const ValueKey('sketch-repaint-rainbow'),
+                    semanticsLabel: widget.repaintRainbowEnabled
+                        ? 'Disable repaint rainbow'
+                        : 'Enable repaint rainbow',
+                    semanticsTooltip:
+                        'Draw a changing border around every layer that repaints',
+                    variant: widget.repaintRainbowEnabled
+                        ? DesyButtonVariant.secondary
+                        : DesyButtonVariant.outline,
+                    size: DesyButtonSize.xs,
+                    mainAxisSize: MainAxisSize.min,
+                    onPress: widget.onToggleRepaintRainbow,
+                    child: Text(
+                      widget.repaintRainbowEnabled
+                          ? 'Rainbow on'
+                          : 'Repaint rainbow',
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1170,54 +1321,96 @@ class _CanvasStage extends StatelessWidget {
                 const Center(
                   child: Text('Choose an instance from the palette.'),
                 ),
-              for (final node in nodes.values)
-                if (node.isArtboard)
-                  _CanvasNodeFrame(
-                    node: node,
-                    selected: selectedId == node.id,
-                    clampingRect: clampingRect,
-                    minSize: const Size(8, 8),
-                    controller: controller,
-                    child: _CanvasArtboard(artboardNode: node, theme: theme),
-                  )
-                else if (node.isLayout)
-                  _CanvasNodeFrame(
-                    node: node,
-                    selected: selectedId == node.id,
-                    clampingRect: clampingRect,
-                    minSize: const Size(160, 120),
-                    controller: controller,
-                    child: _CanvasLayout(
-                      node: node,
-                      children: _layoutChildren(node.id),
-                      registry: registry,
-                      instances: instances,
-                      selectedId: selectedId,
-                      theme: theme,
-                    ),
-                  )
-                else if (node.parentLayoutId == null)
-                  if (_instanceFor(node.instanceId!) case final instance?)
-                    _CanvasNodeFrame(
-                      node: node,
-                      selected: selectedId == node.id,
-                      clampingRect: clampingRect,
-                      minSize: const Size(8, 8),
-                      controller: controller,
-                      child: _CanvasElement(
-                        registry: registry,
-                        instance: instance,
-                        node: node,
-                        theme: theme,
-                        selected: selectedId == node.id,
-                      ),
-                    ),
+              for (final nodeId in nodes.keys)
+                _ReactiveCanvasNode(
+                  key: ValueKey('canvas-node-signal-$nodeId'),
+                  nodeId: nodeId,
+                  committedNodes: nodes,
+                  selectedId: selectedId,
+                  clampingRect: clampingRect,
+                  registry: registry,
+                  instances: instances,
+                  theme: theme,
+                  controller: controller,
+                ),
             ],
           ),
         ),
       );
     },
   );
+}
+
+class _ReactiveCanvasNode extends StatelessWidget {
+  const _ReactiveCanvasNode({
+    super.key,
+    required this.nodeId,
+    required this.committedNodes,
+    required this.selectedId,
+    required this.clampingRect,
+    required this.registry,
+    required this.instances,
+    required this.theme,
+    required this.controller,
+  });
+
+  final String nodeId;
+  final Map<String, DesyCanvasNode> committedNodes;
+  final String? selectedId;
+  final Rect clampingRect;
+  final DesyRegistry registry;
+  final List<DesyRegisteredComponentInstance> instances;
+  final DesyTheme theme;
+  final DesyComponentsCanvasController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final signal = controller.nodeListenable(nodeId);
+    final committedNode = committedNodes[nodeId];
+    if (signal == null || committedNode == null) {
+      return const SizedBox.shrink();
+    }
+    final content = _contentFor(committedNode);
+    if (content == null) return const SizedBox.shrink();
+    return ValueListenableBuilder<DesyCanvasNode>(
+      valueListenable: signal,
+      child: content,
+      builder: (context, node, child) => _CanvasNodeFrame(
+        node: node,
+        selected: selectedId == node.id,
+        clampingRect: clampingRect,
+        minSize: node.isLayout ? const Size(160, 120) : const Size(8, 8),
+        controller: controller,
+        child: child!,
+      ),
+    );
+  }
+
+  Widget? _contentFor(DesyCanvasNode node) {
+    if (node.isArtboard) {
+      return _CanvasArtboard(artboardNode: node, theme: theme);
+    }
+    if (node.isLayout) {
+      return _CanvasLayout(
+        node: node,
+        children: _layoutChildren(node.id),
+        registry: registry,
+        instances: instances,
+        selectedId: selectedId,
+        theme: theme,
+      );
+    }
+    if (node.parentLayoutId != null) return null;
+    final instance = _instanceFor(node.instanceId!);
+    if (instance == null) return null;
+    return _CanvasElement(
+      registry: registry,
+      instance: instance,
+      node: node,
+      theme: theme,
+      selected: selectedId == node.id,
+    );
+  }
 
   DesyRegisteredComponentInstance? _instanceFor(String id) {
     for (final instance in instances) {
@@ -1227,7 +1420,7 @@ class _CanvasStage extends StatelessWidget {
   }
 
   List<DesyCanvasNode> _layoutChildren(String layoutId) =>
-      nodes.values
+      committedNodes.values
           .where((node) => node.parentLayoutId == layoutId)
           .toList(growable: false)
         ..sort((a, b) => (a.slotIndex ?? 0).compareTo(b.slotIndex ?? 0));
@@ -1253,59 +1446,64 @@ class _CanvasNodeFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DesyDragBox(
-      geometry: DesyDragBoxGeometry(rect: node.rect, flip: node.flip),
-      clampingRect: clampingRect,
-      constraints: BoxConstraints(
-        minWidth: minSize.width,
-        minHeight: minSize.height,
-      ),
-      frameKey: ValueKey(node.id),
-      contentKey: ValueKey('canvas-hit-${node.id}'),
-      selected: selected,
-      onSelect: () => controller.select(node.id),
-      onChanged: (geometry) {
-        final snapped = _CanvasGrid.snapRect(geometry.rect);
-        if (node.isArtboard) {
-          final isTranslation =
-              (geometry.rect.width - node.rect.width).abs() < 0.001 &&
-              (geometry.rect.height - node.rect.height).abs() < 0.001;
-          controller.update(
-            node.copyWith(
-              rect: isTranslation
-                  ? Rect.fromLTWH(
-                      snapped.left,
-                      snapped.top,
-                      node.rect.width,
-                      node.rect.height,
-                    )
-                  : DesyCanvasGeometry.lockFrameAspect(
-                      node,
-                      snapped,
-                      clampingRect: clampingRect,
-                    ),
-              flip: geometry.flip,
-            ),
-          );
-        } else {
-          controller.update(node.copyWith(rect: snapped, flip: geometry.flip));
-        }
-      },
-      label: selected
-          ? DesyDragBoxLabel(
-              key: ValueKey('sketch-node-label-${node.id}'),
-              size: node.rect.size,
-              identifier: node.instanceId ?? node.id,
-            )
-          : null,
-      child: DecoratedBox(
-        decoration: selected
-            ? BoxDecoration(
-                border: Border.all(color: context.theme.colors.primary),
+    return RepaintBoundary(
+      key: ValueKey('sketch-node-repaint-${node.id}'),
+      child: DesyDragBox(
+        geometry: DesyDragBoxGeometry(rect: node.rect, flip: node.flip),
+        clampingRect: clampingRect,
+        constraints: BoxConstraints(
+          minWidth: minSize.width,
+          minHeight: minSize.height,
+        ),
+        frameKey: ValueKey(node.id),
+        contentKey: ValueKey('canvas-hit-${node.id}'),
+        selected: selected,
+        onSelect: () => controller.select(node.id),
+        onChanged: (geometry) => controller.updateTransient(_nodeFor(geometry)),
+        onChangeEnd: (geometry) =>
+            controller.commitInteraction(_nodeFor(geometry)),
+        label: selected
+            ? DesyDragBoxLabel(
+                key: ValueKey('sketch-node-label-${node.id}'),
+                size: node.rect.size,
+                identifier: node.instanceId ?? node.id,
               )
-            : const BoxDecoration(),
-        child: child,
+            : null,
+        child: DecoratedBox(
+          decoration: selected
+              ? BoxDecoration(
+                  border: Border.all(color: context.theme.colors.primary),
+                )
+              : const BoxDecoration(),
+          child: RepaintBoundary(child: child),
+        ),
       ),
+    );
+  }
+
+  DesyCanvasNode _nodeFor(DesyDragBoxGeometry geometry) {
+    final current = controller.nodeValue(node.id) ?? node;
+    final snapped = _CanvasGrid.snapRect(geometry.rect);
+    if (!current.isArtboard) {
+      return current.copyWith(rect: snapped, flip: geometry.flip);
+    }
+    final isTranslation =
+        (geometry.rect.width - current.rect.width).abs() < 0.001 &&
+        (geometry.rect.height - current.rect.height).abs() < 0.001;
+    return current.copyWith(
+      rect: isTranslation
+          ? Rect.fromLTWH(
+              snapped.left,
+              snapped.top,
+              current.rect.width,
+              current.rect.height,
+            )
+          : DesyCanvasGeometry.lockFrameAspect(
+              current,
+              snapped,
+              clampingRect: clampingRect,
+            ),
+      flip: geometry.flip,
     );
   }
 }

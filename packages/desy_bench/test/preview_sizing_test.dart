@@ -7,6 +7,7 @@ import 'package:desy_bench/src/workbench/widget_preview.dart';
 import 'package:desy_bench/src/workbench/workbench_session.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:desy_design_system/desy_design_system.dart';
@@ -14,6 +15,134 @@ import 'package:state_beacon/state_beacon.dart';
 
 void main() {
   const theme = DesyTheme(id: 'test', name: 'Test', wrap: _wrap);
+
+  testWidgets('drag box clips oversized content to its frame', (tester) async {
+    const frameKey = ValueKey('clipped-frame');
+    const contentKey = ValueKey('clipped-content');
+
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 320,
+          height: 240,
+          child: DesyDragBox(
+            geometry: const DesyDragBoxGeometry(
+              rect: Rect.fromLTWH(60, 40, 120, 80),
+            ),
+            clampingRect: const Rect.fromLTWH(0, 0, 320, 240),
+            constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
+            frameKey: frameKey,
+            contentKey: contentKey,
+            onChanged: (_) {},
+            child: const OverflowBox(
+              maxWidth: 240,
+              maxHeight: 160,
+              child: ColoredBox(color: Colors.red),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final contentClip = find.ancestor(
+      of: find.byKey(contentKey),
+      matching: find.byType(ClipRect),
+    );
+    expect(contentClip, findsOneWidget);
+    expect(tester.getRect(contentClip), tester.getRect(find.byKey(frameKey)));
+  });
+
+  testWidgets('drag box keeps movement local until the gesture ends', (
+    tester,
+  ) async {
+    const frameKey = ValueKey('local-drag-frame');
+    var liveChanges = 0;
+    var finalChanges = 0;
+    DesyDragBoxGeometry? committed;
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 320,
+          height: 240,
+          child: DesyDragBox(
+            geometry: const DesyDragBoxGeometry(
+              rect: Rect.fromLTWH(60, 40, 120, 80),
+            ),
+            clampingRect: const Rect.fromLTWH(0, 0, 320, 240),
+            constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
+            frameKey: frameKey,
+            onChanged: (_) => liveChanges++,
+            onChangeEnd: (geometry) {
+              finalChanges++;
+              committed = geometry;
+            },
+            child: const ColoredBox(color: Colors.red),
+          ),
+        ),
+      ),
+    );
+    final before = tester.getRect(find.byKey(frameKey));
+    final gesture = await tester.startGesture(before.center);
+
+    await gesture.moveBy(const Offset(32, 16));
+    await gesture.moveBy(const Offset(32, 16));
+    await tester.pump();
+
+    expect(tester.getRect(find.byKey(frameKey)).topLeft, isNot(before.topLeft));
+    expect(liveChanges, 0);
+    expect(finalChanges, 0);
+
+    await gesture.up();
+    await tester.pump();
+
+    expect(liveChanges, 0);
+    expect(finalChanges, 1);
+    expect(committed!.rect.topLeft, isNot(const Offset(60, 40)));
+  });
+
+  testWidgets('drag box coalesces resize updates to one per frame', (
+    tester,
+  ) async {
+    var liveChanges = 0;
+    var finalChanges = 0;
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 320,
+          height: 240,
+          child: DesyDragBox(
+            geometry: const DesyDragBoxGeometry(
+              rect: Rect.fromLTWH(60, 40, 120, 80),
+            ),
+            clampingRect: const Rect.fromLTWH(0, 0, 320, 240),
+            constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
+            resizeHandleKeyPrefix: 'coalesced-resize',
+            onChanged: (_) => liveChanges++,
+            onChangeEnd: (_) => finalChanges++,
+            child: const ColoredBox(color: Colors.red),
+          ),
+        ),
+      ),
+    );
+    final handle = find.byKey(const ValueKey('coalesced-resize-bottomRight'));
+    final gesture = await tester.startGesture(tester.getCenter(handle));
+
+    await gesture.moveBy(const Offset(16, 8));
+    await gesture.moveBy(const Offset(16, 8));
+    expect(liveChanges, 0);
+    await tester.pump();
+    expect(liveChanges, 1);
+
+    await gesture.moveBy(const Offset(16, 8));
+    await gesture.moveBy(const Offset(16, 8));
+    expect(liveChanges, 1);
+    await tester.pump();
+    expect(liveChanges, 2);
+
+    await gesture.up();
+    await tester.pump();
+    expect(finalChanges, 1);
+  });
 
   testWidgets(
     'detail resizes responsive widgets and only scales fixed device previews',
@@ -186,6 +315,88 @@ void main() {
     expect(find.text('220 × 120 px'), findsNothing);
   });
 
+  testWidgets('sketch geometry changes do not rebuild live previews', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var previewBuilds = 0;
+    final component = DesyComponent(
+      id: 'counted',
+      name: 'Counted',
+      preview: (context) {
+        previewBuilds++;
+        return const SizedBox(
+          key: ValueKey('counted-visual'),
+          width: 220,
+          height: 120,
+        );
+      },
+      instances: [DesyComponentInstance(id: 'default', name: 'Default')],
+    );
+    final session = DesyWorkbenchSession(
+      registry: DesyRegistry(
+        name: 'Test',
+        themes: const [theme],
+        components: [component],
+      ),
+    );
+    final controller = DesyComponentsCanvasController();
+    final nodeId = controller.add('counted.default');
+    addTearDown(session.dispose);
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      _TestHarness(
+        child: DesyComponentsCanvas(
+          session: session,
+          controller: controller,
+          onBack: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final buildsBeforeMove = previewBuilds;
+
+    final node = controller.nodes.value[nodeId]!;
+    controller.updateTransient(
+      node.copyWith(rect: node.rect.shift(const Offset(8, 0))),
+    );
+    await tester.pump();
+
+    expect(controller.nodes.value[nodeId]!.rect, node.rect);
+    expect(previewBuilds, buildsBeforeMove);
+  });
+
+  testWidgets('sketch toggles Flutter repaint-rainbow diagnostics', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    debugRepaintRainbowEnabled = false;
+    addTearDown(() {
+      debugRepaintRainbowEnabled = false;
+      debugCurrentRepaintColor = const HSVColor.fromAHSV(0.4, 60, 1, 1);
+    });
+    final fixture = _CanvasFixture();
+    addTearDown(fixture.dispose);
+
+    await tester.pumpWidget(_TestHarness(child: fixture.canvas()));
+    final toggle = find.byKey(const ValueKey('sketch-repaint-rainbow'));
+    expect(toggle, findsOneWidget);
+
+    await tester.tap(toggle);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(debugRepaintRainbowEnabled, isTrue);
+    expect(find.text('Rainbow on'), findsOneWidget);
+
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(debugRepaintRainbowEnabled, isFalse);
+    expect(find.text('Repaint rainbow'), findsOneWidget);
+    debugCurrentRepaintColor = const HSVColor.fromAHSV(0.4, 60, 1, 1);
+  });
+
   testWidgets('an unselected sketch node moves on its first drag', (
     tester,
   ) async {
@@ -199,13 +410,22 @@ void main() {
     await tester.pumpWidget(_TestHarness(child: fixture.canvas()));
     final before = fixture.controller.nodes.value[component]!.rect;
 
-    await tester.drag(
-      find.byKey(ValueKey('canvas-hit-$component')),
-      const Offset(64, 32),
+    final frame = find.byKey(ValueKey(component));
+    final frameBefore = tester.getRect(frame);
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(ValueKey('canvas-hit-$component'))),
     );
+    await gesture.moveBy(const Offset(32, 16));
+    await gesture.moveBy(const Offset(32, 16));
     await tester.pump();
 
     expect(fixture.controller.selectedId.value, component);
+    expect(fixture.controller.nodes.value[component]!.rect, before);
+    expect(tester.getRect(frame).topLeft, isNot(frameBefore.topLeft));
+
+    await gesture.up();
+    await tester.pump();
+
     expect(
       fixture.controller.nodes.value[component]!.rect.topLeft,
       isNot(before.topLeft),

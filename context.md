@@ -127,10 +127,10 @@ The full wording and other decisions are in `CORE_PRINCIPLES.md`. Principle
   sidebar. The shell owns the sidebar; detail pages do not replace it.
 - The desktop sidebar expands and collapses with a 180 ms animation. Its
   collapsible groups are Workspace, Catalogue, AI, and a final standalone
-  Showcases section; Catalogue renders the consumer's folder tree (including
-  Atoms and Components). The sidebar is
-  intentionally dense because the system will grow. Clicking either a section
-  heading or its chevron toggles that section.
+  Showcases section; Catalogue renders only used folders from the consumer's
+  tree. Primitive entries are browsed through the Atlas and do not appear as
+  sidebar leaves; component leaves remain directly navigable. Clicking either
+  a section heading or its chevron toggles that section.
 - Theme switching is global and reactive. The active theme index rebuilds the
   root `FTheme` and Flutter `Theme`; it is selected from the sidebar's top
   dropdown, not a separate primary workflow.
@@ -265,7 +265,7 @@ test passes.
 - `desy_screenshot_builder` is installed in the sample as the dummy extension
   and appears under Workspace.
 - `desy_agent_annotations` is registered through `detailExtensions` and
-  appears only inside component details. The package receives one typed async
+  appears inside every registry-entry detail. The package receives one typed async
   callback. The sample owns its conditional macOS Markdown callback, sandboxed
   user-selected repository access, and hosted server-side GitHub issue function
   seam. Its repository selection is canonicalized and session-only; no

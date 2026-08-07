@@ -6,5 +6,6 @@ export 'src/desy_text_field.dart';
 export 'src/detail_extension.dart';
 export 'src/experimental/catalogue_export.dart';
 export 'src/keyboard_shortcut_label.dart';
+export 'src/motion_playback.dart';
 export 'src/registry.dart';
 export 'src/workspace_extension.dart';

@@ -61,7 +61,10 @@ class DesyWorkbenchNavigationTree {
             ),
         ],
       ),
-      for (final folder in rootFolders) _folder(registry, folder),
+      for (final folder in rootFolders.where(
+        (folder) => _folderIsUsed(registry, folder),
+      ))
+        _folder(registry, folder),
     ]);
   }
 
@@ -104,7 +107,10 @@ class DesyWorkbenchNavigationTree {
     label: folder.name,
     location: DesyWorkbenchRoutes.atlas(folderId: folder.id),
     children: [
-      for (final child in folder.children) _folder(registry, child),
+      for (final child in folder.children.where(
+        (child) => _folderIsUsed(registry, child),
+      ))
+        _folder(registry, child),
       for (final entry in _directEntries(registry, folder))
         DesyWorkbenchNavigationNode(
           id: 'entry.${entry.id}',
@@ -120,9 +126,14 @@ class DesyWorkbenchNavigationTree {
   ) sync* {
     yield* registry.allEntries.where(
       (entry) =>
-          entry.folderIds.isNotEmpty && entry.folderIds.last == folder.id,
+          entry.component != null &&
+          entry.folderIds.isNotEmpty &&
+          entry.folderIds.last == folder.id,
     );
   }
+
+  static bool _folderIsUsed(DesyRegistry registry, DesyFolder folder) =>
+      registry.allEntries.any((entry) => entry.folderIds.contains(folder.id));
 
   static Iterable<DesyWorkbenchNavigationNode> _flatten(
     DesyWorkbenchNavigationNode node,

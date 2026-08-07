@@ -9,6 +9,11 @@ final _darkTheme = DesyDesignSystemFoundation.themeData(
   DesyDesignSystemTheme.dark,
 );
 
+const _badgeDefaultInstanceId = 'desy.component.badge.default';
+const _shortcutSingleKeyInstanceId = 'desy.component.shortcut-label.single-key';
+const _missingTileSuffixInstanceId =
+    'desy.component.unregistered-tile-suffix.missing';
+
 /// The single declared source of truth for Desy's own design system.
 ///
 /// Every exported visible component family is registered here using its real
@@ -189,9 +194,7 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
               curve: Curves.easeOutCubic,
               description:
                   'Sidebar width and similar spatial navigation changes.',
-              builder: (context) => const _MotionSpecimen(
-                duration: DesyDesignSystemTokens.navigationMotion,
-              ),
+              builder: (context) => const _MotionSpecimen(),
             ),
             DesyMotionEntry(
               id: 'desy.motion.feedback',
@@ -199,9 +202,7 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
               duration: DesyDesignSystemTokens.feedbackMotion,
               curve: Curves.easeOutCubic,
               description: 'A concise confirmation or newly revealed state.',
-              builder: (context) => const _MotionSpecimen(
-                duration: DesyDesignSystemTokens.feedbackMotion,
-              ),
+              builder: (context) => const _MotionSpecimen(),
             ),
           ],
         ),
@@ -539,19 +540,99 @@ final _tabsComponent = _component(
   ),
 );
 
-final _tileComponent = _component(
+final _tileComponent = DesyComponent(
   id: 'desy.component.tile',
   name: 'Tile',
+  icon: DesyIcons.component,
   description: 'A compact interactive row for navigation and selection.',
-  preview: (context) => SizedBox(
-    width: 340,
-    child: DesyTile(
-      prefix: const Icon(DesyIcons.component),
-      title: const Text('Primary button'),
-      subtitle: const Text('Actions'),
-      suffix: const Icon(DesyIcons.chevronRight),
-      onPress: () {},
+  source: 'package:desy_design_system/src/control_aliases.dart',
+  preview: (context) => _buildTile(
+    context,
+    DesyKnobValues({
+      'title': 'Release channel',
+      'suffix': _badgeDefaultInstanceId,
+    }),
+    desyDesignSystemRegistry.widgetBuilder,
+  ),
+  knobs: [
+    const DesyStringKnob(
+      id: 'title',
+      name: 'Title',
+      initial: 'Release channel',
     ),
+    DesyComponentKnob(
+      id: 'suffix',
+      name: 'Suffix instance',
+      initial: _badgeDefaultInstanceId,
+      options: const [_badgeDefaultInstanceId, _shortcutSingleKeyInstanceId],
+    ),
+  ],
+  buildWithKnobs: _buildTile,
+  contract: DesyComponentContract(
+    guidance:
+        'Resolve the suffix from the registry so compositions retain stable '
+        'instance IDs instead of widget callbacks.',
+    properties: [
+      DesyContractProperty(name: 'title', type: 'String', required: true),
+    ],
+    slots: [
+      DesyComponentSlot(
+        name: 'suffix',
+        accepts: 'Widget / registered compact component instance',
+        description:
+            'A legal registry-backed instance such as a badge or shortcut.',
+      ),
+    ],
+  ),
+  scenarios: [
+    DesyComponentScenario(
+      id: 'missing-suffix-instance',
+      name: 'Missing suffix instance',
+      description:
+          'Exercises the clickable diagnostic rendered for an unresolved '
+          'registry ID.',
+      builder: (context) => _buildTile(
+        context,
+        DesyKnobValues({
+          'title': 'Unresolved registry link',
+          'suffix': _missingTileSuffixInstanceId,
+        }),
+        desyDesignSystemRegistry.widgetBuilder,
+      ),
+    ),
+  ],
+  instances: [
+    DesyComponentInstance(
+      id: 'with-badge',
+      name: 'Metadata badge',
+      knobValues: DesyKnobValues({
+        'title': 'Release channel',
+        'suffix': _badgeDefaultInstanceId,
+      }),
+    ),
+    DesyComponentInstance(
+      id: 'with-shortcut',
+      name: 'Keyboard shortcut',
+      knobValues: DesyKnobValues({
+        'title': 'Open command menu',
+        'suffix': _shortcutSingleKeyInstanceId,
+      }),
+    ),
+  ],
+);
+
+Widget _buildTile(
+  BuildContext context,
+  DesyKnobValues values,
+  DesyRegistryWidgetBuilder widgets,
+) => SizedBox(
+  width: 340,
+  child: DesyTile(
+    prefix: const Icon(DesyIcons.component),
+    title: Text(values.string('title')),
+    subtitle: const Text('Registry-backed suffix'),
+    suffix: widgets.build(context, values.component('suffix')),
+    onPress: () {},
   ),
 );
 
@@ -585,6 +666,7 @@ final _desyIcons = [
   _desyIcon('image', 'Image', DesyIcons.image),
   _desyIcon('smartphone', 'Smartphone', DesyIcons.smartphone),
   _desyIcon('tablet', 'Tablet', DesyIcons.tablet),
+  _desyIcon('triangle-alert', 'Triangle alert', DesyIcons.triangleAlert),
   _desyIcon('sparkles', 'Sparkles', DesyIcons.sparkles),
   _desyIcon('camera', 'Camera', DesyIcons.camera),
   _desyIcon('panel-left-open', 'Panel left open', DesyIcons.panelLeftOpen),
@@ -595,6 +677,8 @@ final _desyIcons = [
   _desyIcon('chevrons-up-down', 'Chevrons up down', DesyIcons.chevronsUpDown),
   _desyIcon('check', 'Check', DesyIcons.check),
   _desyIcon('arrow-left', 'Arrow left', DesyIcons.arrowLeft),
+  _desyIcon('play', 'Play', DesyIcons.play),
+  _desyIcon('pause', 'Pause', DesyIcons.pause),
 ];
 
 DesyIconEntry _desyIcon(String id, String name, IconData icon) =>
@@ -664,34 +748,33 @@ class _TextFieldFrame extends StatelessWidget {
   );
 }
 
-class _MotionSpecimen extends StatefulWidget {
-  const _MotionSpecimen({required this.duration});
-
-  final Duration duration;
+class _MotionSpecimen extends StatelessWidget {
+  const _MotionSpecimen();
 
   @override
-  State<_MotionSpecimen> createState() => _MotionSpecimenState();
-}
-
-class _MotionSpecimenState extends State<_MotionSpecimen> {
-  var _expanded = false;
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: () => setState(() => _expanded = !_expanded),
-    child: AnimatedContainer(
-      duration: widget.duration,
-      curve: Curves.easeOutCubic,
-      width: _expanded ? 220 : 120,
-      height: 52,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: context.theme.colors.primary,
-        borderRadius: BorderRadius.circular(DesyDesignSystemTokens.radiusMd),
+  Widget build(BuildContext context) {
+    final progress =
+        DesyMotionPlaybackScope.maybeOf(context) ?? kAlwaysDismissedAnimation;
+    final colors = context.theme.colors;
+    return AnimatedBuilder(
+      animation: progress,
+      builder: (context, child) => Container(
+        key: const ValueKey('dogfood-motion-specimen'),
+        width: 120 + (100 * progress.value),
+        height: 52,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: colors.primary,
+          borderRadius: BorderRadius.circular(DesyDesignSystemTokens.radiusMd),
+        ),
+        child: child,
       ),
-      child: const Text('Tap to animate'),
-    ),
-  );
+      child: Text(
+        'Motion preview',
+        style: TextStyle(color: colors.primaryForeground),
+      ),
+    );
+  }
 }
 
 class _ControlStackShowcase extends StatelessWidget {

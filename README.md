@@ -1,5 +1,7 @@
 # Desy Bench
 
+[![Deploy sample](https://github.com/ChrisMarxDev/desy/actions/workflows/deploy-sample.yml/badge.svg)](https://github.com/ChrisMarxDev/desy/actions/workflows/deploy-sample.yml)
+
 Desy Bench is a local Flutter workbench for the design system already owned by
 your repository. Declare your real themes, primitives, and production widgets
 once in a `DesyRegistry`; Desy renders and explores that declaration without
@@ -19,6 +21,11 @@ task sample:run
 
 Use `task sample:web` for Chrome, or `task sample:web:build` for a production
 web build. `task --list` shows every workspace command.
+
+The maintained Harbor sample is deployed at
+[desy-bench.web.app](https://desy-bench.web.app). Deployment configuration and
+rollback instructions live in
+[Firebase Hosting deployment](docs/firebase-hosting.md).
 
 Then read the sample registry at
 [`example/sample_design_system/lib/src/sample_registry.dart`](example/sample_design_system/lib/src/sample_registry.dart).
@@ -114,12 +121,13 @@ void main() => runApp(DesyBenchApp(registry: designSystem));
 approximations. The theme wrapper is especially important: it gives every
 preview the same inherited theme context as your application.
 
-### Add a component detail extension
+### Add a registry-entry detail extension
 
-Optional detail extensions render inside a singular component inspector and
-receive a read-only view of that component, its folders, the registry, and the
-active theme. The proving `desy_agent_annotations` package accepts one typed
-async callback; the consumer still owns persistence and authentication:
+Optional detail extensions render inside a singular registry-entry inspector
+and receive a read-only view of that entry, its folders, the registry, the
+active theme, and an optional component declaration. The proving
+`desy_agent_annotations` package accepts one typed async callback; the consumer
+still owns persistence and authentication:
 
 ```dart
 DesyBenchApp(
@@ -181,6 +189,18 @@ focused documents below. They should extend the registry with typed, stable
 declarations; they must not invent a parallel JSON catalogue, copy registry
 lists into screens, or serialize callbacks and application logic.
 
+Two project-local skills make that workflow repeatable:
+
+- [Desy skill](.agents/skills/desy/SKILL.md) explains and changes registries
+  through their typed public contracts.
+- [Desy design sweep](.agents/skills/desy-design-sweep/SKILL.md) runs a
+  review-only audit and separates verified findings, visual hypotheses, and
+  coverage gaps.
+
+Copy both skill directories into a consuming repository’s `.agents/skills/`
+directory to use the same workflow there. The root [AGENTS.md](AGENTS.md)
+contains the compact repository safety rules.
+
 For runtime inspection during development, start the sample in debug mode with
 `task sample:run`, then use `task simdeck` or
 `task simdeck:describe:flutter` from a second terminal. The inspector is
@@ -208,7 +228,7 @@ material and is not the source of current product direction.
 - `packages/desy_bench/` — reusable Flutter registry contracts and workbench.
 - `packages/desy_design_system/` — Desy's Forui-backed foundations, controls,
   and executable self-catalogue.
-- `packages/desy_agent_annotations/` — optional component detail extension.
+- `packages/desy_agent_annotations/` — optional registry-entry detail extension.
 - `packages/desy_screenshot_builder/` — optional workspace extension.
 - `example/sample_design_system/` — complete consumer integration and primary
   reference implementation.

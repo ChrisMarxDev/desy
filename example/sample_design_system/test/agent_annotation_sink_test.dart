@@ -7,8 +7,8 @@ import 'package:sample_design_system/src/agent_annotations/agent_annotation_sink
 
 void main() {
   final annotation = DesyAgentAnnotation(
-    componentId: 'harbor.button/primary',
-    componentName: 'Primary button',
+    entryId: 'harbor.button/primary',
+    entryName: 'Primary button',
     folderIds: const ['components', 'components.action'],
     folderNames: const ['Components', 'Action'],
     sourcePath: 'lib/src/sample_button.dart',

@@ -46,6 +46,9 @@
   category: swatches, gradients, and consumer-supplied color widgets are color
   entries under `Atoms/Colors`; Flutter icon glyphs are `DesyIconEntry`
   declarations under `Atoms/Icons`.
+- Keep primitive-heavy navigation folder-first: the sidebar shows only used
+  atom folders, while individual primitives are opened from the Atlas or their
+  typed board. Component entries may remain direct sidebar destinations.
 - Route numeric primitives through typed `DesyNumericEntry` declarations and
   the Measurements board; do not recover their meaning from strings or create
   separate Shape/Spacing navigation sections.

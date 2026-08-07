@@ -3,10 +3,10 @@ import 'package:flutter/widgets.dart';
 
 import 'registry.dart';
 
-/// Optional content mounted inside a component's detail inspector.
+/// Optional content mounted inside a registry entry's detail inspector.
 ///
 /// Desy owns placement, section chrome, and lifecycle. An extension supplies
-/// only its component-scoped body and may keep ordinary widget-local state.
+/// only its entry-scoped body and may keep ordinary widget-local state.
 /// Identity and declaration metadata live in final, non-virtual base storage.
 /// Custom subtypes supply them to the const base constructor and cannot replace
 /// them with getters derived from mutable collaborators.
@@ -40,7 +40,7 @@ abstract class DesyDetailExtension {
   @nonVirtual
   final String? description;
 
-  /// Whether this extension should appear for the resolved component.
+  /// Whether this extension should appear for the resolved registry entry.
   ///
   /// Desy's host isolates and reports exceptions thrown synchronously by this
   /// call. It does not intercept failures from widgets returned later by
@@ -86,43 +86,17 @@ class _BuiltDesyDetailExtension extends DesyDetailExtension {
       builder(context, extension);
 }
 
-/// Read-only component identity and preview context for one detail extension.
+/// Read-only entry identity and preview context for one detail extension.
 ///
 /// This deliberately exposes no workbench session, router, Beacons, knob map,
 /// or panel controller. The context is recreated when the active theme changes.
 @immutable
 class DesyDetailExtensionContext {
-  /// Creates context for one validated component entry.
-  ///
-  /// [entry] must resolve a component. The component is derived here rather
-  /// than accepted separately, so callers cannot construct mismatched target
-  /// identity.
-  factory DesyDetailExtensionContext({
-    required DesyRegistry registry,
-    required DesyTheme activeTheme,
-    required DesyRegistryEntry entry,
-  }) {
-    final component = entry.component;
-    if (component == null) {
-      throw ArgumentError.value(
-        entry,
-        'entry',
-        'A detail extension context requires a resolved component entry.',
-      );
-    }
-    return DesyDetailExtensionContext._(
-      registry: registry,
-      activeTheme: activeTheme,
-      entry: entry,
-      component: component,
-    );
-  }
-
-  const DesyDetailExtensionContext._({
+  /// Creates context for one validated registry entry.
+  const DesyDetailExtensionContext({
     required this.registry,
     required this.activeTheme,
     required this.entry,
-    required this.component,
   });
 
   /// The consumer-owned registry; extensions must treat it as immutable.
@@ -134,6 +108,6 @@ class DesyDetailExtensionContext {
   /// The resolved registry entry currently open in the detail inspector.
   final DesyRegistryEntry entry;
 
-  /// The non-null component declaration represented by [entry].
-  final DesyComponent component;
+  /// The component declaration represented by [entry], when it is a component.
+  DesyComponent? get component => entry.component;
 }

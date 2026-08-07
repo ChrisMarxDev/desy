@@ -55,6 +55,16 @@ tasks:
       - task: test
       - task: sample:compile:web
 
+  deploy:sample:
+    desc: Build and deploy the Harbor sample to Firebase Hosting.
+    summary: |
+      Creates a release web build and deploys it to the desy-bench Firebase
+      project. Requires an authenticated Firebase CLI. Production deploys from
+      main normally run through .github/workflows/deploy-sample.yml.
+    cmds:
+      - task: sample:web:build
+      - firebase deploy --only hosting --project desy-bench --non-interactive
+
   format:
     desc: Format maintained Dart sources without touching seed material.
     cmds:

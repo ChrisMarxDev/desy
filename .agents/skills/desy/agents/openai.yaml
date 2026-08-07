@@ -1,0 +1,4 @@
+interface:
+  display_name: "Desy"
+  short_description: "Work safely with a consumer-owned Desy registry"
+  default_prompt: "Use $desy to explain or change this project’s Desy registry safely."

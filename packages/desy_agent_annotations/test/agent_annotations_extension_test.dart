@@ -8,38 +8,67 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test(
-    'submission snapshots immutable component, folder, and theme context',
-    () {
-      final fixture = _fixture();
-      final folderIds = <String>['copy'];
-      final folderNames = <String>['Copy'];
-      final annotation = DesyAgentAnnotation(
-        componentId: fixture.context.component.id,
-        componentName: fixture.context.component.name,
-        folderIds: folderIds,
-        folderNames: folderNames,
-        sourcePath: fixture.context.component.source,
-        activeThemeId: fixture.context.activeTheme.id,
-        comment: 'Review the disabled state.',
-        createdAt: DateTime.utc(2026, 8, 6, 10, 30),
-      );
-      folderIds.add('changed');
-      folderNames.add('Changed');
+  test('submission snapshots immutable entry, folder, and theme context', () {
+    final fixture = _fixture();
+    final folderIds = <String>['copy'];
+    final folderNames = <String>['Copy'];
+    final annotation = DesyAgentAnnotation(
+      entryId: fixture.context.entry.id,
+      entryName: fixture.context.entry.name,
+      folderIds: folderIds,
+      folderNames: folderNames,
+      sourcePath: fixture.context.component?.source,
+      activeThemeId: fixture.context.activeTheme.id,
+      comment: 'Review the disabled state.',
+      createdAt: DateTime.utc(2026, 8, 6, 10, 30),
+    );
+    folderIds.add('changed');
+    folderNames.add('Changed');
 
-      expect(annotation.componentId, 'harbor.button.primary');
-      expect(annotation.componentName, 'Primary button');
-      expect(annotation.folderIds, ['copy']);
-      expect(annotation.folderNames, ['Copy']);
-      expect(annotation.sourcePath, 'lib/src/sample_button.dart');
-      expect(annotation.activeThemeId, 'harbor.dark');
-      expect(annotation.displayPath, 'Copy / Primary button');
-      expect(
-        () => annotation.folderIds.add('forbidden'),
-        throwsUnsupportedError,
-      );
-    },
-  );
+    expect(annotation.entryId, 'harbor.button.primary');
+    expect(annotation.entryName, 'Primary button');
+    expect(annotation.folderIds, ['copy']);
+    expect(annotation.folderNames, ['Copy']);
+    expect(annotation.sourcePath, 'lib/src/sample_button.dart');
+    expect(annotation.activeThemeId, 'harbor.dark');
+    expect(annotation.displayPath, 'Copy / Primary button');
+    expect(() => annotation.folderIds.add('forbidden'), throwsUnsupportedError);
+  });
+
+  test('fromContext supports non-component registry entries', () {
+    final registry = DesyRegistry(
+      name: 'Atoms',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      folders: [
+        DesyFolder(
+          id: 'atoms',
+          name: 'Atoms',
+          tokens: [
+            DesyToken(
+              id: 'space.small',
+              name: 'Small space',
+              builder: _preview,
+            ),
+          ],
+        ),
+      ],
+    );
+    final annotation = DesyAgentAnnotation.fromContext(
+      context: DesyDetailExtensionContext(
+        registry: registry,
+        activeTheme: registry.themes.single,
+        entry: registry.resolve('space.small')!,
+      ),
+      comment: 'Check this atom.',
+      createdAt: DateTime.utc(2026, 8, 7, 12),
+    );
+
+    expect(annotation.entryId, 'space.small');
+    expect(annotation.entryName, 'Small space');
+    expect(annotation.folderIds, ['atoms']);
+    expect(annotation.displayPath, 'Atoms / Small space');
+    expect(annotation.sourcePath, isNull);
+  });
 
   testWidgets('blank input is disabled and submission is single-flight', (
     tester,
@@ -105,8 +134,8 @@ void main() {
       await tester.pumpAndSettle();
       final afterSubmit = DateTime.now().toUtc();
 
-      expect(received?.componentId, 'harbor.button.primary');
-      expect(received?.componentName, 'Primary button');
+      expect(received?.entryId, 'harbor.button.primary');
+      expect(received?.entryName, 'Primary button');
       expect(received?.folderIds, ['components', 'components.action']);
       expect(received?.folderNames, ['Components', 'Action']);
       expect(received?.sourcePath, 'lib/src/sample_button.dart');

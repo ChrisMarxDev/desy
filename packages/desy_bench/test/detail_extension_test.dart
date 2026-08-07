@@ -23,7 +23,7 @@ void main() {
   });
 
   testWidgets(
-    'component details render matching extensions in registration order',
+    'entry details render matching extensions in registration order',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(1100, 900));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -35,7 +35,7 @@ void main() {
         DesyDetailExtension.builder(
           id: 'notes',
           name: 'Notes',
-          description: 'Keep a component-scoped draft.',
+          description: 'Keep an entry-scoped draft.',
           builder: (context, extension) {
             contexts.add(extension);
             return const DesyTextField(key: ValueKey('notes-draft'));
@@ -52,7 +52,7 @@ void main() {
         DesyDetailExtension.builder(
           id: 'not-for-buttons',
           name: 'Hidden extension',
-          appliesTo: (extension) => extension.component.id == 'other',
+          appliesTo: (extension) => extension.entry.id == 'other',
           builder: (context, extension) {
             rejectedBuilds++;
             return const SizedBox.shrink();
@@ -80,7 +80,7 @@ void main() {
       );
 
       expect(find.text('Notes'), findsOneWidget);
-      expect(find.text('Keep a component-scoped draft.'), findsOneWidget);
+      expect(find.text('Keep an entry-scoped draft.'), findsOneWidget);
       expect(find.text('Review'), findsOneWidget);
       expect(find.text('Hidden extension'), findsNothing);
       expect(rejectedBuilds, 0);
@@ -138,7 +138,7 @@ void main() {
     },
   );
 
-  testWidgets('detail extensions never render for non-component entries', (
+  testWidgets('detail extensions render for non-component entries', (
     tester,
   ) async {
     final registry = _registry();
@@ -148,8 +148,8 @@ void main() {
       registry: registry,
       detailExtensions: [
         DesyDetailExtension.builder(
-          id: 'component-only',
-          name: 'Component only',
+          id: 'entry-notes',
+          name: 'Entry notes',
           appliesTo: (extension) {
             appliesCalls++;
             return true;
@@ -172,10 +172,10 @@ void main() {
       ),
     );
 
-    expect(find.text('Component only'), findsNothing);
-    expect(find.text('Extension body'), findsNothing);
-    expect(appliesCalls, 0);
-    expect(buildCalls, 0);
+    expect(find.text('Entry notes'), findsOneWidget);
+    expect(find.text('Extension body'), findsOneWidget);
+    expect(appliesCalls, 1);
+    expect(buildCalls, 1);
   });
 
   testWidgets(
@@ -394,25 +394,23 @@ void main() {
     },
   );
 
-  test('session only creates detail context for resolved components', () {
+  test('session creates detail context for every resolved registry entry', () {
     final registry = _registry();
     final session = DesyWorkbenchSession(registry: registry);
     addTearDown(session.dispose);
 
-    expect(
-      () => session.detailExtensionContext(registry.resolve('token')!),
-      throwsArgumentError,
+    final tokenContext = session.detailExtensionContext(
+      registry.resolve('token')!,
     );
-    expect(
-      () => DesyDetailExtensionContext(
-        registry: registry,
-        activeTheme: registry.themes.first,
-        entry: registry.resolve('token')!,
-      ),
-      throwsArgumentError,
+    expect(tokenContext.entry.id, 'token');
+    expect(tokenContext.component, isNull);
+
+    final componentContext = DesyDetailExtensionContext(
+      registry: registry,
+      activeTheme: registry.themes.first,
+      entry: registry.resolve('button')!,
     );
-    final context = session.detailExtensionContext(registry.resolve('button')!);
-    expect(context.component, same(context.entry.component));
+    expect(componentContext.component, same(componentContext.entry.component));
   });
 }
 

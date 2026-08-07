@@ -229,14 +229,8 @@ final _sampleMotion = [
     duration: const Duration(milliseconds: 220),
     curve: Curves.easeOutCubic,
     description: 'Use for a small confirmation or newly revealed status.',
-    builder: (context) => const SizedBox(
-      width: 180,
-      height: 52,
-      child: SampleMotionSpecimen(
-        duration: Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-      ),
-    ),
+    builder: (context) =>
+        const SizedBox(width: 180, height: 52, child: SampleMotionSpecimen()),
   ),
 ];
 

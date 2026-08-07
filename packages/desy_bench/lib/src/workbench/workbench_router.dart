@@ -502,8 +502,12 @@ class _DesyDetailRouteScreenState extends State<_DesyDetailRouteScreen> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      DesyDetailScreen(session: widget.session, entry: widget.entry);
+  Widget build(BuildContext context) => DesyDetailScreen(
+    session: widget.session,
+    entry: widget.entry,
+    onOpenFolder: (folderId) =>
+        context.go(DesyWorkbenchRoutes.atlas(folderId: folderId)),
+  );
 }
 
 class _UnknownEntryScreen extends StatelessWidget {

@@ -1,7 +1,7 @@
 # Desy Agent Annotations
 
-An optional `DesyDetailExtension` that collects a comment while a component is
-open and hands one immutable, component-scoped submission to the consuming
+An optional `DesyDetailExtension` that collects a comment while a registry
+entry is open and hands one immutable, entry-scoped submission to the consuming
 application:
 
 ```dart

@@ -2,6 +2,8 @@ import 'dart:collection';
 
 import 'package:flutter/material.dart';
 
+import 'registry_missing_widget.dart';
+
 /// The consumer-owned definition rendered by Desy Bench.
 class DesyRegistry {
   /// Creates a design-system registry.
@@ -529,13 +531,29 @@ class DesyRegistryEntry {
 /// A non-mutating problem found in a consumer declaration.
 class DesyRegistryValidationIssue {
   /// Creates a validation issue for [id].
-  const DesyRegistryValidationIssue({required this.message, required this.id});
+  const DesyRegistryValidationIssue({
+    required this.message,
+    required this.id,
+    this.severity = DesyRegistryValidationSeverity.error,
+  });
 
   /// Stable identifier associated with the issue.
   final String id;
 
   /// Human-readable explanation of the problem.
   final String message;
+
+  /// Whether this issue blocks the workbench or remains inspectable in place.
+  final DesyRegistryValidationSeverity severity;
+}
+
+/// Impact of one registry declaration problem.
+enum DesyRegistryValidationSeverity {
+  /// The workbench can load and expose the problem through diagnostic UI.
+  warning,
+
+  /// The declaration is structurally unsafe and prevents startup.
+  error,
 }
 
 /// Validates IDs exposed by a [DesyRegistry] without building a competing index.
@@ -629,6 +647,7 @@ class DesyRegistryValidator {
             issues.add(
               DesyRegistryValidationIssue(
                 id: optionId,
+                severity: DesyRegistryValidationSeverity.warning,
                 message:
                     'Component knob "${component.id}.${knob.id}" references '
                     'unknown component instance "$optionId".',
@@ -979,7 +998,7 @@ class DesyMotionEntry {
   const DesyMotionEntry({
     required this.id,
     required this.name,
-    required this.duration,
+    this.duration,
     required this.curve,
     required this.builder,
     this.intent = 'Motion',
@@ -992,8 +1011,10 @@ class DesyMotionEntry {
   /// Human-readable name.
   final String name;
 
-  /// Typed duration used by the consumer.
-  final Duration duration;
+  /// Optional typed duration used by this motion.
+  ///
+  /// When omitted, synchronized motion surfaces use their global duration.
+  final Duration? duration;
 
   /// Typed curve used by the consumer.
   final Curve curve;
@@ -1008,7 +1029,10 @@ class DesyMotionEntry {
   final String? description;
 
   /// Concise display value.
-  String get displayValue => '${duration.inMilliseconds} ms · $curve';
+  String get displayValue => switch (duration) {
+    final duration? => '${duration.inMilliseconds} ms · $curve',
+    null => 'Global duration · $curve',
+  };
 }
 
 /// A consumer-owned icon glyph rendered by Flutter's real icon widget.
@@ -1261,7 +1285,10 @@ class DesyRegistryWidgetBuilder {
   Widget build(BuildContext context, String id) {
     final instance = _registry?.resolveComponentInstance(id);
     if (instance == null) {
-      throw StateError('No component instance with ID "$id" is registered.');
+      return buildDesyMissingRegistryWidget(
+        registryName: _registry?.name ?? 'Unavailable',
+        instanceId: id,
+      );
     }
     return instance.build(context, widgets: this);
   }

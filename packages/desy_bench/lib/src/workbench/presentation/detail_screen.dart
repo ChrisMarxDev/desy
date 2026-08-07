@@ -12,6 +12,8 @@ import 'package:state_beacon/state_beacon.dart';
 import 'component_knob_panel.dart';
 import 'desy_drag_box.dart';
 import 'detail_extensions_region.dart';
+import 'motion_playback_controls.dart';
+import '../../motion_playback.dart';
 import '../../registry.dart';
 import '../widget_preview.dart';
 import '../workbench_session.dart';
@@ -35,24 +37,63 @@ class DesyDetailScreen extends StatefulWidget {
     super.key,
     required this.session,
     required this.entry,
+    this.onOpenFolder,
   });
 
   final DesyWorkbenchSession session;
   final DesyRegistryEntry entry;
+  final ValueChanged<String>? onOpenFolder;
 
   @override
   State<DesyDetailScreen> createState() => _DesyDetailScreenState();
 }
 
-class _DesyDetailScreenState extends State<DesyDetailScreen> {
+class _DesyDetailScreenState extends State<DesyDetailScreen>
+    with TickerProviderStateMixin {
   String _selectedVariantId = 'default';
+  DesyMotionPlaybackController? _motionPlayback;
+
+  DesyMotionEntry? get _motion => switch (widget.entry.source) {
+    final DesyMotionEntry motion => motion,
+    _ => null,
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeMotionPlayback();
+  }
 
   @override
   void didUpdateWidget(covariant DesyDetailScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.entry.id != widget.entry.id) {
+    if (oldWidget.entry.id != widget.entry.id ||
+        oldWidget.entry.source != widget.entry.source) {
       _selectedVariantId = 'default';
+      _disposeMotionPlayback();
+      _initializeMotionPlayback();
     }
+  }
+
+  void _initializeMotionPlayback() {
+    final motion = _motion;
+    if (motion == null) return;
+    _motionPlayback = DesyMotionPlaybackController(
+      vsync: this,
+      duration: motion.duration ?? DesyMotionPlaybackController.defaultDuration,
+      curve: motion.curve,
+    );
+  }
+
+  void _disposeMotionPlayback() {
+    _motionPlayback?.dispose();
+    _motionPlayback = null;
+  }
+
+  @override
+  void dispose() {
+    _disposeMotionPlayback();
+    super.dispose();
   }
 
   @override
@@ -63,6 +104,7 @@ class _DesyDetailScreenState extends State<DesyDetailScreen> {
     final bezel = session.previewBezel.watch(context);
     final values = session.knobValues.watch(context);
     final component = entry.component;
+    final motion = _motion;
     final defaults = {
       for (final knob in component?.knobs ?? const <DesyKnob<Object>>[])
         knob.id: knob.initial,
@@ -77,7 +119,9 @@ class _DesyDetailScreenState extends State<DesyDetailScreen> {
             ? null
             : () => _selectVariant(component: component),
         builder: component == null
-            ? entry.builder
+            ? motion == null
+                  ? entry.builder
+                  : _buildMotionPreview
             : (context) =>
                   component.buildWithKnobs?.call(
                     context,
@@ -133,6 +177,7 @@ class _DesyDetailScreenState extends State<DesyDetailScreen> {
           session: session,
           entry: entry,
           selectedBezel: bezel,
+          onOpenFolder: widget.onOpenFolder,
         ),
         variants: variants,
       ),
@@ -144,9 +189,25 @@ class _DesyDetailScreenState extends State<DesyDetailScreen> {
         selectedVariantName: variants
             .firstWhere((variant) => variant.selected)
             .name,
+        motionControls: motion == null ? null : _buildMotionControls(),
       ),
     );
   }
+
+  Widget _buildMotionPreview(BuildContext context) {
+    final playback = _motionPlayback;
+    final motion = _motion;
+    if (playback == null || motion == null) {
+      return widget.entry.builder(context);
+    }
+    return DesyMotionPlaybackScope(
+      progress: playback.progress,
+      child: Builder(builder: motion.builder),
+    );
+  }
+
+  Widget _buildMotionControls() =>
+      DesyMotionPlaybackControls(controller: _motionPlayback!);
 
   void _selectVariant({
     required DesyComponent component,
@@ -313,11 +374,13 @@ class _DetailPreviewToolbar extends StatelessWidget {
     required this.session,
     required this.entry,
     required this.selectedBezel,
+    required this.onOpenFolder,
   });
 
   final DesyWorkbenchSession session;
   final DesyRegistryEntry entry;
   final DesyPreviewBezel? selectedBezel;
+  final ValueChanged<String>? onOpenFolder;
 
   @override
   Widget build(BuildContext context) {
@@ -334,7 +397,7 @@ class _DetailPreviewToolbar extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _DetailBreadcrumbs(entry: entry),
+          _DetailBreadcrumbs(entry: entry, onOpenFolder: onOpenFolder),
           const SizedBox(height: 5),
           Wrap(
             spacing: 6,
@@ -374,9 +437,10 @@ class _DetailPreviewToolbar extends StatelessWidget {
 }
 
 class _DetailBreadcrumbs extends StatelessWidget {
-  const _DetailBreadcrumbs({required this.entry});
+  const _DetailBreadcrumbs({required this.entry, required this.onOpenFolder});
 
   final DesyRegistryEntry entry;
+  final ValueChanged<String>? onOpenFolder;
 
   @override
   Widget build(BuildContext context) {
@@ -385,8 +449,9 @@ class _DetailBreadcrumbs extends StatelessWidget {
       color: context.theme.colors.mutedForeground,
     );
     return Semantics(
-      label: 'Breadcrumb ${segments.join(', ')}',
-      excludeSemantics: true,
+      label: 'Breadcrumb',
+      container: true,
+      explicitChildNodes: true,
       child: Wrap(
         key: const ValueKey('detail-breadcrumbs'),
         spacing: 3,
@@ -399,11 +464,38 @@ class _DetailBreadcrumbs extends StatelessWidget {
                 size: 11,
                 color: context.theme.colors.mutedForeground,
               ),
-            Text(
-              segments[index],
-              key: ValueKey('detail-breadcrumb-$index'),
-              style: style,
-            ),
+            if (index < entry.folderIds.length)
+              Semantics(
+                key: ValueKey(
+                  'detail-breadcrumb-folder-${entry.folderIds[index]}',
+                ),
+                button: true,
+                enabled: onOpenFolder != null,
+                label: 'Open ${segments[index]} folder',
+                excludeSemantics: true,
+                onTap: onOpenFolder == null
+                    ? null
+                    : () => onOpenFolder!(entry.folderIds[index]),
+                child: DesyButton(
+                  variant: DesyButtonVariant.ghost,
+                  size: DesyButtonSize.xs,
+                  mainAxisSize: MainAxisSize.min,
+                  onPress: onOpenFolder == null
+                      ? null
+                      : () => onOpenFolder!(entry.folderIds[index]),
+                  child: Text(
+                    segments[index],
+                    key: ValueKey('detail-breadcrumb-$index'),
+                    style: style,
+                  ),
+                ),
+              )
+            else
+              Text(
+                segments[index],
+                key: ValueKey('detail-breadcrumb-$index'),
+                style: style,
+              ),
           ],
         ],
       ),
@@ -418,6 +510,7 @@ class _DetailInspector extends StatelessWidget {
     required this.entry,
     required this.values,
     required this.selectedVariantName,
+    required this.motionControls,
   });
 
   final DesyWorkbenchSession session;
@@ -425,6 +518,7 @@ class _DetailInspector extends StatelessWidget {
   final DesyRegistryEntry entry;
   final Map<String, Object> values;
   final String selectedVariantName;
+  final Widget? motionControls;
 
   @override
   Widget build(BuildContext context) => ColoredBox(
@@ -439,6 +533,10 @@ class _DetailInspector extends StatelessWidget {
           key: const ValueKey('detail-selected-instance'),
           style: Theme.of(context).textTheme.bodySmall,
         ),
+        if (motionControls case final controls?) ...[
+          const SizedBox(height: 20),
+          controls,
+        ],
         if (component != null && component!.knobs.isNotEmpty) ...[
           const SizedBox(height: 24),
           Text('Knobs', style: Theme.of(context).textTheme.labelLarge),
@@ -450,10 +548,11 @@ class _DetailInspector extends StatelessWidget {
             onChanged: session.setKnob,
           ),
         ],
-        if (component == null ||
-            (component!.knobs.isEmpty &&
-                component!.scenarios.isEmpty &&
-                component!.instances.isEmpty)) ...[
+        if (motionControls == null &&
+            (component == null ||
+                (component!.knobs.isEmpty &&
+                    component!.scenarios.isEmpty &&
+                    component!.instances.isEmpty))) ...[
           const SizedBox(height: 12),
           Text(
             'No controls declared.',

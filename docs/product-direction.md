@@ -48,8 +48,10 @@ Manifest persistence itself is deliberately not implemented yet.
 Agents are a downstream capability, not a competing product surface. Once a
 consumer has declared enough primitives, contracts, scenarios, and source links,
 Desy can derive focused local queries and task context from that living system.
-The first agent skills remain deliberately deferred until this workflow has been
-used by people and proves stable.
+The repository now ships a project-local `desy` teaching skill and a review-only
+`desy-design-sweep` skill. They query source declarations directly, distinguish
+verified evidence from hypotheses, and remain portable to consuming projects.
+Automated issue creation and hosted agent services remain deferred.
 
 ## Deliberate boundaries
 

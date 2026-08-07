@@ -92,7 +92,7 @@ DesyAgentAnnotationSubmit createRepositoryFileAgentAnnotationSubmit({
       await handle.close();
       handle = null;
 
-      final component = _slug(annotation.componentId);
+      final entry = _slug(annotation.entryId);
       final timestamp = annotation.createdAt
           .toUtc()
           .toIso8601String()
@@ -103,7 +103,7 @@ DesyAgentAnnotationSubmit createRepositoryFileAgentAnnotationSubmit({
       final finalNonce = _validNonce(nonce());
       final published = File(
         '${directory.path}${Platform.pathSeparator}'
-        '$timestamp-$component-$finalNonce.md',
+        '$timestamp-$entry-$finalNonce.md',
       );
 
       // `rename` is atomic because the owned pending file lives in the
@@ -112,7 +112,7 @@ DesyAgentAnnotationSubmit createRepositoryFileAgentAnnotationSubmit({
       await ownedPending.rename(published.path);
       ownedPending = null;
       return DesyAgentAnnotationReceipt(
-        message: 'Saved an agent annotation for ${annotation.componentName}.',
+        message: 'Saved an agent annotation for ${annotation.entryName}.',
         location: published.absolute.uri,
       );
     } catch (error, stackTrace) {
@@ -228,7 +228,7 @@ String _slug(String value) {
       .toLowerCase()
       .replaceAll(RegExp('[^a-z0-9]+'), '-')
       .replaceAll(RegExp(r'(^-+|-+$)'), '');
-  return normalized.isEmpty ? 'component' : normalized;
+  return normalized.isEmpty ? 'entry' : normalized;
 }
 
 String _markdown(DesyAgentAnnotation annotation) {
@@ -238,10 +238,10 @@ String _markdown(DesyAgentAnnotation annotation) {
   final folderIds = annotation.folderIds.isEmpty
       ? 'Root'
       : annotation.folderIds.map((id) => '`${_inline(id)}`').join(' / ');
-  return '''# Agent annotation: ${annotation.componentName}
+  return '''# Agent annotation: ${annotation.entryName}
 
-- Component ID: `${_inline(annotation.componentId)}`
-- Component path: ${annotation.displayPath}
+- Entry ID: `${_inline(annotation.entryId)}`
+- Entry path: ${annotation.displayPath}
 - Folder IDs: $folderIds
 - Source: $source
 - Active theme ID: `${_inline(annotation.activeThemeId)}`

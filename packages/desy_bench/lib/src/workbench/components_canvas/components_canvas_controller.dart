@@ -6,6 +6,7 @@ import 'dart:collection';
 import 'dart:ui';
 
 import 'package:device_preview/device_preview.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_box_transform/flutter_box_transform.dart';
 import 'package:state_beacon/state_beacon.dart';
 
@@ -194,8 +195,19 @@ class DesyCanvasNode {
 class DesyComponentsCanvasController with BeaconController {
   late final nodes = B.writable<Map<String, DesyCanvasNode>>({});
   late final selectedId = B.writable<String?>(null);
+  final _nodeSignals = <String, ValueNotifier<DesyCanvasNode>>{};
   var _nextNode = 0;
   Rect? _stageBounds;
+
+  /// The live interaction state for one existing node.
+  ///
+  /// The shared [nodes] map changes only when structure or committed data
+  /// changes. Drag and resize frames update this node-scoped listenable so an
+  /// interaction never invalidates every canvas element.
+  ValueListenable<DesyCanvasNode>? nodeListenable(String nodeId) =>
+      _nodeSignals[nodeId];
+
+  DesyCanvasNode? nodeValue(String nodeId) => _nodeSignals[nodeId]?.value;
 
   void setStageBounds(Rect bounds) {
     final previous = _stageBounds;
@@ -232,7 +244,7 @@ class DesyComponentsCanvasController with BeaconController {
         rect: _clampFrameToStage(candidate),
       );
     }
-    if (normalized != null) nodes.value = normalized;
+    if (normalized != null) _replaceNodes(normalized);
   }
 
   /// Adds one named instance and returns its ephemeral canvas-node ID.
@@ -261,7 +273,7 @@ class DesyComponentsCanvasController with BeaconController {
         120,
       ),
     );
-    nodes.value = {...nodes.value, nodeId: node};
+    _replaceNodes({...nodes.value, nodeId: node});
     selectedId.value = nodeId;
     return nodeId;
   }
@@ -289,7 +301,7 @@ class DesyComponentsCanvasController with BeaconController {
         ),
       ),
     );
-    nodes.value = {...nodes.value, nodeId: node};
+    _replaceNodes({...nodes.value, nodeId: node});
     selectedId.value = nodeId;
     return nodeId;
   }
@@ -301,7 +313,7 @@ class DesyComponentsCanvasController with BeaconController {
   }) {
     final node = nodes.value[nodeId];
     if (node == null || !node.isLayout) return;
-    nodes.value = {
+    _replaceNodes({
       ...nodes.value,
       nodeId: DesyCanvasNode.layout(
         id: node.id,
@@ -311,7 +323,7 @@ class DesyComponentsCanvasController with BeaconController {
         spacing: spacing,
         flip: node.flip,
       ),
-    };
+    });
   }
 
   /// Adds a device frame as one regular, selectable canvas layer.
@@ -338,14 +350,29 @@ class DesyComponentsCanvasController with BeaconController {
         ),
       ),
     );
-    nodes.value = {...nodes.value, nodeId: node};
+    _replaceNodes({...nodes.value, nodeId: node});
     selectedId.value = nodeId;
     return nodeId;
   }
 
   void update(DesyCanvasNode node) {
     if (!nodes.value.containsKey(node.id)) return;
-    nodes.value = {...nodes.value, node.id: node};
+    _replaceNodes({...nodes.value, node.id: node});
+  }
+
+  /// Publishes interaction geometry to one node without rebuilding listeners
+  /// of the committed node collection.
+  void updateTransient(DesyCanvasNode node) {
+    final signal = _nodeSignals[node.id];
+    if (signal == null) return;
+    signal.value = node;
+  }
+
+  /// Stores the final interaction geometry in both the node signal and the
+  /// committed collection.
+  void commitInteraction(DesyCanvasNode node) {
+    if (!nodes.value.containsKey(node.id)) return;
+    _replaceNodes({...nodes.value, node.id: node});
   }
 
   void select(String? componentId) => selectedId.value = componentId;
@@ -360,15 +387,42 @@ class DesyComponentsCanvasController with BeaconController {
     if (!nodes.value.containsKey(nodeId)) return;
     final next = Map<String, DesyCanvasNode>.from(nodes.value)..remove(nodeId);
     next.removeWhere((_, node) => node.parentLayoutId == nodeId);
-    nodes.value = next;
+    _replaceNodes(next);
     if (selectedId.value == nodeId || !next.containsKey(selectedId.value)) {
       selectedId.value = null;
     }
   }
 
   void clear() {
-    nodes.value = {};
+    _replaceNodes({});
     selectedId.value = null;
+  }
+
+  @override
+  void dispose() {
+    for (final signal in _nodeSignals.values) {
+      signal.dispose();
+    }
+    _nodeSignals.clear();
+    super.dispose();
+  }
+
+  void _replaceNodes(Map<String, DesyCanvasNode> next) {
+    final removedIds = _nodeSignals.keys
+        .where((nodeId) => !next.containsKey(nodeId))
+        .toList(growable: false);
+    for (final nodeId in removedIds) {
+      _nodeSignals.remove(nodeId)?.dispose();
+    }
+    for (final entry in next.entries) {
+      final signal = _nodeSignals[entry.key];
+      if (signal == null) {
+        _nodeSignals[entry.key] = ValueNotifier(entry.value);
+      } else if (!identical(signal.value, entry.value)) {
+        signal.value = entry.value;
+      }
+    }
+    nodes.value = next;
   }
 
   double _initialFrameHeight(DeviceInfo device) {

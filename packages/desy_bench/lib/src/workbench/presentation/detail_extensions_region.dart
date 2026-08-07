@@ -9,7 +9,7 @@ import '../../detail_extension.dart';
 import '../../registry.dart';
 import '../workbench_session.dart';
 
-/// The single host-owned extension region in a component detail inspector.
+/// The single host-owned extension region in a registry-entry detail inspector.
 ///
 /// It guards synchronous predicate and declaration-builder calls. Once a
 /// declaration returns a widget, failures in that widget's element subtree use
@@ -26,7 +26,7 @@ class DesyDetailExtensionsRegion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (entry.component == null || session.detailExtensions.isEmpty) {
+    if (session.detailExtensions.isEmpty) {
       return const SizedBox.shrink();
     }
 

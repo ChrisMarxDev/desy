@@ -48,6 +48,15 @@ Future<T?> showDesyDialog<T>({
 /// Desy's workbench page scaffold.
 typedef DesyScaffold = FScaffold;
 
+/// Desy's continuous and discrete value slider.
+typedef DesySlider = FSlider;
+
+/// Playback and value ownership for a [DesySlider].
+typedef DesySliderControl = FSliderControl;
+
+/// The selected value exposed by a [DesySlider].
+typedef DesySliderValue = FSliderValue;
+
 /// Desy's typed single-selection control.
 typedef DesySelect<T> = FSelect<T>;
 

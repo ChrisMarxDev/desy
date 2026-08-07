@@ -52,6 +52,40 @@ void main() {
     expect(() => node.knobValues['label'] = 'Other', throwsUnsupportedError);
   });
 
+  test('transient geometry notifies only its node until committed', () {
+    final controller = DesyComponentsCanvasController();
+    final firstId = controller.add('button.first');
+    final secondId = controller.add('button.second');
+    final firstSignal = controller.nodeListenable(firstId)!;
+    final secondSignal = controller.nodeListenable(secondId)!;
+    var firstNotifications = 0;
+    var secondNotifications = 0;
+    firstSignal.addListener(() => firstNotifications++);
+    secondSignal.addListener(() => secondNotifications++);
+    final committedBefore = controller.nodes.value;
+    final firstBefore = committedBefore[firstId]!;
+    final transient = firstBefore.copyWith(
+      rect: firstBefore.rect.shift(const Offset(24, 16)),
+    );
+
+    controller.updateTransient(transient);
+
+    expect(controller.nodes.value, same(committedBefore));
+    expect(controller.nodes.value[firstId]!.rect, firstBefore.rect);
+    expect(controller.nodeValue(firstId)!.rect, transient.rect);
+    expect(firstNotifications, 1);
+    expect(secondNotifications, 0);
+
+    controller.commitInteraction(transient);
+
+    expect(controller.nodes.value, isNot(same(committedBefore)));
+    expect(controller.nodes.value[firstId]!.rect, transient.rect);
+    expect(controller.nodeValue(firstId)!.rect, transient.rect);
+    expect(firstNotifications, 1);
+    expect(secondNotifications, 0);
+    controller.dispose();
+  });
+
   test('layout presets accept instances only in their declared slots', () {
     final controller = DesyComponentsCanvasController()
       ..setStageBounds(const Rect.fromLTWH(0, 0, 900, 700));

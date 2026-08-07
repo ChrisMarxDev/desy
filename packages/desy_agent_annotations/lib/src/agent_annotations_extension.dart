@@ -5,14 +5,14 @@ import 'package:flutter/services.dart';
 
 import 'agent_annotation.dart';
 
-/// A component-detail comment composer backed by a consumer-owned callback.
+/// A registry-entry detail comment composer backed by a consumer-owned callback.
 final class DesyAgentAnnotationsExtension extends DesyDetailExtension {
   /// Creates the optional agent-annotation detail extension.
   const DesyAgentAnnotationsExtension({required this.onSubmit})
     : super(
         id: 'desy.agent-annotations',
         name: 'Agent annotation',
-        description: 'Send a component-scoped observation to an agent.',
+        description: 'Send an entry-scoped observation to an agent.',
       );
 
   /// The only required integration point. Persistence and authentication stay

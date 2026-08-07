@@ -516,61 +516,35 @@ class SampleEmptyState extends StatelessWidget {
   }
 }
 
-/// A small, looping specimen used to show the system's real motion tokens.
-class SampleMotionSpecimen extends StatefulWidget {
+/// A small specimen driven by Desy's shared motion preview timeline.
+class SampleMotionSpecimen extends StatelessWidget {
   /// Creates a motion specimen.
-  const SampleMotionSpecimen({
-    super.key,
-    required this.duration,
-    required this.curve,
-  });
-
-  /// Duration supplied by the consumer's motion token.
-  final Duration duration;
-
-  /// Curve supplied by the consumer's motion token.
-  final Curve curve;
+  const SampleMotionSpecimen({super.key});
 
   @override
-  State<SampleMotionSpecimen> createState() => _SampleMotionSpecimenState();
-}
-
-class _SampleMotionSpecimenState extends State<SampleMotionSpecimen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: widget.duration,
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: CurvedAnimation(parent: _controller, curve: widget.curve),
-    builder: (context, child) {
-      final progress = CurveTween(
-        curve: widget.curve,
-      ).transform(_controller.value);
-      return Align(
-        alignment: Alignment.lerp(
-          Alignment.centerLeft,
-          Alignment.centerRight,
-          progress,
-        )!,
-        child: child,
-      );
-    },
-    child: Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary,
-        borderRadius: BorderRadius.circular(9),
+  Widget build(BuildContext context) {
+    final progress =
+        DesyMotionPlaybackScope.maybeOf(context) ?? kAlwaysDismissedAnimation;
+    return AnimatedBuilder(
+      animation: progress,
+      builder: (context, child) {
+        return Align(
+          alignment: Alignment.lerp(
+            Alignment.centerLeft,
+            Alignment.centerRight,
+            progress.value,
+          )!,
+          child: child,
+        );
+      },
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary,
+          borderRadius: BorderRadius.circular(9),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

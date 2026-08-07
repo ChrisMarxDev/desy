@@ -1,3 +1,4 @@
+import 'package:desy_bench/desy_bench.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:desy_design_system_example/desy_design_system_example.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +13,7 @@ void main() {
     expect(desyDesignSystemRegistry.allNumbers, hasLength(7));
     expect(desyDesignSystemRegistry.allMotion, hasLength(2));
     expect(desyDesignSystemRegistry.allEffects, hasLength(1));
-    expect(desyDesignSystemRegistry.allIcons, hasLength(22));
+    expect(desyDesignSystemRegistry.allIcons, hasLength(25));
     expect(desyDesignSystemRegistry.allShowcases, hasLength(1));
     expect(
       desyDesignSystemRegistry.resolve('desy.icon.shapes')?.path,
@@ -60,5 +61,80 @@ void main() {
       expect(tester.takeException(), isNull, reason: component.id);
       await tester.pumpWidget(const SizedBox());
     }
+  });
+
+  testWidgets('tile swaps registered preset instances through the registry', (
+    tester,
+  ) async {
+    final tile = desyDesignSystemRegistry.allComponents.singleWhere(
+      (component) => component.id == 'desy.component.tile',
+    );
+    final suffixKnob = tile.knobs.whereType<DesyComponentKnob>().single;
+
+    expect(suffixKnob.initial, 'desy.component.badge.default');
+    expect(suffixKnob.options, const [
+      'desy.component.badge.default',
+      'desy.component.shortcut-label.single-key',
+    ]);
+    expect(tile.instances.map((instance) => instance.id), [
+      'with-badge',
+      'with-shortcut',
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: Scaffold(
+            body: Center(
+              child: Builder(
+                builder: (context) => tile.buildInstance(
+                  context,
+                  tile.instances.last,
+                  widgets: desyDesignSystemRegistry.widgetBuilder,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(DesyTile), findsOneWidget);
+    expect(find.byType(DesyKeyboardShortcutLabel), findsOneWidget);
+    expect(find.text('Open command menu'), findsOneWidget);
+  });
+
+  testWidgets('tile dogfoods the missing registry link diagnostic', (
+    tester,
+  ) async {
+    final tile = desyDesignSystemRegistry.allComponents.singleWhere(
+      (component) => component.id == 'desy.component.tile',
+    );
+    final missingScenario = tile.scenarios.singleWhere(
+      (scenario) => scenario.id == 'missing-suffix-instance',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: Scaffold(
+            body: Center(child: Builder(builder: missingScenario.builder)),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Missing instance'), findsOneWidget);
+    await tester.tap(find.text('Missing instance'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Missing component instance'), findsOneWidget);
+    expect(
+      find.text('desy.component.unregistered-tile-suffix.missing'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Desy Design System'), findsOneWidget);
   });
 }

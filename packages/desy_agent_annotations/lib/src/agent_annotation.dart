@@ -1,17 +1,17 @@
 import 'package:desy_bench/desy_bench.dart';
 import 'package:flutter/foundation.dart';
 
-/// Sends one immutable component annotation to a consumer-owned destination.
+/// Sends one immutable registry-entry annotation to a consumer-owned destination.
 typedef DesyAgentAnnotationSubmit =
     Future<DesyAgentAnnotationReceipt> Function(DesyAgentAnnotation annotation);
 
-/// An immutable comment and the component context an agent needs to act on it.
+/// An immutable comment and the registry context an agent needs to act on it.
 @immutable
 final class DesyAgentAnnotation {
   /// Creates an annotation submission.
   DesyAgentAnnotation({
-    required this.componentId,
-    required this.componentName,
+    required this.entryId,
+    required this.entryName,
     required List<String> folderIds,
     required List<String> folderNames,
     required this.activeThemeId,
@@ -27,21 +27,21 @@ final class DesyAgentAnnotation {
     required String comment,
     required DateTime createdAt,
   }) => DesyAgentAnnotation(
-    componentId: context.component.id,
-    componentName: context.component.name,
+    entryId: context.entry.id,
+    entryName: context.entry.name,
     folderIds: context.entry.folderIds,
     folderNames: context.entry.folderNames,
-    sourcePath: context.component.source,
+    sourcePath: context.component?.source,
     activeThemeId: context.activeTheme.id,
     comment: comment,
     createdAt: createdAt,
   );
 
-  /// Stable component declaration ID.
-  final String componentId;
+  /// Stable registry-entry declaration ID.
+  final String entryId;
 
-  /// Human-readable component name at submission time.
-  final String componentName;
+  /// Human-readable registry-entry name at submission time.
+  final String entryName;
 
   /// Stable containing folder IDs from root to leaf.
   final List<String> folderIds;
@@ -49,7 +49,7 @@ final class DesyAgentAnnotation {
   /// Human-readable containing folder names from root to leaf.
   final List<String> folderNames;
 
-  /// Consumer-owned source path when the component declares one.
+  /// Consumer-owned source path when the entry declares one.
   final String? sourcePath;
 
   /// Stable ID of the preview theme active at submission time.
@@ -61,8 +61,8 @@ final class DesyAgentAnnotation {
   /// Time at which the extension created the submission.
   final DateTime createdAt;
 
-  /// Human-readable component path derived from display names only.
-  String get displayPath => [...folderNames, componentName].join(' / ');
+  /// Human-readable entry path derived from display names only.
+  String get displayPath => [...folderNames, entryName].join(' / ');
 }
 
 /// Confirmation returned by the consumer-owned annotation destination.

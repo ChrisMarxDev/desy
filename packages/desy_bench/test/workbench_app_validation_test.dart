@@ -3,6 +3,42 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('missing instance links remain inspectable in the workbench', (
+    tester,
+  ) async {
+    final registry = DesyRegistry(
+      name: 'Broken link',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [
+        DesyComponent(
+          id: 'card',
+          name: 'Card',
+          preview: _emptyPreview,
+          knobs: [
+            DesyComponentKnob(
+              id: 'trailing',
+              name: 'Trailing',
+              initial: 'status.missing',
+              options: const ['status.missing'],
+            ),
+          ],
+          buildWithKnobs: (context, values, widgets) =>
+              widgets.build(context, values.component('trailing')),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(DesyBenchApp(registry: registry));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.byKey(const ValueKey('workbench-configuration-error')),
+      findsNothing,
+    );
+    expect(find.text('DESY BENCH'), findsOneWidget);
+  });
+
   testWidgets(
     'workbench rejects duplicate registry and extension IDs at its boundary',
     (tester) async {
@@ -160,5 +196,7 @@ void main() {
     );
   });
 }
+
+Widget _emptyPreview(BuildContext context) => const SizedBox();
 
 Widget _wrap(BuildContext context, Widget child) => child;

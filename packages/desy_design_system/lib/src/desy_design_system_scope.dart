@@ -12,6 +12,9 @@ enum DesyDesignSystemTheme {
 
 /// Desy-owned foundation values shared by the package and its catalogue.
 abstract final class DesyDesignSystemTokens {
+  /// Primary typeface used throughout Desy-owned workbench surfaces.
+  static const String fontFamily = 'packages/desy_design_system/Space Grotesk';
+
   /// Compact separation between related inline elements.
   static const double spaceXs = 4;
 
@@ -48,7 +51,22 @@ abstract final class DesyDesignSystemFoundation {
       DesyDesignSystemTheme.light => FTheme.neutral.light.desktop,
       DesyDesignSystemTheme.dark => FTheme.neutral.dark.desktop,
     };
-    return foundation.copyWith(
+    final typeface = FTypeface.inherit(
+      colors: foundation.colors,
+      touch: false,
+      fontFamily: DesyDesignSystemTokens.fontFamily,
+      fontFamilyFallback: const [FTypeface.defaultFontFamily],
+    );
+    final data = FThemeData(
+      colors: foundation.colors,
+      touch: false,
+      debugLabel: foundation.debugLabel,
+      breakpoints: foundation.breakpoints,
+      typography: FTypography(display: typeface, body: typeface),
+      icons: foundation.icons,
+      hapticFeedback: foundation.hapticFeedback,
+    );
+    return data.copyWith(
       dialogStyle: FDialogStyleDelta.delta(
         insetPadding: EdgeInsetsGeometryDelta.value(
           const EdgeInsets.all(DesyDesignSystemTokens.spaceLg),

@@ -96,7 +96,9 @@ color/treatment widgets are color entries inside `Atoms/Colors`; Flutter icon
 glyphs are typed `DesyIconEntry` declarations inside `Atoms/Icons`. They do not
 also appear as generic atoms or fake components. This prevents duplicated
 visual inventories while keeping primitive-specific adapters as thin
-widget-returning conveniences.
+widget-returning conveniences. The workbench sidebar exposes the used atom
+folder hierarchy, not every primitive leaf; the Atlas and typed boards own
+high-volume primitive browsing.
 
 ## 10. Flutter-platform compatible by default
 

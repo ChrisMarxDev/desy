@@ -311,7 +311,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('agent-annotation-submit')));
       await tester.pumpAndSettle();
 
-      expect(received?.componentId, 'harbor.button.primary');
+      expect(received?.entryId, 'harbor.button.primary');
       expect(received?.comment, 'Check the sample focus treatment.');
       expect(find.text('Queued for the sample agent.'), findsOneWidget);
     },
@@ -372,10 +372,9 @@ void main() {
       find.descendant(of: breadcrumbs, matching: find.text('Action')),
       findsOneWidget,
     );
-    expect(
-      find.bySemanticsLabel('Breadcrumb Components, Action, Primary button'),
-      findsOneWidget,
-    );
+    expect(find.bySemanticsLabel('Breadcrumb'), findsOneWidget);
+    expect(find.bySemanticsLabel('Open Components folder'), findsOneWidget);
+    expect(find.bySemanticsLabel('Open Action folder'), findsOneWidget);
     expect(tester.getSize(toolbar).height, greaterThanOrEqualTo(36));
     final canvas = find.byKey(const ValueKey('detail-preview-canvas'));
     final artboard = find.byKey(const ValueKey('detail-artboard'));
@@ -456,6 +455,8 @@ void main() {
   testWidgets('renders typed numeric entries on the Measurements board', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(DesyBenchApp(registry: sampleRegistry));
 
     tester

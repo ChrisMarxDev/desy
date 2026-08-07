@@ -156,12 +156,16 @@ class _DesyWorkbenchAppState extends State<DesyWorkbenchApp> {
     List<DesyWorkspaceExtension> extensions,
     List<DesyDetailExtension> detailExtensions,
   ) {
-    final issues = registry.validate(
-      extensionIds: [
-        ...extensions.map((extension) => extension.id),
-        ...detailExtensions.map((extension) => extension.id),
-      ],
-    );
+    final issues = registry
+        .validate(
+          extensionIds: [
+            ...extensions.map((extension) => extension.id),
+            ...detailExtensions.map((extension) => extension.id),
+          ],
+        )
+        .where(
+          (issue) => issue.severity == DesyRegistryValidationSeverity.error,
+        );
     if (issues.isNotEmpty) {
       final details = issues
           .map((issue) => '${issue.id}: ${issue.message}')
@@ -241,7 +245,7 @@ class _FailedWorkbenchConfiguration extends StatelessWidget {
                   padding: EdgeInsets.all(20),
                   child: Text(
                     'Desy Bench could not load this configuration. '
-                    'Fix duplicate stable IDs and try again.',
+                    'Fix invalid registry declarations and try again.',
                     textAlign: TextAlign.center,
                   ),
                 ),

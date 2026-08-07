@@ -21,7 +21,7 @@ class DesyBenchApp extends StatelessWidget {
   /// Optional workspace screens supplied by separately installed packages.
   final List<DesyWorkspaceExtension> extensions;
 
-  /// Optional component-scoped sections rendered in the detail inspector.
+  /// Optional entry-scoped sections rendered in the detail inspector.
   final List<DesyDetailExtension> detailExtensions;
 
   @override

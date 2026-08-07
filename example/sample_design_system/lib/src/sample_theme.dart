@@ -27,6 +27,12 @@ abstract final class SampleColors {
   static const Color moss = Color(0xff28734d);
 }
 
+/// Typography roles owned by the sample consumer.
+abstract final class SampleTypography {
+  /// Primary typeface used across Harbor surfaces.
+  static const String fontFamily = 'Space Grotesk';
+}
+
 /// The light theme used by the sample design system.
 final ThemeData sampleLightTheme = _sampleTheme(Brightness.light);
 
@@ -87,6 +93,7 @@ ThemeData _sampleTheme(Brightness brightness) {
 
   return ThemeData(
     colorScheme: scheme,
+    fontFamily: SampleTypography.fontFamily,
     useMaterial3: true,
     scaffoldBackgroundColor: scheme.surface,
   );

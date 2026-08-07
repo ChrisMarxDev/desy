@@ -73,8 +73,8 @@ DesyAgentAnnotation _annotation({
   required String id,
   required String comment,
 }) => DesyAgentAnnotation(
-  componentId: id,
-  componentName: id.split('.').last,
+  entryId: id,
+  entryName: id.split('.').last,
   folderIds: const ['desy.components'],
   folderNames: const ['Components'],
   sourcePath: 'package:desy_design_system/src/control_aliases.dart',

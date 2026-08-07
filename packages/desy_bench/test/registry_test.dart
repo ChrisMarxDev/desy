@@ -474,10 +474,12 @@ void main() {
       components: [component],
     );
 
+    final issue = registry.validate().single;
     expect(
-      registry.validate().single.message,
+      issue.message,
       contains('unknown component instance "status.missing"'),
     );
+    expect(issue.severity, DesyRegistryValidationSeverity.warning);
   });
 
   test('registry validation rejects invalid instance knob settings', () {

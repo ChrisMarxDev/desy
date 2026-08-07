@@ -20,7 +20,7 @@ final class DesyDogfoodAnnotationFileSelectionCancelled implements Exception {
 DesyAgentAnnotationSubmit createDesyDogfoodAnnotationSubmit() {
   if (!Platform.isMacOS) {
     return (annotation) async => DesyAgentAnnotationReceipt(
-      message: 'Captured a dogfood annotation for ${annotation.componentName}.',
+      message: 'Captured a dogfood annotation for ${annotation.entryName}.',
     );
   }
   return createDesyDogfoodAnnotationFileSubmit(
@@ -43,7 +43,7 @@ Future<File?> _selectAnnotationFile() async {
 /// Creates a session-scoped append callback with an injectable Save dialog.
 ///
 /// A successful selection is cached for this callback's lifetime. Writes are
-/// serialized so annotations submitted from different component details cannot
+/// serialized so annotations submitted from different entry details cannot
 /// interleave inside the shared Markdown file.
 DesyAgentAnnotationSubmit createDesyDogfoodAnnotationFileSubmit({
   required DesyDogfoodAnnotationFileSelector selectFile,
@@ -86,7 +86,7 @@ final class _DesyDogfoodAnnotationFileSink {
     }
 
     return DesyAgentAnnotationReceipt(
-      message: 'Appended the annotation for ${annotation.componentName}.',
+      message: 'Appended the annotation for ${annotation.entryName}.',
       location: file.absolute.uri,
     );
   }
@@ -112,10 +112,10 @@ String _markdownEntry(DesyAgentAnnotation annotation) {
       : annotation.folderIds.map((id) => '`${_inline(id)}`').join(' / ');
   return '''
 
-## ${annotation.createdAt.toUtc().toIso8601String()} — ${annotation.componentName}
+## ${annotation.createdAt.toUtc().toIso8601String()} — ${annotation.entryName}
 
-- Component ID: `${_inline(annotation.componentId)}`
-- Component path: ${annotation.displayPath}
+- Entry ID: `${_inline(annotation.entryId)}`
+- Entry path: ${annotation.displayPath}
 - Folder IDs: $folderIds
 - Source: $source
 - Active theme ID: `${_inline(annotation.activeThemeId)}`
