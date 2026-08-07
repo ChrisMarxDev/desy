@@ -41,25 +41,45 @@ class DesyDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = session.activeTheme;
-    final scenario = session.selectedScenario.watch(context);
-    final selectedInstance = session.selectedComponentInstance.watch(context);
     final bezel = session.previewBezel.watch(context);
     final values = session.knobValues.watch(context);
     final component = entry.component;
-    final preview = DesyWidgetPreview(
-      theme: theme,
-      builder: (context) => scenario != null
-          ? scenario.builder(context)
-          : selectedInstance != null
-          ? component!.buildInstance(context, selectedInstance)
-          : component == null
-          ? entry.builder(context)
-          : component.buildWithKnobs?.call(context, DesyKnobValues(values)) ??
-                component.preview(context),
-    );
+    final variants = <_DetailVariant>[
+      _DetailVariant(
+        id: 'default',
+        name: component == null ? entry.name : 'Default',
+        builder: component == null
+            ? entry.builder
+            : (context) =>
+                  component.buildWithKnobs?.call(
+                    context,
+                    DesyKnobValues(values),
+                    session.registry.widgetBuilder,
+                  ) ??
+                  component.preview(context),
+      ),
+      if (component != null)
+        for (final instance in component.instances)
+          _DetailVariant(
+            id: 'instance-${instance.id}',
+            name: instance.name,
+            builder: (context) => component.buildInstance(
+              context,
+              instance,
+              widgets: session.registry.widgetBuilder,
+            ),
+          ),
+      if (component != null)
+        for (final scenario in component.scenarios)
+          _DetailVariant(
+            id: 'scenario-${scenario.id}',
+            name: 'State · ${scenario.name}',
+            builder: scenario.builder,
+          ),
+    ];
 
     return _DetailBody(
-      preview: DesyPreviewCanvas(
+      preview: _DetailInstanceGallery(
         session: session,
         theme: theme,
         bezel: bezel,
@@ -68,15 +88,88 @@ class DesyDetailScreen extends StatelessWidget {
           entry: entry,
           selectedBezel: bezel,
         ),
-        child: preview,
+        variants: variants,
       ),
       inspector: _DetailInspector(
         session: session,
         component: component,
         entry: entry,
-        selectedScenario: scenario,
-        selectedInstance: selectedInstance,
         values: values,
+      ),
+    );
+  }
+}
+
+class _DetailVariant {
+  const _DetailVariant({
+    required this.id,
+    required this.name,
+    required this.builder,
+  });
+
+  final String id;
+  final String name;
+  final DesyPreviewBuilder builder;
+}
+
+class _DetailInstanceGallery extends StatelessWidget {
+  const _DetailInstanceGallery({
+    required this.session,
+    required this.theme,
+    required this.bezel,
+    required this.toolbar,
+    required this.variants,
+  });
+
+  final DesyWorkbenchSession session;
+  final DesyTheme theme;
+  final DesyPreviewBezel? bezel;
+  final Widget toolbar;
+  final List<_DetailVariant> variants;
+
+  @override
+  Widget build(BuildContext context) {
+    final stage = session.stage.watch(context);
+    final viewerHeight = bezel == null
+        ? (stage.size.height + 72).clamp(280, 640).toDouble()
+        : 540.0;
+    final background =
+        theme.previewBackgroundColor ?? context.theme.colors.background;
+    return ColoredBox(
+      color: background,
+      child: ListView.separated(
+        key: const ValueKey('detail-instance-gallery'),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+        itemCount: variants.length + 1,
+        separatorBuilder: (context, index) => const SizedBox(height: 16),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Align(alignment: Alignment.centerLeft, child: toolbar);
+          }
+          final variant = variants[index - 1];
+          final isDefault = variant.id == 'default';
+          return SizedBox(
+            key: ValueKey('detail-instance-viewer-${variant.id}'),
+            height: viewerHeight,
+            child: DesyPreviewCanvas(
+              session: session,
+              theme: theme,
+              bezel: bezel,
+              toolbar: null,
+              instanceLabel: variant.name,
+              canvasKey: isDefault
+                  ? const ValueKey('detail-preview-canvas')
+                  : ValueKey('detail-instance-canvas-${variant.id}'),
+              artboardKey: isDefault
+                  ? const ValueKey('detail-artboard')
+                  : ValueKey('detail-instance-artboard-${variant.id}'),
+              selectionLabelKey: isDefault
+                  ? const ValueKey('detail-selection-size')
+                  : ValueKey('detail-instance-label-${variant.id}'),
+              child: DesyWidgetPreview(theme: theme, builder: variant.builder),
+            ),
+          );
+        },
       ),
     );
   }
@@ -227,16 +320,12 @@ class _DetailInspector extends StatelessWidget {
     required this.session,
     required this.component,
     required this.entry,
-    required this.selectedScenario,
-    required this.selectedInstance,
     required this.values,
   });
 
   final DesyWorkbenchSession session;
   final DesyComponent? component;
   final DesyRegistryEntry entry;
-  final DesyComponentScenario? selectedScenario;
-  final DesyComponentInstance? selectedInstance;
   final Map<String, Object> values;
 
   @override
@@ -246,34 +335,12 @@ class _DetailInspector extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       children: [
         Text('Controls', style: Theme.of(context).textTheme.titleMedium),
-        if (component != null && component!.scenarios.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          Text('Instances', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 8),
-          _InstanceSelector(
-            selected: selectedScenario,
-            scenarios: component!.scenarios,
-            onChanged: session.selectScenario,
-          ),
-        ],
-        if (component != null && component!.instances.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          Text(
-            'Component instances',
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
-          const SizedBox(height: 8),
-          _ComponentInstanceSelector(
-            instances: component!.instances,
-            selected: selectedInstance,
-            onSelect: session.applyInstance,
-          ),
-        ],
         if (component != null && component!.knobs.isNotEmpty) ...[
           const SizedBox(height: 24),
           Text('Knobs', style: Theme.of(context).textTheme.labelLarge),
           const SizedBox(height: 12),
           DesyComponentKnobPanel(
+            registry: session.registry,
             knobs: component!.knobs,
             values: values,
             onChanged: session.setKnob,
@@ -295,78 +362,6 @@ class _DetailInspector extends StatelessWidget {
   );
 }
 
-class _InstanceSelector extends StatelessWidget {
-  const _InstanceSelector({
-    required this.selected,
-    required this.scenarios,
-    required this.onChanged,
-  });
-
-  final DesyComponentScenario? selected;
-  final List<DesyComponentScenario> scenarios;
-  final ValueChanged<DesyComponentScenario?> onChanged;
-
-  @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 8,
-    runSpacing: 8,
-    children: [
-      DesyButton(
-        size: DesyButtonSize.sm,
-        mainAxisSize: MainAxisSize.min,
-        variant: selected == null
-            ? DesyButtonVariant.primary
-            : DesyButtonVariant.outline,
-        onPress: () => onChanged(null),
-        child: const Text('Default'),
-      ),
-      for (final scenario in scenarios)
-        DesyButton(
-          size: DesyButtonSize.xs,
-          mainAxisSize: MainAxisSize.min,
-          variant: selected?.id == scenario.id
-              ? DesyButtonVariant.primary
-              : DesyButtonVariant.outline,
-          onPress: () => onChanged(scenario),
-          child: Text(scenario.name),
-        ),
-    ],
-  );
-}
-
-class _ComponentInstanceSelector extends StatelessWidget {
-  const _ComponentInstanceSelector({
-    required this.instances,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  final List<DesyComponentInstance> instances;
-  final DesyComponentInstance? selected;
-  final ValueChanged<DesyComponentInstance> onSelect;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      for (final instance in instances)
-        DesyTile(
-          title: Text(instance.name, overflow: TextOverflow.ellipsis),
-          subtitle: instance.description == null
-              ? null
-              : Text(
-                  instance.description!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-          suffix: selected?.id == instance.id
-              ? const Icon(DesyIcons.check)
-              : null,
-          onPress: () => onSelect(instance),
-        ),
-    ],
-  );
-}
-
 /// A bounded stage for inspecting a real consumer widget in its theme.
 class DesyPreviewCanvas extends StatelessWidget {
   const DesyPreviewCanvas({
@@ -376,26 +371,37 @@ class DesyPreviewCanvas extends StatelessWidget {
     required this.bezel,
     required this.toolbar,
     required this.child,
+    this.instanceLabel,
+    this.canvasKey = const ValueKey('detail-preview-canvas'),
+    this.artboardKey = const ValueKey('detail-artboard'),
+    this.selectionLabelKey = const ValueKey('detail-selection-size'),
   });
 
   final DesyWorkbenchSession session;
   final DesyTheme theme;
   final DesyPreviewBezel? bezel;
-  final Widget toolbar;
+  final Widget? toolbar;
   final Widget child;
+  final String? instanceLabel;
+  final Key canvasKey;
+  final Key artboardKey;
+  final Key selectionLabelKey;
 
   @override
   Widget build(BuildContext context) {
     final stage = session.stage.watch(context);
     return LayoutBuilder(
       builder: (context, constraints) {
+        final selectionMinimumTop = toolbar == null
+            ? 18.0
+            : _selectionMinimumTop;
         final maxWidth = (constraints.maxWidth - 24).clamp(
           _minimumBoxExtent,
           double.infinity,
         );
         final maxHeight =
             (constraints.maxHeight -
-                    _selectionMinimumTop -
+                    selectionMinimumTop -
                     12 -
                     _selectionLabelGap -
                     _selectionLabelReservedHeight)
@@ -429,13 +435,13 @@ class DesyPreviewCanvas extends StatelessWidget {
             (constraints.maxWidth - size.width - 12).clamp(12, double.infinity),
           ),
           stage.offset.dy.clamp(
-            _selectionMinimumTop,
+            selectionMinimumTop,
             (constraints.maxHeight -
                     size.height -
                     12 -
                     _selectionLabelGap -
                     _selectionLabelReservedHeight)
-                .clamp(_selectionMinimumTop, double.infinity),
+                .clamp(selectionMinimumTop, double.infinity),
           ),
         );
         return ColoredBox(
@@ -448,18 +454,19 @@ class DesyPreviewCanvas extends StatelessWidget {
                   context.theme.colors.background,
             ),
             child: Stack(
-              key: const ValueKey('detail-preview-canvas'),
+              key: canvasKey,
               fit: StackFit.expand,
               clipBehavior: Clip.hardEdge,
               children: [
-                Positioned(top: _detailToolbarTop, left: 12, child: toolbar),
+                if (toolbar case final toolbar?)
+                  Positioned(top: _detailToolbarTop, left: 12, child: toolbar),
                 Positioned(
                   left: offset.dx,
                   top: offset.dy,
                   width: size.width,
                   height: size.height,
                   child: _Artboard(
-                    key: const ValueKey('detail-artboard'),
+                    key: artboardKey,
                     bezel: bezel,
                     onMove: (details) => session.updateStage(
                       stage.copyWith(offset: offset + details.delta),
@@ -513,7 +520,11 @@ class DesyPreviewCanvas extends StatelessWidget {
                 Positioned(
                   left: offset.dx,
                   top: offset.dy + size.height + _selectionLabelGap,
-                  child: _SelectionSizeLabel(size: stage.size),
+                  child: _SelectionSizeLabel(
+                    size: stage.size,
+                    instanceLabel: instanceLabel,
+                    labelKey: selectionLabelKey,
+                  ),
                 ),
               ],
             ),
@@ -525,31 +536,59 @@ class DesyPreviewCanvas extends StatelessWidget {
 }
 
 class _SelectionSizeLabel extends StatelessWidget {
-  const _SelectionSizeLabel({required this.size});
+  const _SelectionSizeLabel({
+    required this.size,
+    required this.instanceLabel,
+    required this.labelKey,
+  });
 
   final Size size;
+  final String? instanceLabel;
+  final Key labelKey;
 
   @override
   Widget build(BuildContext context) {
-    final label = '${size.width.round()} × ${size.height.round()} px';
+    final sizeLabel = '${size.width.round()} × ${size.height.round()} px';
     final colors = context.theme.colors;
     return IgnorePointer(
       child: Semantics(
         label:
-            'Selection size ${size.width.round()} by ${size.height.round()} pixels',
+            '${instanceLabel == null ? '' : '$instanceLabel, '}selection size ${size.width.round()} by ${size.height.round()} pixels',
         child: DecoratedBox(
-          key: const ValueKey('detail-selection-size'),
+          key: labelKey,
           decoration: BoxDecoration(
             color: colors.primary,
             borderRadius: BorderRadius.circular(4),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            child: Text(
-              label,
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: colors.primaryForeground),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (instanceLabel case final instanceLabel?) ...[
+                  Text(
+                    instanceLabel,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colors.primaryForeground,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '·',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colors.primaryForeground,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                Text(
+                  sizeLabel,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.primaryForeground,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

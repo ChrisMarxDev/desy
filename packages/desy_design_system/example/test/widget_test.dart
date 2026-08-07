@@ -28,15 +28,20 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Button').last);
     await tester.pumpAndSettle();
-    final specimenButton = find.ancestor(
-      of: find.text('Inspect component').last,
+    final defaultViewer = find.byKey(
+      const ValueKey('detail-instance-viewer-default'),
+    );
+    final specimenButton = find.descendant(
+      of: defaultViewer,
       matching: find.byType(DesyButton),
+    );
+    final defaultArtboard = find.descendant(
+      of: defaultViewer,
+      matching: find.byKey(const ValueKey('detail-artboard')),
     );
     expect(
       tester.getSize(specimenButton).width,
-      lessThan(
-        tester.getSize(find.byKey(const ValueKey('detail-artboard'))).width,
-      ),
+      lessThan(tester.getSize(defaultArtboard).width),
     );
 
     tester
@@ -48,10 +53,24 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Badge').last);
     await tester.pumpAndSettle();
+    final badgeViewer = find.byKey(
+      const ValueKey('detail-instance-viewer-default'),
+    );
     expect(
-      tester.getSize(find.byType(DesyBadge).last).width,
+      tester
+          .getSize(
+            find.descendant(of: badgeViewer, matching: find.byType(DesyBadge)),
+          )
+          .width,
       lessThan(
-        tester.getSize(find.byKey(const ValueKey('detail-artboard'))).width,
+        tester
+            .getSize(
+              find.descendant(
+                of: badgeViewer,
+                matching: find.byKey(const ValueKey('detail-artboard')),
+              ),
+            )
+            .width,
       ),
     );
   });

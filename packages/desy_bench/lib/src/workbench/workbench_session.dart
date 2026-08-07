@@ -111,9 +111,7 @@ class DesyWorkbenchSession {
   bool _isLegalKnobValue(DesyKnob<Object> knob, Object value) => switch (knob) {
     DesyBooleanKnob() => value is bool,
     DesyStringKnob() => value is String,
-    DesyComponentKnob() =>
-      value is DesyComponentInstance &&
-          knob.options.any((option) => identical(option, value)),
+    DesyComponentKnob() => value is String && knob.options.contains(value),
     _ => false,
   };
 

@@ -5,16 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('session rejects component knob values outside declared options', () {
-    final allowed = DesyComponentInstance.widget(
-      id: 'status.clear',
-      name: 'Clear',
-      builder: _emptyPreview,
-    );
-    final unrelated = DesyComponentInstance.widget(
-      id: 'button.publish',
-      name: 'Publish',
-      builder: _emptyPreview,
-    );
+    const allowed = 'status.clear';
+    const unrelated = 'button.publish';
     final knob = DesyComponentKnob(
       id: 'trailing',
       name: 'Trailing',
@@ -29,12 +21,11 @@ void main() {
     );
 
     session.setKnob(knob, allowed);
-    expect(session.knobValues.value['trailing'], same(allowed));
+    expect(session.knobValues.value['trailing'], allowed);
     expect(() => session.setKnob(knob, unrelated), throwsArgumentError);
 
     session.dispose();
   });
 }
 
-Widget _emptyPreview(BuildContext context) => const SizedBox();
 Widget _wrap(BuildContext context, Widget child) => child;

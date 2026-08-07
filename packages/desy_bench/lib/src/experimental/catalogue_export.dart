@@ -133,7 +133,10 @@ class DesyCatalogueExport {
           id: instance.id,
           name: instance.name,
           description: instance.description,
-          extra: {'kind': instance.isWidget ? 'widget' : 'preset'},
+          extra: {
+            'kind': 'knob-preset',
+            'knobValues': instance.knobValues.entries,
+          },
         ),
     ],
     if (component.contract case DesyComponentContract contract)

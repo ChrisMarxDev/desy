@@ -330,9 +330,23 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Content card').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('North quay · delayed'));
-    await tester.pumpAndSettle();
 
+    final delayedViewer = find.byKey(
+      const ValueKey('detail-instance-viewer-instance-north-quay-delayed'),
+    );
+    await tester.scrollUntilVisible(
+      delayedViewer,
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('detail-instance-gallery')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+
+    expect(delayedViewer, findsOneWidget);
+    expect(find.text('North quay · delayed'), findsOneWidget);
     expect(find.text('North quay delayed'), findsWidgets);
   });
 
@@ -364,10 +378,7 @@ void main() {
     final artboard = find.byKey(const ValueKey('detail-artboard'));
     expect(find.byKey(const ValueKey('detail-selection-size')), findsOneWidget);
     expect(find.text('320 × 240 px'), findsOneWidget);
-    expect(
-      tester.getRect(toolbar).top,
-      greaterThan(tester.getRect(canvas).top),
-    );
+    expect(tester.getRect(toolbar).top, lessThan(tester.getRect(canvas).top));
     expect(tester.getRect(artboard).left - tester.getRect(canvas).left, 88);
     expect(
       tester.getRect(artboard).top,
@@ -376,21 +387,20 @@ void main() {
     await tester.tap(find.text('iPhone 15 Pro'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.bySemanticsLabel('iPhone 15 Pro preview bezel'),
-      findsOneWidget,
-    );
+    expect(find.bySemanticsLabel('iPhone 15 Pro preview bezel'), findsWidgets);
     final phoneSelection = tester.getSize(artboard);
     expect(phoneSelection.height, greaterThan(phoneSelection.width));
     expect(
-      tester.getSize(find.widgetWithText(FButton, 'Publish schedule')).height,
+      tester
+          .getSize(find.widgetWithText(FButton, 'Publish schedule').first)
+          .height,
       lessThan(100),
     );
 
     await tester.tap(find.text('iPad Pro 11'));
     await tester.pumpAndSettle();
 
-    expect(find.bySemanticsLabel('iPad Pro 11 preview bezel'), findsOneWidget);
+    expect(find.bySemanticsLabel('iPad Pro 11 preview bezel'), findsWidgets);
     final tabletSelection = tester.getSize(artboard);
     expect(
       tabletSelection.aspectRatio,
@@ -409,7 +419,7 @@ void main() {
     expect(tester.getSize(preview).height, lessThan(100));
   });
 
-  testWidgets('selecting a named instance renders that exact instance', (
+  testWidgets('renders every named instance in the detail viewer', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
@@ -419,9 +429,24 @@ void main() {
     final navigationRow = find.text('Navigation row').last;
     await tester.tap(navigationRow);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Today’s schedule'));
-    await tester.pumpAndSettle();
 
+    final scheduleViewer = find.byKey(
+      const ValueKey('detail-instance-viewer-instance-today-schedule'),
+    );
+    await tester.scrollUntilVisible(
+      scheduleViewer,
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('detail-instance-gallery')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+
+    expect(scheduleViewer, findsOneWidget);
+    expect(find.text('Today’s schedule'), findsWidgets);
+    expect(find.text('320 × 240 px'), findsWidgets);
     expect(find.text('Six confirmed arrival windows'), findsOneWidget);
   });
 
@@ -486,6 +511,99 @@ void main() {
     );
     expect(lastTile, findsOneWidget);
     expect(find.byKey(ValueKey('palette-preview-${last.id}')), findsOneWidget);
+  });
+
+  testWidgets('filters and resizes the sketch component palette', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(DesyBenchApp(registry: sampleRegistry));
+
+    await tester.tap(find.text('Components').first);
+    await tester.pumpAndSettle();
+
+    final gridFinder = find.byKey(const ValueKey('sketch-component-grid'));
+    final handle = find.byKey(const ValueKey('sketch-sidebar-resize-handle'));
+    final initialWidth = tester
+        .getSize(find.byKey(const ValueKey('sketch-sidebar-tabs')))
+        .width;
+    final initialColumns =
+        (tester.widget<GridView>(gridFinder).gridDelegate
+                as SliverGridDelegateWithFixedCrossAxisCount)
+            .crossAxisCount;
+
+    await tester.drag(handle, const Offset(160, 0));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getSize(find.byKey(const ValueKey('sketch-sidebar-tabs'))).width,
+      greaterThan(initialWidth + 100),
+    );
+    final resizedColumns =
+        (tester.widget<GridView>(gridFinder).gridDelegate
+                as SliverGridDelegateWithFixedCrossAxisCount)
+            .crossAxisCount;
+    expect(resizedColumns, greaterThan(initialColumns));
+
+    await tester.enterText(
+      find.byKey(const ValueKey('sketch-component-filter')),
+      'Operational metric',
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const ValueKey(
+          'palette-instance-harbor.metric.operational.available-berths',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey(
+          'palette-instance-harbor.button.primary.publish-schedule',
+        ),
+      ),
+      findsNothing,
+    );
+    final filterCount = tester.widget<Text>(
+      find.byKey(const ValueKey('sketch-component-filter-count')),
+    );
+    expect(filterCount.data, contains(' of '));
+    expect(
+      filterCount.data,
+      isNot(contains('${sampleRegistry.allComponentInstances.length} of')),
+    );
+  });
+
+  testWidgets('fills a predefined layout with registered instances', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(DesyBenchApp(registry: sampleRegistry));
+
+    await tester.tap(find.text('Components').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('sketch-add-layout-twoColumn')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Two-column split'), findsWidgets);
+    expect(find.text('Slot 1\n8 dp rhythm'), findsOneWidget);
+    expect(find.text('Slot 2\n8 dp rhythm'), findsOneWidget);
+
+    final component = find.byKey(
+      const ValueKey('palette-instance-harbor.button.primary.publish-schedule'),
+    );
+    await tester.tap(component);
+    await tester.pumpAndSettle();
+    await tester.tap(component);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Slot 1\n8 dp rhythm'), findsNothing);
+    expect(find.text('Slot 2\n8 dp rhythm'), findsNothing);
   });
 
   testWidgets('shows deeply nested instances without folder disclosure', (

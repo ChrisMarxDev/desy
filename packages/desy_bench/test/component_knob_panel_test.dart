@@ -8,23 +8,33 @@ void main() {
   testWidgets('instance swaps render each declared instance icon', (
     tester,
   ) async {
-    final clear = DesyComponentInstance.widget(
-      id: 'status.clear',
+    final clear = DesyComponentInstance(
+      id: 'clear',
       name: 'Clear',
       icon: FLucideIcons.badgeCheck,
-      builder: (_) => const SizedBox(),
     );
-    final delayed = DesyComponentInstance.widget(
-      id: 'status.delayed',
+    final delayed = DesyComponentInstance(
+      id: 'delayed',
       name: 'Delayed',
       icon: FLucideIcons.octagonAlert,
-      builder: (_) => const SizedBox(),
+    );
+    final registry = DesyRegistry(
+      name: 'Icons',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [
+        DesyComponent(
+          id: 'status',
+          name: 'Status',
+          preview: (_) => const SizedBox(),
+          instances: [clear, delayed],
+        ),
+      ],
     );
     final knob = DesyComponentKnob(
       id: 'status',
       name: 'Status',
-      initial: clear,
-      options: [clear, delayed],
+      initial: 'status.clear',
+      options: const ['status.clear', 'status.delayed'],
     );
 
     await tester.pumpWidget(
@@ -33,8 +43,9 @@ void main() {
         child: MaterialApp(
           home: Scaffold(
             body: DesyComponentKnobPanel(
+              registry: registry,
               knobs: [knob],
-              values: {'status': clear},
+              values: const {'status': 'status.clear'},
               onChanged: (_, _) {},
             ),
           ),
@@ -71,3 +82,5 @@ void main() {
     );
   });
 }
+
+Widget _wrap(BuildContext context, Widget child) => child;

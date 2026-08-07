@@ -10,10 +10,52 @@ import 'package:flutter_box_transform/flutter_box_transform.dart';
 import 'package:state_beacon/state_beacon.dart';
 
 /// The kind of local layer represented on a composition canvas.
-enum DesyCanvasNodeKind { component, artboard }
+enum DesyCanvasNodeKind { component, artboard, layout }
 
 /// The small initial set of visual device bezels available in a composition.
 enum DesyCanvasArtboard { iPhone15Pro, iPadPro11 }
+
+/// Workbench-owned layout structures that can receive registry instances.
+///
+/// These are ephemeral composition aids, not consumer registry declarations or
+/// a persisted screen-manifest format.
+enum DesyCanvasLayoutPreset {
+  singleColumn,
+  twoColumn,
+  threeColumnGrid,
+  responsiveCardGrid,
+  repeatedListRows,
+  form,
+}
+
+extension DesyCanvasLayoutPresetContract on DesyCanvasLayoutPreset {
+  String get label => switch (this) {
+    DesyCanvasLayoutPreset.singleColumn => 'Single column',
+    DesyCanvasLayoutPreset.twoColumn => 'Two-column split',
+    DesyCanvasLayoutPreset.threeColumnGrid => 'Three-column grid',
+    DesyCanvasLayoutPreset.responsiveCardGrid => 'Responsive card grid',
+    DesyCanvasLayoutPreset.repeatedListRows => 'Repeated list rows',
+    DesyCanvasLayoutPreset.form => 'Form layout',
+  };
+
+  int get slotCount => switch (this) {
+    DesyCanvasLayoutPreset.singleColumn => 3,
+    DesyCanvasLayoutPreset.twoColumn => 2,
+    DesyCanvasLayoutPreset.threeColumnGrid => 6,
+    DesyCanvasLayoutPreset.responsiveCardGrid => 6,
+    DesyCanvasLayoutPreset.repeatedListRows => 4,
+    DesyCanvasLayoutPreset.form => 4,
+  };
+
+  Size get initialSize => switch (this) {
+    DesyCanvasLayoutPreset.singleColumn => const Size(360, 480),
+    DesyCanvasLayoutPreset.twoColumn => const Size(640, 360),
+    DesyCanvasLayoutPreset.threeColumnGrid => const Size(720, 440),
+    DesyCanvasLayoutPreset.responsiveCardGrid => const Size(720, 440),
+    DesyCanvasLayoutPreset.repeatedListRows => const Size(560, 480),
+    DesyCanvasLayoutPreset.form => const Size(520, 480),
+  };
+}
 
 /// The ephemeral arrangement of one layer on the canvas.
 ///
@@ -25,9 +67,14 @@ class DesyCanvasNode {
     required this.instanceId,
     required this.rect,
     Map<String, Object> knobValues = const {},
+    this.parentLayoutId,
+    this.slotIndex,
     this.flip = Flip.none,
   }) : kind = DesyCanvasNodeKind.component,
        artboard = null,
+       layoutPreset = null,
+       spacingEntryId = null,
+       spacing = null,
        knobValues = UnmodifiableMapView(Map.of(knobValues));
 
   const DesyCanvasNode.artboard({
@@ -37,6 +84,25 @@ class DesyCanvasNode {
     this.flip = Flip.none,
   }) : kind = DesyCanvasNodeKind.artboard,
        instanceId = null,
+       layoutPreset = null,
+       spacingEntryId = null,
+       spacing = null,
+       parentLayoutId = null,
+       slotIndex = null,
+       knobValues = const {};
+
+  const DesyCanvasNode.layout({
+    required this.id,
+    required this.layoutPreset,
+    required this.rect,
+    required this.spacing,
+    this.spacingEntryId,
+    this.flip = Flip.none,
+  }) : kind = DesyCanvasNodeKind.layout,
+       instanceId = null,
+       artboard = null,
+       parentLayoutId = null,
+       slotIndex = null,
        knobValues = const {};
 
   /// Unique local node ID. It allows the same named instance more than once.
@@ -49,6 +115,22 @@ class DesyCanvasNode {
 
   /// Device frame rendered by a visual bezel node.
   final DesyCanvasArtboard? artboard;
+
+  /// The selected workbench layout contract for a structural canvas node.
+  final DesyCanvasLayoutPreset? layoutPreset;
+
+  /// Stable registry ID of the spacing primitive used by a layout.
+  final String? spacingEntryId;
+
+  /// Snapshot of the consumer-declared spacing value used by a layout.
+  final double? spacing;
+
+  /// Ephemeral parent structure for a component placed into a legal slot.
+  final String? parentLayoutId;
+
+  /// Zero-based slot occupied inside [parentLayoutId].
+  final int? slotIndex;
+
   final Rect rect;
 
   final Map<String, Object> knobValues;
@@ -58,23 +140,50 @@ class DesyCanvasNode {
     Rect? rect,
     Map<String, Object>? knobValues,
     Flip? flip,
-  }) => kind == DesyCanvasNodeKind.component
-      ? DesyCanvasNode.component(
-          id: id,
-          instanceId: instanceId!,
-          rect: rect ?? this.rect,
-          knobValues: knobValues ?? this.knobValues,
-          flip: flip ?? this.flip,
-        )
-      : DesyCanvasNode.artboard(
-          id: id,
-          artboard: artboard!,
-          rect: rect ?? this.rect,
-          flip: flip ?? this.flip,
-        );
+    String? spacingEntryId,
+    double? spacing,
+  }) => switch (kind) {
+    DesyCanvasNodeKind.component => DesyCanvasNode.component(
+      id: id,
+      instanceId: instanceId!,
+      rect: rect ?? this.rect,
+      knobValues: knobValues ?? this.knobValues,
+      parentLayoutId: parentLayoutId,
+      slotIndex: slotIndex,
+      flip: flip ?? this.flip,
+    ),
+    DesyCanvasNodeKind.artboard => DesyCanvasNode.artboard(
+      id: id,
+      artboard: artboard!,
+      rect: rect ?? this.rect,
+      flip: flip ?? this.flip,
+    ),
+    DesyCanvasNodeKind.layout => DesyCanvasNode.layout(
+      id: id,
+      layoutPreset: layoutPreset!,
+      rect: rect ?? this.rect,
+      spacingEntryId: spacingEntryId ?? this.spacingEntryId,
+      spacing: spacing ?? this.spacing!,
+      flip: flip ?? this.flip,
+    ),
+  };
+
+  DesyCanvasNode placedIn({required String layoutId, required int slot}) {
+    if (!isComponent) return this;
+    return DesyCanvasNode.component(
+      id: id,
+      instanceId: instanceId!,
+      rect: rect,
+      knobValues: knobValues,
+      parentLayoutId: layoutId,
+      slotIndex: slot,
+      flip: flip,
+    );
+  }
 
   bool get isComponent => kind == DesyCanvasNodeKind.component;
   bool get isArtboard => kind == DesyCanvasNodeKind.artboard;
+  bool get isLayout => kind == DesyCanvasNodeKind.layout;
 }
 
 /// Disposable, local-only state for [DesyComponentsCanvas].
@@ -130,10 +239,21 @@ class DesyComponentsCanvasController with BeaconController {
   String add(String instanceId, {Map<String, Object> knobValues = const {}}) {
     final index = nodes.value.length;
     final nodeId = '$instanceId#${_nextNode++}';
+    final selected = selectedId.value == null
+        ? null
+        : nodes.value[selectedId.value];
+    final layout = selected?.isLayout == true
+        ? selected
+        : selected?.parentLayoutId == null
+        ? null
+        : nodes.value[selected!.parentLayoutId];
+    final slot = layout == null ? null : _firstAvailableSlot(layout);
     final node = DesyCanvasNode.component(
       id: nodeId,
       instanceId: instanceId,
       knobValues: knobValues,
+      parentLayoutId: slot == null ? null : layout!.id,
+      slotIndex: slot,
       rect: Rect.fromLTWH(
         48.0 + (index % 3) * 44,
         44.0 + (index % 3) * 36,
@@ -144,6 +264,54 @@ class DesyComponentsCanvasController with BeaconController {
     nodes.value = {...nodes.value, nodeId: node};
     selectedId.value = nodeId;
     return nodeId;
+  }
+
+  /// Adds one ephemeral structural layout and selects it for slot insertion.
+  String addLayout(
+    DesyCanvasLayoutPreset preset, {
+    required double spacing,
+    String? spacingEntryId,
+  }) {
+    final index = nodes.value.length;
+    final nodeId = 'layout.${preset.name}#${_nextNode++}';
+    final size = preset.initialSize;
+    final node = DesyCanvasNode.layout(
+      id: nodeId,
+      layoutPreset: preset,
+      spacingEntryId: spacingEntryId,
+      spacing: spacing,
+      rect: _fitRectToStage(
+        Rect.fromLTWH(
+          40.0 + (index % 3) * 24,
+          40.0 + (index % 3) * 24,
+          size.width,
+          size.height,
+        ),
+      ),
+    );
+    nodes.value = {...nodes.value, nodeId: node};
+    selectedId.value = nodeId;
+    return nodeId;
+  }
+
+  void setLayoutSpacing(
+    String nodeId, {
+    required String? spacingEntryId,
+    required double spacing,
+  }) {
+    final node = nodes.value[nodeId];
+    if (node == null || !node.isLayout) return;
+    nodes.value = {
+      ...nodes.value,
+      nodeId: DesyCanvasNode.layout(
+        id: node.id,
+        layoutPreset: node.layoutPreset!,
+        rect: node.rect,
+        spacingEntryId: spacingEntryId,
+        spacing: spacing,
+        flip: node.flip,
+      ),
+    };
   }
 
   /// Adds a device frame as one regular, selectable canvas layer.
@@ -190,8 +358,12 @@ class DesyComponentsCanvasController with BeaconController {
 
   void remove(String nodeId) {
     if (!nodes.value.containsKey(nodeId)) return;
-    nodes.value = Map<String, DesyCanvasNode>.from(nodes.value)..remove(nodeId);
-    if (selectedId.value == nodeId) selectedId.value = null;
+    final next = Map<String, DesyCanvasNode>.from(nodes.value)..remove(nodeId);
+    next.removeWhere((_, node) => node.parentLayoutId == nodeId);
+    nodes.value = next;
+    if (selectedId.value == nodeId || !next.containsKey(selectedId.value)) {
+      selectedId.value = null;
+    }
   }
 
   void clear() {
@@ -219,6 +391,34 @@ class DesyComponentsCanvasController with BeaconController {
     return maximum >= 8
         ? readableHeight.clamp(8.0, maximum).toDouble()
         : maximum;
+  }
+
+  int? _firstAvailableSlot(DesyCanvasNode layout) {
+    final occupied = {
+      for (final node in nodes.value.values)
+        if (node.parentLayoutId == layout.id) node.slotIndex,
+    };
+    for (var slot = 0; slot < layout.layoutPreset!.slotCount; slot++) {
+      if (!occupied.contains(slot)) return slot;
+    }
+    return null;
+  }
+
+  Rect _fitRectToStage(Rect rect) {
+    final bounds = _stageBounds;
+    if (bounds == null || !_hasPositiveExtent(bounds)) return _finiteRect(rect);
+    final scale =
+        (bounds.width / rect.width).clamp(0.0, 1.0) <
+            (bounds.height / rect.height).clamp(0.0, 1.0)
+        ? (bounds.width / rect.width).clamp(0.0, 1.0).toDouble()
+        : (bounds.height / rect.height).clamp(0.0, 1.0).toDouble();
+    final size = Size(rect.width * scale, rect.height * scale);
+    return Rect.fromLTWH(
+      rect.left.clamp(bounds.left, bounds.right - size.width).toDouble(),
+      rect.top.clamp(bounds.top, bounds.bottom - size.height).toDouble(),
+      size.width,
+      size.height,
+    );
   }
 
   Rect _clampFrameToStage(Rect rect) {

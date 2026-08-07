@@ -52,6 +52,45 @@ void main() {
     expect(() => node.knobValues['label'] = 'Other', throwsUnsupportedError);
   });
 
+  test('layout presets accept instances only in their declared slots', () {
+    final controller = DesyComponentsCanvasController()
+      ..setStageBounds(const Rect.fromLTWH(0, 0, 900, 700));
+    final layoutId = controller.addLayout(
+      DesyCanvasLayoutPreset.singleColumn,
+      spacingEntryId: 'space.default',
+      spacing: 16,
+    );
+
+    final first = controller.add('button.primary');
+    final second = controller.add('card.status');
+    final third = controller.add('input.search');
+    final overflow = controller.add('badge.info');
+
+    expect(controller.nodes.value[layoutId]!.isLayout, isTrue);
+    expect(controller.nodes.value[layoutId]!.spacingEntryId, 'space.default');
+    expect(controller.nodes.value[first]!.parentLayoutId, layoutId);
+    expect(controller.nodes.value[first]!.slotIndex, 0);
+    expect(controller.nodes.value[second]!.slotIndex, 1);
+    expect(controller.nodes.value[third]!.slotIndex, 2);
+    expect(controller.nodes.value[overflow]!.parentLayoutId, isNull);
+
+    controller.setLayoutSpacing(
+      layoutId,
+      spacingEntryId: 'space.section',
+      spacing: 24,
+    );
+    expect(controller.nodes.value[layoutId]!.spacing, 24);
+    expect(controller.nodes.value[layoutId]!.spacingEntryId, 'space.section');
+
+    controller.remove(layoutId);
+    expect(controller.nodes.value.containsKey(layoutId), isFalse);
+    expect(controller.nodes.value.containsKey(first), isFalse);
+    expect(controller.nodes.value.containsKey(second), isFalse);
+    expect(controller.nodes.value.containsKey(third), isFalse);
+    expect(controller.nodes.value.containsKey(overflow), isTrue);
+    controller.dispose();
+  });
+
   test('components and bezels remain independent when they overlap', () {
     final controller = DesyComponentsCanvasController();
     final artboardId = controller.addArtboard(DesyCanvasArtboard.iPhone15Pro);

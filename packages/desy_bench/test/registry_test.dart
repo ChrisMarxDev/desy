@@ -277,13 +277,10 @@ void main() {
   test('nested declaration collections are defensive immutable copies', () {
     final shadows = <BoxShadow>[const BoxShadow(blurRadius: 4)];
     final values = <String, Object>{'label': 'Initial'};
-    final options = <DesyComponentInstance>[
-      DesyComponentInstance.widget(
-        id: 'slot.icon',
-        name: 'Icon',
-        builder: _emptyPreview,
-      ),
+    final instances = <DesyComponentInstance>[
+      DesyComponentInstance(id: 'icon', name: 'Icon'),
     ];
+    final options = <String>['component.icon'];
     final properties = <DesyContractProperty>[
       const DesyContractProperty(name: 'label', type: 'String'),
     ];
@@ -295,7 +292,7 @@ void main() {
     final knob = DesyComponentKnob(
       id: 'slot',
       name: 'Slot',
-      initial: options.single,
+      initial: 'component.icon',
       options: options,
     );
     final contract = DesyComponentContract(properties: properties);
@@ -304,7 +301,7 @@ void main() {
       name: 'Component',
       preview: _emptyPreview,
       knobs: [knob],
-      instances: options,
+      instances: instances,
       scenarios: [
         DesyComponentScenario(
           id: 'default',
@@ -319,6 +316,7 @@ void main() {
     shadows.clear();
     values['label'] = 'Changed';
     options.clear();
+    instances.clear();
     properties.clear();
 
     expect(effect.shadows, hasLength(1));
@@ -372,98 +370,107 @@ void main() {
     expect(entry.displayValue, '16 dp');
   });
 
-  test('component knobs expose real declared widget instance choices', () {
-    final instance = DesyComponentInstance.widget(
-      id: 'status.clear',
-      name: 'Clear status',
-      builder: (_) => const SizedBox(),
-    );
+  test('component knobs expose stable registered instance IDs', () {
     final knob = DesyComponentKnob(
       id: 'trailing',
       name: 'Operational status',
-      initial: instance,
-      options: [instance],
+      initial: 'status.clear',
+      options: const ['status.clear'],
     );
 
-    expect(knob.options.single.id, 'status.clear');
+    expect(knob.options.single, 'status.clear');
   });
 
   test('component knobs retain only their declared slot choices', () {
-    final allowed = DesyComponentInstance.widget(
-      id: 'status.clear',
-      name: 'Clear status',
-      builder: _emptyPreview,
-    );
-    final unrelated = DesyComponentInstance.widget(
-      id: 'button.publish',
-      name: 'Publish button',
-      builder: _emptyPreview,
-    );
     final knob = DesyComponentKnob(
       id: 'trailing',
       name: 'Operational status',
-      initial: allowed,
-      options: [allowed],
+      initial: 'status.clear',
+      options: const ['status.clear'],
     );
 
-    expect(knob.options, [allowed]);
-    expect(knob.options, isNot(contains(unrelated)));
+    expect(knob.options, ['status.clear']);
+    expect(knob.options, isNot(contains('button.publish')));
   });
 
-  test(
-    'component knobs reject invalid slot option declarations in all modes',
-    () {
-      final widget = DesyComponentInstance.widget(
-        id: 'widget',
-        name: 'Widget',
-        builder: _emptyPreview,
-      );
-      final preset = DesyComponentInstance.preset(id: 'preset', name: 'Preset');
+  test('component knobs reject empty options and an undeclared initial ID', () {
+    expect(
+      () => DesyComponentKnob(
+        id: 'slot',
+        name: 'Slot',
+        initial: 'status.clear',
+        options: const [],
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => DesyComponentKnob(
+        id: 'slot',
+        name: 'Slot',
+        initial: 'status.clear',
+        options: const ['status.delayed'],
+      ),
+      throwsArgumentError,
+    );
+  });
 
-      expect(
-        () => DesyComponentKnob(
-          id: 'slot',
-          name: 'Slot',
-          initial: widget,
-          options: [],
+  test('registry validation rejects unknown component-instance IDs', () {
+    final component = DesyComponent(
+      id: 'card',
+      name: 'Card',
+      preview: _emptyPreview,
+      knobs: [
+        DesyComponentKnob(
+          id: 'trailing',
+          name: 'Trailing',
+          initial: 'status.missing',
+          options: const ['status.missing'],
         ),
-        throwsArgumentError,
-      );
-      expect(
-        () => DesyComponentKnob(
-          id: 'slot',
-          name: 'Slot',
-          initial: widget,
-          options: [preset],
+      ],
+    );
+    final registry = DesyRegistry(
+      name: 'Broken swap',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [component],
+    );
+
+    expect(
+      registry.validate().single.message,
+      contains('unknown component instance "status.missing"'),
+    );
+  });
+
+  test('registry validation rejects invalid instance knob settings', () {
+    final component = DesyComponent(
+      id: 'status',
+      name: 'Status',
+      preview: _emptyPreview,
+      knobs: const [
+        DesyBooleanKnob(id: 'enabled', name: 'Enabled', initial: true),
+      ],
+      buildWithKnobs: (context, values, _) => const SizedBox(),
+      instances: [
+        DesyComponentInstance(
+          id: 'invalid',
+          name: 'Invalid',
+          knobValues: DesyKnobValues({'enabled': 'yes', 'unknown': true}),
         ),
-        throwsArgumentError,
-      );
-      expect(
-        () => DesyComponentKnob(
-          id: 'slot',
-          name: 'Slot',
-          initial: preset,
-          options: [widget],
-        ),
-        throwsArgumentError,
-      );
-      expect(
-        () => DesyComponentKnob(
-          id: 'slot',
-          name: 'Slot',
-          initial: widget,
-          options: [
-            DesyComponentInstance.widget(
-              id: 'other',
-              name: 'Other',
-              builder: _emptyPreview,
-            ),
-          ],
-        ),
-        throwsArgumentError,
-      );
-    },
-  );
+      ],
+    );
+    final registry = DesyRegistry(
+      name: 'Invalid settings',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [component],
+    );
+
+    expect(
+      registry.validate().map((issue) => issue.message),
+      containsAll([
+        contains('invalid value for knob "enabled"'),
+        contains('sets unknown knob "unknown"'),
+      ]),
+    );
+  });
 
   test('experimental catalogue export is derived without widget builders', () {
     final registry = DesyRegistry(
@@ -516,7 +523,7 @@ void main() {
       ],
       buildWithKnobs: _knobbedPreview,
       instances: [
-        DesyComponentInstance.preset(
+        DesyComponentInstance(
           id: 'archived',
           name: 'Archived',
           knobValues: DesyKnobValues({'label': 'Archived', 'enabled': false}),
@@ -542,7 +549,7 @@ void main() {
       id: 'action',
       name: 'Action',
       preview: _emptyPreview,
-      instances: [DesyComponentInstance.preset(id: 'default', name: 'Default')],
+      instances: [DesyComponentInstance(id: 'default', name: 'Default')],
     );
     final registry = DesyRegistry(
       name: 'Instances',
@@ -554,7 +561,48 @@ void main() {
 
     expect(instance.id, 'action.default');
     expect(instance.componentName, 'Action');
-    expect(instance.asSlotOption().isWidget, isTrue);
+    final resolved = registry.resolveComponentInstance('action.default');
+    expect(resolved?.id, instance.id);
+    expect(resolved?.component, same(component));
+    expect(resolved?.instance, same(instance.instance));
+  });
+
+  testWidgets('registry widget builder resolves an instance-swap ID', (
+    tester,
+  ) async {
+    final status = DesyComponent(
+      id: 'status',
+      name: 'Status',
+      preview: _emptyPreview,
+      knobs: const [
+        DesyStringKnob(id: 'label', name: 'Label', initial: 'Clear'),
+      ],
+      buildWithKnobs: (context, values, _) => Text(values.string('label')),
+      instances: [
+        DesyComponentInstance(
+          id: 'delayed',
+          name: 'Delayed',
+          knobValues: DesyKnobValues({'label': 'Delayed'}),
+        ),
+      ],
+    );
+    final registry = DesyRegistry(
+      name: 'Resolved swap',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [status],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Builder(
+          builder: (context) =>
+              registry.widgetBuilder.build(context, 'status.delayed'),
+        ),
+      ),
+    );
+
+    expect(find.text('Delayed'), findsOneWidget);
   });
 }
 
@@ -562,5 +610,8 @@ Widget _wrap(BuildContext context, Widget child) => child;
 
 Widget _emptyPreview(BuildContext context) => const SizedBox();
 
-Widget _knobbedPreview(BuildContext context, DesyKnobValues values) =>
-    Text('${values.string('label')} · ${values.boolean('enabled')}');
+Widget _knobbedPreview(
+  BuildContext context,
+  DesyKnobValues values,
+  DesyRegistryWidgetBuilder widgets,
+) => Text('${values.string('label')} · ${values.boolean('enabled')}');

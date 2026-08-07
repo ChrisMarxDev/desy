@@ -3,6 +3,7 @@
 
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_box_transform/flutter_box_transform.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
@@ -51,6 +52,13 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
     final themeIndex = widget.session.activeThemeIndex.watch(context);
     final theme = widget.session.registry.themes[themeIndex];
     final instances = widget.session.registry.allComponentInstances;
+    final spacingEntries = widget.session.registry.allNumbers
+        .where(
+          (entry) =>
+              entry.kind == DesyNumericKind.spacing &&
+              entry.unit == DesyNumberUnit.dp,
+        )
+        .toList(growable: false);
     final selectedNode = selectedId == null ? null : nodes[selectedId];
     final selectedInstance = selectedNode?.isComponent != true
         ? null
@@ -68,7 +76,15 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
           children: [
             _SketchHeader(onBack: widget.onBack, onClear: _controller.clear),
             const SizedBox(height: 12),
-            _SketchPreviewToolbar(onAddArtboard: _controller.addArtboard),
+            _SketchPreviewToolbar(
+              spacingEntries: spacingEntries,
+              onAddArtboard: _controller.addArtboard,
+              onAddLayout: (preset, spacing) => _controller.addLayout(
+                preset,
+                spacingEntryId: spacing?.id,
+                spacing: spacing?.value ?? 0,
+              ),
+            ),
             const SizedBox(height: 12),
             Expanded(
               child: _SketchWorkspace(
@@ -84,6 +100,7 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
                   onSelect: _controller.select,
                 ),
                 canvas: _CanvasStage(
+                  registry: widget.session.registry,
                   instances: instances,
                   nodes: nodes,
                   selectedId: selectedId,
@@ -97,9 +114,16 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
                         node: selectedNode,
                         controller: _controller,
                       )
+                    : selectedNode.isLayout
+                    ? _CanvasLayoutInspector(
+                        node: selectedNode,
+                        spacingEntries: spacingEntries,
+                        controller: _controller,
+                      )
                     : selectedInstance == null
                     ? null
                     : _CanvasInspector(
+                        registry: widget.session.registry,
                         node: selectedNode,
                         instance: selectedInstance,
                         controller: _controller,
@@ -132,10 +156,33 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
 }
 
 /// Adds editable visual device bezels to the composition.
-class _SketchPreviewToolbar extends StatelessWidget {
-  const _SketchPreviewToolbar({required this.onAddArtboard});
+typedef _AddSketchLayout =
+    void Function(DesyCanvasLayoutPreset preset, DesyNumericEntry? spacing);
 
+class _SketchPreviewToolbar extends StatefulWidget {
+  const _SketchPreviewToolbar({
+    required this.spacingEntries,
+    required this.onAddArtboard,
+    required this.onAddLayout,
+  });
+
+  final List<DesyNumericEntry> spacingEntries;
   final ValueChanged<DesyCanvasArtboard> onAddArtboard;
+  final _AddSketchLayout onAddLayout;
+
+  @override
+  State<_SketchPreviewToolbar> createState() => _SketchPreviewToolbarState();
+}
+
+class _SketchPreviewToolbarState extends State<_SketchPreviewToolbar> {
+  var _spacingIndex = 0;
+
+  DesyNumericEntry? get _spacing => widget.spacingEntries.isEmpty
+      ? null
+      : widget.spacingEntries[_spacingIndex.clamp(
+          0,
+          widget.spacingEntries.length - 1,
+        )];
 
   @override
   Widget build(BuildContext context) {
@@ -148,33 +195,100 @@ class _SketchPreviewToolbar extends StatelessWidget {
         color: colors.secondary,
         border: Border.all(color: colors.border),
       ),
-      child: Wrap(
-        spacing: 6,
-        runSpacing: 6,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Add bezel'),
-          _button(
-            label: 'iPhone 15 Pro',
-            value: DesyCanvasArtboard.iPhone15Pro,
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Add layout'),
+                const SizedBox(width: 6),
+                if (widget.spacingEntries.isNotEmpty)
+                  SizedBox(
+                    width: 180,
+                    child: DesySelect<int>.rich(
+                      key: const ValueKey('sketch-spacing-select'),
+                      control: DesySelectControl.lifted(
+                        value: _spacingIndex,
+                        onChange: (index) {
+                          if (index != null) {
+                            setState(() => _spacingIndex = index);
+                          }
+                        },
+                      ),
+                      format: (index) =>
+                          widget.spacingEntries[index].displayValue,
+                      children: [
+                        for (final (index, entry)
+                            in widget.spacingEntries.indexed)
+                          DesySelectItem.item(
+                            key: ValueKey('sketch-spacing-${entry.id}'),
+                            value: index,
+                            title: Text(entry.name),
+                            subtitle: Text(entry.displayValue),
+                          ),
+                      ],
+                    ),
+                  )
+                else
+                  DesyBadge(child: const Text('No registered spacing · 0 dp')),
+                for (final preset in DesyCanvasLayoutPreset.values) ...[
+                  const SizedBox(width: 6),
+                  DesyButton(
+                    key: ValueKey('sketch-add-layout-${preset.name}'),
+                    semanticsLabel:
+                        'Add ${preset.label} with ${_spacing?.displayValue ?? '0 dp'} spacing',
+                    size: DesyButtonSize.xs,
+                    mainAxisSize: MainAxisSize.min,
+                    variant: DesyButtonVariant.outline,
+                    onPress: () => widget.onAddLayout(preset, _spacing),
+                    child: Text(preset.label),
+                  ),
+                ],
+              ],
+            ),
           ),
-          _button(label: 'iPad Pro 11', value: DesyCanvasArtboard.iPadPro11),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Add bezel'),
+                const SizedBox(width: 6),
+                _artboardButton(
+                  label: 'iPhone 15 Pro',
+                  value: DesyCanvasArtboard.iPhone15Pro,
+                ),
+                const SizedBox(width: 6),
+                _artboardButton(
+                  label: 'iPad Pro 11',
+                  value: DesyCanvasArtboard.iPadPro11,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _button({required String label, required DesyCanvasArtboard value}) =>
-      DesyButton(
-        key: ValueKey('sketch-add-artboard-${value.name}'),
-        size: DesyButtonSize.xs,
-        mainAxisSize: MainAxisSize.min,
-        variant: DesyButtonVariant.outline,
-        onPress: () => onAddArtboard(value),
-        child: Text(label),
-      );
+  Widget _artboardButton({
+    required String label,
+    required DesyCanvasArtboard value,
+  }) => DesyButton(
+    key: ValueKey('sketch-add-artboard-${value.name}'),
+    size: DesyButtonSize.xs,
+    mainAxisSize: MainAxisSize.min,
+    variant: DesyButtonVariant.outline,
+    onPress: () => widget.onAddArtboard(value),
+    child: Text(label),
+  );
 }
 
-class _SketchWorkspace extends StatelessWidget {
+class _SketchWorkspace extends StatefulWidget {
   const _SketchWorkspace({
     required this.palette,
     required this.outline,
@@ -188,18 +302,36 @@ class _SketchWorkspace extends StatelessWidget {
   final Widget? inspector;
 
   @override
+  State<_SketchWorkspace> createState() => _SketchWorkspaceState();
+}
+
+class _SketchWorkspaceState extends State<_SketchWorkspace> {
+  static const _minimumSidebarWidth = 210.0;
+  static const _maximumSidebarWidth = 520.0;
+  static const _minimumCanvasWidth = 320.0;
+
+  var _sidebarWidth = 260.0;
+  var _resizingSidebar = false;
+
+  @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final details = inspector;
+      final details = widget.inspector;
       if (constraints.maxWidth < 620) {
-        return Column(
+        return ListView(
           children: [
             SizedBox(
               height: 260,
-              child: _SketchSidebar(palette: palette, outline: outline),
+              child: _SketchSidebar(
+                palette: widget.palette,
+                outline: widget.outline,
+              ),
             ),
             const SizedBox(height: 12),
-            Expanded(child: canvas),
+            SizedBox(
+              height: constraints.maxHeight.clamp(320, 520).toDouble(),
+              child: widget.canvas,
+            ),
             if (details != null) ...[
               const SizedBox(height: 12),
               SizedBox(height: 250, child: details),
@@ -207,6 +339,17 @@ class _SketchWorkspace extends StatelessWidget {
           ],
         );
       }
+      final inspectorWidth = constraints.maxWidth < 1000 || details == null
+          ? 0.0
+          : 316.0;
+      final maximumSidebarWidth =
+          (constraints.maxWidth - _minimumCanvasWidth - inspectorWidth - 20)
+              .clamp(_minimumSidebarWidth, _maximumSidebarWidth)
+              .toDouble();
+      final sidebarWidth = _sidebarWidth.clamp(
+        _minimumSidebarWidth,
+        maximumSidebarWidth,
+      );
       if (constraints.maxWidth < 1000) {
         return Column(
           children: [
@@ -214,11 +357,26 @@ class _SketchWorkspace extends StatelessWidget {
               child: Row(
                 children: [
                   SizedBox(
-                    width: 230,
-                    child: _SketchSidebar(palette: palette, outline: outline),
+                    width: sidebarWidth,
+                    child: _SketchSidebar(
+                      palette: widget.palette,
+                      outline: widget.outline,
+                    ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(child: canvas),
+                  _SketchSidebarResizeHandle(
+                    width: sidebarWidth,
+                    onResizeStart: () =>
+                        setState(() => _resizingSidebar = true),
+                    onResize: (delta) => setState(
+                      () => _sidebarWidth = (sidebarWidth + delta).clamp(
+                        _minimumSidebarWidth,
+                        maximumSidebarWidth,
+                      ),
+                    ),
+                    onResizeEnd: () => setState(() => _resizingSidebar = false),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: widget.canvas),
                 ],
               ),
             ),
@@ -231,12 +389,30 @@ class _SketchWorkspace extends StatelessWidget {
       }
       return Row(
         children: [
-          SizedBox(
-            width: 260,
-            child: _SketchSidebar(palette: palette, outline: outline),
+          AnimatedContainer(
+            duration: _resizingSidebar
+                ? Duration.zero
+                : const Duration(milliseconds: 140),
+            curve: Curves.easeOutCubic,
+            width: sidebarWidth,
+            child: _SketchSidebar(
+              palette: widget.palette,
+              outline: widget.outline,
+            ),
           ),
-          const SizedBox(width: 16),
-          Expanded(child: canvas),
+          _SketchSidebarResizeHandle(
+            width: sidebarWidth,
+            onResizeStart: () => setState(() => _resizingSidebar = true),
+            onResize: (delta) => setState(
+              () => _sidebarWidth = (sidebarWidth + delta).clamp(
+                _minimumSidebarWidth,
+                maximumSidebarWidth,
+              ),
+            ),
+            onResizeEnd: () => setState(() => _resizingSidebar = false),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: widget.canvas),
           if (details != null) ...[
             const SizedBox(width: 16),
             SizedBox(width: 300, child: details),
@@ -244,6 +420,99 @@ class _SketchWorkspace extends StatelessWidget {
         ],
       );
     },
+  );
+}
+
+class _SketchSidebarResizeHandle extends StatefulWidget {
+  const _SketchSidebarResizeHandle({
+    required this.width,
+    required this.onResizeStart,
+    required this.onResize,
+    required this.onResizeEnd,
+  });
+
+  final double width;
+  final VoidCallback onResizeStart;
+  final ValueChanged<double> onResize;
+  final VoidCallback onResizeEnd;
+
+  @override
+  State<_SketchSidebarResizeHandle> createState() =>
+      _SketchSidebarResizeHandleState();
+}
+
+class _SketchSidebarResizeHandleState
+    extends State<_SketchSidebarResizeHandle> {
+  static const _keyboardStep = 24.0;
+
+  final _focusNode = FocusNode(debugLabel: 'Sketch palette resize handle');
+  var _active = false;
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _resize(double delta) => widget.onResize(delta);
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    label: 'Resize component palette',
+    value: '${widget.width.round()} pixels',
+    increasedValue: '${(widget.width + _keyboardStep).round()} pixels',
+    decreasedValue: '${(widget.width - _keyboardStep).round()} pixels',
+    onIncrease: () => _resize(_keyboardStep),
+    onDecrease: () => _resize(-_keyboardStep),
+    child: Focus(
+      focusNode: _focusNode,
+      onKeyEvent: (_, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+          _resize(-_keyboardStep);
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+          _resize(_keyboardStep);
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: MouseRegion(
+        cursor: SystemMouseCursors.resizeColumn,
+        onEnter: (_) => setState(() => _active = true),
+        onExit: (_) => setState(() => _active = _focusNode.hasFocus),
+        child: GestureDetector(
+          key: const ValueKey('sketch-sidebar-resize-handle'),
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragStart: (_) {
+            _focusNode.requestFocus();
+            widget.onResizeStart();
+            setState(() => _active = true);
+          },
+          onHorizontalDragUpdate: (details) => _resize(details.delta.dx),
+          onHorizontalDragEnd: (_) {
+            widget.onResizeEnd();
+            setState(() => _active = _focusNode.hasFocus);
+          },
+          onHorizontalDragCancel: () {
+            widget.onResizeEnd();
+            setState(() => _active = _focusNode.hasFocus);
+          },
+          child: SizedBox(
+            width: 8,
+            child: Center(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 100),
+                width: _active ? 2 : 1,
+                color: context.theme.colors.border,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
   );
 }
 
@@ -342,7 +611,7 @@ class _SketchHeader extends StatelessWidget {
   );
 }
 
-class _ComponentPalette extends StatelessWidget {
+class _ComponentPalette extends StatefulWidget {
   const _ComponentPalette({
     required this.registry,
     required this.theme,
@@ -354,8 +623,31 @@ class _ComponentPalette extends StatelessWidget {
   final ValueChanged<DesyRegisteredComponentInstance> onSelect;
 
   @override
+  State<_ComponentPalette> createState() => _ComponentPaletteState();
+}
+
+class _ComponentPaletteState extends State<_ComponentPalette> {
+  static const _minimumTileWidth = 104.0;
+  static const _tileSpacing = 8.0;
+
+  var _query = '';
+
+  @override
   Widget build(BuildContext context) {
-    final instances = registry.allComponentInstances;
+    final allInstances = widget.registry.allComponentInstances;
+    final normalizedQuery = _query.trim().toLowerCase();
+    final instances = normalizedQuery.isEmpty
+        ? allInstances
+        : allInstances
+              .where(
+                (entry) => [
+                  entry.id,
+                  entry.componentName,
+                  entry.instance.name,
+                  entry.instance.description ?? '',
+                ].any((value) => value.toLowerCase().contains(normalizedQuery)),
+              )
+              .toList(growable: false);
     final textScale = MediaQuery.textScalerOf(context).scale(12) / 12;
     final tileExtent = (132 + (textScale.clamp(1, 2) - 1) * 36).toDouble();
     return DesyCard(
@@ -367,28 +659,62 @@ class _ComponentPalette extends StatelessWidget {
             Text('COMPONENTS', style: Theme.of(context).textTheme.labelSmall),
             const SizedBox(height: 4),
             Text(
-              '${instances.length} elements · choose to add',
+              normalizedQuery.isEmpty
+                  ? '${allInstances.length} elements · choose to add'
+                  : '${instances.length} of ${allInstances.length} elements',
+              key: const ValueKey('sketch-component-filter-count'),
               style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 10),
+            DesyTextField(
+              key: const ValueKey('sketch-component-filter'),
+              label: 'Filter components',
+              hintText: 'Filter components',
+              prefixIcon: const Padding(
+                padding: EdgeInsets.only(right: 7),
+                child: Icon(DesyIcons.component, size: 14),
+              ),
+              value: _query,
+              onChanged: (value) => setState(() => _query = value),
             ),
             const SizedBox(height: 10),
             Expanded(
               child: instances.isEmpty
-                  ? const Center(child: Text('No component instances yet'))
-                  : GridView.builder(
-                      key: const ValueKey('sketch-component-grid'),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisExtent: tileExtent,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
+                  ? Center(
+                      child: Text(
+                        allInstances.isEmpty
+                            ? 'No component instances yet'
+                            : 'No components match “${_query.trim()}”.',
                       ),
-                      itemCount: instances.length,
-                      itemBuilder: (context, index) => _ComponentPreviewTile(
-                        instance: instances[index],
-                        theme: theme,
-                        height: tileExtent - 24,
-                        onSelect: onSelect,
-                      ),
+                    )
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        final columnCount =
+                            ((constraints.maxWidth + _tileSpacing) /
+                                    (_minimumTileWidth + _tileSpacing))
+                                .floor()
+                                .clamp(1, instances.length)
+                                .toInt();
+                        return GridView.builder(
+                          key: const ValueKey('sketch-component-grid'),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: columnCount,
+                                mainAxisExtent: tileExtent,
+                                crossAxisSpacing: _tileSpacing,
+                                mainAxisSpacing: _tileSpacing,
+                              ),
+                          itemCount: instances.length,
+                          itemBuilder: (context, index) =>
+                              _ComponentPreviewTile(
+                                registry: widget.registry,
+                                instance: instances[index],
+                                theme: widget.theme,
+                                height: tileExtent - 24,
+                                onSelect: widget.onSelect,
+                              ),
+                        );
+                      },
                     ),
             ),
           ],
@@ -400,12 +726,14 @@ class _ComponentPalette extends StatelessWidget {
 
 class _ComponentPreviewTile extends StatelessWidget {
   const _ComponentPreviewTile({
+    required this.registry,
     required this.instance,
     required this.theme,
     required this.height,
     required this.onSelect,
   });
 
+  final DesyRegistry registry;
   final DesyRegisteredComponentInstance instance;
   final DesyTheme theme;
   final double height;
@@ -432,7 +760,10 @@ class _ComponentPreviewTile extends StatelessWidget {
                   key: ValueKey('palette-preview-${instance.id}'),
                   child: DesyWidgetPreview(
                     theme: theme,
-                    builder: instance.build,
+                    builder: (context) => instance.build(
+                      context,
+                      widgets: registry.widgetBuilder,
+                    ),
                   ),
                 ),
               ),
@@ -460,11 +791,13 @@ class _ComponentPreviewTile extends StatelessWidget {
 
 class _CanvasInspector extends StatelessWidget {
   const _CanvasInspector({
+    required this.registry,
     required this.node,
     required this.instance,
     required this.controller,
   });
 
+  final DesyRegistry registry;
   final DesyCanvasNode node;
   final DesyRegisteredComponentInstance instance;
   final DesyComponentsCanvasController controller;
@@ -497,6 +830,7 @@ class _CanvasInspector extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
         DesyComponentKnobPanel(
+          registry: registry,
           knobs: instance.component.knobs,
           values: node.knobValues,
           onChanged: (knob, value) =>
@@ -552,6 +886,87 @@ class _CanvasArtboardInspector extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _CanvasLayoutInspector extends StatelessWidget {
+  const _CanvasLayoutInspector({
+    required this.node,
+    required this.spacingEntries,
+    required this.controller,
+  });
+
+  final DesyCanvasNode node;
+  final List<DesyNumericEntry> spacingEntries;
+  final DesyComponentsCanvasController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentIndex = spacingEntries.indexWhere(
+      (entry) => entry.id == node.spacingEntryId,
+    );
+    return DesyCard(
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('LAYOUT', style: Theme.of(context).textTheme.labelSmall),
+          const SizedBox(height: 4),
+          Text(
+            node.layoutPreset!.label,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${node.layoutPreset!.slotCount} legal slots · ephemeral sketch structure',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 20),
+          if (spacingEntries.isEmpty)
+            DesyBadge(child: const Text('Gap 0 dp · no registered spacing'))
+          else
+            DesySelect<int>.rich(
+              key: ValueKey('layout-spacing-${node.id}'),
+              control: DesySelectControl.lifted(
+                value: currentIndex < 0 ? 0 : currentIndex,
+                onChange: (index) {
+                  if (index == null) return;
+                  final entry = spacingEntries[index];
+                  controller.setLayoutSpacing(
+                    node.id,
+                    spacingEntryId: entry.id,
+                    spacing: entry.value,
+                  );
+                },
+              ),
+              label: const Text('Gap'),
+              description: const Text(
+                'Values come from the active registry’s Measurements entries.',
+              ),
+              format: (index) => spacingEntries[index].displayValue,
+              children: [
+                for (final (index, entry) in spacingEntries.indexed)
+                  DesySelectItem.item(
+                    value: index,
+                    title: Text(entry.name),
+                    subtitle: Text(entry.displayValue),
+                  ),
+              ],
+            ),
+          const SizedBox(height: 20),
+          Text(
+            'Select this layout, then choose component instances from the palette to fill its open slots.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 20),
+          DesyButton(
+            variant: DesyButtonVariant.outline,
+            size: DesyButtonSize.sm,
+            onPress: () => controller.remove(node.id),
+            child: const Text('Remove layout'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// A compact layer-like view of the current, ephemeral composition.
@@ -610,6 +1025,24 @@ class _CanvasOutline extends StatelessWidget {
                             subtitle: const Text('Bezel'),
                           );
                         }
+                        if (node.isLayout) {
+                          final filled = placedNodes
+                              .where(
+                                (candidate) =>
+                                    candidate.parentLayoutId == node.id,
+                              )
+                              .length;
+                          return DesyTile(
+                            key: ValueKey('canvas-node-${node.id}'),
+                            selected: selectedId == node.id,
+                            onPress: () => onSelect(node.id),
+                            prefix: const Icon(DesyIcons.layoutGrid, size: 16),
+                            title: Text(node.layoutPreset!.label),
+                            subtitle: Text(
+                              '$filled of ${node.layoutPreset!.slotCount} slots · ${node.spacing?.toStringAsFixed(0)} dp gap',
+                            ),
+                          );
+                        }
                         final instance = _instanceFor(node.instanceId!);
                         if (instance == null) return const SizedBox.shrink();
                         return DesyTile(
@@ -622,7 +1055,9 @@ class _CanvasOutline extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Text(
-                            instance.component.name,
+                            node.parentLayoutId == null
+                                ? instance.component.name
+                                : '${instance.component.name} · Slot ${(node.slotIndex ?? 0) + 1}',
                             overflow: TextOverflow.ellipsis,
                           ),
                         );
@@ -645,6 +1080,7 @@ class _CanvasOutline extends StatelessWidget {
 
 class _CanvasStage extends StatelessWidget {
   const _CanvasStage({
+    required this.registry,
     required this.instances,
     required this.nodes,
     required this.selectedId,
@@ -652,6 +1088,7 @@ class _CanvasStage extends StatelessWidget {
     required this.controller,
   });
 
+  final DesyRegistry registry;
   final List<DesyRegisteredComponentInstance> instances;
   final Map<String, DesyCanvasNode> nodes;
   final String? selectedId;
@@ -707,20 +1144,38 @@ class _CanvasStage extends StatelessWidget {
                     controller: controller,
                     child: _CanvasArtboard(artboardNode: node, theme: theme),
                   )
-                else if (_instanceFor(node.instanceId!) case final instance?)
+                else if (node.isLayout)
                   _CanvasTransformableNode(
                     node: node,
                     selected: selectedId == node.id,
                     clampingRect: clampingRect,
-                    minSize: const Size(8, 8),
+                    minSize: const Size(160, 120),
                     controller: controller,
-                    child: _CanvasElement(
-                      instance: instance,
+                    child: _CanvasLayout(
                       node: node,
+                      children: _layoutChildren(node.id),
+                      registry: registry,
+                      instances: instances,
+                      selectedId: selectedId,
                       theme: theme,
-                      selected: selectedId == node.id,
                     ),
-                  ),
+                  )
+                else if (node.parentLayoutId == null)
+                  if (_instanceFor(node.instanceId!) case final instance?)
+                    _CanvasTransformableNode(
+                      node: node,
+                      selected: selectedId == node.id,
+                      clampingRect: clampingRect,
+                      minSize: const Size(8, 8),
+                      controller: controller,
+                      child: _CanvasElement(
+                        registry: registry,
+                        instance: instance,
+                        node: node,
+                        theme: theme,
+                        selected: selectedId == node.id,
+                      ),
+                    ),
             ],
           ),
         ),
@@ -734,6 +1189,12 @@ class _CanvasStage extends StatelessWidget {
     }
     return null;
   }
+
+  List<DesyCanvasNode> _layoutChildren(String layoutId) =>
+      nodes.values
+          .where((node) => node.parentLayoutId == layoutId)
+          .toList(growable: false)
+        ..sort((a, b) => (a.slotIndex ?? 0).compareTo(b.slotIndex ?? 0));
 }
 
 /// A flat, freely overlapping canvas layer with minimal Figma-like handles.
@@ -858,6 +1319,184 @@ class _CanvasArtboard extends StatelessWidget {
   );
 }
 
+class _CanvasLayout extends StatelessWidget {
+  const _CanvasLayout({
+    required this.node,
+    required this.children,
+    required this.registry,
+    required this.instances,
+    required this.selectedId,
+    required this.theme,
+  });
+
+  final DesyCanvasNode node;
+  final List<DesyCanvasNode> children;
+  final DesyRegistry registry;
+  final List<DesyRegisteredComponentInstance> instances;
+  final String? selectedId;
+  final DesyTheme theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final preset = node.layoutPreset!;
+    final gap = node.spacing!;
+    final colors = context.theme.colors;
+    return DecoratedBox(
+      key: ValueKey('canvas-layout-${node.id}'),
+      decoration: BoxDecoration(
+        color: colors.background,
+        border: Border.all(color: colors.border),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(gap),
+        child: switch (preset) {
+          DesyCanvasLayoutPreset.singleColumn => _column(
+            List.generate(preset.slotCount, _slot),
+            gap,
+          ),
+          DesyCanvasLayoutPreset.twoColumn => _row(
+            List.generate(preset.slotCount, _slot),
+            gap,
+          ),
+          DesyCanvasLayoutPreset.threeColumnGrid => _fixedGrid(
+            columns: 3,
+            slots: preset.slotCount,
+            gap: gap,
+          ),
+          DesyCanvasLayoutPreset.responsiveCardGrid => LayoutBuilder(
+            builder: (context, constraints) => _fixedGrid(
+              columns: constraints.maxWidth >= 560
+                  ? 3
+                  : constraints.maxWidth >= 320
+                  ? 2
+                  : 1,
+              slots: preset.slotCount,
+              gap: gap,
+            ),
+          ),
+          DesyCanvasLayoutPreset.repeatedListRows => _column(
+            List.generate(preset.slotCount, _slot),
+            gap,
+          ),
+          DesyCanvasLayoutPreset.form => _column(
+            List.generate(preset.slotCount, _slot),
+            gap,
+          ),
+        },
+      ),
+    );
+  }
+
+  Widget _fixedGrid({
+    required int columns,
+    required int slots,
+    required double gap,
+  }) {
+    final rowCount = (slots / columns).ceil();
+    return _column([
+      for (var row = 0; row < rowCount; row++)
+        _row([
+          for (var column = 0; column < columns; column++)
+            if (row * columns + column < slots)
+              _slot(row * columns + column)
+            else
+              const SizedBox.shrink(),
+        ], gap),
+    ], gap);
+  }
+
+  Widget _row(List<Widget> children, double gap) => Row(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: _withGaps(children, gap, Axis.horizontal),
+  );
+
+  Widget _column(List<Widget> children, double gap) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: _withGaps(children, gap, Axis.vertical),
+  );
+
+  List<Widget> _withGaps(List<Widget> children, double gap, Axis direction) => [
+    for (final (index, child) in children.indexed) ...[
+      if (index > 0)
+        SizedBox(
+          width: direction == Axis.horizontal ? gap : 0,
+          height: direction == Axis.vertical ? gap : 0,
+        ),
+      Expanded(child: child),
+    ],
+  ];
+
+  Widget _slot(int index) {
+    DesyCanvasNode? child;
+    for (final candidate in children) {
+      if (candidate.slotIndex == index) {
+        child = candidate;
+        break;
+      }
+    }
+    final instance = child == null ? null : _instanceFor(child.instanceId!);
+    return _CanvasLayoutSlot(
+      key: ValueKey('canvas-layout-${node.id}-slot-$index'),
+      index: index,
+      gap: node.spacing!,
+      child: child == null || instance == null
+          ? null
+          : _CanvasElement(
+              registry: registry,
+              instance: instance,
+              node: child,
+              theme: theme,
+              selected: selectedId == child.id,
+            ),
+    );
+  }
+
+  DesyRegisteredComponentInstance? _instanceFor(String id) {
+    for (final instance in instances) {
+      if (instance.id == id) return instance;
+    }
+    return null;
+  }
+}
+
+class _CanvasLayoutSlot extends StatelessWidget {
+  const _CanvasLayoutSlot({
+    super.key,
+    required this.index,
+    required this.gap,
+    required this.child,
+  });
+
+  final int index;
+  final double gap;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.theme.colors;
+    return Semantics(
+      label: child == null
+          ? 'Empty layout slot ${index + 1}'
+          : 'Filled layout slot ${index + 1}',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.secondary,
+          border: Border.all(color: colors.border),
+        ),
+        child:
+            child ??
+            Center(
+              child: Text(
+                'Slot ${index + 1}\n${gap.toStringAsFixed(0)} dp rhythm',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11),
+              ),
+            ),
+      ),
+    );
+  }
+}
+
 extension on DesyCanvasArtboard {
   String get label => switch (this) {
     DesyCanvasArtboard.iPhone15Pro => 'iPhone 15 Pro',
@@ -930,12 +1569,14 @@ class _CanvasGridPainter extends CustomPainter {
 /// consumer-owned and receives loose constraints inside its composition frame.
 class _CanvasElement extends StatelessWidget {
   const _CanvasElement({
+    required this.registry,
     required this.instance,
     required this.node,
     required this.theme,
     required this.selected,
   });
 
+  final DesyRegistry registry;
   final DesyRegisteredComponentInstance instance;
   final DesyCanvasNode node;
   final DesyTheme theme;
@@ -952,10 +1593,15 @@ class _CanvasElement extends StatelessWidget {
             child: DesyWidgetPreview(
               theme: theme,
               builder: (context) => instance.component.buildWithKnobs == null
-                  ? instance.component.buildInstance(context, instance.instance)
+                  ? instance.component.buildInstance(
+                      context,
+                      instance.instance,
+                      widgets: registry.widgetBuilder,
+                    )
                   : instance.component.buildWithKnobs!(
                       context,
                       DesyKnobValues(node.knobValues),
+                      registry.widgetBuilder,
                     ),
             ),
           ),

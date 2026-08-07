@@ -79,7 +79,13 @@ void main() {
       );
       expect(sampleRegistry.allColors, hasLength(greaterThanOrEqualTo(6)));
       expect(sampleRegistry.allTypography, hasLength(greaterThanOrEqualTo(4)));
-      expect(sampleRegistry.allNumbers, hasLength(1));
+      expect(sampleRegistry.allNumbers, hasLength(greaterThanOrEqualTo(1)));
+      expect(
+        sampleRegistry.allNumbers.where(
+          (entry) => entry.kind == DesyNumericKind.spacing,
+        ),
+        hasLength(4),
+      );
       expect(
         sampleRegistry.allNumbers
             .singleWhere((entry) => entry.id == 'layout.compact')
@@ -118,12 +124,13 @@ void main() {
       final instanceKnob = contentCard.knobs
           .whereType<DesyComponentKnob>()
           .single;
+      expect(instanceKnob.options, contains('harbor.badge.status.delayed'));
       expect(
-        instanceKnob.options.map((instance) => instance.id),
-        contains('status.delayed'),
-      );
-      expect(
-        instanceKnob.options.every((instance) => instance.icon != null),
+        instanceKnob.options.every(
+          (id) =>
+              sampleRegistry.resolveComponentInstance(id)?.instance.icon !=
+              null,
+        ),
         isTrue,
         reason: 'Every declared instance swap should have its own icon.',
       );
@@ -139,13 +146,13 @@ void main() {
           hasLength(greaterThanOrEqualTo(1)),
           reason: '${component.name} needs a named reusable instance.',
         );
-        expect(component.instances.length, lessThanOrEqualTo(2));
+        expect(component.instances.length, lessThanOrEqualTo(3));
       }
       expect(
         sampleRegistry.allComponentInstances.map((instance) => instance.id),
         containsAll([
           'harbor.button.primary.publish-schedule',
-          'harbor.badge.status.status.clear',
+          'harbor.badge.status.clear',
           'harbor.card.content.north-quay-delayed',
           'harbor.metric.operational.available-berths',
           'harbor.schedule.item.north-quay-inspection',

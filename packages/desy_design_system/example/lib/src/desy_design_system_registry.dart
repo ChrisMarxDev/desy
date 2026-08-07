@@ -289,34 +289,34 @@ final _buttonComponent = DesyComponent(
     onPress: () {},
     child: const Text('Inspect component'),
   ),
+  knobs: const [
+    DesyStringKnob(id: 'label', name: 'Label', initial: 'Inspect component'),
+    DesyBooleanKnob(id: 'outline', name: 'Outline', initial: false),
+    DesyBooleanKnob(id: 'enabled', name: 'Enabled', initial: true),
+  ],
+  buildWithKnobs: (context, values, _) => DesyButton(
+    variant: values.boolean('outline')
+        ? DesyButtonVariant.outline
+        : DesyButtonVariant.primary,
+    mainAxisSize: MainAxisSize.min,
+    onPress: values.boolean('enabled') ? () {} : null,
+    child: Text(values.string('label')),
+  ),
   instances: [
-    DesyComponentInstance.widget(
+    DesyComponentInstance(
       id: 'primary',
       name: 'Primary',
-      builder: (context) => DesyButton(
-        mainAxisSize: MainAxisSize.min,
-        onPress: () {},
-        child: const Text('Inspect component'),
-      ),
+      knobValues: DesyKnobValues({'label': 'Inspect component'}),
     ),
-    DesyComponentInstance.widget(
+    DesyComponentInstance(
       id: 'outline',
       name: 'Outline',
-      builder: (context) => DesyButton(
-        variant: DesyButtonVariant.outline,
-        mainAxisSize: MainAxisSize.min,
-        onPress: () {},
-        child: const Text('Open settings'),
-      ),
+      knobValues: DesyKnobValues({'label': 'Open settings', 'outline': true}),
     ),
-    DesyComponentInstance.widget(
+    DesyComponentInstance(
       id: 'disabled',
       name: 'Disabled',
-      builder: (context) => DesyButton(
-        mainAxisSize: MainAxisSize.min,
-        onPress: null,
-        child: const Text('Unavailable'),
-      ),
+      knobValues: DesyKnobValues({'label': 'Unavailable', 'enabled': false}),
     ),
   ],
 );
@@ -401,24 +401,22 @@ final _switchComponent = DesyComponent(
   source: 'package:desy_design_system/src/control_aliases.dart',
   preview: (context) =>
       DesySwitch(label: const Text('Show grid'), value: true, onChange: (_) {}),
+  knobs: const [DesyBooleanKnob(id: 'value', name: 'Value', initial: true)],
+  buildWithKnobs: (context, values, _) => DesySwitch(
+    label: const Text('Show grid'),
+    value: values.boolean('value'),
+    onChange: (_) {},
+  ),
   instances: [
-    DesyComponentInstance.widget(
+    DesyComponentInstance(
       id: 'on',
       name: 'On',
-      builder: (context) => DesySwitch(
-        label: const Text('Show grid'),
-        value: true,
-        onChange: (_) {},
-      ),
+      knobValues: DesyKnobValues({'value': true}),
     ),
-    DesyComponentInstance.widget(
+    DesyComponentInstance(
       id: 'off',
       name: 'Off',
-      builder: (context) => DesySwitch(
-        label: const Text('Show grid'),
-        value: false,
-        onChange: (_) {},
-      ),
+      knobValues: DesyKnobValues({'value': false}),
     ),
   ],
 );
@@ -434,32 +432,40 @@ final _textFieldComponent = DesyComponent(
   preview: (context) => const _TextFieldFrame(
     child: DesyTextField(label: 'Search', hintText: 'Search components'),
   ),
+  knobs: const [
+    DesyStringKnob(id: 'variant', name: 'Variant', initial: 'empty'),
+  ],
+  buildWithKnobs: (context, values, _) => switch (values.string('variant')) {
+    'disabled' => const _TextFieldFrame(
+      child: DesyTextField(label: 'Search', value: 'Atlas', enabled: false),
+    ),
+    'multiline' => const _TextFieldFrame(
+      child: DesyTextField(
+        label: 'Notes',
+        hintText: 'Add usage guidance',
+        minLines: 3,
+        maxLines: 5,
+      ),
+    ),
+    _ => const _TextFieldFrame(
+      child: DesyTextField(label: 'Search', hintText: 'Search components'),
+    ),
+  },
   instances: [
-    DesyComponentInstance.widget(
+    DesyComponentInstance(
       id: 'empty',
       name: 'Empty',
-      builder: (context) => const _TextFieldFrame(
-        child: DesyTextField(label: 'Search', hintText: 'Search components'),
-      ),
+      knobValues: DesyKnobValues({'variant': 'empty'}),
     ),
-    DesyComponentInstance.widget(
+    DesyComponentInstance(
       id: 'disabled',
       name: 'Disabled',
-      builder: (context) => const _TextFieldFrame(
-        child: DesyTextField(label: 'Search', value: 'Atlas', enabled: false),
-      ),
+      knobValues: DesyKnobValues({'variant': 'disabled'}),
     ),
-    DesyComponentInstance.widget(
+    DesyComponentInstance(
       id: 'multiline',
       name: 'Multiline',
-      builder: (context) => const _TextFieldFrame(
-        child: DesyTextField(
-          label: 'Notes',
-          hintText: 'Add usage guidance',
-          minLines: 3,
-          maxLines: 5,
-        ),
-      ),
+      knobValues: DesyKnobValues({'variant': 'multiline'}),
     ),
   ],
 );
@@ -611,16 +617,20 @@ final _shortcutComponent = DesyComponent(
       'Announce the complete chord rather than individual decoration.',
   source: 'package:desy_design_system/src/keyboard_shortcut_label.dart',
   preview: (context) => const DesyKeyboardShortcutLabel(keys: ['⌘', 'K']),
+  knobs: const [DesyBooleanKnob(id: 'chord', name: 'Chord', initial: true)],
+  buildWithKnobs: (context, values, _) => DesyKeyboardShortcutLabel(
+    keys: values.boolean('chord') ? const ['⌘', 'K'] : const ['Esc'],
+  ),
   instances: [
-    DesyComponentInstance.widget(
+    DesyComponentInstance(
       id: 'single-key',
       name: 'Single key',
-      builder: (context) => const DesyKeyboardShortcutLabel(keys: ['Esc']),
+      knobValues: DesyKnobValues({'chord': false}),
     ),
-    DesyComponentInstance.widget(
+    DesyComponentInstance(
       id: 'chord',
       name: 'Chord',
-      builder: (context) => const DesyKeyboardShortcutLabel(keys: ['⌘', 'K']),
+      knobValues: DesyKnobValues({'chord': true}),
     ),
   ],
 );
@@ -637,13 +647,7 @@ DesyComponent _component({
   description: description,
   source: 'package:desy_design_system/src/control_aliases.dart',
   preview: preview,
-  instances: [
-    DesyComponentInstance.widget(
-      id: 'default',
-      name: 'Default',
-      builder: preview,
-    ),
-  ],
+  instances: [DesyComponentInstance(id: 'default', name: 'Default')],
 );
 
 class _TextFieldFrame extends StatelessWidget {

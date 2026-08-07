@@ -109,9 +109,6 @@ class DesyWorkspaceExtensionContext {
 
   /// Finds a named component instance by its registry-scoped identifier.
   DesyRegisteredComponentInstance? componentInstance(String id) {
-    for (final instance in registry.allComponentInstances) {
-      if (instance.id == id) return instance;
-    }
-    return null;
+    return registry.resolveComponentInstance(id);
   }
 }

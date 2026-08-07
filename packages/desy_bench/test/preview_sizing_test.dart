@@ -108,19 +108,13 @@ void main() {
     final component = DesyComponent(
       id: 'responsive',
       name: 'Responsive',
-      preview: (context) => const SizedBox.shrink(),
-      instances: [
-        DesyComponentInstance.widget(
-          id: 'default',
-          name: 'Default',
-          builder: (context) => LayoutBuilder(
-            builder: (context, constraints) {
-              receivedConstraints = constraints;
-              return const SizedBox(key: ValueKey('responsive-sketch'));
-            },
-          ),
-        ),
-      ],
+      preview: (context) => LayoutBuilder(
+        builder: (context, constraints) {
+          receivedConstraints = constraints;
+          return const SizedBox(key: ValueKey('responsive-sketch'));
+        },
+      ),
+      instances: [DesyComponentInstance(id: 'default', name: 'Default')],
     );
     final session = DesyWorkbenchSession(
       registry: DesyRegistry(
@@ -211,17 +205,11 @@ void main() {
     final component = DesyComponent(
       id: 'media-aware',
       name: 'Media aware',
-      preview: (context) => const SizedBox.shrink(),
-      instances: [
-        DesyComponentInstance.widget(
-          id: 'default',
-          name: 'Default',
-          builder: (context) {
-            mediaSize = MediaQuery.sizeOf(context);
-            return const SizedBox(key: ValueKey('media-aware-visual'));
-          },
-        ),
-      ],
+      preview: (context) {
+        mediaSize = MediaQuery.sizeOf(context);
+        return const SizedBox(key: ValueKey('media-aware-visual'));
+      },
+      instances: [DesyComponentInstance(id: 'default', name: 'Default')],
     );
     final session = DesyWorkbenchSession(
       registry: DesyRegistry(
@@ -393,18 +381,12 @@ class _CanvasFixture {
   static final _component = DesyComponent(
     id: 'gesture',
     name: 'Gesture',
-    preview: (context) => const SizedBox.shrink(),
-    instances: [
-      DesyComponentInstance.widget(
-        id: 'default',
-        name: 'Default',
-        builder: (context) => const SizedBox(
-          key: ValueKey('gesture-visual'),
-          width: 220,
-          height: 120,
-        ),
-      ),
-    ],
+    preview: (context) => const SizedBox(
+      key: ValueKey('gesture-visual'),
+      width: 220,
+      height: 120,
+    ),
+    instances: [DesyComponentInstance(id: 'default', name: 'Default')],
   );
 
   final DesyWorkbenchSession session;

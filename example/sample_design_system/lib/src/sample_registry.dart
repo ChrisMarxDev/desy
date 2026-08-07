@@ -6,37 +6,32 @@ import 'sample_components.dart';
 import 'sample_theme.dart';
 
 final _cardTrailingInstances = [
-  DesyComponentInstance.widget(
-    id: 'status.clear',
+  DesyComponentInstance(
+    id: 'clear',
     name: 'Clear status',
     icon: FLucideIcons.badgeCheck,
     description: 'Confirmed operational state.',
-    builder: (context) => const SampleStatusBadge(
-      label: 'On schedule',
-      tone: SampleStatusTone.success,
-    ),
+    knobValues: DesyKnobValues({'label': 'On schedule', 'tone': 'success'}),
   ),
-  DesyComponentInstance.widget(
-    id: 'status.review',
+  DesyComponentInstance(
+    id: 'review',
     name: 'Review status',
     icon: FLucideIcons.triangleAlert,
     description: 'State that needs follow-up before publishing.',
-    builder: (context) => const SampleStatusBadge(
-      label: 'Review needed',
-      tone: SampleStatusTone.warning,
-    ),
+    knobValues: DesyKnobValues({'label': 'Review needed', 'tone': 'warning'}),
   ),
-  DesyComponentInstance.widget(
-    id: 'status.delayed',
+  DesyComponentInstance(
+    id: 'delayed',
     name: 'Delayed status',
     icon: FLucideIcons.octagonAlert,
     description: 'State that blocks the expected plan.',
-    builder: (context) => const SampleStatusBadge(
-      label: 'Delayed',
-      tone: SampleStatusTone.critical,
-    ),
+    knobValues: DesyKnobValues({'label': 'Delayed', 'tone': 'critical'}),
   ),
 ];
+
+const _clearStatusId = 'harbor.badge.status.clear';
+const _reviewStatusId = 'harbor.badge.status.review';
+const _delayedStatusId = 'harbor.badge.status.delayed';
 
 final _sampleThemes = [
   DesyTheme(
@@ -160,6 +155,30 @@ final _sampleTypography = [
 ];
 
 final _sampleNumbers = [
+  DesyNumericEntry.spacing(
+    id: 'space.tight',
+    name: 'Tight',
+    value: 8,
+    description: 'Keeps controls and compact status details closely related.',
+  ),
+  DesyNumericEntry.spacing(
+    id: 'space.default',
+    name: 'Default',
+    value: 16,
+    description: 'The default gap between related Harbor interface elements.',
+  ),
+  DesyNumericEntry.spacing(
+    id: 'space.section',
+    name: 'Section',
+    value: 24,
+    description: 'Separates distinct groups within one operational surface.',
+  ),
+  DesyNumericEntry.spacing(
+    id: 'space.page',
+    name: 'Page',
+    value: 32,
+    description: 'Provides breathing room around major page regions.',
+  ),
   DesyNumericEntry.breakpoint(
     id: 'layout.compact',
     name: 'Compact threshold',
@@ -256,18 +275,18 @@ final _sampleComponents = [
       ),
       DesyBooleanKnob(id: 'enabled', name: 'Enabled', initial: true),
     ],
-    buildWithKnobs: (context, values) => SampleButton(
+    buildWithKnobs: (context, values, _) => SampleButton(
       label: values.string('label'),
       onPressed: values.boolean('enabled') ? () {} : null,
     ),
     instances: [
-      DesyComponentInstance.preset(
+      DesyComponentInstance(
         id: 'publish-schedule',
         name: 'Publish schedule',
         description: 'Enabled primary action for a final review step.',
         knobValues: DesyKnobValues({'label': 'Publish schedule'}),
       ),
-      DesyComponentInstance.preset(
+      DesyComponentInstance(
         id: 'save-draft',
         name: 'Save draft',
         description: 'A quieter saved-progress action while editing.',
@@ -293,17 +312,17 @@ final _sampleComponents = [
       ),
       DesyBooleanKnob(id: 'enabled', name: 'Enabled', initial: true),
     ],
-    buildWithKnobs: (context, values) => SampleSecondaryButton(
+    buildWithKnobs: (context, values, _) => SampleSecondaryButton(
       label: values.string('label'),
       onPressed: values.boolean('enabled') ? () {} : null,
     ),
     instances: [
-      DesyComponentInstance.preset(
+      DesyComponentInstance(
         id: 'adjust-filters',
         name: 'Adjust filters',
         knobValues: DesyKnobValues({'label': 'Adjust filters'}),
       ),
-      DesyComponentInstance.preset(
+      DesyComponentInstance(
         id: 'view-berths',
         name: 'View berths',
         knobValues: DesyKnobValues({'label': 'View berths'}),
@@ -331,7 +350,15 @@ final _sampleComponents = [
         SampleStatusBadge(label: 'Delayed', tone: SampleStatusTone.critical),
       ],
     ),
-    instances: _cardTrailingInstances.take(2).toList(),
+    knobs: const [
+      DesyStringKnob(id: 'label', name: 'Label', initial: 'On schedule'),
+      DesyStringKnob(id: 'tone', name: 'Tone', initial: 'success'),
+    ],
+    buildWithKnobs: (context, values, _) => SampleStatusBadge(
+      label: values.string('label'),
+      tone: _statusTone(values.string('tone')),
+    ),
+    instances: _cardTrailingInstances,
   ),
   DesyComponent(
     id: 'harbor.notice.info',
@@ -351,16 +378,27 @@ final _sampleComponents = [
         actionLabel: 'Review schedule',
       ),
     ),
+    knobs: const [
+      DesyStringKnob(
+        id: 'variant',
+        name: 'Variant',
+        initial: 'tide-forecast-updated',
+      ),
+    ],
+    buildWithKnobs: (context, values, _) => switch (values.string('variant')) {
+      'inspection-planned' => _inspectionNotice(context),
+      _ => _tideForecastNotice(context),
+    },
     instances: [
-      DesyComponentInstance.widget(
+      DesyComponentInstance(
         id: 'tide-forecast-updated',
         name: 'Tide forecast updated',
-        builder: _tideForecastNotice,
+        knobValues: DesyKnobValues({'variant': 'tide-forecast-updated'}),
       ),
-      DesyComponentInstance.widget(
+      DesyComponentInstance(
         id: 'inspection-planned',
         name: 'Inspection planned',
-        builder: _inspectionNotice,
+        knobValues: DesyKnobValues({'variant': 'inspection-planned'}),
       ),
     ],
   ),
@@ -387,7 +425,7 @@ final _sampleComponents = [
       DesyStringKnob(id: 'hint', name: 'Hint', initial: 'e.g. HB-2048'),
       DesyBooleanKnob(id: 'showError', name: 'Show validation', initial: false),
     ],
-    buildWithKnobs: (context, values) => SizedBox(
+    buildWithKnobs: (context, values, _) => SizedBox(
       width: 320,
       child: SampleTextField(
         label: values.string('label'),
@@ -398,7 +436,7 @@ final _sampleComponents = [
       ),
     ),
     instances: [
-      DesyComponentInstance.preset(
+      DesyComponentInstance(
         id: 'vessel-reference',
         name: 'Vessel reference',
         knobValues: DesyKnobValues({
@@ -406,7 +444,7 @@ final _sampleComponents = [
           'hint': 'e.g. HB-2048',
         }),
       ),
-      DesyComponentInstance.preset(
+      DesyComponentInstance(
         id: 'missing-reference',
         name: 'Missing reference',
         knobValues: DesyKnobValues({
@@ -445,16 +483,16 @@ final _sampleComponents = [
       DesyComponentKnob(
         id: 'trailing',
         name: 'Operational status',
-        initial: _cardTrailingInstances.first,
-        options: _cardTrailingInstances,
+        initial: _clearStatusId,
+        options: const [_clearStatusId, _reviewStatusId, _delayedStatusId],
       ),
     ],
-    buildWithKnobs: (context, values) => SizedBox(
+    buildWithKnobs: (context, values, widgets) => SizedBox(
       width: 340,
       child: SampleCard(
         title: values.string('title'),
         body: 'Berth 04 opens at 14:30 after a routine inspection.',
-        trailing: values.component('trailing').build(context),
+        trailing: widgets.build(context, values.component('trailing')),
       ),
     ),
     contract: DesyComponentContract(
@@ -491,20 +529,20 @@ final _sampleComponents = [
       ),
     ],
     instances: [
-      DesyComponentInstance.preset(
+      DesyComponentInstance(
         id: 'north-quay-clear',
         name: 'North quay · clear',
         knobValues: DesyKnobValues({
           'title': 'North quay',
-          'trailing': _cardTrailingInstances.first,
+          'trailing': _clearStatusId,
         }),
       ),
-      DesyComponentInstance.preset(
+      DesyComponentInstance(
         id: 'north-quay-delayed',
         name: 'North quay · delayed',
         knobValues: DesyKnobValues({
           'title': 'North quay delayed',
-          'trailing': _cardTrailingInstances.last,
+          'trailing': _delayedStatusId,
         }),
       ),
     ],
@@ -526,16 +564,27 @@ final _sampleComponents = [
         detail: '12 berths available today',
       ),
     ),
+    knobs: const [
+      DesyStringKnob(
+        id: 'variant',
+        name: 'Variant',
+        initial: 'berth-availability',
+      ),
+    ],
+    buildWithKnobs: (context, values, _) => switch (values.string('variant')) {
+      'today-schedule' => _todayScheduleRow(context),
+      _ => _berthAvailabilityRow(context),
+    },
     instances: [
-      DesyComponentInstance.widget(
+      DesyComponentInstance(
         id: 'berth-availability',
         name: 'Berth availability',
-        builder: _berthAvailabilityRow,
+        knobValues: DesyKnobValues({'variant': 'berth-availability'}),
       ),
-      DesyComponentInstance.widget(
+      DesyComponentInstance(
         id: 'today-schedule',
         name: 'Today’s schedule',
-        builder: _todayScheduleRow,
+        knobValues: DesyKnobValues({'variant': 'today-schedule'}),
       ),
     ],
   ),
@@ -556,16 +605,27 @@ final _sampleComponents = [
         icon: FLucideIcons.anchor,
       ),
     ),
+    knobs: const [
+      DesyStringKnob(
+        id: 'variant',
+        name: 'Variant',
+        initial: 'available-berths',
+      ),
+    ],
+    buildWithKnobs: (context, values, _) => switch (values.string('variant')) {
+      'arrivals-today' => _arrivalsTodayMetric(context),
+      _ => _availableBerthsMetric(context),
+    },
     instances: [
-      DesyComponentInstance.widget(
+      DesyComponentInstance(
         id: 'available-berths',
         name: 'Available berths',
-        builder: _availableBerthsMetric,
+        knobValues: DesyKnobValues({'variant': 'available-berths'}),
       ),
-      DesyComponentInstance.widget(
+      DesyComponentInstance(
         id: 'arrivals-today',
         name: 'Arrivals today',
-        builder: _arrivalsTodayMetric,
+        knobValues: DesyKnobValues({'variant': 'arrivals-today'}),
       ),
     ],
   ),
@@ -587,16 +647,23 @@ final _sampleComponents = [
         total: 12,
       ),
     ),
+    knobs: const [
+      DesyStringKnob(id: 'variant', name: 'Variant', initial: 'berth-capacity'),
+    ],
+    buildWithKnobs: (context, values, _) => switch (values.string('variant')) {
+      'inspection-capacity' => _inspectionCapacity(context),
+      _ => _berthCapacity(context),
+    },
     instances: [
-      DesyComponentInstance.widget(
+      DesyComponentInstance(
         id: 'berth-capacity',
         name: 'Berth capacity',
-        builder: _berthCapacity,
+        knobValues: DesyKnobValues({'variant': 'berth-capacity'}),
       ),
-      DesyComponentInstance.widget(
+      DesyComponentInstance(
         id: 'inspection-capacity',
         name: 'Inspection capacity',
-        builder: _inspectionCapacity,
+        knobValues: DesyKnobValues({'variant': 'inspection-capacity'}),
       ),
     ],
   ),
@@ -620,16 +687,27 @@ final _sampleComponents = [
         tone: SampleStatusTone.success,
       ),
     ),
+    knobs: const [
+      DesyStringKnob(
+        id: 'variant',
+        name: 'Variant',
+        initial: 'north-quay-inspection',
+      ),
+    ],
+    buildWithKnobs: (context, values, _) => switch (values.string('variant')) {
+      'tug-arrival' => _tugArrival(context),
+      _ => _northQuayInspection(context),
+    },
     instances: [
-      DesyComponentInstance.widget(
+      DesyComponentInstance(
         id: 'north-quay-inspection',
         name: 'North quay inspection',
-        builder: _northQuayInspection,
+        knobValues: DesyKnobValues({'variant': 'north-quay-inspection'}),
       ),
-      DesyComponentInstance.widget(
+      DesyComponentInstance(
         id: 'tug-arrival',
         name: 'Tug arrival',
-        builder: _tugArrival,
+        knobValues: DesyKnobValues({'variant': 'tug-arrival'}),
       ),
     ],
   ),
@@ -650,16 +728,23 @@ final _sampleComponents = [
         icon: FLucideIcons.calendarX,
       ),
     ),
+    knobs: const [
+      DesyStringKnob(id: 'variant', name: 'Variant', initial: 'no-arrivals'),
+    ],
+    buildWithKnobs: (context, values, _) => switch (values.string('variant')) {
+      'no-search-results' => _noSearchResultsEmptyState(context),
+      _ => _noArrivalsEmptyState(context),
+    },
     instances: [
-      DesyComponentInstance.widget(
+      DesyComponentInstance(
         id: 'no-arrivals',
         name: 'No arrivals',
-        builder: _noArrivalsEmptyState,
+        knobValues: DesyKnobValues({'variant': 'no-arrivals'}),
       ),
-      DesyComponentInstance.widget(
+      DesyComponentInstance(
         id: 'no-search-results',
         name: 'No search results',
-        builder: _noSearchResultsEmptyState,
+        knobValues: DesyKnobValues({'variant': 'no-search-results'}),
       ),
     ],
   ),
@@ -840,6 +925,12 @@ final sampleRegistry = DesyRegistry(
     ),
   ],
 );
+
+SampleStatusTone _statusTone(String value) => switch (value) {
+  'warning' => SampleStatusTone.warning,
+  'critical' => SampleStatusTone.critical,
+  _ => SampleStatusTone.success,
+};
 
 Widget _tideForecastNotice(BuildContext context) => const SizedBox(
   width: 360,
