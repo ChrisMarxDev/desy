@@ -41,6 +41,11 @@ void main() {
       extensions: const [],
     );
     final locations = _destinations(tree.roots);
+    final workspace = tree.roots.firstWhere((node) => node.id == 'workspace');
+    expect(
+      workspace.children.firstWhere((node) => node.id == 'components').label,
+      'Sketch',
+    );
 
     expect(
       locations,

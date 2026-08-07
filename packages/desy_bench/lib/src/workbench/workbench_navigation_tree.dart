@@ -45,7 +45,7 @@ class DesyWorkbenchNavigationTree {
           ),
           const DesyWorkbenchNavigationNode(
             id: 'components',
-            label: 'Components',
+            label: 'Sketch',
             location: DesyWorkbenchRoutes.componentsPath,
           ),
           const DesyWorkbenchNavigationNode(

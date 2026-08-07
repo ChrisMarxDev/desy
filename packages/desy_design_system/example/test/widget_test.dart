@@ -83,6 +83,7 @@ void main() {
 
     expect(find.text('DESY BENCH'), findsOneWidget);
     expect(find.text('Atlas'), findsOneWidget);
+    expect(find.text('Sketch'), findsOneWidget);
     expect(find.text('Components'), findsWidgets);
   });
 

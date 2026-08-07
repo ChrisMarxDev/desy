@@ -110,7 +110,7 @@ class DesyWorkbenchSidebar extends StatelessWidget {
             DesySidebarItem(
               key: const ValueKey('workspace-components-nav'),
               icon: const Icon(DesyIcons.boxes),
-              label: const Text('Components'),
+              label: const Text('Sketch'),
               selected:
                   currentLocation.path == DesyWorkbenchRoutes.componentsPath,
               onPress: () => _go(context, DesyWorkbenchRoutes.componentsPath),

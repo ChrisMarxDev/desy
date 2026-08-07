@@ -477,7 +477,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(DesyBenchApp(registry: sampleRegistry));
 
-    await tester.tap(find.text('Components').first);
+    await tester.tap(find.text('Sketch'));
     await tester.pumpAndSettle();
 
     final gridFinder = find.byKey(const ValueKey('sketch-component-grid'));
@@ -520,7 +520,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(DesyBenchApp(registry: sampleRegistry));
 
-    await tester.tap(find.text('Components').first);
+    await tester.tap(find.text('Sketch'));
     await tester.pumpAndSettle();
 
     final gridFinder = find.byKey(const ValueKey('sketch-component-grid'));
@@ -585,7 +585,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(DesyBenchApp(registry: sampleRegistry));
 
-    await tester.tap(find.text('Components').first);
+    await tester.tap(find.text('Sketch'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('sketch-add-layout-twoColumn')));
     await tester.pumpAndSettle();
@@ -613,7 +613,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(DesyBenchApp(registry: sampleRegistry));
 
-    await tester.tap(find.text('Components').first);
+    await tester.tap(find.text('Sketch'));
     await tester.pumpAndSettle();
     final metric = find.byKey(
       const ValueKey(
@@ -649,7 +649,7 @@ void main() {
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(DesyBenchApp(registry: sampleRegistry));
 
-      await tester.tap(find.text('Components').first);
+      await tester.tap(find.text('Sketch'));
       await tester.pumpAndSettle();
       await tester.tap(
         find.byKey(
@@ -672,7 +672,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(DesyBenchApp(registry: sampleRegistry));
 
-    await tester.tap(find.text('Components').first);
+    await tester.tap(find.text('Sketch'));
     await tester.pumpAndSettle();
     final publishSchedule = find.byKey(
       const ValueKey('palette-instance-harbor.button.primary.publish-schedule'),
@@ -723,7 +723,7 @@ void main() {
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(DesyBenchApp(registry: sampleRegistry));
 
-      await tester.tap(find.text('Components').first);
+      await tester.tap(find.text('Sketch'));
       await tester.pumpAndSettle();
 
       expect(find.text('Screen sketch'), findsOneWidget);
@@ -732,7 +732,7 @@ void main() {
       await tester.tap(find.text('Back'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Components'), findsWidgets);
+      expect(find.text('Sketch'), findsOneWidget);
       expect(
         tester.getSize(find.byKey(const ValueKey('workbench-sidebar'))).width,
         greaterThan(0),
@@ -747,7 +747,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(DesyBenchApp(registry: sampleRegistry));
 
-    await tester.tap(find.text('Components').first);
+    await tester.tap(find.text('Sketch'));
     await tester.pumpAndSettle();
     final toolbar = find.byKey(const ValueKey('sketch-preview-toolbar'));
     expect(toolbar, findsOneWidget);
