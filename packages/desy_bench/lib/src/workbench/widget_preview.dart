@@ -71,10 +71,13 @@ class DesyWidgetPreview extends StatelessWidget {
 /// Measures a consumer preview at a usable logical size, then scales that
 /// completed result down to its Desy-owned display frame.
 ///
-/// This is intended for bounded catalogue thumbnails where the consumer widget
-/// needs a meaningful measurement pass before fitting. Interactive sketch
-/// nodes deliberately do not use it: their resize rectangle supplies the real
-/// logical constraints so responsive widget behavior remains inspectable.
+/// The finite loose pass preserves a widget's true preferred size up to the
+/// cap, so intrinsic widgets (text, icons, padded composites) render at
+/// faithful dimensions while greedy widgets settle within the cap instead of
+/// overflowing. All catalogue surfaces (atlas, palette, sidebar) share this
+/// measurement so thumbnails stay consistent. Interactive sketch nodes
+/// deliberately do not use it: their resize rectangle supplies the real
+/// logical constraints so responsive widget behavior stays inspectable.
 class DesyFittedPreview extends StatelessWidget {
   const DesyFittedPreview({required this.child, super.key});
 
@@ -134,6 +137,9 @@ class _RenderLogicalPreviewMeasurement extends RenderProxyBox {
       size = constraints.constrain(Size.zero);
       return;
     }
+    // A finite, large measurement pass. Intrinsic widgets (text, icons, padded
+    // composites) hold their true preferred size here; greedy widgets that
+    // would fill unbounded space settle within the cap instead of overflowing.
     child.layout(BoxConstraints.loose(_maximumSize), parentUsesSize: true);
     size = constraints.constrain(child.size);
   }

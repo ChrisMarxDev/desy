@@ -1652,6 +1652,7 @@ class DesyComponent {
     this.category = 'Components',
     this.accessibility,
     this.source,
+    this.defaultSize,
     List<DesyKnob<Object>> knobs = const [],
     this.buildWithKnobs,
     List<DesyComponentInstance> instances = const [],
@@ -1693,6 +1694,13 @@ class DesyComponent {
 
   /// Consumer-owned source path for navigation and review.
   final String? source;
+
+  /// Recommended starting size for this component on the composition canvas.
+  ///
+  /// Declared sizes size a freshly dropped sketch node so the drag box wraps
+  /// the widget instead of starting at a fixed default. When omitted, nodes
+  /// fall back to a workbench default.
+  final Size? defaultSize;
 
   /// Controls exposed by this component's live preview.
   final List<DesyKnob<Object>> knobs;

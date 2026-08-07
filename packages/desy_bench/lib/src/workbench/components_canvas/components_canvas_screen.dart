@@ -154,7 +154,11 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
       for (final knob in instance.component.knobs) knob.id: knob.initial,
       ...instance.instance.knobValues.entries,
     };
-    _controller.add(instance.id, knobValues: values);
+    _controller.add(
+      instance.id,
+      knobValues: values,
+      defaultSize: instance.component.defaultSize,
+    );
   }
 }
 

@@ -248,7 +248,11 @@ class DesyComponentsCanvasController with BeaconController {
   }
 
   /// Adds one named instance and returns its ephemeral canvas-node ID.
-  String add(String instanceId, {Map<String, Object> knobValues = const {}}) {
+  String add(
+    String instanceId, {
+    Map<String, Object> knobValues = const {},
+    Size? defaultSize,
+  }) {
     final index = nodes.value.length;
     final nodeId = '$instanceId#${_nextNode++}';
     final selected = selectedId.value == null
@@ -266,17 +270,22 @@ class DesyComponentsCanvasController with BeaconController {
       knobValues: knobValues,
       parentLayoutId: slot == null ? null : layout!.id,
       slotIndex: slot,
-      rect: Rect.fromLTWH(
-        48.0 + (index % 3) * 44,
-        44.0 + (index % 3) * 36,
-        220,
-        120,
+      rect: _seedRect(
+        index,
+        defaultSize ?? const Size(220, 120),
       ),
     );
     _replaceNodes({...nodes.value, nodeId: node});
     selectedId.value = nodeId;
     return nodeId;
   }
+
+  Rect _seedRect(int index, Size size) => Rect.fromLTWH(
+    48.0 + (index % 3) * 44,
+    44.0 + (index % 3) * 36,
+    size.width,
+    size.height,
+  );
 
   /// Adds one ephemeral structural layout and selects it for slot insertion.
   String addLayout(

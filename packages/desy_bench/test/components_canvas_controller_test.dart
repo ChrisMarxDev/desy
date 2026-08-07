@@ -37,6 +37,26 @@ void main() {
     controller.dispose();
   });
 
+  test('canvas seeds a component node with its declared default size', () {
+    final controller = DesyComponentsCanvasController();
+
+    final declared = controller.add(
+      'button.declared',
+      defaultSize: const Size(300, 48),
+    );
+    final fallback = controller.add('button.fallback');
+
+    expect(
+      controller.nodes.value[declared]!.rect.size,
+      const Size(300, 48),
+    );
+    expect(
+      controller.nodes.value[fallback]!.rect.size,
+      const Size(220, 120),
+    );
+    controller.dispose();
+  });
+
   test('canvas nodes take an immutable snapshot of knob values', () {
     final values = <String, Object>{'label': 'Publish schedule'};
     final node = DesyCanvasNode.component(
