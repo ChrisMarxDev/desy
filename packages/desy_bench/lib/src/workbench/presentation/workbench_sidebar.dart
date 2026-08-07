@@ -140,8 +140,17 @@ class DesyWorkbenchSidebar extends StatelessWidget {
               _go(context, DesyWorkbenchRoutes.entry(entry.id));
             },
             treeChildren: [
-              for (final folder in folders)
-                _folderItem(context, folder, currentLocation),
+              for (final (index, folder) in folders.indexed)
+                _CatalogueFolderSection(
+                  folderId: folder.id,
+                  showDivider: index > 0,
+                  child: _folderItem(
+                    context,
+                    folder,
+                    currentLocation,
+                    topLevel: true,
+                  ),
+                ),
             ],
           ),
         _CollapsibleSidebarGroup(
@@ -176,13 +185,26 @@ class DesyWorkbenchSidebar extends StatelessWidget {
   DesySidebarItem _folderItem(
     BuildContext context,
     DesyFolder folder,
-    Uri location,
-  ) {
+    Uri location, {
+    bool topLevel = false,
+  }) {
     final entries = _directEntries(folder);
     return DesySidebarItem(
       key: ValueKey('sidebar-folder-${folder.id}'),
       icon: Icon(_folderIcon(folder.name)),
-      label: Text(folder.name),
+      label: Semantics(
+        key: topLevel ? ValueKey('sidebar-folder-header-${folder.id}') : null,
+        header: topLevel,
+        child: Text(
+          folder.name,
+          style: topLevel
+              ? Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                )
+              : null,
+        ),
+      ),
       selected:
           location.path == DesyWorkbenchRoutes.atlasPath &&
           location.queryParameters['folder'] == folder.id,
@@ -256,6 +278,36 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     }
     context.go(location);
   }
+}
+
+class _CatalogueFolderSection extends StatelessWidget {
+  const _CatalogueFolderSection({
+    required this.folderId,
+    required this.showDivider,
+    required this.child,
+  });
+
+  final String folderId;
+  final bool showDivider;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      if (showDivider)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 7, 8, 6),
+          child: Divider(
+            key: ValueKey('sidebar-folder-divider-$folderId'),
+            height: 1,
+            thickness: 1,
+            color: context.theme.colors.border,
+          ),
+        ),
+      child,
+    ],
+  );
 }
 
 String? _selectedEntryId(Uri location) {

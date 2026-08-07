@@ -103,6 +103,58 @@ void main() {
     expect(iconFor('default.component').icon, FLucideIcons.component);
     expect(iconFor('override.component').icon, FLucideIcons.anchor);
   });
+
+  testWidgets('normal catalogue separates root folders with semantic headers', (
+    tester,
+  ) async {
+    final session = DesyWorkbenchSession(
+      registry: DesyRegistry(
+        name: 'Folder boundaries',
+        themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+        folders: [
+          DesyFolder(
+            id: 'atoms',
+            name: 'Atoms',
+            components: [_component('atoms.color')],
+          ),
+          DesyFolder(
+            id: 'components',
+            name: 'Components',
+            components: [_component('components.button')],
+          ),
+        ],
+      ),
+    );
+    addTearDown(session.dispose);
+
+    await tester.pumpWidget(
+      FTheme(
+        data: FTheme.neutral.light.desktop,
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: DesyWorkbenchSidebar(
+            session: session,
+            location: Uri.parse('/atlas'),
+          ),
+        ),
+      ),
+    );
+
+    for (final id in ['atoms', 'components']) {
+      final header = tester.widget<Semantics>(
+        find.byKey(ValueKey('sidebar-folder-header-$id')),
+      );
+      expect(header.properties.header, isTrue);
+    }
+    expect(
+      find.byKey(const ValueKey('sidebar-folder-divider-atoms')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('sidebar-folder-divider-components')),
+      findsOneWidget,
+    );
+  });
 }
 
 DesyComponent _component(String id, {IconData? icon}) => DesyComponent(
