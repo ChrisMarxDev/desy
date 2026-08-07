@@ -132,7 +132,7 @@ class DesyWorkbenchSidebar extends StatelessWidget {
         ),
         if (session.registry.allEntries.isNotEmpty)
           _CatalogueSidebarGroup(
-            entries: session.registry.allEntries,
+            sections: _previewSections(folders),
             theme: session.registry.themes[theme],
             selectedEntryId: _selectedEntryId(currentLocation),
             onOpen: (entry) {
@@ -140,17 +140,8 @@ class DesyWorkbenchSidebar extends StatelessWidget {
               _go(context, DesyWorkbenchRoutes.entry(entry.id));
             },
             treeChildren: [
-              for (final (index, folder) in folders.indexed)
-                _CatalogueFolderSection(
-                  folderId: folder.id,
-                  showDivider: index > 0,
-                  child: _folderItem(
-                    context,
-                    folder,
-                    currentLocation,
-                    topLevel: true,
-                  ),
-                ),
+              for (final folder in folders)
+                _folderItem(context, folder, currentLocation),
             ],
           ),
         _CollapsibleSidebarGroup(
@@ -185,26 +176,13 @@ class DesyWorkbenchSidebar extends StatelessWidget {
   DesySidebarItem _folderItem(
     BuildContext context,
     DesyFolder folder,
-    Uri location, {
-    bool topLevel = false,
-  }) {
+    Uri location,
+  ) {
     final entries = _directEntries(folder);
     return DesySidebarItem(
       key: ValueKey('sidebar-folder-${folder.id}'),
       icon: Icon(_folderIcon(folder.name)),
-      label: Semantics(
-        key: topLevel ? ValueKey('sidebar-folder-header-${folder.id}') : null,
-        header: topLevel,
-        child: Text(
-          folder.name,
-          style: topLevel
-              ? Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.2,
-                )
-              : null,
-        ),
-      ),
+      label: Text(folder.name),
       selected:
           location.path == DesyWorkbenchRoutes.atlasPath &&
           location.queryParameters['folder'] == folder.id,
@@ -235,6 +213,43 @@ class DesyWorkbenchSidebar extends StatelessWidget {
               entry.folderIds.isNotEmpty && entry.folderIds.last == folder.id,
         )
         .toList(growable: false);
+  }
+
+  List<_SidebarPreviewSection> _previewSections(List<DesyFolder> folders) {
+    final entries = session.registry.allEntries;
+    final sections = <_SidebarPreviewSection>[];
+    for (final folder in folders) {
+      final folderEntries = entries
+          .where(
+            (entry) =>
+                entry.folderIds.isNotEmpty &&
+                entry.folderIds.first == folder.id,
+          )
+          .toList(growable: false);
+      if (folderEntries.isNotEmpty) {
+        sections.add(
+          _SidebarPreviewSection(
+            id: folder.id,
+            label: folder.name,
+            entries: folderEntries,
+          ),
+        );
+      }
+    }
+
+    final unfiledEntries = entries
+        .where((entry) => entry.folderIds.isEmpty)
+        .toList(growable: false);
+    if (unfiledEntries.isNotEmpty) {
+      sections.add(
+        _SidebarPreviewSection(
+          id: 'unfiled',
+          label: 'Unfiled',
+          entries: unfiledEntries,
+        ),
+      );
+    }
+    return List.unmodifiable(sections);
   }
 
   bool _containsActiveDestination(DesyFolder folder, Uri location) {
@@ -280,36 +295,6 @@ class DesyWorkbenchSidebar extends StatelessWidget {
   }
 }
 
-class _CatalogueFolderSection extends StatelessWidget {
-  const _CatalogueFolderSection({
-    required this.folderId,
-    required this.showDivider,
-    required this.child,
-  });
-
-  final String folderId;
-  final bool showDivider;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      if (showDivider)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(8, 7, 8, 6),
-          child: Divider(
-            key: ValueKey('sidebar-folder-divider-$folderId'),
-            height: 1,
-            thickness: 1,
-            color: context.theme.colors.border,
-          ),
-        ),
-      child,
-    ],
-  );
-}
-
 String? _selectedEntryId(Uri location) {
   if (location.pathSegments.length != 2 ||
       location.pathSegments.first !=
@@ -326,14 +311,14 @@ String? _selectedEntryId(Uri location) {
 /// registry used by the rest of the workbench.
 class _CatalogueSidebarGroup extends StatefulWidget {
   const _CatalogueSidebarGroup({
-    required this.entries,
+    required this.sections,
     required this.theme,
     required this.selectedEntryId,
     required this.onOpen,
     required this.treeChildren,
   });
 
-  final List<DesyRegistryEntry> entries;
+  final List<_SidebarPreviewSection> sections;
   final DesyTheme theme;
   final String? selectedEntryId;
   final ValueChanged<DesyRegistryEntry> onOpen;
@@ -374,7 +359,7 @@ class _CatalogueSidebarGroupState extends State<_CatalogueSidebarGroup> {
       ),
       if (_showPreviewGrid)
         _SidebarPreviewGrid(
-          entries: widget.entries,
+          sections: widget.sections,
           theme: widget.theme,
           selectedEntryId: widget.selectedEntryId,
           onOpen: widget.onOpen,
@@ -386,85 +371,160 @@ class _CatalogueSidebarGroupState extends State<_CatalogueSidebarGroup> {
 }
 
 class _SidebarPreviewGrid extends StatelessWidget {
-  static const _minimumTileWidth = 88.0;
-  static const _tileSpacing = 8.0;
-
   const _SidebarPreviewGrid({
-    required this.entries,
+    required this.sections,
     required this.theme,
     required this.selectedEntryId,
     required this.onOpen,
   });
 
-  final List<DesyRegistryEntry> entries;
+  final List<_SidebarPreviewSection> sections;
   final DesyTheme theme;
   final String? selectedEntryId;
   final ValueChanged<DesyRegistryEntry> onOpen;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final columnCount =
-          ((constraints.maxWidth + _tileSpacing) /
-                  (_minimumTileWidth + _tileSpacing))
-              .floor()
-              .clamp(1, entries.length)
-              .toInt();
-      return GridView.builder(
-        key: const ValueKey('sidebar-catalogue-preview-grid'),
-        shrinkWrap: true,
-        primary: false,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: columnCount,
-          mainAxisExtent: 128,
-          crossAxisSpacing: _tileSpacing,
-          mainAxisSpacing: _tileSpacing,
+  Widget build(BuildContext context) => Column(
+    key: const ValueKey('sidebar-catalogue-preview-grid'),
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (final (index, section) in sections.indexed)
+        _SidebarPreviewSectionView(
+          section: section,
+          showDivider: index > 0,
+          theme: theme,
+          selectedEntryId: selectedEntryId,
+          onOpen: onOpen,
         ),
-        itemCount: entries.length,
-        itemBuilder: (context, index) {
-          final entry = entries[index];
-          return DesyButton(
-            key: ValueKey('sidebar-preview-${entry.id}'),
-            semanticsLabel: 'Open ${entry.name}',
-            semanticsTooltip: 'Open catalogue entry',
-            selected: entry.id == selectedEntryId,
-            variant: DesyButtonVariant.outline,
-            size: DesyButtonSize.xs,
-            onPress: () => onOpen(entry),
-            child: SizedBox(
-              width: 64,
-              height: 104,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ClipRect(
-                      child: IgnorePointer(
-                        child: DesyFittedPreview(
-                          key: ValueKey('sidebar-preview-widget-${entry.id}'),
-                          child: DesyWidgetPreview(
-                            theme: theme,
-                            builder: entry.builder,
+    ],
+  );
+}
+
+class _SidebarPreviewSection {
+  const _SidebarPreviewSection({
+    required this.id,
+    required this.label,
+    required this.entries,
+  });
+
+  final String id;
+  final String label;
+  final List<DesyRegistryEntry> entries;
+}
+
+class _SidebarPreviewSectionView extends StatelessWidget {
+  static const _minimumTileWidth = 88.0;
+  static const _tileSpacing = 8.0;
+
+  const _SidebarPreviewSectionView({
+    required this.section,
+    required this.showDivider,
+    required this.theme,
+    required this.selectedEntryId,
+    required this.onOpen,
+  });
+
+  final _SidebarPreviewSection section;
+  final bool showDivider;
+  final DesyTheme theme;
+  final String? selectedEntryId;
+  final ValueChanged<DesyRegistryEntry> onOpen;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      if (showDivider)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 10, 8, 9),
+          child: Divider(
+            key: ValueKey('sidebar-preview-divider-${section.id}'),
+            height: 1,
+            thickness: 1,
+            color: context.theme.colors.border,
+          ),
+        ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+        child: Semantics(
+          key: ValueKey('sidebar-preview-header-${section.id}'),
+          header: true,
+          child: Text(
+            section.label,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+      ),
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final columnCount =
+              ((constraints.maxWidth + _tileSpacing) /
+                      (_minimumTileWidth + _tileSpacing))
+                  .floor()
+                  .clamp(1, section.entries.length)
+                  .toInt();
+          return GridView.builder(
+            key: ValueKey('sidebar-preview-grid-${section.id}'),
+            shrinkWrap: true,
+            primary: false,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columnCount,
+              mainAxisExtent: 128,
+              crossAxisSpacing: _tileSpacing,
+              mainAxisSpacing: _tileSpacing,
+            ),
+            itemCount: section.entries.length,
+            itemBuilder: (context, index) {
+              final entry = section.entries[index];
+              return DesyButton(
+                key: ValueKey('sidebar-preview-${entry.id}'),
+                semanticsLabel: 'Open ${entry.name}',
+                semanticsTooltip: 'Open catalogue entry',
+                selected: entry.id == selectedEntryId,
+                variant: DesyButtonVariant.outline,
+                size: DesyButtonSize.xs,
+                onPress: () => onOpen(entry),
+                child: SizedBox(
+                  width: 64,
+                  height: 104,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: ClipRect(
+                          child: IgnorePointer(
+                            child: DesyFittedPreview(
+                              key: ValueKey(
+                                'sidebar-preview-widget-${entry.id}',
+                              ),
+                              child: DesyWidgetPreview(
+                                theme: theme,
+                                builder: entry.builder,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 6),
+                      Text(
+                        entry.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    entry.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           );
         },
-      );
-    },
+      ),
+    ],
   );
 }
 

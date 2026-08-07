@@ -87,14 +87,40 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final grid = tester.widget<GridView>(
+      expect(
         find.byKey(const ValueKey('sidebar-catalogue-preview-grid')),
+        findsOneWidget,
+      );
+      for (final id in ['components', 'unfiled']) {
+        final header = tester.widget<Semantics>(
+          find.byKey(ValueKey('sidebar-preview-header-$id')),
+        );
+        expect(header.properties.header, isTrue);
+      }
+      expect(
+        find.byKey(const ValueKey('sidebar-preview-divider-components')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('sidebar-preview-divider-unfiled')),
+        findsOneWidget,
+      );
+      final componentGrid = tester.widget<GridView>(
+        find.byKey(const ValueKey('sidebar-preview-grid-components')),
+      );
+      final componentDelegate =
+          componentGrid.gridDelegate
+              as SliverGridDelegateWithFixedCrossAxisCount;
+      expect(componentDelegate.crossAxisCount, 1);
+      expect(componentGrid.semanticChildCount, 1);
+      final grid = tester.widget<GridView>(
+        find.byKey(const ValueKey('sidebar-preview-grid-unfiled')),
       );
       final delegate =
           grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
       expect(delegate.crossAxisCount, 2);
       expect(delegate.mainAxisExtent, 128);
-      expect(grid.semanticChildCount, registry.allEntries.length);
+      expect(grid.semanticChildCount, 4);
       expect(
         find.byKey(const ValueKey('sidebar-preview-widget-root.token')),
         findsOneWidget,
@@ -118,9 +144,7 @@ void main() {
       final widerDelegate =
           tester
                   .widget<GridView>(
-                    find.byKey(
-                      const ValueKey('sidebar-catalogue-preview-grid'),
-                    ),
+                    find.byKey(const ValueKey('sidebar-preview-grid-unfiled')),
                   )
                   .gridDelegate
               as SliverGridDelegateWithFixedCrossAxisCount;
@@ -178,7 +202,7 @@ void main() {
     final delegate =
         tester
                 .widget<GridView>(
-                  find.byKey(const ValueKey('sidebar-catalogue-preview-grid')),
+                  find.byKey(const ValueKey('sidebar-preview-grid-unfiled')),
                 )
                 .gridDelegate
             as SliverGridDelegateWithFixedCrossAxisCount;

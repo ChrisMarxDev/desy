@@ -104,9 +104,7 @@ void main() {
     expect(iconFor('override.component').icon, FLucideIcons.anchor);
   });
 
-  testWidgets('normal catalogue separates root folders with semantic headers', (
-    tester,
-  ) async {
+  testWidgets('normal catalogue keeps the compact folder tree', (tester) async {
     final session = DesyWorkbenchSession(
       registry: DesyRegistry(
         name: 'Folder boundaries',
@@ -140,19 +138,26 @@ void main() {
       ),
     );
 
-    for (final id in ['atoms', 'components']) {
-      final header = tester.widget<Semantics>(
-        find.byKey(ValueKey('sidebar-folder-header-$id')),
-      );
-      expect(header.properties.header, isTrue);
-    }
+    expect(find.byKey(const ValueKey('sidebar-folder-atoms')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('sidebar-folder-components')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('sidebar-folder-header-atoms')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('sidebar-folder-header-components')),
+      findsNothing,
+    );
     expect(
       find.byKey(const ValueKey('sidebar-folder-divider-atoms')),
       findsNothing,
     );
     expect(
       find.byKey(const ValueKey('sidebar-folder-divider-components')),
-      findsOneWidget,
+      findsNothing,
     );
   });
 }
