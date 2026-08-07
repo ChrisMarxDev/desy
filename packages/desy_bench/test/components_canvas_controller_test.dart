@@ -8,11 +8,11 @@ void main() {
     final controller = DesyComponentsCanvasController();
 
     final primary = controller.add(
-      'harbor.button.primary.publish-schedule',
+      'acme.button.primary.publish-schedule',
       knobValues: const {'label': 'Publish schedule'},
     );
     final artboard = controller.addArtboard(DesyCanvasArtboard.iPhone15Pro);
-    final duplicate = controller.add('harbor.button.primary.publish-schedule');
+    final duplicate = controller.add('acme.button.primary.publish-schedule');
 
     expect(controller.nodes.value.keys, [primary, artboard, duplicate]);
     expect(controller.selectedId.value, duplicate);

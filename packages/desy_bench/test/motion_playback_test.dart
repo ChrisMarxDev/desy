@@ -121,16 +121,10 @@ void main() {
     final registry = DesyRegistry(
       name: 'Global motion test',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-      folders: [
-        DesyFolder(
-          id: 'atoms.motion',
-          name: 'Motion',
-          motion: [
-            motion('motion.fast', const Duration(milliseconds: 100)),
-            motion('motion.slow', const Duration(milliseconds: 200)),
-            motion('motion.inherited'),
-          ],
-        ),
+      motion: [
+        motion('motion.fast', const Duration(milliseconds: 100)),
+        motion('motion.slow', const Duration(milliseconds: 200)),
+        motion('motion.inherited'),
       ],
     );
     final session = DesyWorkbenchSession(registry: registry);
@@ -140,7 +134,7 @@ void main() {
       _TestHarness(
         child: DesyAtlasScreen(
           session: session,
-          folderId: 'atoms.motion',
+          folderId: DesyAtomKind.motion.id,
           onOpen: (_) {},
         ),
       ),

@@ -1,5 +1,5 @@
 name: desy_bench_workspace
-description: Workspace for Desy Bench and its sample consumer design system.
+description: Workspace for Desy Bench and its dogfood design system.
 publish_to: none
 
 environment:
@@ -7,8 +7,7 @@ environment:
 
 workspace:
   - packages/desy_bench
-  - packages/desy_agent_annotations
   - packages/desy_design_system
   - packages/desy_design_system/example
-  - packages/desy_screenshot_builder
-  - example/sample_design_system
+  - packages/extensions/desy_agent_annotations
+  - packages/extensions/desy_screenshot_builder

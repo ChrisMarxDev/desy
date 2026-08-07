@@ -31,7 +31,7 @@ class DesyWorkbenchNavigationTree {
     DesyRegistry registry, {
     required List<DesyWorkspaceExtension> extensions,
   }) {
-    final rootFolders = registry.folders;
+    final componentGroups = registry.componentGroups;
 
     return DesyWorkbenchNavigationTree([
       DesyWorkbenchNavigationNode(
@@ -48,11 +48,6 @@ class DesyWorkbenchNavigationTree {
             label: 'Sketch',
             location: DesyWorkbenchRoutes.componentsPath,
           ),
-          const DesyWorkbenchNavigationNode(
-            id: 'showcases',
-            label: 'Showcases',
-            location: DesyWorkbenchRoutes.showcasesPath,
-          ),
           for (final extension in extensions)
             DesyWorkbenchNavigationNode(
               id: 'workspace.${extension.id}',
@@ -61,10 +56,32 @@ class DesyWorkbenchNavigationTree {
             ),
         ],
       ),
-      for (final folder in rootFolders.where(
-        (folder) => _folderIsUsed(registry, folder),
-      ))
-        _folder(registry, folder),
+      if (registry.hasAtoms)
+        DesyWorkbenchNavigationNode(
+          id: DesyAtomKind.rootId,
+          label: 'Atoms',
+          children: [
+            for (final kind in registry.atomKinds)
+              DesyWorkbenchNavigationNode(
+                id: kind.id,
+                label: kind.label,
+                location: DesyWorkbenchRoutes.atlas(folderId: kind.id),
+              ),
+          ],
+        ),
+      for (final group in componentGroups) _group(registry, group),
+      for (final component in registry.components)
+        if (component.componentPath.segments.isEmpty)
+          DesyWorkbenchNavigationNode(
+            id: 'entry.${component.id}',
+            label: component.name,
+            location: DesyWorkbenchRoutes.entry(component.id),
+          ),
+      const DesyWorkbenchNavigationNode(
+        id: 'showcases',
+        label: 'Showcases',
+        location: DesyWorkbenchRoutes.showcasesPath,
+      ),
     ]);
   }
 
@@ -99,19 +116,16 @@ class DesyWorkbenchNavigationTree {
     for (final root in roots) ..._flatten(root),
   ].where((node) => node.location != null).toList(growable: false);
 
-  static DesyWorkbenchNavigationNode _folder(
+  static DesyWorkbenchNavigationNode _group(
     DesyRegistry registry,
-    DesyFolder folder,
+    DesyComponentGroup group,
   ) => DesyWorkbenchNavigationNode(
-    id: 'folder.${folder.id}',
-    label: folder.name,
-    location: DesyWorkbenchRoutes.atlas(folderId: folder.id),
+    id: 'folder.${group.path}',
+    label: group.name,
+    location: DesyWorkbenchRoutes.atlas(folderId: group.path),
     children: [
-      for (final child in folder.children.where(
-        (child) => _folderIsUsed(registry, child),
-      ))
-        _folder(registry, child),
-      for (final entry in _directEntries(registry, folder))
+      for (final child in group.children) _group(registry, child),
+      for (final entry in _directEntries(registry, group))
         DesyWorkbenchNavigationNode(
           id: 'entry.${entry.id}',
           label: entry.name,
@@ -122,18 +136,12 @@ class DesyWorkbenchNavigationTree {
 
   static Iterable<DesyRegistryEntry> _directEntries(
     DesyRegistry registry,
-    DesyFolder folder,
+    DesyComponentGroup group,
   ) sync* {
-    yield* registry.allEntries.where(
-      (entry) =>
-          entry.component != null &&
-          entry.folderIds.isNotEmpty &&
-          entry.folderIds.last == folder.id,
-    );
+    for (final component in group.components) {
+      yield registry.resolve(component.id)!;
+    }
   }
-
-  static bool _folderIsUsed(DesyRegistry registry, DesyFolder folder) =>
-      registry.allEntries.any((entry) => entry.folderIds.contains(folder.id));
 
   static Iterable<DesyWorkbenchNavigationNode> _flatten(
     DesyWorkbenchNavigationNode node,

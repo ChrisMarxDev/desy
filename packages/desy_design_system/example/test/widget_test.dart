@@ -21,7 +21,7 @@ void main() {
 
     tester
         .widget<DesySidebarItem>(
-          find.byKey(const ValueKey('sidebar-folder-desy.components.actions')),
+          find.byKey(const ValueKey('sidebar-folder-/actions')),
         )
         .onPress!
         .call();
@@ -46,7 +46,7 @@ void main() {
 
     tester
         .widget<DesySidebarItem>(
-          find.byKey(const ValueKey('sidebar-folder-desy.components.feedback')),
+          find.byKey(const ValueKey('sidebar-folder-/feedback')),
         )
         .onPress!
         .call();
@@ -108,7 +108,7 @@ void main() {
 
     tester
         .widget<DesySidebarItem>(
-          find.byKey(const ValueKey('sidebar-folder-desy.components.actions')),
+          find.byKey(const ValueKey('sidebar-folder-/actions')),
         )
         .onPress!
         .call();
@@ -192,9 +192,7 @@ void main() {
 
     tester
         .widget<DesySidebarItem>(
-          find.byKey(
-            const ValueKey('sidebar-folder-desy.components.navigation'),
-          ),
+          find.byKey(const ValueKey('sidebar-folder-/navigation')),
         )
         .onPress!
         .call();

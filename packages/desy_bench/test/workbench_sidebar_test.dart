@@ -6,32 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 
 void main() {
-  testWidgets('a deep-linked entry expands every sidebar ancestor', (
+  testWidgets('a deep-linked entry expands its component file-tree ancestors', (
     tester,
   ) async {
     final session = DesyWorkbenchSession(
       registry: DesyRegistry(
         name: 'Deep link',
         themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-        folders: [
-          DesyFolder(
-            id: 'one',
-            name: 'One',
-            children: [
-              DesyFolder(
-                id: 'one.two',
-                name: 'Two',
-                children: [
-                  DesyFolder(
-                    id: 'one.two.three',
-                    name: 'Three',
-                    components: [_component('deep.component')],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
+        components: [_component('deep.component', path: 'one/two/three')],
       ),
     );
     addTearDown(session.dispose);
@@ -49,10 +31,12 @@ void main() {
       ),
     );
 
-    for (final id in ['one', 'one.two', 'one.two.three']) {
+    for (final path in ['/one', '/one/two', '/one/two/three']) {
       expect(
         tester
-            .widget<FSidebarItem>(find.byKey(ValueKey('sidebar-folder-$id')))
+            .widget<DesySidebarItem>(
+              find.byKey(ValueKey('sidebar-folder-$path')),
+            )
             .initiallyExpanded,
         isTrue,
       );
@@ -66,15 +50,9 @@ void main() {
       registry: DesyRegistry(
         name: 'Component icons',
         themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-        folders: [
-          DesyFolder(
-            id: 'components',
-            name: 'Components',
-            components: [
-              _component('default.component'),
-              _component('override.component', icon: FLucideIcons.anchor),
-            ],
-          ),
+        components: [
+          _component('default.component'),
+          _component('override.component', icon: FLucideIcons.anchor),
         ],
       ),
     );
@@ -94,7 +72,7 @@ void main() {
     );
 
     Icon iconFor(String id) {
-      final item = tester.widget<FSidebarItem>(
+      final item = tester.widget<DesySidebarItem>(
         find.byKey(ValueKey('sidebar-entry-$id')),
       );
       return item.icon! as Icon;
@@ -104,7 +82,7 @@ void main() {
     expect(iconFor('override.component').icon, FLucideIcons.anchor);
   });
 
-  testWidgets('catalogue uses one hierarchy and shows only useful leaves', (
+  testWidgets('sidebar uses flat sections and a component file tree', (
     tester,
   ) async {
     String? destination;
@@ -112,31 +90,14 @@ void main() {
       registry: DesyRegistry(
         name: 'Folder boundaries',
         themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-        folders: [
-          DesyFolder(
-            id: 'atoms',
-            name: 'Atoms',
-            children: [
-              DesyFolder(
-                id: 'atoms.colors',
-                name: 'Colors',
-                tokens: [
-                  DesyToken(
-                    id: 'atoms.color.primary',
-                    name: 'Primary color',
-                    builder: (_) => const SizedBox(),
-                  ),
-                ],
-              ),
-              DesyFolder(id: 'atoms.empty', name: 'Empty'),
-            ],
-          ),
-          DesyFolder(
-            id: 'components',
-            name: 'Components',
-            components: [_component('components.button')],
+        colors: [
+          DesyColorEntry(
+            id: 'atoms.color.primary',
+            name: 'Primary color',
+            builder: (_) => const SizedBox(),
           ),
         ],
+        components: [_component('components.button', path: '/buttons')],
       ),
     );
     addTearDown(session.dispose);
@@ -155,21 +116,29 @@ void main() {
       ),
     );
 
-    expect(find.byKey(const ValueKey('sidebar-folder-atoms')), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('sidebar-folder-atoms.colors')),
+      find.byKey(const ValueKey('sidebar-section-workspace')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('sidebar-section-atoms')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('sidebar-section-components')),
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('sidebar-folder-atoms.empty')),
-      findsNothing,
+      find.byKey(const ValueKey('sidebar-section-showcases')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(ValueKey('sidebar-folder-${DesyAtomKind.colors.id}')),
+      findsOneWidget,
     );
     expect(
       find.byKey(const ValueKey('sidebar-entry-atoms.color.primary')),
       findsNothing,
     );
     expect(
-      find.byKey(const ValueKey('sidebar-folder-components')),
+      find.byKey(const ValueKey('sidebar-folder-/buttons')),
       findsOneWidget,
     );
     expect(
@@ -177,11 +146,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('sidebar-folder-header-atoms')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('sidebar-folder-header-components')),
+      find.byKey(const ValueKey('workspace-ai-prompts-nav')),
       findsOneWidget,
     );
     expect(
@@ -192,33 +157,73 @@ void main() {
       find.byKey(const ValueKey('sidebar-folder-divider-components')),
       findsNothing,
     );
-    expect(find.byKey(const ValueKey('sidebar-tool-ai')), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('sidebar-tool-showcases')),
-      findsOneWidget,
-    );
+    expect(find.text('Workspace'), findsOneWidget);
+    expect(find.text('Atoms'), findsOneWidget);
+    expect(find.text('Components'), findsOneWidget);
+    expect(find.text('Showcases'), findsOneWidget);
 
-    final atomsLabel = tester.widget<Text>(find.text('Atoms'));
-    final componentsLabel = tester.widget<Text>(find.text('Components'));
-    expect(atomsLabel.style?.fontWeight, isNot(FontWeight.w700));
-    expect(componentsLabel.style?.fontWeight, isNot(FontWeight.w700));
+    expect(
+      tester
+          .widget<DesySidebarItem>(
+            find.byKey(const ValueKey('workspace-atlas-nav')),
+          )
+          .opensScreen,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<DesySidebarItem>(
+            find.byKey(ValueKey('sidebar-folder-${DesyAtomKind.colors.id}')),
+          )
+          .opensScreen,
+      isFalse,
+    );
 
     tester
         .widget<DesySidebarItem>(
-          find.byKey(const ValueKey('sidebar-folder-atoms.colors')),
+          find.byKey(ValueKey('sidebar-folder-${DesyAtomKind.colors.id}')),
         )
         .onPress!
         .call();
     await tester.pump();
-    expect(destination, '/atlas?folder=atoms.colors');
+    expect(destination, '/atlas?folder=${DesyAtomKind.colors.id}');
+  });
+
+  testWidgets('sidebar omits Atoms when every typed lane is empty', (
+    tester,
+  ) async {
+    final session = DesyWorkbenchSession(
+      registry: DesyRegistry(
+        name: 'No atoms',
+        themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      ),
+    );
+    addTearDown(session.dispose);
+
+    await tester.pumpWidget(
+      FTheme(
+        data: FTheme.neutral.light.desktop,
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: DesyWorkbenchSidebar(
+            session: session,
+            location: Uri.parse('/atlas'),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const ValueKey('sidebar-section-atoms')), findsNothing);
   });
 }
 
-DesyComponent _component(String id, {IconData? icon}) => DesyComponent(
-  id: id,
-  name: id,
-  icon: icon,
-  preview: (_) => const SizedBox(),
-);
+DesyComponent _component(String id, {IconData? icon, String path = '/'}) =>
+    DesyComponent(
+      id: id,
+      name: id,
+      icon: icon,
+      path: path,
+      preview: (_) => const SizedBox(),
+    );
 
 Widget _wrap(BuildContext context, Widget child) => child;

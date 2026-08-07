@@ -44,230 +44,176 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
       ),
     ),
   ],
-  folders: [
-    DesyFolder(
-      id: 'desy.atoms',
-      name: 'Atoms',
-      children: [
-        DesyFolder(
-          id: 'desy.atoms.colors',
-          name: 'Colors',
-          colors: [
-            DesyColorEntry.swatch(
-              id: 'desy.color.background',
-              name: 'Background',
-              color: _lightTheme.colors.background,
-              description: 'The workbench document and canvas foundation.',
-            ),
-            DesyColorEntry.swatch(
-              id: 'desy.color.foreground',
-              name: 'Foreground',
-              color: _lightTheme.colors.foreground,
-              description: 'Primary readable content and icon color.',
-            ),
-            DesyColorEntry.swatch(
-              id: 'desy.color.primary',
-              name: 'Primary',
-              color: _lightTheme.colors.primary,
-              description: 'Selected controls and primary workbench actions.',
-            ),
-            DesyColorEntry.swatch(
-              id: 'desy.color.card',
-              name: 'Card',
-              color: _lightTheme.colors.card,
-              description: 'Contained workbench panels and specimens.',
-            ),
-            DesyColorEntry.swatch(
-              id: 'desy.color.border',
-              name: 'Border',
-              color: _lightTheme.colors.border,
-              description: 'Quiet separation between adjacent surfaces.',
-            ),
-            DesyColorEntry.swatch(
-              id: 'desy.color.muted-foreground',
-              name: 'Muted foreground',
-              color: _lightTheme.colors.mutedForeground,
-              description: 'Secondary labels and low-emphasis metadata.',
-            ),
-          ],
-        ),
-        DesyFolder(
-          id: 'desy.atoms.fonts',
-          name: 'Fonts',
-          typography: [
-            DesyTypographyEntry(
-              id: 'desy.type.display',
-              name: 'Display',
-              value: 'displaySmall',
-              description: 'Names the primary idea of a workbench surface.',
-              sample: 'Inspect the real component',
-              builder: (context, text) =>
-                  Text(text, style: Theme.of(context).textTheme.displaySmall),
-            ),
-            DesyTypographyEntry(
-              id: 'desy.type.title',
-              name: 'Title',
-              value: 'titleLarge',
-              description: 'Introduces a related panel or inspector section.',
-              sample: 'Component contract',
-              builder: (context, text) =>
-                  Text(text, style: Theme.of(context).textTheme.titleLarge),
-            ),
-            DesyTypographyEntry(
-              id: 'desy.type.body',
-              name: 'Body',
-              value: 'bodyMedium',
-              description: 'Default readable guidance and supporting content.',
-              sample: 'The registry remains the declared source of truth.',
-              builder: (context, text) =>
-                  Text(text, style: Theme.of(context).textTheme.bodyMedium),
-            ),
-            DesyTypographyEntry(
-              id: 'desy.type.label',
-              name: 'Label',
-              value: 'labelSmall',
-              description: 'Compact workbench metadata and section labels.',
-              sample: 'CATALOGUE',
-              builder: (context, text) =>
-                  Text(text, style: Theme.of(context).textTheme.labelSmall),
-            ),
-          ],
-        ),
-        DesyFolder(id: 'desy.atoms.icons', name: 'Icons', icons: _desyIcons),
-        DesyFolder(
-          id: 'desy.atoms.measurements',
-          name: 'Measurements',
-          numbers: const [
-            DesyNumericEntry.spacing(
-              id: 'desy.space.xs',
-              name: 'Extra-small spacing',
-              value: DesyDesignSystemTokens.spaceXs,
-              description: 'Tight inline separation and keycap spacing.',
-            ),
-            DesyNumericEntry.spacing(
-              id: 'desy.space.sm',
-              name: 'Small spacing',
-              value: DesyDesignSystemTokens.spaceSm,
-              description: 'Related control and label separation.',
-            ),
-            DesyNumericEntry.spacing(
-              id: 'desy.space.md',
-              name: 'Medium spacing',
-              value: DesyDesignSystemTokens.spaceMd,
-              description: 'Default compact panel rhythm.',
-            ),
-            DesyNumericEntry.spacing(
-              id: 'desy.space.lg',
-              name: 'Large spacing',
-              value: DesyDesignSystemTokens.spaceLg,
-              description: 'Panel padding and major section separation.',
-            ),
-            DesyNumericEntry.radius(
-              id: 'desy.radius.sm',
-              name: 'Small radius',
-              value: DesyDesignSystemTokens.radiusSm,
-              description: 'Keycaps and compact controls.',
-            ),
-            DesyNumericEntry.radius(
-              id: 'desy.radius.md',
-              name: 'Medium radius',
-              value: DesyDesignSystemTokens.radiusMd,
-              description: 'Cards and contained workbench panels.',
-            ),
-            DesyNumericEntry.breakpoint(
-              id: 'desy.breakpoint.compact',
-              name: 'Compact workbench threshold',
-              value: DesyDesignSystemTokens.compactBreakpoint,
-              description:
-                  'Switches desktop sidebar chrome to compact navigation.',
-            ),
-          ],
-        ),
-        DesyFolder(
-          id: 'desy.atoms.motion',
-          name: 'Motion',
-          motion: [
-            DesyMotionEntry(
-              id: 'desy.motion.navigation',
-              name: 'Navigation reveal',
-              duration: DesyDesignSystemTokens.navigationMotion,
-              curve: Curves.easeOutCubic,
-              description:
-                  'Sidebar width and similar spatial navigation changes.',
-              builder: (context) => const _MotionSpecimen(),
-            ),
-            DesyMotionEntry(
-              id: 'desy.motion.feedback',
-              name: 'Feedback emphasis',
-              duration: DesyDesignSystemTokens.feedbackMotion,
-              curve: Curves.easeOutCubic,
-              description: 'A concise confirmation or newly revealed state.',
-              builder: (context) => const _MotionSpecimen(),
-            ),
-          ],
-        ),
-        DesyFolder(
-          id: 'desy.atoms.effects',
-          name: 'Effects',
-          effects: [
-            DesyEffectEntry.boxShadow(
-              id: 'desy.effect.floating',
-              name: 'Floating surface',
-              description: 'Temporary surfaces above the workbench document.',
-              shadows: const [
-                BoxShadow(
-                  color: Color(0x2410201D),
-                  offset: Offset(0, 10),
-                  blurRadius: 28,
-                  spreadRadius: -10,
-                ),
-              ],
-            ),
-          ],
+  colors: [
+    DesyColorEntry.swatch(
+      id: 'desy.color.background',
+      name: 'Background',
+      color: _lightTheme.colors.background,
+      description: 'The workbench document and canvas foundation.',
+    ),
+    DesyColorEntry.swatch(
+      id: 'desy.color.foreground',
+      name: 'Foreground',
+      color: _lightTheme.colors.foreground,
+      description: 'Primary readable content and icon color.',
+    ),
+    DesyColorEntry.swatch(
+      id: 'desy.color.primary',
+      name: 'Primary',
+      color: _lightTheme.colors.primary,
+      description: 'Selected controls and primary workbench actions.',
+    ),
+    DesyColorEntry.swatch(
+      id: 'desy.color.card',
+      name: 'Card',
+      color: _lightTheme.colors.card,
+      description: 'Contained workbench panels and specimens.',
+    ),
+    DesyColorEntry.swatch(
+      id: 'desy.color.border',
+      name: 'Border',
+      color: _lightTheme.colors.border,
+      description: 'Quiet separation between adjacent surfaces.',
+    ),
+    DesyColorEntry.swatch(
+      id: 'desy.color.muted-foreground',
+      name: 'Muted foreground',
+      color: _lightTheme.colors.mutedForeground,
+      description: 'Secondary labels and low-emphasis metadata.',
+    ),
+  ],
+  fonts: [
+    DesyTypographyEntry(
+      id: 'desy.type.display',
+      name: 'Display',
+      value: 'displaySmall',
+      description: 'Names the primary idea of a workbench surface.',
+      sample: 'Inspect the real component',
+      builder: (context, text) =>
+          Text(text, style: Theme.of(context).textTheme.displaySmall),
+    ),
+    DesyTypographyEntry(
+      id: 'desy.type.title',
+      name: 'Title',
+      value: 'titleLarge',
+      description: 'Introduces a related panel or inspector section.',
+      sample: 'Component contract',
+      builder: (context, text) =>
+          Text(text, style: Theme.of(context).textTheme.titleLarge),
+    ),
+    DesyTypographyEntry(
+      id: 'desy.type.body',
+      name: 'Body',
+      value: 'bodyMedium',
+      description: 'Default readable guidance and supporting content.',
+      sample: 'The registry remains the declared source of truth.',
+      builder: (context, text) =>
+          Text(text, style: Theme.of(context).textTheme.bodyMedium),
+    ),
+    DesyTypographyEntry(
+      id: 'desy.type.label',
+      name: 'Label',
+      value: 'labelSmall',
+      description: 'Compact workbench metadata and section labels.',
+      sample: 'CATALOGUE',
+      builder: (context, text) =>
+          Text(text, style: Theme.of(context).textTheme.labelSmall),
+    ),
+  ],
+  icons: _desyIcons,
+  measurements: const [
+    DesyNumericEntry.spacing(
+      id: 'desy.space.xs',
+      name: 'Extra-small spacing',
+      value: DesyDesignSystemTokens.spaceXs,
+      description: 'Tight inline separation and keycap spacing.',
+    ),
+    DesyNumericEntry.spacing(
+      id: 'desy.space.sm',
+      name: 'Small spacing',
+      value: DesyDesignSystemTokens.spaceSm,
+      description: 'Related control and label separation.',
+    ),
+    DesyNumericEntry.spacing(
+      id: 'desy.space.md',
+      name: 'Medium spacing',
+      value: DesyDesignSystemTokens.spaceMd,
+      description: 'Default compact panel rhythm.',
+    ),
+    DesyNumericEntry.spacing(
+      id: 'desy.space.lg',
+      name: 'Large spacing',
+      value: DesyDesignSystemTokens.spaceLg,
+      description: 'Panel padding and major section separation.',
+    ),
+    DesyNumericEntry.radius(
+      id: 'desy.radius.sm',
+      name: 'Small radius',
+      value: DesyDesignSystemTokens.radiusSm,
+      description: 'Keycaps and compact controls.',
+    ),
+    DesyNumericEntry.radius(
+      id: 'desy.radius.md',
+      name: 'Medium radius',
+      value: DesyDesignSystemTokens.radiusMd,
+      description: 'Cards and contained workbench panels.',
+    ),
+    DesyNumericEntry.breakpoint(
+      id: 'desy.breakpoint.compact',
+      name: 'Compact workbench threshold',
+      value: DesyDesignSystemTokens.compactBreakpoint,
+      description: 'Switches desktop sidebar chrome to compact navigation.',
+    ),
+  ],
+  motion: [
+    DesyMotionEntry(
+      id: 'desy.motion.navigation',
+      name: 'Navigation reveal',
+      duration: DesyDesignSystemTokens.navigationMotion,
+      curve: Curves.easeOutCubic,
+      description: 'Sidebar width and similar spatial navigation changes.',
+      builder: (context) => const _MotionSpecimen(),
+    ),
+    DesyMotionEntry(
+      id: 'desy.motion.feedback',
+      name: 'Feedback emphasis',
+      duration: DesyDesignSystemTokens.feedbackMotion,
+      curve: Curves.easeOutCubic,
+      description: 'A concise confirmation or newly revealed state.',
+      builder: (context) => const _MotionSpecimen(),
+    ),
+  ],
+  effects: [
+    DesyEffectEntry.boxShadow(
+      id: 'desy.effect.floating',
+      name: 'Floating surface',
+      description: 'Temporary surfaces above the workbench document.',
+      shadows: const [
+        BoxShadow(
+          color: Color(0x2410201D),
+          offset: Offset(0, 10),
+          blurRadius: 28,
+          spreadRadius: -10,
         ),
       ],
     ),
-    DesyFolder(
-      id: 'desy.components',
-      name: 'Components',
-      children: [
-        DesyFolder(
-          id: 'desy.components.actions',
-          name: 'Actions',
-          components: [_buttonComponent],
-        ),
-        DesyFolder(
-          id: 'desy.components.feedback',
-          name: 'Feedback',
-          components: [_badgeComponent, _dialogComponent],
-        ),
-        DesyFolder(
-          id: 'desy.components.inputs',
-          name: 'Inputs',
-          components: [_selectComponent, _switchComponent, _textFieldComponent],
-        ),
-        DesyFolder(
-          id: 'desy.components.navigation',
-          name: 'Navigation',
-          components: [
-            _accordionComponent,
-            _sidebarComponent,
-            _tabsComponent,
-            _tileComponent,
-          ],
-        ),
-        DesyFolder(
-          id: 'desy.components.surfaces',
-          name: 'Surfaces',
-          components: [_cardComponent, _scaffoldComponent],
-        ),
-        DesyFolder(
-          id: 'desy.components.utilities',
-          name: 'Utilities',
-          components: [_shortcutComponent],
-        ),
-      ],
-    ),
+  ],
+  components: [
+    _buttonComponent,
+    _badgeComponent,
+    _dialogComponent,
+    _selectComponent,
+    _switchComponent,
+    _textFieldComponent,
+    _accordionComponent,
+    _tabsComponent,
+    _tileComponent,
+    _sidebarComponent,
+    _sidebarSectionComponent,
+    _sidebarItemComponent,
+    _cardComponent,
+    _scaffoldComponent,
+    _shortcutComponent,
   ],
   showcases: [
     DesyShowcase(
@@ -282,6 +228,7 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
 final _buttonComponent = DesyComponent(
   id: 'desy.component.button',
   name: 'Button',
+  path: '/actions',
   icon: DesyIcons.component,
   description: 'Triggers a workbench action with a clear semantic priority.',
   accessibility: 'Use a visible outcome label and preserve disabled semantics.',
@@ -326,6 +273,7 @@ final _buttonComponent = DesyComponent(
 final _badgeComponent = _component(
   id: 'desy.component.badge',
   name: 'Badge',
+  path: '/feedback',
   description: 'A compact non-interactive label for concise metadata.',
   preview: (context) => DesyBadge(child: const Text('EXPERIMENTAL')),
 );
@@ -333,6 +281,7 @@ final _badgeComponent = _component(
 final _cardComponent = _component(
   id: 'desy.component.card',
   name: 'Card',
+  path: '/surfaces',
   description: 'Contains a related workbench specimen or inspector section.',
   preview: (context) => DesyCard(
     child: Padding(
@@ -356,6 +305,7 @@ final _cardComponent = _component(
 final _dialogComponent = _component(
   id: 'desy.component.dialog',
   name: 'Dialog',
+  path: '/feedback',
   description: 'A focused modal decision or bounded selection surface.',
   preview: (context) => DesyDialog(
     semanticsLabel: 'Example dialog',
@@ -381,6 +331,7 @@ final _dialogComponent = _component(
 final _selectComponent = _component(
   id: 'desy.component.select',
   name: 'Select',
+  path: '/inputs',
   description: 'Chooses one typed value from a bounded option set.',
   preview: (context) => SizedBox(
     width: 280,
@@ -399,6 +350,7 @@ final _selectComponent = _component(
 final _switchComponent = DesyComponent(
   id: 'desy.component.switch',
   name: 'Switch',
+  path: '/inputs',
   description: 'Changes one immediate boolean workbench preference.',
   source: 'package:desy_design_system/src/control_aliases.dart',
   preview: (context) =>
@@ -426,6 +378,7 @@ final _switchComponent = DesyComponent(
 final _textFieldComponent = DesyComponent(
   id: 'desy.component.text-field',
   name: 'Text field',
+  path: '/inputs',
   icon: DesyIcons.component,
   description: 'Native Flutter text editing styled by the Desy theme bridge.',
   accessibility:
@@ -475,6 +428,7 @@ final _textFieldComponent = DesyComponent(
 final _accordionComponent = _component(
   id: 'desy.component.accordion',
   name: 'Accordion',
+  path: '/navigation',
   description: 'Progressively discloses nested registry structure.',
   preview: (context) => SizedBox(
     width: 320,
@@ -496,23 +450,63 @@ final _accordionComponent = _component(
 final _sidebarComponent = _component(
   id: 'desy.component.sidebar',
   name: 'Sidebar',
+  path: '/navigation/sidebar',
+  description: 'The complete section-and-item workbench navigation pattern.',
+  source: 'package:desy_design_system/src/desy_sidebar.dart',
+  preview: (context) => const _SidebarSpecimen(),
+);
+
+final _sidebarSectionComponent = _component(
+  id: 'desy.component.sidebar-section',
+  name: 'Sidebar section',
+  path: '/navigation/sidebar',
   description:
-      'Persistent workbench navigation derived from the registry tree.',
+      'A non-interactive navigation heading with an optional local setting.',
+  source: 'package:desy_design_system/src/desy_sidebar.dart',
   preview: (context) => SizedBox(
     width: 248,
-    height: 320,
+    height: 150,
     child: DesySidebar(
-      header: const Padding(
-        padding: EdgeInsets.all(DesyDesignSystemTokens.spaceMd),
-        child: Text('DESY BENCH'),
-      ),
-      children: const [
-        DesySidebarItem(
-          icon: Icon(DesyIcons.layoutGrid),
-          label: Text('Atlas'),
-          selected: true,
+      children: [
+        DesySidebarSection(
+          label: 'Components',
+          count: 13,
+          action: const Icon(DesyIcons.layoutGrid, size: 15),
+          actionSemanticsLabel: 'Use component preview grid',
+          onActionPress: () {},
+          children: const [
+            DesySidebarItem(
+              icon: Icon(DesyIcons.folder),
+              label: Text('Actions'),
+            ),
+          ],
         ),
-        DesySidebarItem(icon: Icon(DesyIcons.boxes), label: Text('Components')),
+      ],
+    ),
+  ),
+);
+
+final _sidebarItemComponent = _component(
+  id: 'desy.component.sidebar-item',
+  name: 'Sidebar item',
+  path: '/navigation/sidebar',
+  description:
+      'A simple icon-and-label row, with a screen form for major destinations.',
+  source: 'package:desy_design_system/src/desy_sidebar.dart',
+  preview: (context) => SizedBox(
+    width: 248,
+    height: 110,
+    child: DesySidebar(
+      children: [
+        DesySidebarSection(
+          label: 'Workspace',
+          children: [
+            DesySidebarItem.screen(
+              icon: Icon(DesyIcons.layoutGrid),
+              label: Text('Atlas'),
+            ),
+          ],
+        ),
       ],
     ),
   ),
@@ -521,6 +515,7 @@ final _sidebarComponent = _component(
 final _tabsComponent = _component(
   id: 'desy.component.tabs',
   name: 'Tabs',
+  path: '/navigation',
   description: 'Switches between peer views without changing route ownership.',
   preview: (context) => SizedBox(
     width: 360,
@@ -543,6 +538,7 @@ final _tabsComponent = _component(
 final _tileComponent = DesyComponent(
   id: 'desy.component.tile',
   name: 'Tile',
+  path: '/navigation',
   icon: DesyIcons.component,
   description: 'A compact interactive row for navigation and selection.',
   source: 'package:desy_design_system/src/control_aliases.dart',
@@ -639,6 +635,7 @@ Widget _buildTile(
 final _scaffoldComponent = _component(
   id: 'desy.component.scaffold',
   name: 'Scaffold',
+  path: '/surfaces',
   description: 'The neutral structural surface around one workbench route.',
   preview: (context) => const SizedBox(
     width: 380,
@@ -658,6 +655,7 @@ final _desyIcons = [
   _desyIcon('boxes', 'Boxes', DesyIcons.boxes),
   _desyIcon('component', 'Component', DesyIcons.component),
   _desyIcon('folder', 'Folder', DesyIcons.folder),
+  _desyIcon('folder-tree', 'Folder tree', DesyIcons.folderTree),
   _desyIcon('palette', 'Palette', DesyIcons.palette),
   _desyIcon('type', 'Type', DesyIcons.type),
   _desyIcon('ruler', 'Ruler', DesyIcons.ruler),
@@ -687,6 +685,7 @@ DesyIconEntry _desyIcon(String id, String name, IconData icon) =>
 final _shortcutComponent = DesyComponent(
   id: 'desy.component.shortcut-label',
   name: 'Keyboard shortcut label',
+  path: '/utilities',
   icon: DesyIcons.component,
   description:
       'A compact semantic keycap treatment for discoverable shortcuts.',
@@ -715,17 +714,100 @@ final _shortcutComponent = DesyComponent(
 DesyComponent _component({
   required String id,
   required String name,
+  required String path,
   required String description,
   required DesyPreviewBuilder preview,
+  String source = 'package:desy_design_system/src/control_aliases.dart',
 }) => DesyComponent(
   id: id,
   name: name,
+  path: path,
   icon: DesyIcons.component,
   description: description,
-  source: 'package:desy_design_system/src/control_aliases.dart',
+  source: source,
   preview: preview,
   instances: [DesyComponentInstance(id: 'default', name: 'Default')],
 );
+
+class _SidebarSpecimen extends StatelessWidget {
+  const _SidebarSpecimen();
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 248,
+    height: 560,
+    child: DesySidebar(
+      header: const Padding(
+        padding: EdgeInsets.fromLTRB(16, 14, 16, 10),
+        child: Text('DESY BENCH'),
+      ),
+      children: [
+        const DesySidebarSection(
+          label: 'Workspace',
+          children: [
+            DesySidebarItem.screen(
+              icon: Icon(DesyIcons.layoutGrid),
+              label: Text('Atlas'),
+              selected: true,
+            ),
+            DesySidebarItem.screen(
+              icon: Icon(DesyIcons.boxes),
+              label: Text('Sketch'),
+            ),
+            DesySidebarItem.screen(
+              icon: Icon(DesyIcons.sparkles),
+              label: Text('AI prompts'),
+            ),
+          ],
+        ),
+        const DesySidebarSection(
+          label: 'Atoms',
+          children: [
+            DesySidebarItem(
+              icon: Icon(DesyIcons.palette),
+              label: Text('Colors'),
+            ),
+            DesySidebarItem(icon: Icon(DesyIcons.type), label: Text('Fonts')),
+          ],
+        ),
+        DesySidebarSection(
+          label: 'Components',
+          count: 13,
+          action: const Icon(DesyIcons.layoutGrid, size: 15),
+          actionSemanticsLabel: 'Use component preview grid',
+          onActionPress: () {},
+          children: const [
+            DesySidebarItem(
+              icon: Icon(DesyIcons.folder),
+              label: Text('Actions'),
+              initiallyExpanded: true,
+              children: [
+                DesySidebarItem(
+                  icon: Icon(DesyIcons.component),
+                  label: Text('Button'),
+                ),
+              ],
+            ),
+            DesySidebarItem(
+              icon: Icon(DesyIcons.folder),
+              label: Text('Feedback'),
+            ),
+          ],
+        ),
+        const DesySidebarSection(
+          label: 'Showcases',
+          count: 1,
+          children: [
+            DesySidebarItem(
+              icon: Icon(DesyIcons.layers),
+              label: Text('Overview'),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
 
 class _TextFieldFrame extends StatelessWidget {
   const _TextFieldFrame({required this.child});

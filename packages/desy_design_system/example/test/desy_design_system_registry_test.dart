@@ -9,11 +9,12 @@ void main() {
     expect(desyDesignSystemRegistry.validate(), isEmpty);
     expect(desyDesignSystemRegistry.themes, hasLength(2));
     expect(desyDesignSystemRegistry.allColors, hasLength(6));
-    expect(desyDesignSystemRegistry.allTypography, hasLength(4));
-    expect(desyDesignSystemRegistry.allNumbers, hasLength(7));
+    expect(desyDesignSystemRegistry.allFonts, hasLength(4));
+    expect(desyDesignSystemRegistry.allMeasurements, hasLength(7));
     expect(desyDesignSystemRegistry.allMotion, hasLength(2));
     expect(desyDesignSystemRegistry.allEffects, hasLength(1));
-    expect(desyDesignSystemRegistry.allIcons, hasLength(25));
+    expect(desyDesignSystemRegistry.allIcons, hasLength(26));
+    expect(desyDesignSystemRegistry.atomKinds, DesyAtomKind.values);
     expect(desyDesignSystemRegistry.allShowcases, hasLength(1));
     expect(
       desyDesignSystemRegistry.resolve('desy.icon.shapes')?.path,
@@ -32,11 +33,17 @@ void main() {
         'desy.component.select',
         'desy.component.shortcut-label',
         'desy.component.sidebar',
+        'desy.component.sidebar-section',
+        'desy.component.sidebar-item',
         'desy.component.switch',
         'desy.component.tabs',
         'desy.component.text-field',
         'desy.component.tile',
       }),
+    );
+    expect(
+      desyDesignSystemRegistry.resolve('desy.component.sidebar')?.path,
+      'Navigation / Sidebar',
     );
     for (final component in desyDesignSystemRegistry.allComponents) {
       expect(component.instances, isNotEmpty, reason: component.id);

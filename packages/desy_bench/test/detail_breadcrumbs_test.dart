@@ -13,23 +13,12 @@ void main() {
         registry: DesyRegistry(
           name: 'Breadcrumb navigation',
           themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-          folders: [
-            DesyFolder(
-              id: 'components',
-              name: 'Components',
-              children: [
-                DesyFolder(
-                  id: 'components.actions',
-                  name: 'Actions',
-                  components: [
-                    DesyComponent(
-                      id: 'button.primary',
-                      name: 'Primary button',
-                      preview: _preview,
-                    ),
-                  ],
-                ),
-              ],
+          components: [
+            DesyComponent(
+              id: 'button.primary',
+              name: 'Primary button',
+              path: '/actions',
+              preview: _preview,
             ),
           ],
         ),
@@ -40,11 +29,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.byKey(const ValueKey('detail-breadcrumb-folder-components')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('detail-breadcrumb-folder-components.actions')),
+      find.byKey(const ValueKey('detail-breadcrumb-folder-/actions')),
       findsOneWidget,
     );
     expect(find.semantics.byLabel('Open Actions folder'), findsOneWidget);
@@ -53,7 +38,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('atlas-search')), findsOneWidget);
-    expect(find.text('ACTIONS'), findsOneWidget);
+    expect(find.text('ACTIONS'), findsWidgets);
     expect(find.text('Primary button'), findsWidgets);
     semantics.dispose();
   });

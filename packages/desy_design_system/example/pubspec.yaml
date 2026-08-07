@@ -11,7 +11,7 @@ resolution: workspace
 
 dependencies:
   desy_agent_annotations:
-    path: ../../desy_agent_annotations
+    path: ../../extensions/desy_agent_annotations
   desy_bench:
     path: ../../desy_bench
   desy_design_system:

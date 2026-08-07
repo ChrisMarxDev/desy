@@ -4,6 +4,43 @@ import 'package:flutter/material.dart';
 
 import 'registry_missing_widget.dart';
 
+/// A built-in, typed atom lane understood by Desy's specialized boards.
+enum DesyAtomKind {
+  /// Consumer color and visual-treatment entries.
+  colors,
+
+  /// Consumer typography entries.
+  fonts,
+
+  /// Consumer icon glyph entries.
+  icons,
+
+  /// Consumer numeric foundation entries.
+  measurements,
+
+  /// Consumer motion entries with playback-aware specimens.
+  motion,
+
+  /// Consumer visual-effect entries.
+  effects;
+
+  /// Stable ID used by registry-derived navigation.
+  String get id => 'desy.atoms.$name';
+
+  /// Human-readable lane name.
+  String get label => switch (this) {
+    colors => 'Colors',
+    fonts => 'Fonts',
+    icons => 'Icons',
+    measurements => 'Measurements',
+    motion => 'Motion',
+    effects => 'Effects',
+  };
+
+  /// Stable ID of the built-in Atoms navigation section.
+  static const rootId = 'desy.atoms';
+}
+
 /// The consumer-owned definition rendered by Desy Bench.
 class DesyRegistry {
   /// Creates a design-system registry.
@@ -12,28 +49,27 @@ class DesyRegistry {
     required List<DesyTheme> themes,
     List<DesyToken> tokens = const [],
     List<DesyColorEntry> colors = const [],
-    List<DesyTypographyEntry> typography = const [],
-    List<DesyNumericEntry> numbers = const [],
+    List<DesyTypographyEntry> fonts = const [],
+    List<DesyNumericEntry> measurements = const [],
     List<DesyMotionEntry> motion = const [],
     List<DesyEffectEntry> effects = const [],
     List<DesyIconEntry> icons = const [],
     List<DesyAssetEntry> assets = const [],
     List<DesyComponent> components = const [],
     List<DesyShowcase> showcases = const [],
-    List<DesyFolder> folders = const [],
   }) : assert(themes.isNotEmpty, 'A Desy registry needs at least one theme.'),
        themes = List.unmodifiable(themes),
        tokens = List.unmodifiable(tokens),
        colors = List.unmodifiable(colors),
-       typography = List.unmodifiable(typography),
-       numbers = List.unmodifiable(numbers),
+       fonts = List.unmodifiable(fonts),
+       measurements = List.unmodifiable(measurements),
        motion = List.unmodifiable(motion),
        effects = List.unmodifiable(effects),
        icons = List.unmodifiable(icons),
        assets = List.unmodifiable(assets),
        components = List.unmodifiable(components),
        showcases = List.unmodifiable(showcases),
-       folders = List.unmodifiable(folders);
+       componentGroups = _buildComponentGroups(components);
 
   /// Human-readable system name.
   final String name;
@@ -50,11 +86,11 @@ class DesyRegistry {
   /// treatment in addition to a single color value.
   final List<DesyColorEntry> colors;
 
-  /// Consumer-owned text styles for the typography atlas.
-  final List<DesyTypographyEntry> typography;
+  /// Consumer-owned text styles for the specialized Fonts board.
+  final List<DesyTypographyEntry> fonts;
 
-  /// Typed numeric primitives such as spacing, radius, and breakpoints.
-  final List<DesyNumericEntry> numbers;
+  /// Typed numeric primitives for the specialized Measurements board.
+  final List<DesyNumericEntry> measurements;
 
   /// Motion primitives and their live consumer-owned specimens.
   final List<DesyMotionEntry> motion;
@@ -77,72 +113,78 @@ class DesyRegistry {
   /// create a second screen model or ask consumers to duplicate their system.
   final List<DesyShowcase> showcases;
 
-  /// Nested registry content, shown as folders in Desy Bench.
-  ///
-  /// Root-level lists remain available for small systems and backward
-  /// compatibility. Desy-owned surfaces should use the `all*` accessors when
-  /// they need the complete, recursively declared system.
-  final List<DesyFolder> folders;
+  /// Navigation groups derived from [components] and their normalized paths.
+  final List<DesyComponentGroup> componentGroups;
 
-  /// Every token declared at the root or inside a folder.
-  List<DesyToken> get allTokens => List.unmodifiable([
-    ...tokens,
-    for (final folder in folders) ...folder.allTokens,
+  /// Every declared semantic token.
+  List<DesyToken> get allTokens => tokens;
+
+  /// Every visual entry declared for the Colors lane.
+  List<DesyColorEntry> get allColors => colors;
+
+  /// Every typography entry declared for the Fonts lane.
+  List<DesyTypographyEntry> get allFonts => fonts;
+
+  /// Every numeric primitive declared for the Measurements lane.
+  List<DesyNumericEntry> get allMeasurements => measurements;
+
+  /// Every motion primitive declared for the Motion lane.
+  List<DesyMotionEntry> get allMotion => motion;
+
+  /// Every widget effect declared for the Effects lane.
+  List<DesyEffectEntry> get allEffects => effects;
+
+  /// Every icon primitive declared for the Icons lane.
+  List<DesyIconEntry> get allIcons => icons;
+
+  /// Non-empty built-in atom lanes, in stable workbench order.
+  List<DesyAtomKind> get atomKinds => List.unmodifiable([
+    if (colors.isNotEmpty) DesyAtomKind.colors,
+    if (fonts.isNotEmpty) DesyAtomKind.fonts,
+    if (icons.isNotEmpty) DesyAtomKind.icons,
+    if (measurements.isNotEmpty) DesyAtomKind.measurements,
+    if (motion.isNotEmpty) DesyAtomKind.motion,
+    if (effects.isNotEmpty) DesyAtomKind.effects,
   ]);
 
-  /// Every visual entry declared at the root or inside a folder.
-  List<DesyColorEntry> get allColors => List.unmodifiable([
-    ...colors,
-    for (final folder in folders) ...folder.allColors,
-  ]);
+  /// Whether the registry opts into at least one built-in atom lane.
+  bool get hasAtoms => atomKinds.isNotEmpty;
 
-  /// Every typography entry declared at the root or inside a folder.
-  List<DesyTypographyEntry> get allTypography => List.unmodifiable([
-    ...typography,
-    for (final folder in folders) ...folder.allTypography,
-  ]);
+  /// Resolved entries for one built-in atom lane.
+  List<DesyRegistryEntry> entriesForAtom(DesyAtomKind kind) =>
+      List.unmodifiable(
+        _entriesFor(
+          tokens: const [],
+          colors: kind == DesyAtomKind.colors ? colors : const [],
+          typography: kind == DesyAtomKind.fonts ? fonts : const [],
+          numbers: kind == DesyAtomKind.measurements ? measurements : const [],
+          motion: kind == DesyAtomKind.motion ? motion : const [],
+          effects: kind == DesyAtomKind.effects ? effects : const [],
+          icons: kind == DesyAtomKind.icons ? icons : const [],
+          assets: const [],
+          components: const [],
+          folderIds: [DesyAtomKind.rootId, kind.id],
+          folderNames: ['Atoms', kind.label],
+          atomKind: kind,
+        ),
+      );
 
-  /// Every numeric primitive declared at the root or inside a folder.
-  List<DesyNumericEntry> get allNumbers => List.unmodifiable([
-    ...numbers,
-    for (final folder in folders) ...folder.allNumbers,
-  ]);
+  /// Finds a built-in atom lane by its stable navigation ID.
+  DesyAtomKind? atomKindForId(String id) {
+    for (final kind in atomKinds) {
+      if (kind.id == id) return kind;
+    }
+    return null;
+  }
 
-  /// Every motion primitive declared at the root or inside a folder.
-  List<DesyMotionEntry> get allMotion => List.unmodifiable([
-    ...motion,
-    for (final folder in folders) ...folder.allMotion,
-  ]);
+  /// Every declared asset primitive.
+  List<DesyAssetEntry> get allAssets => assets;
 
-  /// Every widget effect declared at the root or inside a folder.
-  List<DesyEffectEntry> get allEffects => List.unmodifiable([
-    ...effects,
-    for (final folder in folders) ...folder.allEffects,
-  ]);
-
-  /// Every icon primitive declared at the root or inside a folder.
-  List<DesyIconEntry> get allIcons => List.unmodifiable([
-    ...icons,
-    for (final folder in folders) ...folder.allIcons,
-  ]);
-
-  /// Every asset primitive declared at the root or inside a folder.
-  List<DesyAssetEntry> get allAssets => List.unmodifiable([
-    ...assets,
-    for (final folder in folders) ...folder.allAssets,
-  ]);
-
-  /// Every component declared at the root or inside a folder.
-  List<DesyComponent> get allComponents => List.unmodifiable([
-    ...components,
-    for (final folder in folders) ...folder.allComponents,
-  ]);
+  /// Every declared component.
+  List<DesyComponent> get allComponents => components;
 
   /// Every experimental showcase declared by this system.
-  List<DesyShowcase> get allShowcases => List.unmodifiable([
-    ...showcases,
-    for (final folder in folders) ...folder.allShowcases,
-  ]);
+  List<DesyShowcase> get allShowcases => showcases;
 
   /// Every named component instance declared by this system.
   ///
@@ -184,13 +226,14 @@ class DesyRegistry {
   /// A recursive, read-only view of every widget-returning registry artifact.
   List<DesyRegistryEntry> get allEntries => List.unmodifiable([
     ..._rootEntries(),
-    for (final folder in folders)
-      ...folder.entries(folderIds: [folder.id], folderNames: [folder.name]),
+    for (final kind in atomKinds) ...entriesForAtom(kind),
+    for (final component in components) _componentEntry(component),
   ]);
 
-  /// Every declared folder, in stable tree order.
-  List<DesyFolder> get allFolders =>
-      List.unmodifiable([for (final folder in folders) ...folder.allFolders]);
+  /// Every derived component group, in stable tree order.
+  List<DesyComponentGroup> get allComponentGroups => List.unmodifiable([
+    for (final group in componentGroups) ...group.allGroups,
+  ]);
 
   /// Reports declaration problems without mutating the consumer registry.
   List<DesyRegistryValidationIssue> validate({
@@ -199,205 +242,153 @@ class DesyRegistry {
 
   List<DesyRegistryEntry> _rootEntries() => _entriesFor(
     tokens: tokens,
-    colors: colors,
-    typography: typography,
-    numbers: numbers,
-    motion: motion,
-    effects: effects,
-    icons: icons,
+    colors: const [],
+    typography: const [],
+    numbers: const [],
+    motion: const [],
+    effects: const [],
+    icons: const [],
     assets: assets,
-    components: components,
+    components: const [],
   );
+
+  DesyRegistryEntry _componentEntry(DesyComponent component) =>
+      DesyRegistryEntry(
+        id: component.id,
+        name: component.name,
+        folderIds: component.componentPath.cumulativePaths,
+        folderNames: component.componentPath.labels,
+        builder: component.preview,
+        source: component,
+        description: component.description,
+        component: component,
+      );
 }
 
-/// A named, nestable registry branch.
+/// A normalized component navigation path.
 ///
-/// Folders are structural only: they do not introduce a new design-system
-/// taxonomy. Their children remain the same widget-returning Desy primitives.
-class DesyFolder {
-  /// Creates a folder and its optional nested registry content.
-  DesyFolder({
-    required this.id,
+/// Leading, trailing, and repeated slashes are ignored, so `input`, `/input`,
+/// `input/`, and `//input//` all resolve to `/input`.
+class DesyComponentPath {
+  DesyComponentPath._(List<String> segments)
+    : segments = List.unmodifiable(segments);
+
+  /// Parses and validates consumer-facing slash syntax.
+  factory DesyComponentPath.parse(String value) {
+    final trimmed = value.trim();
+    final segments = trimmed
+        .split('/')
+        .where((segment) => segment.isNotEmpty)
+        .toList(growable: false);
+    if (trimmed.isEmpty || (segments.isEmpty && trimmed != '/')) {
+      throw ArgumentError.value(value, 'path', 'Use / for the root path.');
+    }
+    for (final segment in segments) {
+      if (segment == '.' || segment == '..' || !_segment.hasMatch(segment)) {
+        throw ArgumentError.value(
+          value,
+          'path',
+          'Use lowercase kebab-case segments such as /inputs/text.',
+        );
+      }
+    }
+    return DesyComponentPath._(segments);
+  }
+
+  static final _segment = RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$');
+
+  /// Canonical path segments.
+  final List<String> segments;
+
+  /// Canonical slash form. Root components use `/`.
+  String get value => segments.isEmpty ? '/' : '/${segments.join('/')}';
+
+  /// Human-readable labels derived from the structural slugs.
+  List<String> get labels => List.unmodifiable(segments.map(_pathLabel));
+
+  /// Canonical path for each ancestor, from root group to leaf group.
+  List<String> get cumulativePaths => List.unmodifiable([
+    for (var index = 0; index < segments.length; index++)
+      '/${segments.take(index + 1).join('/')}',
+  ]);
+}
+
+/// One immutable node in the component file tree derived by [DesyRegistry].
+class DesyComponentGroup {
+  DesyComponentGroup._({
+    required this.path,
     required this.name,
-    this.description,
-    List<DesyToken> tokens = const [],
-    List<DesyColorEntry> colors = const [],
-    List<DesyTypographyEntry> typography = const [],
-    List<DesyNumericEntry> numbers = const [],
-    List<DesyMotionEntry> motion = const [],
-    List<DesyEffectEntry> effects = const [],
-    List<DesyIconEntry> icons = const [],
-    List<DesyAssetEntry> assets = const [],
-    List<DesyComponent> components = const [],
-    List<DesyShowcase> showcases = const [],
-    List<DesyFolder> children = const [],
-  }) : tokens = List.unmodifiable(tokens),
-       colors = List.unmodifiable(colors),
-       typography = List.unmodifiable(typography),
-       numbers = List.unmodifiable(numbers),
-       motion = List.unmodifiable(motion),
-       effects = List.unmodifiable(effects),
-       icons = List.unmodifiable(icons),
-       assets = List.unmodifiable(assets),
-       components = List.unmodifiable(components),
-       showcases = List.unmodifiable(showcases),
+    required List<DesyComponent> components,
+    required List<DesyComponentGroup> children,
+  }) : components = List.unmodifiable(components),
        children = List.unmodifiable(children);
 
-  /// Stable folder identifier.
-  final String id;
+  /// Canonical slash path and navigation identity.
+  final String path;
 
-  /// Display name used by navigation.
+  /// Display label derived from the final path segment.
   final String name;
 
-  /// Optional explanation of the folder's purpose.
-  final String? description;
-
-  /// Tokens directly declared by this folder.
-  final List<DesyToken> tokens;
-
-  /// Visual entries directly declared by this folder.
-  final List<DesyColorEntry> colors;
-
-  /// Typography entries directly declared by this folder.
-  final List<DesyTypographyEntry> typography;
-
-  /// Numeric primitives directly declared by this folder.
-  final List<DesyNumericEntry> numbers;
-
-  /// Motion primitives directly declared by this folder.
-  final List<DesyMotionEntry> motion;
-
-  /// Widget effects directly declared by this folder.
-  final List<DesyEffectEntry> effects;
-
-  /// Icon primitives directly declared by this folder.
-  final List<DesyIconEntry> icons;
-
-  /// Asset primitives directly declared by this folder.
-  final List<DesyAssetEntry> assets;
-
-  /// Components directly declared by this folder.
+  /// Components declared directly at this path.
   final List<DesyComponent> components;
 
-  /// Complete consumer examples declared in this branch.
-  final List<DesyShowcase> showcases;
+  /// Nested path groups in first-registration order.
+  final List<DesyComponentGroup> children;
 
-  /// Nested branches of this folder.
-  final List<DesyFolder> children;
-
-  /// Every token in this branch, including descendants.
-  List<DesyToken> get allTokens => List.unmodifiable([
-    ...tokens,
-    for (final folder in children) ...folder.allTokens,
+  /// This group and all descendants in stable tree order.
+  List<DesyComponentGroup> get allGroups => List.unmodifiable([
+    this,
+    for (final child in children) ...child.allGroups,
   ]);
 
-  /// Every visual entry in this branch, including descendants.
-  List<DesyColorEntry> get allColors => List.unmodifiable([
-    ...colors,
-    for (final folder in children) ...folder.allColors,
-  ]);
-
-  /// Every typography entry in this branch, including descendants.
-  List<DesyTypographyEntry> get allTypography => List.unmodifiable([
-    ...typography,
-    for (final folder in children) ...folder.allTypography,
-  ]);
-
-  /// Every numeric primitive in this branch, including descendants.
-  List<DesyNumericEntry> get allNumbers => List.unmodifiable([
-    ...numbers,
-    for (final folder in children) ...folder.allNumbers,
-  ]);
-
-  /// Every motion primitive in this branch, including descendants.
-  List<DesyMotionEntry> get allMotion => List.unmodifiable([
-    ...motion,
-    for (final folder in children) ...folder.allMotion,
-  ]);
-
-  /// Every widget effect in this branch, including descendants.
-  List<DesyEffectEntry> get allEffects => List.unmodifiable([
-    ...effects,
-    for (final folder in children) ...folder.allEffects,
-  ]);
-
-  /// Every icon primitive in this branch, including descendants.
-  List<DesyIconEntry> get allIcons => List.unmodifiable([
-    ...icons,
-    for (final folder in children) ...folder.allIcons,
-  ]);
-
-  /// Every asset primitive in this branch, including descendants.
-  List<DesyAssetEntry> get allAssets => List.unmodifiable([
-    ...assets,
-    for (final folder in children) ...folder.allAssets,
-  ]);
-
-  /// Every component in this branch, including descendants.
+  /// Every component in this group and its descendants.
   List<DesyComponent> get allComponents => List.unmodifiable([
     ...components,
-    for (final folder in children) ...folder.allComponents,
-  ]);
-
-  /// Every showcase in this branch, including descendants.
-  List<DesyShowcase> get allShowcases => List.unmodifiable([
-    ...showcases,
-    for (final folder in children) ...folder.allShowcases,
-  ]);
-
-  /// Every folder in this branch, including this folder.
-  List<DesyFolder> get allFolders => List.unmodifiable([
-    this,
-    for (final child in children) ...child.allFolders,
-  ]);
-
-  /// Direct artifacts declared by this folder.
-  List<DesyRegistryEntry> directEntries({
-    required List<String> folderIds,
-    required List<String> folderNames,
-  }) => List.unmodifiable(
-    _entriesFor(
-      tokens: tokens,
-      colors: colors,
-      typography: typography,
-      numbers: numbers,
-      motion: motion,
-      effects: effects,
-      icons: icons,
-      assets: assets,
-      components: components,
-      folderIds: folderIds,
-      folderNames: folderNames,
-    ),
-  );
-
-  /// Direct and nested artifacts with stable folder ancestry.
-  List<DesyRegistryEntry> entries({
-    required List<String> folderIds,
-    required List<String> folderNames,
-  }) => List.unmodifiable([
-    ...directEntries(folderIds: folderIds, folderNames: folderNames),
-    for (final child in children)
-      ...child.entries(
-        folderIds: [...folderIds, child.id],
-        folderNames: [...folderNames, child.name],
-      ),
+    for (final child in children) ...child.allComponents,
   ]);
 }
 
-/// A recursively typed folder containing typography entries only.
-///
-/// This optional adapter keeps a Fonts branch text-specific without making
-/// typography folders mandatory for registries that prefer generic structure.
-class DesyTypographyFolder extends DesyFolder {
-  /// Creates a typography-only folder.
-  DesyTypographyFolder({
-    required super.id,
-    required super.name,
-    super.description,
-    super.typography = const [],
-    List<DesyTypographyFolder> children = const [],
-  }) : super(children: children);
+class _MutableComponentGroup {
+  _MutableComponentGroup({required this.path, required this.name});
+
+  final String path;
+  final String name;
+  final components = <DesyComponent>[];
+  final children = <String, _MutableComponentGroup>{};
+
+  DesyComponentGroup freeze() => DesyComponentGroup._(
+    path: path,
+    name: name,
+    components: components,
+    children: [for (final child in children.values) child.freeze()],
+  );
+}
+
+List<DesyComponentGroup> _buildComponentGroups(List<DesyComponent> components) {
+  final roots = <String, _MutableComponentGroup>{};
+  for (final component in components) {
+    var siblings = roots;
+    final segments = component.componentPath.segments;
+    for (var index = 0; index < segments.length; index++) {
+      final path = '/${segments.take(index + 1).join('/')}';
+      final group = siblings.putIfAbsent(
+        path,
+        () => _MutableComponentGroup(
+          path: path,
+          name: _pathLabel(segments[index]),
+        ),
+      );
+      if (index == segments.length - 1) group.components.add(component);
+      siblings = group.children;
+    }
+  }
+  return List.unmodifiable([for (final root in roots.values) root.freeze()]);
+}
+
+String _pathLabel(String segment) {
+  final words = segment.split('-');
+  final label = words.join(' ');
+  return '${label[0].toUpperCase()}${label.substring(1)}';
 }
 
 /// Wraps a preview in the consumer's real theme context.
@@ -488,6 +479,7 @@ class DesyRegistryEntry {
     this.value,
     this.component,
     this.typography,
+    this.atomKind,
   }) : folderIds = List.unmodifiable(folderIds),
        folderNames = List.unmodifiable(folderNames);
 
@@ -497,7 +489,10 @@ class DesyRegistryEntry {
   /// Human-readable artifact name.
   final String name;
 
-  /// Stable IDs of the folders containing this artifact, from root to leaf.
+  /// Stable navigation ancestry from root to leaf.
+  ///
+  /// Typed atoms use Desy's built-in Atoms and lane IDs; folder entries use
+  /// consumer-declared folder IDs.
   final List<String> folderIds;
 
   /// Display names corresponding to [folderIds], from root to leaf.
@@ -526,6 +521,9 @@ class DesyRegistryEntry {
 
   /// Typography declaration when this entry represents a text style.
   final DesyTypographyEntry? typography;
+
+  /// Built-in atom lane when this entry is a typed atom.
+  final DesyAtomKind? atomKind;
 }
 
 /// A non-mutating problem found in a consumer declaration.
@@ -588,8 +586,9 @@ class DesyRegistryValidator {
     for (final theme in registry.themes) {
       add(theme.id, 'theme');
     }
-    for (final folder in registry.allFolders) {
-      add(folder.id, 'folder');
+    add(DesyAtomKind.rootId, 'built-in atom section');
+    for (final kind in DesyAtomKind.values) {
+      add(kind.id, 'built-in atom lane');
     }
     for (final entry in registry.allEntries) {
       add(entry.id, 'artifact');
@@ -680,6 +679,7 @@ List<DesyRegistryEntry> _entriesFor({
   required List<DesyComponent> components,
   List<String> folderIds = const [],
   List<String> folderNames = const [],
+  DesyAtomKind? atomKind,
 }) => [
   for (final token in tokens)
     DesyRegistryEntry(
@@ -691,6 +691,7 @@ List<DesyRegistryEntry> _entriesFor({
       source: token,
       description: token.description,
       value: token.value,
+      atomKind: atomKind,
     ),
   for (final color in colors)
     DesyRegistryEntry(
@@ -702,6 +703,7 @@ List<DesyRegistryEntry> _entriesFor({
       source: color,
       description: color.description,
       value: color.value,
+      atomKind: atomKind,
     ),
   for (final type in typography)
     DesyRegistryEntry(
@@ -714,6 +716,7 @@ List<DesyRegistryEntry> _entriesFor({
       description: type.description,
       value: type.value,
       typography: type,
+      atomKind: atomKind,
     ),
   for (final number in numbers)
     DesyRegistryEntry(
@@ -725,6 +728,7 @@ List<DesyRegistryEntry> _entriesFor({
       source: number,
       description: number.description,
       value: number.displayValue,
+      atomKind: atomKind,
     ),
   for (final item in motion)
     DesyRegistryEntry(
@@ -736,6 +740,7 @@ List<DesyRegistryEntry> _entriesFor({
       source: item,
       description: item.description,
       value: item.displayValue,
+      atomKind: atomKind,
     ),
   for (final effect in effects)
     DesyRegistryEntry(
@@ -748,6 +753,7 @@ List<DesyRegistryEntry> _entriesFor({
       source: effect,
       description: effect.description,
       value: effect.displayValue,
+      atomKind: atomKind,
     ),
   for (final icon in icons)
     DesyRegistryEntry(
@@ -759,6 +765,7 @@ List<DesyRegistryEntry> _entriesFor({
       source: icon,
       description: icon.description,
       value: icon.value,
+      atomKind: atomKind,
     ),
   for (final asset in assets)
     DesyRegistryEntry(
@@ -770,6 +777,7 @@ List<DesyRegistryEntry> _entriesFor({
       source: asset,
       description: asset.description,
       value: asset.displayValue,
+      atomKind: atomKind,
     ),
   for (final component in components)
     DesyRegistryEntry(
@@ -781,6 +789,7 @@ List<DesyRegistryEntry> _entriesFor({
       source: component,
       description: component.description,
       component: component,
+      atomKind: atomKind,
     ),
 ];
 
@@ -1604,7 +1613,7 @@ class DesyTypographyEntry {
     required this.builder,
     this.value,
     this.description,
-    this.sample = 'Harbor schedules are clear at a glance.',
+    this.sample = 'Design systems stay clear at a glance.',
   });
 
   /// Stable identifier for the entry.
@@ -1637,6 +1646,7 @@ class DesyComponent {
     required this.id,
     required this.name,
     required this.preview,
+    String path = '/',
     this.icon,
     this.description,
     this.category = 'Components',
@@ -1647,7 +1657,8 @@ class DesyComponent {
     List<DesyComponentInstance> instances = const [],
     this.contract,
     List<DesyComponentScenario> scenarios = const [],
-  }) : knobs = List.unmodifiable(knobs),
+  }) : componentPath = DesyComponentPath.parse(path),
+       knobs = List.unmodifiable(knobs),
        instances = List.unmodifiable(instances),
        scenarios = List.unmodifiable(scenarios);
 
@@ -1656,6 +1667,12 @@ class DesyComponent {
 
   /// Display name.
   final String name;
+
+  /// Normalized navigation path derived from the supplied slash syntax.
+  String get path => componentPath.value;
+
+  /// Parsed path used to derive the component file tree.
+  final DesyComponentPath componentPath;
 
   /// Optional icon used by Desy navigation and component-picking surfaces.
   ///

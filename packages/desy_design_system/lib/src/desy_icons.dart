@@ -33,6 +33,9 @@ abstract final class DesyIcons {
   /// A registry folder.
   static const IconData folder = FLucideIcons.folder;
 
+  /// A recursive file-browser hierarchy.
+  static const IconData folderTree = FLucideIcons.folderTree;
+
   /// An image or visual asset.
   static const IconData image = FLucideIcons.image;
 

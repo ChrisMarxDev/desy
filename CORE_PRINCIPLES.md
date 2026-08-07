@@ -18,13 +18,18 @@ Previews render the actual widgets supplied by the consuming system, wrapped in
 the selected consumer theme. The workbench never approximates a component with
 a parallel implementation.
 
-## 4. Primitive-first, widget-returning contracts
+## 4. Opinionated structure, open implementation
 
-Desy does not prescribe a design-system taxonomy or visual language. Every
-registered artifact ultimately resolves through a simple builder that returns a
-Flutter `Widget`. Tokens, colors, atoms, molecules, components, and future
-screen definitions are optional convenience adapters over that primitive—not
-mandatory models a consuming system must adopt.
+Desy prescribes a small, typed design-system structure so it can provide
+purpose-built tools for Colors, Fonts, Icons, Measurements, Motion, and Effects.
+Each lane is an optional, separate `DesyRegistry` parameter. A consumer opts in
+by supplying entries and an empty lane is absent from the workbench.
+
+Within those lanes, implementation stays open: every registered artifact
+ultimately resolves through a builder that returns the consumer's real Flutter
+`Widget`. Typed metadata gives Desy enough structure for font specimens,
+measurement diagrams, motion playback and scrubbing, and other specialized
+surfaces without prescribing the consumer's visual language.
 
 For example, a color entry may use a color-specific builder to offer a useful
 scaffold experience, but that builder still returns a widget. Desy-owned UI
@@ -48,14 +53,16 @@ Interactive manifests never serialize callbacks or application logic, and they
 are not production Dart-code generation. A future export flow may deliberately
 translate a validated manifest, but only as a separate, explicit capability.
 
-Folders are first-class, nestable registry structure. They organize existing
-primitives without imposing a new taxonomy; Desy surfaces resolve the complete
-tree through registry accessors instead of flattening and owning a second list.
+Components are one flat registry list. Each component may declare a concise
+slash path such as `/inputs/text`; Desy validates and parses that value into an
+immutable component path, then derives the navigation tree. Component IDs remain
+the durable artifact identity, while paths organize presentation and never form
+a second component inventory.
 
 ## 6. Local first, useful early
 
-The first release runs in a Flutter repository without a hosted service. Build
-the package and a representative sample consumer before adding a CLI, code
+The first release runs in a Flutter repository without a hosted service. The
+dogfood executable proves the public integration before adding a CLI, code
 generation, cloud collaboration, or a visual editor.
 
 ## 7. Forui is the Desy scaffold foundation
@@ -87,27 +94,30 @@ not simulate a compact preview by passing arbitrary smaller constraints to the
 consumer widget; the consumer's true layout remains inspectable while the
 workbench controls the presentation scale.
 
-## 9. Atoms organize foundational primitives
+## 9. Atoms are optional typed registry lanes
 
-Atoms is a top-level folder in the registry tree, not a duplicate entry type or
-parallel inventory. It contains folders such as Colors, Fonts, Icons, and
-Measurements. Solid swatches, gradients, and consumer-supplied
-color/treatment widgets are color entries inside `Atoms/Colors`; Flutter icon
-glyphs are typed `DesyIconEntry` declarations inside `Atoms/Icons`. They do not
-also appear as generic atoms or fake components. This prevents duplicated
-visual inventories while keeping primitive-specific adapters as thin
-widget-returning conveniences. The workbench sidebar exposes the used atom
-folder hierarchy, not every primitive leaf; the Atlas and typed boards own
-high-volume primitive browsing.
+Atoms is a built-in workbench section derived from typed `DesyRegistry`
+parameters, not a consumer-declared folder. Its known lanes are Colors, Fonts,
+Icons, Measurements, Motion, and Effects. Desy may give each lane specialized
+treatment because its type is explicit; it never infers semantics from folder
+names or contents.
+
+Solid swatches, gradients, and consumer-supplied treatments are
+`DesyColorEntry` values; text specimens are `DesyTypographyEntry` values;
+numeric foundations are `DesyNumericEntry` values; motion uses
+`DesyMotionEntry`; effects use `DesyEffectEntry`; and glyphs use
+`DesyIconEntry`. Every entry may still render a consumer-owned widget. Empty
+lanes are omitted, and when all lanes are empty the entire Atoms sidebar section
+is omitted.
 
 ## 10. Flutter-platform compatible by default
 
-Desy Bench and its sample consumer run on every platform Flutter supports,
+Desy Bench and its dogfood executable run on every platform Flutter supports,
 including web, mobile, and desktop. Desy-owned UI adapts its layout and input
 affordances to the available space and platform without duplicating the
 registry, preview, or workbench experience. Platform-specific behavior is an
 explicit, narrowly scoped consumer concern; it must not make the reusable
-package or the sample unavailable elsewhere.
+package or the dogfood app unavailable elsewhere.
 
 ## 11. Minimum necessary declaration
 
@@ -122,10 +132,10 @@ because Desy has a place to store it.
 ## 12. Object-shaped, typed interfaces
 
 Desy APIs accept the richest appropriate domain object rather than parallel
-primitive arguments, string conventions, or loosely typed maps. Builders
-derive their available choices and return types from that object, making valid
-usage clear through the type system and autocomplete while making invalid
-states difficult to express.
+primitive arguments or loosely typed maps. Concise authoring syntax such as a
+component's slash path is normalized immediately into a validated domain object.
+Builders derive their available choices and return types from typed objects,
+making invalid states difficult to express.
 
 ## 13. Compose before configuring
 
@@ -165,29 +175,25 @@ burden for every consumer.
 
 ## 17. Documentation starts with successful use
 
-The root README is the practical front door for both people and coding agents.
-It explains how to install, run, and correctly declare a consumer-owned design
-system before describing repository internals or product history. The
-repository's Markdown documentation is its wiki: the README gives each topic a
-clear entry point and links to focused, maintained documents for deeper
-guidance. Examples must reflect the real registry contracts and reinforce the
-single declared system rather than introduce a parallel configuration path.
+The root README is the practical front door for users. `dev.md` is the single
+maintained contributor guide. Examples must reflect the real registry contracts
+and reinforce the single declared system rather than introduce a parallel
+configuration path. Do not retain speculative roadmaps or generated context as
+documentation.
 
-## 18. Samples are maintained product surfaces
+## 18. Dogfood is the maintained product surface
 
-The Harbor sample and Desy's own dogfood catalogue are canonical product
-surfaces, not dumping grounds for test fixtures. Harbor proves that an
-independent consumer keeps ownership of its visual language; the dogfood app
-proves that Desy's own system can be fully declared and managed through the
-same public registry contract. Every visible entry must be purposeful,
+Desy's dogfood catalogue is the canonical executable and integration sample,
+not a dumping ground for test fixtures. It must exercise the same public
+registry contract that consumers use. Every visible entry must be purposeful,
 presentation-ready, correctly typed, and representative of that contract. Do
 not ship placeholder labels, generic specimen widgets, duplicate
-representations of the same primitive, or test-only artifacts in either
-registry.
+representations of the same primitive, or test-only artifacts in its registry.
 
-Tests may define deliberately minimal fixtures inside test files. Both running
-catalogues must remain clean after every work block, because confusing sample
-data looks like confusing Desy behavior and teaches consumers the wrong API.
+Tests may define deliberately minimal fixtures inside test files. The running
+dogfood catalogue must remain clean after every work block, because confusing
+sample data looks like confusing Desy behavior and teaches consumers the wrong
+API.
 
 ## Non-goals for the first release
 

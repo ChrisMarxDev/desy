@@ -18,18 +18,17 @@ class DesyMeasuresScreen extends StatelessWidget {
   const DesyMeasuresScreen({
     super.key,
     required this.session,
-    required this.folder,
+    required this.measurements,
   });
 
   final DesyWorkbenchSession session;
-  final DesyFolder folder;
+  final List<DesyNumericEntry> measurements;
 
   @override
   Widget build(BuildContext context) {
     final theme = session.activeThemeIndex.watch(context);
-    final measures = folder.allNumbers;
     final groups = <DesyNumericKind, List<DesyNumericEntry>>{};
-    for (final measure in measures) {
+    for (final measure in measurements) {
       (groups[measure.kind] ??= []).add(measure);
     }
 
@@ -37,11 +36,11 @@ class DesyMeasuresScreen extends StatelessWidget {
       padding: const EdgeInsets.all(28),
       children: [
         Text(
-          folder.name.toUpperCase(),
+          'ATOMS / MEASUREMENTS',
           style: Theme.of(context).textTheme.labelSmall,
         ),
         const SizedBox(height: 4),
-        Text(folder.name, style: Theme.of(context).textTheme.displaySmall),
+        Text('Measurements', style: Theme.of(context).textTheme.displaySmall),
         const SizedBox(height: 6),
         Text(
           'Compare the geometry that gives components their rhythm.',

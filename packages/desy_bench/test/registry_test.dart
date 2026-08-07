@@ -3,36 +3,27 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('typography folders expose only typed typography content', () {
-    final folder = DesyTypographyFolder(
-      id: 'fonts',
-      name: 'Fonts',
-      typography: [
+  test('typed atom lanes are optional registry parameters', () {
+    final registry = DesyRegistry(
+      name: 'Typed atoms',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      fonts: [
         DesyTypographyEntry(
           id: 'type.body',
           name: 'Body',
           builder: (_, text) => Text(text),
         ),
       ],
-      children: [
-        DesyTypographyFolder(
-          id: 'fonts.emphasis',
-          name: 'Emphasis',
-          typography: [
-            DesyTypographyEntry(
-              id: 'type.emphasis',
-              name: 'Emphasis',
-              builder: (_, text) => Text(text),
-            ),
-          ],
-        ),
-      ],
     );
 
-    expect(folder.allTypography, hasLength(2));
-    expect(folder.allTokens, isEmpty);
-    expect(folder.allColors, isEmpty);
-    expect(folder.allComponents, isEmpty);
+    expect(registry.fonts, hasLength(1));
+    expect(registry.atomKinds, [DesyAtomKind.fonts]);
+    expect(
+      registry.entriesForAtom(DesyAtomKind.fonts).single.path,
+      'Atoms / Fonts',
+    );
+    expect(registry.hasAtoms, isTrue);
+    expect(() => registry.fonts.clear(), throwsUnsupportedError);
   });
 
   test('registry requires at least one consumer theme', () {
@@ -88,7 +79,7 @@ void main() {
     expect(audio.group, 'Sounds');
   });
 
-  testWidgets('icon entries remain typed and resolve through folders', (
+  testWidgets('icon entries resolve through the built-in Icons lane', (
     tester,
   ) async {
     const icon = DesyIconEntry(
@@ -101,15 +92,7 @@ void main() {
     final registry = DesyRegistry(
       name: 'Icons',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-      folders: [
-        DesyFolder(
-          id: 'atoms',
-          name: 'Atoms',
-          children: [
-            DesyFolder(id: 'atoms.icons', name: 'Icons', icons: [icon]),
-          ],
-        ),
-      ],
+      icons: const [icon],
     );
 
     expect(registry.allIcons, [icon]);
@@ -139,34 +122,23 @@ void main() {
     expect(extension.description, isNull);
   });
 
-  test('folders recursively expose their registered components', () {
+  test('component paths derive groups while effects stay registry-level', () {
     final registry = DesyRegistry(
       name: 'Nested',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-      folders: [
-        DesyFolder(
-          id: 'feedback',
-          name: 'Feedback',
-          children: [
-            DesyFolder(
-              id: 'feedback.status',
-              name: 'Status',
-              components: [
-                DesyComponent(
-                  id: 'status.badge',
-                  name: 'Status badge',
-                  preview: (_) => const SizedBox(),
-                ),
-              ],
-              effects: [
-                DesyEffectEntry.boxShadow(
-                  id: 'effect.status',
-                  name: 'Status shadow',
-                  shadows: [BoxShadow(blurRadius: 8)],
-                ),
-              ],
-            ),
-          ],
+      effects: [
+        DesyEffectEntry.boxShadow(
+          id: 'effect.status',
+          name: 'Status shadow',
+          shadows: [BoxShadow(blurRadius: 8)],
+        ),
+      ],
+      components: [
+        DesyComponent(
+          id: 'status.badge',
+          name: 'Status badge',
+          path: '/feedback/status',
+          preview: (_) => const SizedBox(),
         ),
       ],
     );
@@ -175,96 +147,72 @@ void main() {
     expect(registry.allEffects.single.id, 'effect.status');
   });
 
-  test('folders recursively expose showcases and resolved token entries', () {
+  test('registry exposes showcases and resolved token entries', () {
     final registry = DesyRegistry(
       name: 'Nested',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-      folders: [
-        DesyFolder(
-          id: 'atoms',
-          name: 'Atoms',
-          children: [
-            DesyFolder(
-              id: 'colors',
-              name: 'Colors',
-              tokens: [
-                DesyToken(
-                  id: 'brand',
-                  name: 'Brand',
-                  value: '#006B63',
-                  builder: (_) => const SizedBox(),
-                ),
-              ],
-              showcases: [
-                DesyShowcase(
-                  id: 'status-overview',
-                  name: 'Status overview',
-                  builder: (_) => const SizedBox(),
-                ),
-              ],
-            ),
-          ],
+      tokens: [
+        DesyToken(
+          id: 'brand',
+          name: 'Brand',
+          value: '#006B63',
+          builder: (_) => const SizedBox(),
+        ),
+      ],
+      showcases: [
+        DesyShowcase(
+          id: 'status-overview',
+          name: 'Status overview',
+          builder: (_) => const SizedBox(),
         ),
       ],
     );
 
-    expect(registry.resolve('brand')?.path, 'Atoms / Colors');
-    expect(registry.resolve('brand')?.folderIds, ['atoms', 'colors']);
-    expect(registry.resolve('brand')?.routePath, 'atoms/colors');
+    expect(registry.resolve('brand')?.path, 'Root');
+    expect(registry.resolve('brand')?.folderIds, isEmpty);
+    expect(registry.resolve('brand')?.routePath, isEmpty);
     expect(registry.allShowcases.single.id, 'status-overview');
   });
 
-  test('folder routing stays stable when display labels change', () {
+  test('component paths normalize equivalent slash syntax', () {
     final registry = DesyRegistry(
-      name: 'Stable folders',
+      name: 'Normalized paths',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-      folders: [
-        DesyFolder(
-          id: 'foundation',
-          name: 'Foundation',
-          children: [
-            DesyFolder(
-              id: 'foundation.palette',
-              name: 'Palette',
-              colors: [
-                DesyColorEntry(
-                  id: 'brand',
-                  name: 'Brand',
-                  builder: _emptyPreview,
-                ),
-              ],
-            ),
-          ],
+      components: [
+        DesyComponent(
+          id: 'plain',
+          name: 'Plain',
+          path: 'input',
+          preview: _emptyPreview,
+        ),
+        DesyComponent(
+          id: 'slashed',
+          name: 'Slashed',
+          path: '/input/',
+          preview: _emptyPreview,
+        ),
+        DesyComponent(
+          id: 'nested',
+          name: 'Nested',
+          path: '//input//text//',
+          preview: _emptyPreview,
         ),
       ],
     );
 
-    final entry = registry.resolve('brand')!;
-    expect(entry.folderIds, ['foundation', 'foundation.palette']);
-    expect(entry.folderNames, ['Foundation', 'Palette']);
-    expect(entry.routePath, 'foundation/foundation.palette');
-    expect(registry.allFolders.map((folder) => folder.id), [
-      'foundation',
-      'foundation.palette',
-    ]);
+    expect(registry.resolve('plain')?.component?.path, '/input');
+    expect(registry.resolve('slashed')?.component?.path, '/input');
+    expect(registry.resolve('nested')?.component?.path, '/input/text');
+    expect(registry.componentGroups.map((group) => group.path), ['/input']);
+    expect(registry.componentGroups.single.children.single.path, '/input/text');
   });
 
-  test('global ID validation includes folders, artifacts, and extensions', () {
+  test('global ID validation includes artifacts and extensions', () {
     final registry = DesyRegistry(
       name: 'Duplicate IDs',
       themes: const [DesyTheme(id: 'shared', name: 'Same label', wrap: _wrap)],
-      folders: [
-        DesyFolder(
-          id: 'shared',
-          name: 'Same label',
-          components: [
-            DesyComponent(
-              id: 'shared',
-              name: 'Same label',
-              preview: _emptyPreview,
-            ),
-          ],
-        ),
+      components: [
+        DesyComponent(id: 'shared', name: 'Same label', preview: _emptyPreview),
       ],
     );
 
@@ -272,21 +220,48 @@ void main() {
       registry
           .validate(extensionIds: const ['shared'])
           .map((issue) => issue.id),
-      ['shared', 'shared', 'shared'],
+      ['shared', 'shared'],
     );
   });
 
-  test('duplicate display labels remain legal when stable IDs differ', () {
+  test('component path labels are derived from kebab case', () {
     final registry = DesyRegistry(
-      name: 'Duplicate labels',
+      name: 'Derived labels',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-      folders: [
-        DesyFolder(id: 'first', name: 'Shared'),
-        DesyFolder(id: 'second', name: 'Shared'),
+      components: [
+        DesyComponent(
+          id: 'primary-button',
+          name: 'Primary button',
+          path: '/form-controls/action-buttons',
+          preview: _emptyPreview,
+        ),
       ],
     );
 
-    expect(registry.validate(), isEmpty);
+    final entry = registry.resolve('primary-button')!;
+    expect(entry.folderNames, ['Form controls', 'Action buttons']);
+    expect(entry.path, 'Form controls / Action buttons');
+  });
+
+  test('component paths reject traversal and invalid segments', () {
+    expect(
+      () => DesyComponent(
+        id: 'traversal',
+        name: 'Traversal',
+        path: '/input/../secret',
+        preview: _emptyPreview,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => DesyComponent(
+        id: 'spaces',
+        name: 'Spaces',
+        path: '/Input fields',
+        preview: _emptyPreview,
+      ),
+      throwsArgumentError,
+    );
   });
 
   test('registry collections are unmodifiable', () {
@@ -312,6 +287,7 @@ void main() {
       ),
       throwsUnsupportedError,
     );
+    expect(registry.hasAtoms, isFalse);
   });
 
   test('nested declaration collections are defensive immutable copies', () {

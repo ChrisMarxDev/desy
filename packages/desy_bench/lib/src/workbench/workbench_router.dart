@@ -38,15 +38,16 @@ GoRouter createDesyWorkbenchRouter(DesyWorkbenchSession session) => GoRouter(
           path: DesyWorkbenchRoutes.atlasPath,
           pageBuilder: (context, state) {
             final folderId = state.uri.queryParameters['folder'];
-            final folder = folderId == null
+            final atomKind = folderId == null
                 ? null
-                : session.registry.allFolders
-                      .where((folder) => folder.id == folderId)
-                      .firstOrNull;
-            if (folder != null && _isNumericFolder(session.registry, folder)) {
+                : session.registry.atomKindForId(folderId);
+            if (atomKind == DesyAtomKind.measurements) {
               return _instantPage(
                 state,
-                DesyMeasuresScreen(session: session, folder: folder),
+                DesyMeasuresScreen(
+                  session: session,
+                  measurements: session.registry.measurements,
+                ),
               );
             }
             return _instantPage(
@@ -143,14 +144,6 @@ NoTransitionPage<void> _instantPage(GoRouterState state, Widget child) =>
 
 DesyRegistryEntry? _entryFor(DesyRegistry registry, String id) =>
     registry.resolve(id);
-
-bool _isNumericFolder(DesyRegistry registry, DesyFolder folder) {
-  final entries = registry.allEntries
-      .where((entry) => entry.folderIds.contains(folder.id))
-      .toList(growable: false);
-  return entries.isNotEmpty &&
-      entries.every((entry) => entry.source is DesyNumericEntry);
-}
 
 /// The persistent Forui scaffold mounted by [ShellRoute].
 class DesyWorkbenchShell extends StatefulWidget {

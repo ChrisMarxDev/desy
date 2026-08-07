@@ -8,7 +8,7 @@ void main() {
     'missing instance renders an interactive diagnostic placeholder',
     (tester) async {
       final registry = DesyRegistry(
-        name: 'Harbor Operations',
+        name: 'Acme Design System',
         themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
       );
 
@@ -19,7 +19,7 @@ void main() {
             child: Builder(
               builder: (context) => registry.widgetBuilder.build(
                 context,
-                'harbor.badge.status.missing',
+                'acme.badge.status.missing',
               ),
             ),
           ),
@@ -27,16 +27,14 @@ void main() {
       );
 
       final placeholder = find.byKey(
-        const ValueKey(
-          'missing-component-instance-harbor.badge.status.missing',
-        ),
+        const ValueKey('missing-component-instance-acme.badge.status.missing'),
       );
       expect(placeholder, findsOneWidget);
       expect(find.text('Missing instance'), findsOneWidget);
       expect(find.byIcon(DesyIcons.triangleAlert), findsOneWidget);
       expect(
         find.bySemanticsLabel(
-          'Missing component instance harbor.badge.status.missing',
+          'Missing component instance acme.badge.status.missing',
         ),
         findsOneWidget,
       );
@@ -45,8 +43,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Missing component instance'), findsOneWidget);
-      expect(find.textContaining('Harbor Operations'), findsOneWidget);
-      expect(find.text('harbor.badge.status.missing'), findsOneWidget);
+      expect(find.textContaining('Acme Design System'), findsOneWidget);
+      expect(find.text('acme.badge.status.missing'), findsOneWidget);
       expect(find.text('How to fix it'), findsOneWidget);
 
       await tester.tap(find.text('Close'));

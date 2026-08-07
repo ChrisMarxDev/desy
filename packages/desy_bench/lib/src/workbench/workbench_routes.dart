@@ -3,8 +3,8 @@
 
 /// Canonical, deep-linkable locations in a Desy workbench.
 ///
-/// A folder remains a query value because the route must remain nestable.
-/// Its value is the consumer-declared stable folder ID, never its display name.
+/// A component group remains a query value because the route must be nestable.
+/// Its value is the canonical component path, never its derived display label.
 abstract final class DesyWorkbenchRoutes {
   static const atlasPath = '/atlas';
   static const sketchSegment = 'sketch';

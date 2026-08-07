@@ -35,9 +35,14 @@ class DesyWorkbenchSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final currentLocation = location ?? GoRouterState.of(context).uri;
     final theme = session.activeThemeIndex.watch(context);
-    final folders = session.registry.folders
-        .where(_folderIsUsed)
-        .toList(growable: false);
+    final componentRoots = session.registry.componentGroups;
+    final componentTree = _componentTreeChildren(
+      context,
+      componentRoots,
+      currentLocation,
+    );
+    final componentSections = _componentPreviewSections(componentRoots);
+    final componentCount = session.registry.allComponents.length;
 
     return DesySidebar(
       style: const DesySidebarStyleDelta.delta(
@@ -95,41 +100,36 @@ class DesyWorkbenchSidebar extends StatelessWidget {
         ),
       ),
       children: [
-        _CatalogueSidebarGroup(
-          entryCount: session.registry.allEntries.length,
-          sections: _previewSections(folders),
-          theme: session.registry.themes[theme],
-          selectedEntryId: _selectedEntryId(currentLocation),
-          onOpenSection: (section) => _go(
-            context,
-            DesyWorkbenchRoutes.atlas(folderId: section.folderId),
-          ),
-          onOpen: (entry) {
-            session.prepareEntry(entry);
-            _go(context, DesyWorkbenchRoutes.entry(entry.id));
-          },
-          leadingChildren: [
-            DesySidebarItem(
+        DesySidebarSection(
+          key: const ValueKey('sidebar-section-workspace'),
+          label: 'Workspace',
+          children: [
+            DesySidebarItem.screen(
               key: const ValueKey('workspace-atlas-nav'),
-              icon: const Icon(DesyIcons.layoutGrid),
+              icon: const Icon(DesyIcons.layoutGrid, size: 18),
               label: const Text('Atlas'),
               selected:
                   currentLocation.path == DesyWorkbenchRoutes.atlasPath &&
                   currentLocation.queryParameters['folder'] == null,
               onPress: () => _go(context, DesyWorkbenchRoutes.atlasPath),
             ),
-            DesySidebarItem(
+            DesySidebarItem.screen(
               key: const ValueKey('workspace-components-nav'),
-              icon: const Icon(DesyIcons.boxes),
+              icon: const Icon(DesyIcons.boxes, size: 18),
               label: const Text('Sketch'),
               selected:
                   currentLocation.path == DesyWorkbenchRoutes.componentsPath,
               onPress: () => _go(context, DesyWorkbenchRoutes.componentsPath),
             ),
+            const DesySidebarItem.screen(
+              key: ValueKey('workspace-ai-prompts-nav'),
+              icon: Icon(DesyIcons.sparkles, size: 18),
+              label: Text('AI prompts'),
+            ),
             for (final extension in session.extensions)
-              DesySidebarItem(
+              DesySidebarItem.screen(
                 key: ValueKey('workspace-extension-${extension.id}'),
-                icon: Icon(extension.icon ?? DesyIcons.boxes),
+                icon: Icon(extension.icon ?? DesyIcons.boxes, size: 18),
                 label: Text(extension.name),
                 selected:
                     currentLocation.path ==
@@ -140,40 +140,41 @@ class DesyWorkbenchSidebar extends StatelessWidget {
                 ),
               ),
           ],
-          treeChildren: [
-            for (final folder in folders)
-              _folderItem(context, folder, currentLocation, isRoot: true),
-          ],
-          trailingChildren: [
-            DesySidebarItem(
-              key: const ValueKey('sidebar-tool-ai'),
-              icon: const Icon(DesyIcons.sparkles, size: 18),
-              label: _rootLabel(context, 'AI'),
-              initiallyExpanded: true,
-              children: const [
-                DesySidebarItem(
-                  key: ValueKey('prompt-library-nav'),
-                  icon: Icon(DesyIcons.sparkles, size: 16),
-                  label: Text('Prompt library'),
-                ),
-              ],
+        ),
+        if (session.registry.hasAtoms)
+          DesySidebarSection(
+            key: const ValueKey('sidebar-section-atoms'),
+            label: 'Atoms',
+            children: _atomItems(context, currentLocation),
+          ),
+        if (componentCount > 0)
+          _ComponentsSidebarSection(
+            entryCount: componentCount,
+            sections: componentSections,
+            theme: session.registry.themes[theme],
+            selectedEntryId: _selectedEntryId(currentLocation),
+            onOpenSection: (section) => _go(
+              context,
+              DesyWorkbenchRoutes.atlas(folderId: section.folderId),
             ),
+            onOpen: (entry) {
+              session.prepareEntry(entry);
+              _go(context, DesyWorkbenchRoutes.entry(entry.id));
+            },
+            treeChildren: componentTree,
+          ),
+        DesySidebarSection(
+          key: const ValueKey('sidebar-section-showcases'),
+          label: 'Showcases',
+          count: session.registry.allShowcases.length,
+          children: [
             DesySidebarItem(
-              key: const ValueKey('sidebar-tool-showcases'),
+              key: const ValueKey('showcases-nav'),
               icon: const Icon(DesyIcons.layers, size: 18),
-              label: _rootLabel(context, 'Showcases'),
-              initiallyExpanded: true,
-              children: [
-                DesySidebarItem(
-                  key: const ValueKey('showcases-nav'),
-                  icon: const Icon(DesyIcons.layers, size: 16),
-                  label: const Text('Overview · experimental'),
-                  selected:
-                      currentLocation.path == DesyWorkbenchRoutes.showcasesPath,
-                  onPress: () =>
-                      _go(context, DesyWorkbenchRoutes.showcasesPath),
-                ),
-              ],
+              label: const Text('Overview'),
+              selected:
+                  currentLocation.path == DesyWorkbenchRoutes.showcasesPath,
+              onPress: () => _go(context, DesyWorkbenchRoutes.showcasesPath),
             ),
           ],
         ),
@@ -181,80 +182,90 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     );
   }
 
-  DesySidebarItem _folderItem(
+  List<Widget> _atomItems(BuildContext context, Uri location) => [
+    for (final kind in session.registry.atomKinds)
+      DesySidebarItem(
+        key: ValueKey('sidebar-folder-${kind.id}'),
+        icon: Icon(_folderIcon(kind.label), size: 18),
+        label: Text(kind.label),
+        selected:
+            location.path == DesyWorkbenchRoutes.atlasPath &&
+            location.queryParameters['folder'] == kind.id,
+        onPress: () =>
+            _go(context, DesyWorkbenchRoutes.atlas(folderId: kind.id)),
+      ),
+  ];
+
+  List<Widget> _componentTreeChildren(
     BuildContext context,
-    DesyFolder folder,
-    Uri location, {
-    bool isRoot = false,
-  }) {
+    List<DesyComponentGroup> roots,
+    Uri location,
+  ) => [
+    for (final root in roots) _componentFolderItem(context, root, location),
+    for (final component in session.registry.components)
+      if (component.componentPath.segments.isEmpty)
+        _componentEntryItem(context, session.registry.resolve(component.id)!),
+  ];
+
+  DesySidebarItem _componentFolderItem(
+    BuildContext context,
+    DesyComponentGroup folder,
+    Uri location,
+  ) {
     final entries = _directEntries(folder);
     return DesySidebarItem(
-      key: ValueKey('sidebar-folder-${folder.id}'),
-      icon: Icon(_folderIcon(folder.name), size: isRoot ? 18 : null),
-      label: isRoot
-          ? Semantics(
-              key: ValueKey('sidebar-folder-header-${folder.id}'),
-              header: true,
-              child: _rootLabel(context, folder.name),
-            )
-          : Text(folder.name),
+      key: ValueKey('sidebar-folder-${folder.path}'),
+      icon: const Icon(DesyIcons.folder, size: 16),
+      label: Text(folder.name),
       selected:
           location.path == DesyWorkbenchRoutes.atlasPath &&
-          location.queryParameters['folder'] == folder.id,
+          location.queryParameters['folder'] == folder.path,
       initiallyExpanded: _containsActiveDestination(folder, location),
       onPress: () =>
-          _go(context, DesyWorkbenchRoutes.atlas(folderId: folder.id)),
+          _go(context, DesyWorkbenchRoutes.atlas(folderId: folder.path)),
       children: [
-        for (final child in folder.children.where(_folderIsUsed))
-          _folderItem(context, child, location),
-        for (final entry in entries)
-          DesySidebarItem(
-            key: ValueKey('sidebar-entry-${entry.id}'),
-            icon: Icon(_entryIcon(entry), size: 16),
-            label: Text(entry.name),
-            onPress: () {
-              session.prepareEntry(entry);
-              _go(context, DesyWorkbenchRoutes.entry(entry.id));
-            },
-          ),
+        for (final child in folder.children)
+          _componentFolderItem(context, child, location),
+        for (final entry in entries) _componentEntryItem(context, entry),
       ],
     );
   }
 
-  List<DesyRegistryEntry> _directEntries(DesyFolder folder) {
-    return session.registry.allEntries
-        .where(
-          (entry) =>
-              entry.component != null &&
-              entry.folderIds.isNotEmpty &&
-              entry.folderIds.last == folder.id,
-        )
-        .toList(growable: false);
-  }
-
-  bool _folderIsUsed(DesyFolder folder) => session.registry.allEntries.any(
-    (entry) => entry.folderIds.contains(folder.id),
+  DesySidebarItem _componentEntryItem(
+    BuildContext context,
+    DesyRegistryEntry entry,
+  ) => DesySidebarItem(
+    key: ValueKey('sidebar-entry-${entry.id}'),
+    icon: Icon(_entryIcon(entry), size: 16),
+    label: Text(entry.name),
+    onPress: () {
+      session.prepareEntry(entry);
+      _go(context, DesyWorkbenchRoutes.entry(entry.id));
+    },
   );
 
-  List<_SidebarPreviewSection> _previewSections(List<DesyFolder> folders) {
+  List<DesyRegistryEntry> _directEntries(DesyComponentGroup folder) => [
+    for (final component in folder.components)
+      session.registry.resolve(component.id)!,
+  ];
+
+  List<_SidebarPreviewSection> _componentPreviewSections(
+    List<DesyComponentGroup> roots,
+  ) {
     final entries = session.registry.allEntries
         .where((entry) => entry.component != null)
         .toList(growable: false);
     final sections = <_SidebarPreviewSection>[];
-    for (final folder in folders) {
+    for (final folder in roots) {
       final folderEntries = entries
-          .where(
-            (entry) =>
-                entry.folderIds.isNotEmpty &&
-                entry.folderIds.first == folder.id,
-          )
+          .where((entry) => entry.folderIds.contains(folder.path))
           .toList(growable: false);
       if (folderEntries.isNotEmpty) {
         sections.add(
           _SidebarPreviewSection(
-            id: folder.id,
+            id: folder.path,
             label: folder.name,
-            folderId: folder.id,
+            folderId: folder.path,
             entries: folderEntries,
           ),
         );
@@ -277,7 +288,7 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     return List.unmodifiable(sections);
   }
 
-  bool _containsActiveDestination(DesyFolder folder, Uri location) {
+  bool _containsActiveDestination(DesyComponentGroup folder, Uri location) {
     final folderId = location.queryParameters['folder'];
     if (folderId != null) return _containsFolder(folder, folderId);
     if (location.pathSegments.isNotEmpty &&
@@ -289,13 +300,13 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     return false;
   }
 
-  bool _containsFolder(DesyFolder folder, String id) =>
-      folder.id == id ||
+  bool _containsFolder(DesyComponentGroup folder, String id) =>
+      folder.path == id ||
       folder.children.any((child) => _containsFolder(child, id));
 
-  bool _containsEntry(DesyFolder folder, String id) =>
+  bool _containsEntry(DesyComponentGroup folder, String id) =>
       session.registry.allEntries.any(
-        (entry) => entry.id == id && entry.folderIds.contains(folder.id),
+        (entry) => entry.id == id && entry.folderIds.contains(folder.path),
       ) ||
       folder.children.any((child) => _containsEntry(child, id));
 
@@ -313,9 +324,6 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     'Assets' => DesyIcons.image,
     _ => DesyIcons.folder,
   };
-
-  Widget _rootLabel(BuildContext context, String label) =>
-      Text(label, style: Theme.of(context).textTheme.labelLarge);
 
   void _go(BuildContext context, String location) {
     if (onNavigate case final navigate?) {
@@ -335,22 +343,19 @@ String? _selectedEntryId(Uri location) {
   return Uri.decodeComponent(location.pathSegments.last);
 }
 
-/// An opt-in visual catalogue that experiments with recognition over recall.
+/// The Components section and its local file-tree/preview-grid preference.
 ///
-/// The folder tree remains the stable default. This mode owns presentation
-/// state only and resolves every preview and destination from the same active
-/// registry used by the rest of the workbench.
-class _CatalogueSidebarGroup extends StatefulWidget {
-  const _CatalogueSidebarGroup({
+/// Both modes resolve previews and destinations from the same active registry.
+/// The preference changes presentation only; the file tree remains the default.
+class _ComponentsSidebarSection extends StatefulWidget {
+  const _ComponentsSidebarSection({
     required this.entryCount,
     required this.sections,
     required this.theme,
     required this.selectedEntryId,
     required this.onOpenSection,
     required this.onOpen,
-    required this.leadingChildren,
     required this.treeChildren,
-    required this.trailingChildren,
   });
 
   final int entryCount;
@@ -359,16 +364,15 @@ class _CatalogueSidebarGroup extends StatefulWidget {
   final String? selectedEntryId;
   final ValueChanged<_SidebarPreviewSection> onOpenSection;
   final ValueChanged<DesyRegistryEntry> onOpen;
-  final List<Widget> leadingChildren;
   final List<Widget> treeChildren;
-  final List<Widget> trailingChildren;
 
   @override
-  State<_CatalogueSidebarGroup> createState() => _CatalogueSidebarGroupState();
+  State<_ComponentsSidebarSection> createState() =>
+      _ComponentsSidebarSectionState();
 }
 
-class _CatalogueSidebarGroupState extends State<_CatalogueSidebarGroup> {
-  static const _previewGridPreferenceKey = 'desy_bench.catalogue.preview_grid';
+class _ComponentsSidebarSectionState extends State<_ComponentsSidebarSection> {
+  static const _previewGridPreferenceKey = 'desy_bench.components.preview_grid';
 
   var _showPreviewGrid = false;
   var _modeChosenInThisSession = false;
@@ -415,67 +419,25 @@ class _CatalogueSidebarGroupState extends State<_CatalogueSidebarGroup> {
   }
 
   @override
-  Widget build(BuildContext context) => DesySidebarGroup(
-    key: const ValueKey('sidebar-section-catalogue'),
-    style: const DesySidebarGroupStyleDelta.delta(
-      padding: EdgeInsetsDelta.value(EdgeInsets.symmetric(vertical: 2)),
-      headerPadding: EdgeInsetsGeometryDelta.value(
-        EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      ),
-      childrenSpacing: 2,
-      childrenPadding: EdgeInsetsGeometryDelta.value(EdgeInsets.zero),
-      itemStyle: DesySidebarItemStyleDelta.delta(
-        iconSpacing: 7,
-        collapsibleIconSpacing: 7,
-        childrenSpacing: 2,
-        childrenPadding: EdgeInsetsGeometryDelta.value(
-          EdgeInsets.only(left: 14),
-        ),
-        padding: EdgeInsetsGeometryDelta.value(
-          EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        ),
-      ),
-    ),
-    label: Row(
-      key: const ValueKey('sidebar-section-catalogue-header-row'),
-      children: [
-        const Text('Catalogue'),
-        const SizedBox(width: 7),
-        Text(
-          '${widget.entryCount}',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: context.theme.colors.mutedForeground,
-          ),
-        ),
-      ],
-    ),
+  Widget build(BuildContext context) => DesySidebarSection(
+    key: const ValueKey('sidebar-section-components'),
+    label: 'Components',
+    count: widget.entryCount,
     action: widget.sections.isEmpty
         ? null
         : KeyedSubtree(
-            key: const ValueKey('sidebar-section-catalogue-header-control'),
-            child: SizedBox.square(
-              dimension: 32,
-              child: DesyButton(
-                key: const ValueKey('sidebar-catalogue-preview-toggle'),
-                semanticsLabel: _showPreviewGrid
-                    ? 'Use catalogue folder tree'
-                    : 'Use catalogue preview grid',
-                semanticsTooltip: _showPreviewGrid
-                    ? 'Show folder tree'
-                    : 'Preview grid · experimental',
-                variant: DesyButtonVariant.ghost,
-                size: DesyButtonSize.xs,
-                onPress: _toggleMode,
-                child: Icon(
-                  _showPreviewGrid ? DesyIcons.folder : DesyIcons.layoutGrid,
-                  size: 14,
-                ),
-              ),
+            key: const ValueKey('sidebar-section-components-control'),
+            child: Icon(
+              _showPreviewGrid ? DesyIcons.folderTree : DesyIcons.layoutGrid,
+              key: const ValueKey('sidebar-components-view-toggle'),
+              size: 15,
             ),
           ),
+    actionSemanticsLabel: _showPreviewGrid
+        ? 'Use component file tree'
+        : 'Use component preview grid',
     onActionPress: widget.sections.isEmpty ? null : _toggleMode,
     children: [
-      ...widget.leadingChildren,
       if (_showPreviewGrid && widget.sections.isNotEmpty)
         _SidebarPreviewGrid(
           sections: widget.sections,
@@ -486,7 +448,6 @@ class _CatalogueSidebarGroupState extends State<_CatalogueSidebarGroup> {
         )
       else
         ...widget.treeChildren,
-      ...widget.trailingChildren,
     ],
   );
 }
@@ -508,7 +469,7 @@ class _SidebarPreviewGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    key: const ValueKey('sidebar-catalogue-preview-grid'),
+    key: const ValueKey('sidebar-components-preview-grid'),
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       for (final (index, section) in sections.indexed)

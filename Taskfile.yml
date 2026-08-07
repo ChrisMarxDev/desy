@@ -5,8 +5,8 @@ includes:
     taskfile: ./packages/desy_bench/Taskfile.yml
     dir: ./packages/desy_bench
   agent_annotations:
-    taskfile: ./packages/desy_agent_annotations/Taskfile.yml
-    dir: ./packages/desy_agent_annotations
+    taskfile: ./packages/extensions/desy_agent_annotations/Taskfile.yml
+    dir: ./packages/extensions/desy_agent_annotations
   design_system:
     taskfile: ./packages/desy_design_system/Taskfile.yml
     dir: ./packages/desy_design_system
@@ -14,11 +14,8 @@ includes:
     taskfile: ./packages/desy_design_system/example/Taskfile.yml
     dir: ./packages/desy_design_system/example
   screenshot_builder:
-    taskfile: ./packages/desy_screenshot_builder/Taskfile.yml
-    dir: ./packages/desy_screenshot_builder
-  sample:
-    taskfile: ./example/sample_design_system/Taskfile.yml
-    dir: ./example/sample_design_system
+    taskfile: ./packages/extensions/desy_screenshot_builder/Taskfile.yml
+    dir: ./packages/extensions/desy_screenshot_builder
 
 tasks:
   default:
@@ -45,7 +42,6 @@ tasks:
       - task: design_system:test
       - task: dogfood:test
       - task: screenshot_builder:test
-      - task: sample:test
 
   check:
     desc: Run the complete local verification suite.
@@ -53,22 +49,12 @@ tasks:
       - task: analyze
       - task: design_system:forui-boundary
       - task: test
-      - task: sample:compile:web
-
-  deploy:sample:
-    desc: Build and deploy the Harbor sample to Firebase Hosting.
-    summary: |
-      Creates a release web build and deploys it to the desy-bench Firebase
-      project. Requires an authenticated Firebase CLI. Production deploys from
-      main normally run through .github/workflows/deploy-sample.yml.
-    cmds:
-      - task: sample:web:build
-      - firebase deploy --only hosting --project desy-bench --non-interactive
+      - task: dogfood:build:web
 
   format:
-    desc: Format maintained Dart sources without touching seed material.
+    desc: Format maintained Dart sources.
     cmds:
-      - dart format packages example
+      - dart format packages
 
   simdeck:
     desc: Open SimDeck on port 4310 for debug Flutter inspection.
@@ -86,6 +72,6 @@ tasks:
       - simdeck status
 
   simdeck:describe:flutter:
-    desc: Describe the running sample through Flutter widget inspection.
+    desc: Describe the running dogfood app through Flutter widget inspection.
     cmds:
       - simdeck describe --source flutter --format agent --max-depth 4 --interactive

@@ -1,6 +1,6 @@
 ---
 name: desy
-description: Understand, explain, implement, or review a Flutter project that uses Desy Bench. Use when working with DesyRegistry, DesyFolder, themes, primitive entries, components, contracts, scenarios, knobs, extensions, real widget previews, sketch layouts, or registry validation without creating a parallel catalogue.
+description: Understand, explain, implement, or review a Flutter project that uses Desy Bench. Use when working with DesyRegistry, typed atoms, component paths, themes, primitive entries, components, contracts, scenarios, knobs, extensions, real widget previews, sketch layouts, or registry validation without creating a parallel catalogue.
 ---
 
 # Desy
@@ -24,15 +24,16 @@ Useful focused queries:
 
 ```sh
 rg -n "DesyRegistry\(|DesyBenchApp\(" -g '*.dart'
-rg -n "DesyFolder\(|DesyComponent\(|DesyNumericEntry" -g '*.dart'
+rg -n "DesyComponent\(|DesyNumericEntry|path:" -g '*.dart'
 rg -n "id: ['\"]<stable-id>['\"]|source: ['\"]<path>" -g '*.dart'
 rg -n "DesyComponentScenario|DesyComponentKnob|Desy.*Extension" -g '*.dart'
 ```
 
 ## Apply the decision gates
 
-- Preserve one immutable registry and its recursive `DesyFolder` tree.
-- Keep every theme, folder, artifact, showcase, instance, and extension ID
+- Preserve one immutable registry, its optional typed atom lanes, and its flat
+  component list with validated component paths.
+- Keep every theme, artifact, showcase, instance, and extension ID
   stable and unique in the shared namespace.
 - Make every registered artifact ultimately return the consumer’s real widget.
 - Use typed entries, rich domain objects, and semantic names. Do not recover
@@ -48,10 +49,11 @@ rg -n "DesyComponentScenario|DesyComponentKnob|Desy.*Extension" -g '*.dart'
 
 ## Explain a registry
 
-Report the registry name, themes, recursive folder structure, typed primitives,
+Report the registry name, themes, non-empty typed atom lanes, component paths,
 components, named instances, scenarios, knobs/contracts, extensions, and source
-paths. Mark missing optional declarations as gaps, not errors. Do not invent a
-taxonomy that the consumer did not declare.
+paths. Mark missing optional declarations as gaps, not errors. Use Desy's
+built-in atom taxonomy only for its typed registry lanes; do not invent
+additional consumer categories.
 
 ## Make a change
 

@@ -5,11 +5,11 @@
 | Concern | Authoritative declaration | Key rule |
 | --- | --- | --- |
 | Theme context | `DesyTheme` | Wrap previews with the real consumer theme. |
-| Structure | Recursive `DesyFolder` | Organize existing entries; do not create a flat parallel index. |
-| Colors and treatments | `DesyColorEntry` | Swatches, gradients, and custom color widgets stay under `Atoms/Colors`. |
-| Typography | `DesyTypographyEntry` | Resolve a real consumer text style and specimen. |
-| Measurements | `DesyNumericEntry` | Use `kind`, `unit`, and `axis`; do not infer semantics from strings. |
-| Motion and effects | Typed motion/effect entries | Keep the consumer-owned live specimen. |
+| Component structure | `DesyComponent.path` | Use a validated slash path; Desy derives the file tree from the flat component list. |
+| Colors and treatments | Registry `colors` + `DesyColorEntry` | Swatches, gradients, and custom color widgets use the built-in Colors lane. |
+| Typography | Registry `fonts` + `DesyTypographyEntry` | Resolve a real consumer text style and specimen. |
+| Measurements | Registry `measurements` + `DesyNumericEntry` | Use `kind`, `unit`, and `axis`; do not infer semantics from strings. |
+| Motion and effects | Registry `motion`/`effects` + typed entries | Keep the consumer-owned live specimen. |
 | Components | `DesyComponent` | Build the production widget and declare optional contracts, states, and knobs. |
 | Reusable variants | `DesyComponentInstance` | Store stable preset values; resolve through the owning component. |
 | Component slots | `DesyComponentKnob` | Store legal registered instance IDs, never widget callbacks. |
@@ -29,6 +29,7 @@ DesyNumericEntry.spacing(
 DesyComponent(
   id: 'acme.button.primary',
   name: 'Primary button',
+  path: '/actions/buttons',
   source: 'lib/src/button.dart',
   preview: (context) => const AcmeButton(label: 'Continue'),
 )
@@ -40,9 +41,10 @@ only metadata it cannot derive.
 ## Reject these patterns
 
 - A second `List<ComponentCard>` copied from `registry.allComponents`.
+- A separately declared folder tree that duplicates component paths.
 - A map such as `{'type': 'spacing', 'value': '16px'}` beside a typed numeric
   entry.
 - A compact fake button built only for the catalogue.
 - A persisted callback, widget object, or application state machine.
-- Folder-name parsing to decide whether a number means spacing or radius.
+- Placing typed atoms in component paths or parsing path labels to choose a specialized board.
 - A direct Forui import in `desy_bench` or a Desy-owned extension.

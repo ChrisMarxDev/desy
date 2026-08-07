@@ -69,11 +69,8 @@ typedef DesySelectItem<T> = FSelectItem<T>;
 /// Desy's persistent navigation surface.
 typedef DesySidebar = FSidebar;
 
-/// A labeled group inside a [DesySidebar].
+/// The Forui group primitive beneath Desy's typed sidebar sections.
 typedef DesySidebarGroup = FSidebarGroup;
-
-/// A navigation item inside a [DesySidebar].
-typedef DesySidebarItem = FSidebarItem;
 
 /// Scoped style changes for [DesySidebar].
 typedef DesySidebarStyleDelta = FSidebarStyleDelta;
@@ -81,7 +78,7 @@ typedef DesySidebarStyleDelta = FSidebarStyleDelta;
 /// Scoped style changes for [DesySidebarGroup].
 typedef DesySidebarGroupStyleDelta = FSidebarGroupStyleDelta;
 
-/// Scoped style changes for [DesySidebarItem].
+/// Scoped style changes for a Desy sidebar item.
 typedef DesySidebarItemStyleDelta = FSidebarItemStyleDelta;
 
 /// Desy's boolean switch.

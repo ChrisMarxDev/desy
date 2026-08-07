@@ -55,9 +55,7 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     _motionPlayback?.dispose();
     _motionPlayback = null;
     _globalMotionDuration = null;
-    final folder = _folderFor(folderId);
-    if (folder == null) return;
-    final entries = _entriesInFolderTree(folder);
+    final entries = _entriesForDestination(folderId);
     if (entries.isEmpty ||
         !entries.every((entry) => entry.source is DesyMotionEntry)) {
       return;
@@ -94,9 +92,8 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
 
   void _setGlobalMotionDuration(Duration duration) {
     final playback = _motionPlayback;
-    final folder = _folderFor(folderId);
-    if (playback == null || folder == null || duration <= Duration.zero) return;
-    final entries = _entriesInFolderTree(folder);
+    if (playback == null || duration <= Duration.zero) return;
+    final entries = _entriesForDestination(folderId);
     setState(() {
       _globalMotionDuration = duration;
       playback.setDuration(_cycleDuration(entries, duration));
@@ -115,7 +112,11 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     final theme = session.activeTheme;
     final fontSampleText = session.fontSampleText.watch(context);
     final folder = _folderFor(folderId);
-    final entries = _entriesFor(folder, query);
+    final atomKind = folderId == null
+        ? null
+        : session.registry.atomKindForId(folderId!);
+    final atomRoot = folderId == DesyAtomKind.rootId;
+    final entries = _entriesFor(folder, atomKind, atomRoot, query);
 
     if (entries.isNotEmpty &&
         entries.every((entry) => entry.typography != null)) {
@@ -132,9 +133,15 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(_eyebrow(folder), style: Theme.of(context).textTheme.labelSmall),
+          Text(
+            _eyebrow(folder, atomKind, atomRoot),
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
           const SizedBox(height: 4),
-          Text(_title(folder), style: Theme.of(context).textTheme.displaySmall),
+          Text(
+            _title(folder, atomKind, atomRoot),
+            style: Theme.of(context).textTheme.displaySmall,
+          ),
           if ((_motionPlayback, _globalMotionDuration) case (
             final playback?,
             final globalDuration?,
@@ -190,9 +197,18 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     );
   }
 
-  List<DesyRegistryEntry> _entriesFor(DesyFolder? folder, String query) {
+  List<DesyRegistryEntry> _entriesFor(
+    DesyComponentGroup? folder,
+    DesyAtomKind? atomKind,
+    bool atomRoot,
+    String query,
+  ) {
     final normalized = query.trim().toLowerCase();
-    final candidates = folder == null
+    final candidates = atomKind != null
+        ? session.registry.entriesForAtom(atomKind)
+        : atomRoot
+        ? session.registry.atomKinds.expand(session.registry.entriesForAtom)
+        : folder == null
         ? session.registry.allEntries.where(
             (entry) => entry.component != null || entry.folderIds.isEmpty,
           )
@@ -204,17 +220,17 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     }).toList();
   }
 
-  DesyFolder? _folderFor(String? id) {
+  DesyComponentGroup? _folderFor(String? id) {
     if (id == null) return null;
-    for (final root in session.registry.folders) {
+    for (final root in session.registry.componentGroups) {
       final match = _findFolder(root, id);
       if (match != null) return match;
     }
     return null;
   }
 
-  DesyFolder? _findFolder(DesyFolder folder, String id) {
-    if (folder.id == id) return folder;
+  DesyComponentGroup? _findFolder(DesyComponentGroup folder, String id) {
+    if (folder.path == id) return folder;
     for (final child in folder.children) {
       final match = _findFolder(child, id);
       if (match != null) return match;
@@ -222,16 +238,43 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     return null;
   }
 
-  List<DesyRegistryEntry> _entriesInFolderTree(DesyFolder folder) {
+  List<DesyRegistryEntry> _entriesInFolderTree(DesyComponentGroup folder) {
     return session.registry.allEntries
-        .where((entry) => entry.folderIds.contains(folder.id))
+        .where((entry) => entry.folderIds.contains(folder.path))
         .toList(growable: false);
   }
 
-  String _eyebrow(DesyFolder? folder) =>
-      folder == null ? 'CATALOGUE' : folder.name.toUpperCase();
+  List<DesyRegistryEntry> _entriesForDestination(String? id) {
+    if (id == null) return const [];
+    if (id == DesyAtomKind.rootId) {
+      return [
+        for (final kind in session.registry.atomKinds)
+          ...session.registry.entriesForAtom(kind),
+      ];
+    }
+    final atomKind = session.registry.atomKindForId(id);
+    if (atomKind != null) return session.registry.entriesForAtom(atomKind);
+    final folder = _folderFor(id);
+    return folder == null ? const [] : _entriesInFolderTree(folder);
+  }
 
-  String _title(DesyFolder? folder) => folder?.name ?? 'Components';
+  String _eyebrow(
+    DesyComponentGroup? folder,
+    DesyAtomKind? atomKind,
+    bool atomRoot,
+  ) => atomKind != null
+      ? 'ATOMS / ${atomKind.label.toUpperCase()}'
+      : atomRoot
+      ? 'ATOMS'
+      : folder == null
+      ? 'CATALOGUE'
+      : folder.name.toUpperCase();
+
+  String _title(
+    DesyComponentGroup? folder,
+    DesyAtomKind? atomKind,
+    bool atomRoot,
+  ) => atomKind?.label ?? (atomRoot ? 'Atoms' : folder?.name ?? 'Components');
 }
 
 class _AtlasCard extends StatelessWidget {

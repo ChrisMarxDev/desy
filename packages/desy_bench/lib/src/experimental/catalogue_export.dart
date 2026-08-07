@@ -47,7 +47,7 @@ class DesyCatalogueExport {
           ),
       ],
       'typography': [
-        for (final type in registry.allTypography)
+        for (final type in registry.allFonts)
           _entry(
             id: type.id,
             name: type.name,
@@ -57,7 +57,7 @@ class DesyCatalogueExport {
           ),
       ],
       'numbers': [
-        for (final number in registry.allNumbers)
+        for (final number in registry.allMeasurements)
           _entry(
             id: number.id,
             name: number.name,

@@ -21,41 +21,33 @@ void main() {
     expect(find.text('root.component'), findsWidgets);
   });
 
-  testWidgets('mixed folders retain typography siblings in the generic Atlas', (
-    tester,
-  ) async {
+  testWidgets('fonts use the typed Fonts board', (tester) async {
     await tester.pumpWidget(
       DesyBenchApp(
         registry: DesyRegistry(
-          name: 'Mixed folder',
+          name: 'Fonts',
           themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-          folders: [
-            DesyFolder(
-              id: 'mixed',
-              name: 'Mixed',
-              typography: [
-                DesyTypographyEntry(
-                  id: 'mixed.type',
-                  name: 'Mixed type',
-                  sample: 'Sample',
-                  builder: (_, text) => Text(text),
-                ),
-              ],
-              tokens: [_token('mixed.token')],
+          fonts: [
+            DesyTypographyEntry(
+              id: 'mixed.type',
+              name: 'Mixed type',
+              sample: 'Sample',
+              builder: (_, text) => Text(text),
             ),
           ],
         ),
       ),
     );
 
-    await tester.tap(find.byKey(const ValueKey('sidebar-folder-mixed')));
+    await tester.tap(
+      find.byKey(ValueKey('sidebar-folder-${DesyAtomKind.fonts.id}')),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Mixed type'), findsWidgets);
-    expect(find.text('mixed.token'), findsWidgets);
   });
 
-  testWidgets('parent folders include entries from every descendant folder', (
+  testWidgets('nested component folders remain navigable in the Atlas', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -63,48 +55,19 @@ void main() {
         registry: DesyRegistry(
           name: 'Nested folder entries',
           themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-          folders: [
-            DesyFolder(
-              id: 'components',
-              name: 'Components',
-              numbers: [
-                DesyNumericEntry.spacing(
-                  id: 'parent.spacing',
-                  name: 'Parent spacing',
-                  value: 8,
-                ),
-              ],
-              children: [
-                DesyFolder(
-                  id: 'components.actions',
-                  name: 'Actions',
-                  components: [_component('nested.action')],
-                ),
-                DesyFolder(
-                  id: 'components.content',
-                  name: 'Content',
-                  children: [
-                    DesyFolder(
-                      id: 'components.content.cards',
-                      name: 'Cards',
-                      components: [_component('deep.card')],
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          components: [
+            _component('nested.action', path: '/actions'),
+            _component('deep.card', path: '/content/cards'),
           ],
         ),
       ),
     );
 
-    await tester.tap(find.byKey(const ValueKey('sidebar-folder-components')));
+    await tester.tap(find.byKey(const ValueKey('sidebar-folder-/actions')));
     await tester.pumpAndSettle();
 
-    expect(find.text('3 entries'), findsWidgets);
-    expect(find.text('Parent spacing'), findsWidgets);
+    expect(find.text('1 entries'), findsWidgets);
     expect(find.text('nested.action'), findsWidgets);
-    expect(find.text('deep.card'), findsWidgets);
   });
 
   testWidgets('typography entries build only the supplied preview text', (
@@ -115,27 +78,23 @@ void main() {
         registry: DesyRegistry(
           name: 'Typography builder',
           themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-          folders: [
-            DesyFolder(
-              id: 'fonts',
-              name: 'Fonts',
-              typography: [
-                DesyTypographyEntry(
-                  id: 'type.body',
-                  name: 'Body',
-                  builder: (_, text) => Text(
-                    'Built: $text',
-                    key: const ValueKey('built-typography-specimen'),
-                  ),
-                ),
-              ],
+          fonts: [
+            DesyTypographyEntry(
+              id: 'type.body',
+              name: 'Body',
+              builder: (_, text) => Text(
+                'Built: $text',
+                key: const ValueKey('built-typography-specimen'),
+              ),
             ),
           ],
         ),
       ),
     );
 
-    await tester.tap(find.byKey(const ValueKey('sidebar-folder-fonts')));
+    await tester.tap(
+      find.byKey(ValueKey('sidebar-folder-${DesyAtomKind.fonts.id}')),
+    );
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey('built-typography-specimen')),
@@ -217,7 +176,12 @@ DesyToken _token(String id) => DesyToken(
   builder: (_) => const SizedBox(),
 );
 
-DesyComponent _component(String id, {String? name}) =>
-    DesyComponent(id: id, name: name ?? id, preview: (_) => const SizedBox());
+DesyComponent _component(String id, {String? name, String path = '/'}) =>
+    DesyComponent(
+      id: id,
+      name: name ?? id,
+      path: path,
+      preview: (_) => const SizedBox(),
+    );
 
 Widget _wrap(BuildContext context, Widget child) => child;

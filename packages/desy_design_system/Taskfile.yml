@@ -22,8 +22,8 @@ tasks:
     cmds:
       - >-
         if rg -n "package:forui/forui.dart"
-        packages/desy_bench packages/desy_agent_annotations
-        packages/desy_screenshot_builder; then
+        packages/desy_bench packages/extensions/desy_agent_annotations
+        packages/extensions/desy_screenshot_builder; then
         echo "Direct Forui import found outside desy_design_system";
         exit 1;
         fi

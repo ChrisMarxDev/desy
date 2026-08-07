@@ -83,7 +83,7 @@ void main() {
 
   testWidgets('shortcut label exposes one semantic chord', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: DesyDesignSystemScope(
           theme: DesyDesignSystemTheme.light,
           child: DesyKeyboardShortcutLabel(keys: ['⌘', 'K']),
@@ -94,6 +94,43 @@ void main() {
     expect(
       find.bySemanticsLabel('Keyboard shortcut: ⌘ plus K'),
       findsOneWidget,
+    );
+  });
+
+  testWidgets('sidebar screen items add an arrow without becoming tree nodes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: SizedBox(
+            width: 248,
+            height: 120,
+            child: DesySidebar(
+              children: [
+                DesySidebarSection(
+                  label: 'Workspace',
+                  children: [
+                    DesySidebarItem.screen(
+                      icon: Icon(DesyIcons.layoutGrid),
+                      label: Text('Atlas'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Workspace'), findsOneWidget);
+    expect(find.text('Atlas'), findsOneWidget);
+    expect(find.byIcon(DesyIcons.chevronRight), findsOneWidget);
+    expect(
+      tester.widget<DesySidebarItem>(find.byType(DesySidebarItem)).children,
+      isEmpty,
     );
   });
 }

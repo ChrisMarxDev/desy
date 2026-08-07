@@ -55,7 +55,7 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
     final themeIndex = widget.session.activeThemeIndex.watch(context);
     final theme = widget.session.registry.themes[themeIndex];
     final instances = widget.session.registry.allComponentInstances;
-    final spacingEntries = widget.session.registry.allNumbers
+    final spacingEntries = widget.session.registry.allMeasurements
         .where(
           (entry) =>
               entry.kind == DesyNumericKind.spacing &&

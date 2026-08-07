@@ -6,33 +6,13 @@ import 'package:desy_bench/src/workbench/workbench_navigation_tree.dart';
 import 'package:desy_bench/src/workbench/workbench_routes.dart';
 
 void main() {
-  test('folder destinations use stable IDs when labels repeat', () {
+  test('component destinations use canonical paths', () {
     final registry = DesyRegistry(
       name: 'Repeated labels',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-      folders: [
-        DesyFolder(
-          id: 'library.alpha',
-          name: 'Library',
-          children: [
-            DesyFolder(
-              id: 'library.alpha.shared',
-              name: 'Shared',
-              components: [_component('alpha.component')],
-            ),
-          ],
-        ),
-        DesyFolder(
-          id: 'library.beta',
-          name: 'Library',
-          children: [
-            DesyFolder(
-              id: 'library.beta.shared',
-              name: 'Shared',
-              components: [_component('beta.component')],
-            ),
-          ],
-        ),
+      components: [
+        _component('alpha.component', path: 'library-alpha/shared'),
+        _component('beta.component', path: '/library-beta/shared/'),
       ],
     );
 
@@ -50,8 +30,8 @@ void main() {
     expect(
       locations,
       containsAll([
-        DesyWorkbenchRoutes.atlas(folderId: 'library.alpha.shared'),
-        DesyWorkbenchRoutes.atlas(folderId: 'library.beta.shared'),
+        DesyWorkbenchRoutes.atlas(folderId: '/library-alpha/shared'),
+        DesyWorkbenchRoutes.atlas(folderId: '/library-beta/shared'),
       ]),
     );
     expect(locations.toSet(), hasLength(locations.length));
@@ -61,25 +41,7 @@ void main() {
     final registry = DesyRegistry(
       name: 'Deep',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-      folders: [
-        DesyFolder(
-          id: 'one',
-          name: 'Repeated',
-          children: [
-            DesyFolder(
-              id: 'one.two',
-              name: 'Repeated',
-              children: [
-                DesyFolder(
-                  id: 'one.two.three',
-                  name: 'Repeated',
-                  components: [_component('deep.component')],
-                ),
-              ],
-            ),
-          ],
-        ),
-      ],
+      components: [_component('deep.component', path: '/one/two/three')],
     );
 
     final entry = registry.resolve('deep.component')!;
@@ -88,42 +50,25 @@ void main() {
       extensions: const [],
     );
 
-    expect(entry.folderIds, ['one', 'one.two', 'one.two.three']);
+    expect(entry.folderIds, ['/one', '/one/two', '/one/two/three']);
     expect(
       tree.parent(Uri.parse(DesyWorkbenchRoutes.entry(entry.id))),
-      DesyWorkbenchRoutes.atlas(folderId: 'one.two.three'),
+      DesyWorkbenchRoutes.atlas(folderId: '/one/two/three'),
     );
   });
 
-  test('primitive entries are browsed through folder destinations', () {
+  test('typed atoms are browsed through built-in lane destinations', () {
     final registry = DesyRegistry(
       name: 'Primitive navigation',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-      folders: [
-        DesyFolder(
-          id: 'atoms',
-          name: 'Atoms',
-          children: [
-            DesyFolder(
-              id: 'atoms.colors',
-              name: 'Colors',
-              tokens: [
-                DesyToken(
-                  id: 'color.primary',
-                  name: 'Primary',
-                  builder: (_) => const SizedBox(),
-                ),
-              ],
-            ),
-            DesyFolder(id: 'atoms.empty', name: 'Empty'),
-          ],
-        ),
-        DesyFolder(
-          id: 'components',
-          name: 'Components',
-          components: [_component('button.primary')],
+      colors: [
+        DesyColorEntry(
+          id: 'color.primary',
+          name: 'Primary',
+          builder: (_) => const SizedBox(),
         ),
       ],
+      components: [_component('button.primary', path: '/buttons')],
     );
 
     final tree = DesyWorkbenchNavigationTree.fromRegistry(
@@ -134,22 +79,23 @@ void main() {
 
     expect(
       locations,
-      contains(DesyWorkbenchRoutes.atlas(folderId: 'atoms.colors')),
+      contains(DesyWorkbenchRoutes.atlas(folderId: DesyAtomKind.colors.id)),
     );
     expect(
       locations,
       isNot(contains(DesyWorkbenchRoutes.entry('color.primary'))),
     );
-    expect(
-      locations,
-      isNot(contains(DesyWorkbenchRoutes.atlas(folderId: 'atoms.empty'))),
-    );
+    expect(tree.roots.any((node) => node.id == DesyAtomKind.rootId), isTrue);
     expect(locations, contains(DesyWorkbenchRoutes.entry('button.primary')));
   });
 }
 
-DesyComponent _component(String id) =>
-    DesyComponent(id: id, name: id, preview: (_) => const SizedBox());
+DesyComponent _component(String id, {String path = '/'}) => DesyComponent(
+  id: id,
+  name: id,
+  path: path,
+  preview: (_) => const SizedBox(),
+);
 
 List<String> _destinations(Iterable<DesyWorkbenchNavigationNode> nodes) {
   final destinations = <String>[];
