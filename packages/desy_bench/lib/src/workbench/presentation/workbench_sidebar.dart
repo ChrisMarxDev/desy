@@ -1,9 +1,13 @@
 // Internal workbench presentation.
 // ignore_for_file: public_member_api_docs
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:state_beacon/state_beacon.dart';
 
 import '../../registry.dart';
@@ -329,34 +333,71 @@ class _CatalogueSidebarGroup extends StatefulWidget {
 }
 
 class _CatalogueSidebarGroupState extends State<_CatalogueSidebarGroup> {
-  var _showPreviewGrid = false;
+  static const _previewGridPreferenceKey = 'desy_bench.catalogue.preview_grid';
 
-  void _toggleMode() => setState(() => _showPreviewGrid = !_showPreviewGrid);
+  var _showPreviewGrid = false;
+  var _modeChosenInThisSession = false;
+  SharedPreferences? _preferences;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_restoreMode());
+  }
+
+  Future<void> _restoreMode() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      _preferences = preferences;
+      final savedMode = preferences.getBool(_previewGridPreferenceKey);
+      if (!mounted || _modeChosenInThisSession || savedMode == null) return;
+      setState(() => _showPreviewGrid = savedMode);
+    } on MissingPluginException {
+      // Some custom embedders intentionally omit optional preference plugins.
+    }
+  }
+
+  Future<void> _persistMode(bool showPreviewGrid) async {
+    try {
+      final preferences = _preferences ?? await SharedPreferences.getInstance();
+      _preferences = preferences;
+      await preferences.setBool(_previewGridPreferenceKey, showPreviewGrid);
+    } on MissingPluginException {
+      // The immediate in-memory toggle still works without persistence.
+    }
+  }
+
+  void _toggleMode() {
+    final showPreviewGrid = !_showPreviewGrid;
+    _modeChosenInThisSession = true;
+    setState(() => _showPreviewGrid = showPreviewGrid);
+    unawaited(_persistMode(showPreviewGrid));
+  }
 
   @override
   Widget build(BuildContext context) => _CollapsibleSidebarGroup(
     id: 'catalogue',
     label: const Text('Catalogue'),
-    children: [
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: DesyButton(
-          key: const ValueKey('sidebar-catalogue-preview-toggle'),
-          semanticsLabel: _showPreviewGrid
-              ? 'Use catalogue folder tree'
-              : 'Try experimental catalogue preview grid',
-          semanticsTooltip: _showPreviewGrid
-              ? 'Show folder tree'
-              : 'Preview grid · experimental',
-          variant: DesyButtonVariant.outline,
-          size: DesyButtonSize.xs,
-          onPress: _toggleMode,
-          child: Icon(
-            _showPreviewGrid ? DesyIcons.folder : DesyIcons.layoutGrid,
-            size: 14,
-          ),
+    headerControl: SizedBox.square(
+      dimension: 32,
+      child: DesyButton(
+        key: const ValueKey('sidebar-catalogue-preview-toggle'),
+        semanticsLabel: _showPreviewGrid
+            ? 'Use catalogue folder tree'
+            : 'Use catalogue preview grid',
+        semanticsTooltip: _showPreviewGrid
+            ? 'Show folder tree'
+            : 'Preview grid · experimental',
+        variant: DesyButtonVariant.ghost,
+        size: DesyButtonSize.xs,
+        onPress: _toggleMode,
+        child: Icon(
+          _showPreviewGrid ? DesyIcons.folder : DesyIcons.layoutGrid,
+          size: 14,
         ),
       ),
+    ),
+    children: [
       if (_showPreviewGrid)
         _SidebarPreviewGrid(
           sections: widget.sections,
@@ -537,11 +578,13 @@ class _CollapsibleSidebarGroup extends StatefulWidget {
     required this.id,
     required this.label,
     required this.children,
+    this.headerControl,
   });
 
   final String id;
   final Widget label;
   final List<Widget> children;
+  final Widget? headerControl;
 
   @override
   State<_CollapsibleSidebarGroup> createState() =>
@@ -575,19 +618,34 @@ class _CollapsibleSidebarGroupState extends State<_CollapsibleSidebarGroup> {
         ),
       ),
     ),
-    label: MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        key: ValueKey('sidebar-section-${widget.id}-header'),
-        behavior: HitTestBehavior.opaque,
-        onTap: _toggle,
-        child: Semantics(
-          button: true,
-          toggled: _expanded,
-          label: '${widget.id} section, ${_expanded ? 'collapse' : 'expand'}',
-          child: widget.label,
+    label: Row(
+      key: ValueKey('sidebar-section-${widget.id}-header-row'),
+      children: [
+        Expanded(
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              key: ValueKey('sidebar-section-${widget.id}-header'),
+              behavior: HitTestBehavior.opaque,
+              onTap: _toggle,
+              child: Semantics(
+                button: true,
+                toggled: _expanded,
+                label:
+                    '${widget.id} section, ${_expanded ? 'collapse' : 'expand'}',
+                child: widget.label,
+              ),
+            ),
+          ),
         ),
-      ),
+        if (widget.headerControl case final headerControl?) ...[
+          const SizedBox(width: 4),
+          KeyedSubtree(
+            key: ValueKey('sidebar-section-${widget.id}-header-control'),
+            child: headerControl,
+          ),
+        ],
+      ],
     ),
     action: KeyedSubtree(
       key: ValueKey('sidebar-section-${widget.id}-toggle'),

@@ -4,8 +4,11 @@ import 'package:desy_bench/src/workbench/workbench_session.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets(
     'experimental preview grid shows every entry and keeps tree navigation',
     (tester) async {
@@ -81,6 +84,17 @@ void main() {
         find.byKey(const ValueKey('sidebar-catalogue-preview-grid')),
         findsNothing,
       );
+      expect(
+        find.descendant(
+          of: find.byKey(
+            const ValueKey('sidebar-section-catalogue-header-control'),
+          ),
+          matching: find.byKey(
+            const ValueKey('sidebar-catalogue-preview-toggle'),
+          ),
+        ),
+        findsOneWidget,
+      );
 
       await tester.tap(
         find.byKey(const ValueKey('sidebar-catalogue-preview-toggle')),
@@ -90,6 +104,12 @@ void main() {
       expect(
         find.byKey(const ValueKey('sidebar-catalogue-preview-grid')),
         findsOneWidget,
+      );
+      expect(
+        (await SharedPreferences.getInstance()).getBool(
+          'desy_bench.catalogue.preview_grid',
+        ),
+        isTrue,
       );
       for (final id in ['components', 'unfiled']) {
         final header = tester.widget<Semantics>(
@@ -166,6 +186,48 @@ void main() {
       );
     },
   );
+
+  testWidgets('catalogue restores its saved grid view', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'desy_bench.catalogue.preview_grid': true,
+    });
+    final session = DesyWorkbenchSession(
+      registry: DesyRegistry(
+        name: 'Saved sidebar',
+        themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+        tokens: [
+          DesyToken(
+            id: 'saved.token',
+            name: 'Saved token',
+            builder: (_) => const SizedBox(width: 32, height: 32),
+          ),
+        ],
+      ),
+    );
+    addTearDown(session.dispose);
+
+    await tester.pumpWidget(
+      FTheme(
+        data: FTheme.neutral.light.desktop,
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: SizedBox(
+            width: 248,
+            child: DesyWorkbenchSidebar(
+              session: session,
+              location: Uri.parse('/atlas'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('sidebar-catalogue-preview-grid')),
+      findsOneWidget,
+    );
+  });
 
   testWidgets('desktop sidebar resizes by drag', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
