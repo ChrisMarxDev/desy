@@ -105,11 +105,6 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
     final values = session.knobValues.watch(context);
     final component = entry.component;
     final motion = _motion;
-    final defaults = {
-      for (final knob in component?.knobs ?? const <DesyKnob<Object>>[])
-        knob.id: knob.initial,
-    };
-    final activeValues = {...defaults, ...values};
     final variants = <_DetailVariant>[
       _DetailVariant(
         id: 'default',
@@ -123,40 +118,31 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
                   ? entry.builder
                   : _buildMotionPreview
             : (context) =>
-                  component.buildWithKnobs?.call(
+                  component.buildWithValues(
                     context,
-                    DesyKnobValues(
-                      _selectedVariantId == 'default' ? activeValues : defaults,
-                    ),
-                    session.registry.widgetBuilder,
-                  ) ??
-                  component.preview(context),
+                    _selectedVariantId == 'default' ? values : const {},
+                    widgets: session.registry.widgetBuilder,
+                  ),
       ),
-      if (component != null)
-        for (final instance in component.instances)
-          _DetailVariant(
-            id: 'instance-${instance.id}',
-            name: instance.name,
-            selected: _selectedVariantId == 'instance-${instance.id}',
-            onSelect: () =>
-                _selectVariant(component: component, instance: instance),
-            builder: (context) {
-              final builder = component.buildWithKnobs;
-              if (_selectedVariantId == 'instance-${instance.id}' &&
-                  builder != null) {
-                return builder(
+      for (final instanceId in component?.instanceIds ?? const [])
+        _DetailVariant(
+          id: 'instance-$instanceId',
+          name: component!.instanceLabel(instanceId),
+          selected: _selectedVariantId == 'instance-$instanceId',
+          onSelect: () =>
+              _selectVariant(component: component, instanceId: instanceId),
+          builder: (context) => _selectedVariantId == 'instance-$instanceId'
+              ? component.buildWithValues(
                   context,
-                  DesyKnobValues(activeValues),
+                  values,
+                  widgets: session.registry.widgetBuilder,
+                )
+              : component.buildInstance(
+                  context,
+                  instanceId,
                   session.registry.widgetBuilder,
-                );
-              }
-              return component.buildInstance(
-                context,
-                instance,
-                widgets: session.registry.widgetBuilder,
-              );
-            },
-          ),
+                ),
+        ),
       if (component != null)
         for (final scenario in component.scenarios)
           _DetailVariant(
@@ -210,15 +196,20 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
       DesyMotionPlaybackControls(controller: _motionPlayback!);
 
   void _selectVariant({
-    required DesyComponent component,
-    DesyComponentInstance? instance,
+    required DesyRegistryComponent component,
+    String? instanceId,
   }) {
-    final variantId = instance == null ? 'default' : 'instance-${instance.id}';
+    final variantId = instanceId == null ? 'default' : 'instance-$instanceId';
     if (_selectedVariantId == variantId) return;
     setState(() => _selectedVariantId = variantId);
+    final registered = instanceId == null
+        ? null
+        : widget.session.registry.resolveComponentInstance(
+            '${component.id}.$instanceId',
+          );
     widget.session.editComponentVariant(
       component: component,
-      instance: instance,
+      instance: registered,
     );
   }
 }
@@ -514,7 +505,7 @@ class _DetailInspector extends StatelessWidget {
   });
 
   final DesyWorkbenchSession session;
-  final DesyComponent? component;
+  final DesyRegistryComponent? component;
   final DesyRegistryEntry entry;
   final Map<String, Object> values;
   final String selectedVariantName;
@@ -537,22 +528,22 @@ class _DetailInspector extends StatelessWidget {
           const SizedBox(height: 20),
           controls,
         ],
-        if (component != null && component!.knobs.isNotEmpty) ...[
+        if (component != null && component!.knobDefinitions.isNotEmpty) ...[
           const SizedBox(height: 24),
           Text('Knobs', style: Theme.of(context).textTheme.labelLarge),
           const SizedBox(height: 12),
           DesyComponentKnobPanel(
             registry: session.registry,
-            knobs: component!.knobs,
+            knobs: component!.knobDefinitions,
             values: values,
             onChanged: session.setKnob,
           ),
         ],
         if (motionControls == null &&
             (component == null ||
-                (component!.knobs.isEmpty &&
+                (component!.knobDefinitions.isEmpty &&
                     component!.scenarios.isEmpty &&
-                    component!.instances.isEmpty))) ...[
+                    component!.instanceIds.isEmpty))) ...[
           const SizedBox(height: 12),
           Text(
             'No controls declared.',

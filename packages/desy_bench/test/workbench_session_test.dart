@@ -4,14 +4,12 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('session rejects component knob values outside declared options', () {
-    const allowed = 'status.clear';
-    const unrelated = 'button.publish';
-    final knob = DesyComponentKnob(
+  test('session stores typed knob values under their declared definition', () {
+    final definition = KnobDefinition(
       id: 'trailing',
       name: 'Trailing',
-      initial: allowed,
-      options: [allowed],
+      kind: DesyKnobKind.string,
+      initial: 'status.clear',
     );
     final session = DesyWorkbenchSession(
       registry: DesyRegistry(
@@ -20,9 +18,8 @@ void main() {
       ),
     );
 
-    session.setKnob(knob, allowed);
-    expect(session.knobValues.value['trailing'], allowed);
-    expect(() => session.setKnob(knob, unrelated), throwsArgumentError);
+    session.setKnob(definition, 'status.clear');
+    expect(session.knobValues.value['trailing'], 'status.clear');
 
     session.dispose();
   });

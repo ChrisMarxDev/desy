@@ -33,9 +33,21 @@ Numeric primitives use `DesyNumericEntry`; icon glyphs use `DesyIconEntry`.
 Their explicit types select specialized boards without folder-name inference.
 
 Components may be direct sidebar destinations. Desy derives their expandable
-file tree from paths such as `/inputs/text`. Component contracts, scenarios, and
-knobs are optional typed metadata; a real widget preview is the primitive
-requirement. Ask consumers only for information Desy cannot derive.
+file tree from paths such as `/inputs/text`. A component is either a typed
+bound-record component (`DesyComponent<K>`) or a static catalog
+(`DesyStaticComponent`), both implementing `DesyRegistryComponent`. The full
+contract is described in
+[`docs/concepts/registry-component-contracts.md`](docs/concepts/registry-component-contracts.md);
+component contracts, scenarios, and knobs are optional typed metadata, and a
+real widget preview is the primitive requirement.
+
+A typed component declares its immutable knob schema and its typed handle record
+in one `knobs: (k) => record` callback, supplies one `build(context, knobs)`
+used by every preview and instance, and declares `instances` only as stable IDs
+plus typed knob overrides. The `widgetInstance` knob references another
+registered instance by its registry-scoped `componentId.instanceId`; resolution,
+cycle guards, and the missing-instance diagnostic are centralized in
+`DesyWidgetResolver`. Ask consumers only for information Desy cannot derive.
 
 The dogfood registry is the only maintained executable inventory:
 `packages/desy_design_system/example/lib/src/desy_design_system_registry.dart`.
@@ -47,8 +59,10 @@ The public sidebar building blocks live in
 `packages/desy_design_system/lib/src/desy_sidebar.dart` and are registered under
 `Components / Navigation / Sidebar` in the dogfood catalogue.
 
-- `DesySidebarSection` is a named, non-interactive group. It may expose a count
-  and one small section setting such as the Components grid/tree toggle.
+- `DesySidebarSection` is a named group whose label is non-interactive by
+  default. The Components label is the narrow exception: it opens the Atlas
+  root. A section may also expose a count and one small setting such as the
+  Components grid/tree toggle.
 - `DesySidebarItem` is an icon-and-label destination. The `.screen` constructor
   adds a trailing arrow for Workspace destinations that open another screen.
 - Ordinary items have no trailing affordance. Their optional `children` retain

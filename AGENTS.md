@@ -10,8 +10,7 @@
   integration testbed.
 - `packages/extensions/` contains optional packages that prove narrow extension
   boundaries. They are not part of the core package surface.
-- `dev.md` contains the maintained contributor guide. Do not add roadmaps,
-  research dumps, generated memory files, or parallel documentation trees.
+- `dev.md` contains the maintained contributor guide.
 
 ## Design rules
 

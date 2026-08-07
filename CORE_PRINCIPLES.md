@@ -195,6 +195,16 @@ dogfood catalogue must remain clean after every work block, because confusing
 sample data looks like confusing Desy behavior and teaches consumers the wrong
 API.
 
+## 19. Interface design is part of feature design
+
+Every feature that consumers declare or compose must design its public
+authoring interface as a core deliverable, not as follow-up API cleanup. The
+interface should make the intended domain model direct to express, preserve
+type safety where practical, and make invalid or contradictory declarations
+difficult to construct. Internal implementation convenience must not push
+stringly typed maps, mutable proxy state, repeated boilerplate, or lifecycle
+concerns onto consumers.
+
 ## Non-goals for the first release
 
 - Figma replacement or general no-code application builder.

@@ -90,12 +90,13 @@ void main() {
   });
 }
 
-DesyComponent _component(String id, {String path = '/'}) => DesyComponent(
-  id: id,
-  name: id,
-  path: path,
-  preview: (_) => const SizedBox(),
-);
+DesyRegistryComponent _component(String id, {String path = '/'}) =>
+    DesyStaticComponent(
+      id: id,
+      name: id,
+      path: path,
+      instances: {'default': (_) => const SizedBox()},
+    );
 
 List<String> _destinations(Iterable<DesyWorkbenchNavigationNode> nodes) {
   final destinations = <String>[];

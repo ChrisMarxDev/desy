@@ -436,7 +436,11 @@ DesyRegistry _registry() => DesyRegistry(
   ],
   tokens: [DesyToken(id: 'token', name: 'Token', builder: _emptyPreview)],
   components: [
-    DesyComponent(id: 'button', name: 'Button', preview: _emptyPreview),
+    DesyStaticComponent(
+      id: 'button',
+      name: 'Button',
+      instances: {'default': _emptyPreview},
+    ),
   ],
 );
 

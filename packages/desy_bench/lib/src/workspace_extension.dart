@@ -100,7 +100,7 @@ class DesyWorkspaceExtensionContext {
   );
 
   /// Finds a declared component by its stable registry identifier.
-  DesyComponent? component(String id) {
+  DesyRegistryComponent? component(String id) {
     for (final component in registry.allComponents) {
       if (component.id == id) return component;
     }

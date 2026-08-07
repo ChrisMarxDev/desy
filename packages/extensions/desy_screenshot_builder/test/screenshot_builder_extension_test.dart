@@ -22,17 +22,17 @@ void main() {
       name: 'Acme',
       themes: const [DesyTheme(id: 'night', name: 'Night watch', wrap: _wrap)],
       components: [
-        DesyComponent(
+        DesyStaticComponent(
           id: 'action.publish',
           name: 'Publish',
           path: '/actions',
-          preview: _emptyPreview,
+          instances: {'default': _emptyPreview},
         ),
-        DesyComponent(
+        DesyStaticComponent(
           id: 'action.cancel',
           name: 'Cancel',
           path: '/actions',
-          preview: _emptyPreview,
+          instances: {'default': _emptyPreview},
         ),
       ],
     );

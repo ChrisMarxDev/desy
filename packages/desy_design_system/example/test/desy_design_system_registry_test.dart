@@ -28,6 +28,7 @@ void main() {
         'desy.component.badge',
         'desy.component.button',
         'desy.component.card',
+        'desy.component.catalogue-card',
         'desy.component.dialog',
         'desy.component.scaffold',
         'desy.component.select',
@@ -46,7 +47,8 @@ void main() {
       'Navigation / Sidebar',
     );
     for (final component in desyDesignSystemRegistry.allComponents) {
-      expect(component.instances, isNotEmpty, reason: component.id);
+      expect(component.instanceIds, isNotEmpty, reason: component.id);
+      expect(component.knobDefinitions.isNotEmpty, isTrue, reason: component.id);
     }
   });
 
@@ -59,7 +61,14 @@ void main() {
           home: DesyDesignSystemScope(
             theme: DesyDesignSystemTheme.light,
             child: Scaffold(
-              body: Center(child: Builder(builder: component.preview)),
+              body: Center(
+                child: Builder(
+                  builder: (context) => component.preview(
+                    context,
+                    desyDesignSystemRegistry.widgetBuilder,
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -70,20 +79,53 @@ void main() {
     }
   });
 
+  testWidgets('every component renders each declared preset instance', (
+    tester,
+  ) async {
+    for (final component in desyDesignSystemRegistry.allComponents) {
+      for (final instanceId in component.instanceIds) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: DesyDesignSystemScope(
+              theme: DesyDesignSystemTheme.light,
+              child: Scaffold(
+                body: Center(
+                  child: Builder(
+                    builder: (context) => component.buildInstance(
+                      context,
+                      instanceId,
+                      desyDesignSystemRegistry.widgetBuilder,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: '${component.id}.$instanceId',
+        );
+        await tester.pumpWidget(const SizedBox());
+      }
+    }
+  });
+
   testWidgets('tile swaps registered preset instances through the registry', (
     tester,
   ) async {
     final tile = desyDesignSystemRegistry.allComponents.singleWhere(
       (component) => component.id == 'desy.component.tile',
     );
-    final suffixKnob = tile.knobs.whereType<DesyComponentKnob>().single;
+    final suffixKnob = tile.knobDefinitions.firstWhere(
+      (definition) => definition.id == 'suffix',
+    );
 
-    expect(suffixKnob.initial, 'desy.component.badge.default');
-    expect(suffixKnob.options, const [
-      'desy.component.badge.default',
-      'desy.component.shortcut-label.single-key',
-    ]);
-    expect(tile.instances.map((instance) => instance.id), [
+    expect(suffixKnob.kind, DesyKnobKind.widgetInstance);
+    expect((suffixKnob.initial as DesyInstanceId).value, 'desy.component.badge.default');
+    expect(tile.instanceIds, [
       'with-badge',
       'with-shortcut',
     ]);
@@ -97,8 +139,8 @@ void main() {
               child: Builder(
                 builder: (context) => tile.buildInstance(
                   context,
-                  tile.instances.last,
-                  widgets: desyDesignSystemRegistry.widgetBuilder,
+                  'with-shortcut',
+                  desyDesignSystemRegistry.widgetBuilder,
                 ),
               ),
             ),

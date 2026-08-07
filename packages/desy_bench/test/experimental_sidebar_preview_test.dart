@@ -35,12 +35,14 @@ void main() {
             ),
         ],
         components: [
-          DesyComponent(
+          DesyStaticComponent(
             id: 'deep.component',
             name: 'Deep component',
             path: '/actions',
-            preview: (_) =>
-                const SizedBox(key: ValueKey('deep-component-preview')),
+            instances: {
+              'default': (_) =>
+                  const SizedBox(key: ValueKey('deep-component-preview')),
+            },
           ),
         ],
       );
@@ -251,11 +253,11 @@ void main() {
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
       components: [
         for (var index = 0; index < 6; index++)
-          DesyComponent(
+          DesyStaticComponent(
             id: 'component.$index',
             name: 'Component $index',
             path: '/components',
-            preview: (_) => const SizedBox(width: 32, height: 32),
+            instances: {'default': (_) => const SizedBox(width: 32, height: 32)},
           ),
       ],
     );
@@ -267,10 +269,37 @@ void main() {
     final handle = find.byKey(const ValueKey('desktop-sidebar-resize-handle'));
     expect(tester.getSize(sidebar).width, 248);
     expect(handle, findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byType(DesyScaffold)).dx,
+      248,
+      reason:
+          'the resize target overlays the workspace instead of reserving a gap',
+    );
+    expect(
+      tester
+          .widget<AnimatedContainer>(
+            find.byKey(const ValueKey('desktop-sidebar-resize-indicator')),
+          )
+          .constraints
+          ?.maxWidth,
+      0,
+    );
 
     await tester.drag(handle, const Offset(144, 0));
     await tester.pumpAndSettle();
     expect(tester.getSize(sidebar).width, greaterThan(360));
+
+    await tester.tap(find.byKey(const ValueKey('desktop-sidebar-collapse')));
+    await tester.pumpAndSettle();
+    final restore = find.byKey(const ValueKey('desktop-sidebar-restore'));
+    final restoreSize = tester.getSize(restore);
+    expect(restoreSize, const Size.square(32));
+    expect(tester.getTopLeft(restore), const Offset(12, 8));
+    expect(find.text('Show sidebar'), findsNothing);
+    expect(tester.widget<DesyButton>(restore).semanticsLabel, 'Show sidebar');
+
+    await tester.tap(restore);
+    await tester.pumpAndSettle();
 
     await tester.tap(
       find.byKey(const ValueKey('sidebar-components-view-toggle')),

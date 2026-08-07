@@ -12,27 +12,19 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1400, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    final alpha = DesyComponentInstance(
-      id: 'alpha',
-      name: 'Alpha',
-      knobValues: DesyKnobValues({'label': 'Alpha'}),
-    );
-    final bravo = DesyComponentInstance(
-      id: 'bravo',
-      name: 'Bravo',
-      knobValues: DesyKnobValues({'label': 'Bravo'}),
-    );
     final component = DesyComponent(
       id: 'action',
       name: 'Action',
-      preview: (_) => const Text('Default · true'),
-      knobs: const [
-        DesyStringKnob(id: 'label', name: 'Label', initial: 'Default'),
-        DesyBooleanKnob(id: 'enabled', name: 'Enabled', initial: true),
-      ],
-      buildWithKnobs: (context, values, _) =>
-          Text('${values.string('label')} · ${values.boolean('enabled')}'),
-      instances: [alpha, bravo],
+      knobs: (k) => (
+        label: k.string('label', name: 'Label', initial: 'Default'),
+        enabled: k.boolean('enabled', name: 'Enabled', initial: true),
+      ),
+      build: (context, knobs) =>
+          Text('${knobs.label.value} · ${knobs.enabled.value}'),
+      instances: (knobs) => {
+        'alpha': [knobs.label('Alpha')],
+        'bravo': [knobs.label('Bravo')],
+      },
     );
     final registry = DesyRegistry(
       name: 'Editable instances',
@@ -80,7 +72,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Editing Bravo'), findsOneWidget);
-    expect(session.selectedComponentInstance.value, same(bravo));
+    expect(session.selectedComponentInstance.value?.instanceId, 'bravo');
     expect(session.knobValues.value, {'label': 'Bravo', 'enabled': true});
     final bravoSelector = tester.widget<Semantics>(
       find.byKey(const ValueKey('detail-instance-selector-instance-bravo')),
@@ -94,7 +86,7 @@ void main() {
     expect(find.text('Bravo · false'), findsOneWidget);
     expect(find.text('Default · true'), findsOneWidget);
     expect(find.text('Alpha · true'), findsOneWidget);
-    expect(session.selectedComponentInstance.value, same(bravo));
+    expect(session.selectedComponentInstance.value?.instanceId, 'bravo');
 
     final alphaViewer = find.byKey(
       const ValueKey('detail-instance-viewer-instance-alpha'),
@@ -115,7 +107,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Editing Alpha'), findsOneWidget);
-    expect(session.selectedComponentInstance.value, same(alpha));
+    expect(session.selectedComponentInstance.value?.instanceId, 'alpha');
     expect(session.knobValues.value, {'label': 'Alpha', 'enabled': true});
     expect(find.text('Alpha · true'), findsOneWidget);
     expect(find.text('Bravo · true'), findsOneWidget);

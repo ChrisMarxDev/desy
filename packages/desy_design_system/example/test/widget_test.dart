@@ -26,8 +26,7 @@ void main() {
         .onPress!
         .call();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Button').last);
-    await tester.pumpAndSettle();
+    await _openAtlasEntry(tester, 'desy.component.button');
     final defaultViewer = find.byKey(
       const ValueKey('detail-instance-viewer-default'),
     );
@@ -51,8 +50,7 @@ void main() {
         .onPress!
         .call();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Badge').last);
-    await tester.pumpAndSettle();
+    await _openAtlasEntry(tester, 'desy.component.badge');
     final badgeViewer = find.byKey(
       const ValueKey('detail-instance-viewer-default'),
     );
@@ -87,6 +85,28 @@ void main() {
     expect(find.text('Components'), findsWidgets);
   });
 
+  testWidgets('switch Atlas preview keeps its label horizontal', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(buildDesyDesignSystemDogfoodApp());
+    await tester.pumpAndSettle();
+
+    tester
+        .widget<DesySidebarItem>(
+          find.byKey(const ValueKey('sidebar-folder-/inputs')),
+        )
+        .onPress!
+        .call();
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(find.byType(DesySwitch)).width, 160);
+    final labelSize = tester.getSize(find.text('Show grid'));
+    expect(labelSize.width, greaterThan(labelSize.height));
+  });
+
   testWidgets('dogfoods agent annotations in component details', (
     tester,
   ) async {
@@ -113,8 +133,7 @@ void main() {
         .onPress!
         .call();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Button').last);
-    await tester.pumpAndSettle();
+    await _openAtlasEntry(tester, 'desy.component.button');
 
     expect(find.text('Agent annotation'), findsOneWidget);
     await tester.enterText(
@@ -158,8 +177,7 @@ void main() {
         .onPress!
         .call();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Background').last);
-    await tester.pumpAndSettle();
+    await _openAtlasEntry(tester, 'desy.color.background');
 
     expect(find.text('Agent annotation'), findsOneWidget);
     await tester.enterText(
@@ -197,8 +215,7 @@ void main() {
         .onPress!
         .call();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Tile').last);
-    await tester.pumpAndSettle();
+    await _openAtlasEntry(tester, 'desy.component.tile');
 
     final swapControl = find.byKey(
       const ValueKey('instance-swap-current-suffix'),
@@ -249,4 +266,11 @@ void main() {
       findsOneWidget,
     );
   });
+}
+
+Future<void> _openAtlasEntry(WidgetTester tester, String id) async {
+  final card = find.byKey(ValueKey('atlas-card-$id'));
+  await tester.ensureVisible(card);
+  tester.widget<GestureDetector>(card).onTap!.call();
+  await tester.pumpAndSettle();
 }

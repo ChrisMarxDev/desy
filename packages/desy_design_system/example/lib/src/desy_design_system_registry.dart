@@ -212,6 +212,7 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
     _sidebarSectionComponent,
     _sidebarItemComponent,
     _cardComponent,
+    _catalogueCardComponent,
     _scaffoldComponent,
     _shortcutComponent,
   ],
@@ -233,41 +234,24 @@ final _buttonComponent = DesyComponent(
   description: 'Triggers a workbench action with a clear semantic priority.',
   accessibility: 'Use a visible outcome label and preserve disabled semantics.',
   source: 'package:desy_design_system/src/control_aliases.dart',
-  preview: (context) => DesyButton(
-    mainAxisSize: MainAxisSize.min,
-    onPress: () {},
-    child: const Text('Inspect component'),
+  knobs: (k) => (
+    label: k.string('label', name: 'Label', initial: 'Inspect component'),
+    outline: k.boolean('outline', name: 'Outline', initial: false),
+    enabled: k.boolean('enabled', name: 'Enabled', initial: true),
   ),
-  knobs: const [
-    DesyStringKnob(id: 'label', name: 'Label', initial: 'Inspect component'),
-    DesyBooleanKnob(id: 'outline', name: 'Outline', initial: false),
-    DesyBooleanKnob(id: 'enabled', name: 'Enabled', initial: true),
-  ],
-  buildWithKnobs: (context, values, _) => DesyButton(
-    variant: values.boolean('outline')
+  build: (context, knobs) => DesyButton(
+    variant: knobs.outline.value
         ? DesyButtonVariant.outline
         : DesyButtonVariant.primary,
     mainAxisSize: MainAxisSize.min,
-    onPress: values.boolean('enabled') ? () {} : null,
-    child: Text(values.string('label')),
+    onPress: knobs.enabled.value ? () {} : null,
+    child: Text(knobs.label.value),
   ),
-  instances: [
-    DesyComponentInstance(
-      id: 'primary',
-      name: 'Primary',
-      knobValues: DesyKnobValues({'label': 'Inspect component'}),
-    ),
-    DesyComponentInstance(
-      id: 'outline',
-      name: 'Outline',
-      knobValues: DesyKnobValues({'label': 'Open settings', 'outline': true}),
-    ),
-    DesyComponentInstance(
-      id: 'disabled',
-      name: 'Disabled',
-      knobValues: DesyKnobValues({'label': 'Unavailable', 'enabled': false}),
-    ),
-  ],
+  instances: (knobs) => {
+    'primary': [knobs.label('Inspect component')],
+    'outline': [knobs.label('Open settings'), knobs.outline(true)],
+    'disabled': [knobs.label('Unavailable'), knobs.enabled(false)],
+  },
 );
 
 final _badgeComponent = _component(
@@ -275,7 +259,30 @@ final _badgeComponent = _component(
   name: 'Badge',
   path: '/feedback',
   description: 'A compact non-interactive label for concise metadata.',
-  preview: (context) => DesyBadge(child: const Text('EXPERIMENTAL')),
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/control_aliases.dart',
+  knobs: (k) => (
+    label: k.string('label', name: 'Label', initial: 'EXPERIMENTAL'),
+    outline: k.boolean('outline', name: 'Outline', initial: false),
+  ),
+  build: (context, knobs) => _buildBadge(
+    context,
+    label: knobs.label.value,
+    outline: knobs.outline.value,
+  ),
+  instances: (knobs) => {
+    'default': [knobs.label('EXPERIMENTAL'), knobs.outline(false)],
+    'outline': [knobs.label('STABLE'), knobs.outline(true)],
+  },
+);
+
+Widget _buildBadge(
+  BuildContext context, {
+  required String label,
+  required bool outline,
+}) => DesyBadge(
+  variant: outline ? DesyBadgeVariant.outline : DesyBadgeVariant.primary,
+  child: Text(label),
 );
 
 final _cardComponent = _component(
@@ -283,21 +290,113 @@ final _cardComponent = _component(
   name: 'Card',
   path: '/surfaces',
   description: 'Contains a related workbench specimen or inspector section.',
-  preview: (context) => DesyCard(
-    child: Padding(
-      padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceLg),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Registry source',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/control_aliases.dart',
+  knobs: (k) => (
+    title: k.string('title', name: 'Title', initial: 'Registry source'),
+    body: k.string(
+      'body',
+      name: 'Body',
+      initial: 'One declared system drives every workbench surface.',
+    ),
+    showBody: k.boolean('showBody', name: 'Show body', initial: true),
+  ),
+  build: (context, knobs) => _buildCard(
+    context,
+    title: knobs.title.value,
+    body: knobs.body.value,
+    showBody: knobs.showBody.value,
+  ),
+  instances: (knobs) => {
+    'default': [knobs.title('Registry source'), knobs.showBody(true)],
+  },
+);
+
+Widget _buildCard(
+  BuildContext context, {
+  required String title,
+  required String body,
+  required bool showBody,
+}) => DesyCard(
+  child: Padding(
+    padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceLg),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        if (showBody) ...[
           const SizedBox(height: DesyDesignSystemTokens.spaceSm),
-          const Text('One declared system drives every workbench surface.'),
+          Text(body),
         ],
-      ),
+      ],
+    ),
+  ),
+);
+
+final _catalogueCardComponent = _component(
+  id: 'desy.component.catalogue-card',
+  name: 'Catalogue card',
+  path: '/surfaces',
+  description:
+      'Separates a real component specimen from its durable registry identity.',
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/desy_catalogue_card.dart',
+  knobs: (k) => (
+    path: k.string('path', name: 'Path', initial: 'Actions'),
+    identifier: k.string(
+      'identifier',
+      name: 'Identifier',
+      initial: 'desy.component.button',
+    ),
+    actionLabel: k.string('actionLabel', name: 'Preview label', initial: 'Inspect'),
+    showAction: k.boolean(
+      'showAction',
+      name: 'Show preview action',
+      initial: true,
+    ),
+  ),
+  build: (context, knobs) => _buildCatalogueCard(
+    context,
+    path: knobs.path.value,
+    identifier: knobs.identifier.value,
+    actionLabel: knobs.actionLabel.value,
+    showAction: knobs.showAction.value,
+  ),
+  instances: (knobs) => {
+    'default': [
+      knobs.path('Actions'),
+      knobs.identifier('desy.component.button'),
+      knobs.actionLabel('Inspect'),
+      knobs.showAction(true),
+    ],
+  },
+);
+
+Widget _buildCatalogueCard(
+  BuildContext context, {
+  required String path,
+  required String identifier,
+  required String actionLabel,
+  required bool showAction,
+}) => SizedBox(
+  width: 280,
+  height: 236,
+  child: DesyCatalogueCard(
+    path: path,
+    identifier: identifier,
+    preview: Center(
+      child: showAction
+          ? DesyButton(
+              size: DesyButtonSize.sm,
+              mainAxisSize: MainAxisSize.min,
+              onPress: () {},
+              child: Text(actionLabel),
+            )
+          : const Text('Component preview'),
     ),
   ),
 );
@@ -307,23 +406,48 @@ final _dialogComponent = _component(
   name: 'Dialog',
   path: '/feedback',
   description: 'A focused modal decision or bounded selection surface.',
-  preview: (context) => DesyDialog(
-    semanticsLabel: 'Example dialog',
-    constraints: const BoxConstraints(maxWidth: 360),
-    builder: (context, style) => Padding(
-      padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceLg),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Swap instance', style: style.titleTextStyle),
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/control_aliases.dart',
+  knobs: (k) => (
+    title: k.string('title', name: 'Title', initial: 'Swap instance'),
+    body: k.string(
+      'body',
+      name: 'Body',
+      initial: 'Choose one legal component instance from the registry.',
+    ),
+    showBody: k.boolean('showBody', name: 'Show body', initial: true),
+  ),
+  build: (context, knobs) => _buildDialog(
+    context,
+    title: knobs.title.value,
+    body: knobs.body.value,
+    showBody: knobs.showBody.value,
+  ),
+  instances: (knobs) => {
+    'default': [knobs.title('Swap instance'), knobs.showBody(true)],
+  },
+);
+
+Widget _buildDialog(
+  BuildContext context, {
+  required String title,
+  required String body,
+  required bool showBody,
+}) => DesyDialog(
+  semanticsLabel: 'Example dialog',
+  constraints: const BoxConstraints(maxWidth: 360),
+  builder: (context, style) => Padding(
+    padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceLg),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: style.titleTextStyle),
+        if (showBody) ...[
           const SizedBox(height: DesyDesignSystemTokens.spaceSm),
-          Text(
-            'Choose one legal component instance from the registry.',
-            style: style.bodyTextStyle,
-          ),
+          Text(body, style: style.bodyTextStyle),
         ],
-      ),
+      ],
     ),
   ),
 );
@@ -333,17 +457,54 @@ final _selectComponent = _component(
   name: 'Select',
   path: '/inputs',
   description: 'Chooses one typed value from a bounded option set.',
-  preview: (context) => SizedBox(
-    width: 280,
-    child: DesySelect<String>.rich(
-      control: DesySelectControl.lifted(value: 'light', onChange: (_) {}),
-      format: (value) =>
-          value == 'light' ? 'Workbench light' : 'Workbench dark',
-      children: const [
-        DesySelectItem.item(value: 'light', title: Text('Workbench light')),
-        DesySelectItem.item(value: 'dark', title: Text('Workbench dark')),
-      ],
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/control_aliases.dart',
+  knobs: (k) => (
+    dark: k.boolean('dark', name: 'Select dark theme', initial: false),
+    showDescriptions: k.boolean(
+      'showDescriptions',
+      name: 'Show descriptions',
+      initial: false,
     ),
+  ),
+  build: (context, knobs) => _buildSelect(
+    context,
+    dark: knobs.dark.value,
+    showDescriptions: knobs.showDescriptions.value,
+  ),
+  instances: (knobs) => {
+    'default': [knobs.dark(false), knobs.showDescriptions(false)],
+  },
+);
+
+Widget _buildSelect(
+  BuildContext context, {
+  required bool dark,
+  required bool showDescriptions,
+}) => SizedBox(
+  width: 280,
+  child: DesySelect<String>.rich(
+    control: DesySelectControl.lifted(
+      value: dark ? 'dark' : 'light',
+      onChange: (_) {},
+    ),
+    format: (value) => value == 'light' ? 'Workbench light' : 'Workbench dark',
+    children: [
+      DesySelectItem.item(
+        value: 'light',
+        title: const Text('Workbench light'),
+        subtitle: showDescriptions
+            ? const Text('High-clarity neutral chrome')
+            : null,
+      ),
+      DesySelectItem.item(
+        value: 'dark',
+        title: const Text('Workbench dark'),
+        subtitle: showDescriptions
+            ? const Text('Low-glare preview context')
+            : null,
+      ),
+    ],
   ),
 );
 
@@ -351,28 +512,37 @@ final _switchComponent = DesyComponent(
   id: 'desy.component.switch',
   name: 'Switch',
   path: '/inputs',
+  icon: DesyIcons.component,
   description: 'Changes one immediate boolean workbench preference.',
   source: 'package:desy_design_system/src/control_aliases.dart',
-  preview: (context) =>
-      DesySwitch(label: const Text('Show grid'), value: true, onChange: (_) {}),
-  knobs: const [DesyBooleanKnob(id: 'value', name: 'Value', initial: true)],
-  buildWithKnobs: (context, values, _) => DesySwitch(
-    label: const Text('Show grid'),
-    value: values.boolean('value'),
-    onChange: (_) {},
+  knobs: (k) => (
+    label: k.string('label', name: 'Label', initial: 'Show grid'),
+    value: k.boolean('value', name: 'Value', initial: true),
+    enabled: k.boolean('enabled', name: 'Enabled', initial: true),
   ),
-  instances: [
-    DesyComponentInstance(
-      id: 'on',
-      name: 'On',
-      knobValues: DesyKnobValues({'value': true}),
-    ),
-    DesyComponentInstance(
-      id: 'off',
-      name: 'Off',
-      knobValues: DesyKnobValues({'value': false}),
-    ),
-  ],
+  build: (context, knobs) => _switchSpecimen(
+    label: knobs.label.value,
+    value: knobs.value.value,
+    enabled: knobs.enabled.value,
+  ),
+  instances: (knobs) => {
+    'on': [knobs.value(true)],
+    'off': [knobs.value(false)],
+    'disabled': [knobs.enabled(false)],
+  },
+);
+
+Widget _switchSpecimen({
+  required String label,
+  required bool value,
+  required bool enabled,
+}) => SizedBox(
+  width: 160,
+  child: DesySwitch(
+    label: Text(label),
+    value: value,
+    onChange: enabled ? (_) {} : null,
+  ),
 );
 
 final _textFieldComponent = DesyComponent(
@@ -381,48 +551,34 @@ final _textFieldComponent = DesyComponent(
   path: '/inputs',
   icon: DesyIcons.component,
   description: 'Native Flutter text editing styled by the Desy theme bridge.',
-  accessibility:
-      'Preserve native selection, caret, keyboard, and context menus.',
+  accessibility: 'Preserve native selection, caret, keyboard, and context menus.',
   source: 'package:desy_design_system/src/desy_text_field.dart',
-  preview: (context) => const _TextFieldFrame(
-    child: DesyTextField(label: 'Search', hintText: 'Search components'),
+  knobs: (k) => (
+    label: k.string('label', name: 'Label', initial: 'Search'),
+    hint: k.string('hint', name: 'Hint', initial: 'Search components'),
+    value: k.string('value', name: 'Value', initial: ''),
+    enabled: k.boolean('enabled', name: 'Enabled', initial: true),
+    multiline: k.boolean('multiline', name: 'Multiline', initial: false),
   ),
-  knobs: const [
-    DesyStringKnob(id: 'variant', name: 'Variant', initial: 'empty'),
-  ],
-  buildWithKnobs: (context, values, _) => switch (values.string('variant')) {
-    'disabled' => const _TextFieldFrame(
-      child: DesyTextField(label: 'Search', value: 'Atlas', enabled: false),
+  build: (context, knobs) => _TextFieldFrame(
+    child: DesyTextField(
+      label: knobs.label.value,
+      hintText: knobs.hint.value,
+      value: knobs.value.value,
+      enabled: knobs.enabled.value,
+      minLines: knobs.multiline.value ? 3 : null,
+      maxLines: knobs.multiline.value ? 5 : 1,
     ),
-    'multiline' => const _TextFieldFrame(
-      child: DesyTextField(
-        label: 'Notes',
-        hintText: 'Add usage guidance',
-        minLines: 3,
-        maxLines: 5,
-      ),
-    ),
-    _ => const _TextFieldFrame(
-      child: DesyTextField(label: 'Search', hintText: 'Search components'),
-    ),
+  ),
+  instances: (knobs) => {
+    'empty': [knobs.label('Search'), knobs.value('')],
+    'disabled': [knobs.label('Search'), knobs.value('Atlas'), knobs.enabled(false)],
+    'multiline': [
+      knobs.label('Notes'),
+      knobs.hint('Add usage guidance'),
+      knobs.multiline(true),
+    ],
   },
-  instances: [
-    DesyComponentInstance(
-      id: 'empty',
-      name: 'Empty',
-      knobValues: DesyKnobValues({'variant': 'empty'}),
-    ),
-    DesyComponentInstance(
-      id: 'disabled',
-      name: 'Disabled',
-      knobValues: DesyKnobValues({'variant': 'disabled'}),
-    ),
-    DesyComponentInstance(
-      id: 'multiline',
-      name: 'Multiline',
-      knobValues: DesyKnobValues({'variant': 'multiline'}),
-    ),
-  ],
 );
 
 final _accordionComponent = _component(
@@ -430,20 +586,47 @@ final _accordionComponent = _component(
   name: 'Accordion',
   path: '/navigation',
   description: 'Progressively discloses nested registry structure.',
-  preview: (context) => SizedBox(
-    width: 320,
-    child: DesyAccordion(
-      children: const [
-        DesyAccordionItem(
-          initiallyExpanded: true,
-          title: Text('Components'),
-          child: Padding(
-            padding: EdgeInsets.all(DesyDesignSystemTokens.spaceMd),
-            child: Text('Actions · Feedback · Inputs · Navigation'),
-          ),
-        ),
-      ],
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/control_aliases.dart',
+  knobs: (k) => (
+    title: k.string('title', name: 'Title', initial: 'Components'),
+    content: k.string(
+      'content',
+      name: 'Content',
+      initial: 'Actions · Feedback · Inputs · Navigation',
     ),
+    expanded: k.boolean('expanded', name: 'Initially expanded', initial: true),
+  ),
+  build: (context, knobs) => _buildAccordion(
+    context,
+    title: knobs.title.value,
+    content: knobs.content.value,
+    expanded: knobs.expanded.value,
+  ),
+  instances: (knobs) => {
+    'default': [knobs.expanded(true)],
+  },
+);
+
+Widget _buildAccordion(
+  BuildContext context, {
+  required String title,
+  required String content,
+  required bool expanded,
+}) => SizedBox(
+  width: 320,
+  child: DesyAccordion(
+    children: [
+      DesyAccordionItem(
+        key: ValueKey('accordion-$expanded'),
+        initiallyExpanded: expanded,
+        title: Text(title),
+        child: Padding(
+          padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceMd),
+          child: Text(content),
+        ),
+      ),
+    ],
   ),
 );
 
@@ -452,8 +635,29 @@ final _sidebarComponent = _component(
   name: 'Sidebar',
   path: '/navigation/sidebar',
   description: 'The complete section-and-item workbench navigation pattern.',
+  icon: DesyIcons.component,
   source: 'package:desy_design_system/src/desy_sidebar.dart',
-  preview: (context) => const _SidebarSpecimen(),
+  knobs: (k) => (
+    title: k.string('title', name: 'Product title', initial: 'DESY BENCH'),
+    showAtoms: k.boolean('showAtoms', name: 'Show Atoms', initial: true),
+    previewGrid: k.boolean(
+      'previewGrid',
+      name: 'Component preview grid',
+      initial: false,
+    ),
+  ),
+  build: (context, knobs) => _SidebarSpecimen(
+    title: knobs.title.value,
+    showAtoms: knobs.showAtoms.value,
+    previewGrid: knobs.previewGrid.value,
+  ),
+  instances: (knobs) => {
+    'default': [
+      knobs.title('DESY BENCH'),
+      knobs.showAtoms(true),
+      knobs.previewGrid(false),
+    ],
+  },
 );
 
 final _sidebarSectionComponent = _component(
@@ -461,28 +665,74 @@ final _sidebarSectionComponent = _component(
   name: 'Sidebar section',
   path: '/navigation/sidebar',
   description:
-      'A non-interactive navigation heading with an optional local setting.',
+      'A navigation heading with an optional root destination and local setting.',
+  icon: DesyIcons.component,
   source: 'package:desy_design_system/src/desy_sidebar.dart',
-  preview: (context) => SizedBox(
-    width: 248,
-    height: 150,
-    child: DesySidebar(
-      children: [
-        DesySidebarSection(
-          label: 'Components',
-          count: 13,
-          action: const Icon(DesyIcons.layoutGrid, size: 15),
-          actionSemanticsLabel: 'Use component preview grid',
-          onActionPress: () {},
-          children: const [
-            DesySidebarItem(
-              icon: Icon(DesyIcons.folder),
-              label: Text('Actions'),
-            ),
-          ],
-        ),
-      ],
+  knobs: (k) => (
+    label: k.string('label', name: 'Label', initial: 'Components'),
+    showCount: k.boolean('showCount', name: 'Show count', initial: true),
+    showAction: k.boolean(
+      'showAction',
+      name: 'Show view action',
+      initial: true,
     ),
+    previewGrid: k.boolean(
+      'previewGrid',
+      name: 'Preview grid mode',
+      initial: false,
+    ),
+    opensAtlas: k.boolean('opensAtlas', name: 'Label opens Atlas', initial: true),
+  ),
+  build: (context, knobs) => _buildSidebarSection(
+    context,
+    label: knobs.label.value,
+    showCount: knobs.showCount.value,
+    showAction: knobs.showAction.value,
+    previewGrid: knobs.previewGrid.value,
+    opensAtlas: knobs.opensAtlas.value,
+  ),
+  instances: (knobs) => {
+    'default': [
+      knobs.label('Components'),
+      knobs.showCount(true),
+      knobs.showAction(true),
+      knobs.previewGrid(false),
+      knobs.opensAtlas(true),
+    ],
+  },
+);
+
+Widget _buildSidebarSection(
+  BuildContext context, {
+  required String label,
+  required bool showCount,
+  required bool showAction,
+  required bool previewGrid,
+  required bool opensAtlas,
+}) => SizedBox(
+  width: 248,
+  height: 150,
+  child: DesySidebar(
+    children: [
+      DesySidebarSection(
+        label: label,
+        count: showCount ? 16 : null,
+        action: showAction
+            ? Icon(
+                previewGrid ? DesyIcons.folderTree : DesyIcons.layoutGrid,
+                size: 15,
+              )
+            : null,
+        actionSemanticsLabel: previewGrid
+            ? 'Use component file tree'
+            : 'Use component preview grid',
+        onActionPress: showAction ? () {} : null,
+        onLabelPress: opensAtlas ? () {} : null,
+        children: const [
+          DesySidebarItem(icon: Icon(DesyIcons.folder), label: Text('Actions')),
+        ],
+      ),
+    ],
   ),
 );
 
@@ -492,23 +742,62 @@ final _sidebarItemComponent = _component(
   path: '/navigation/sidebar',
   description:
       'A simple icon-and-label row, with a screen form for major destinations.',
+  icon: DesyIcons.component,
   source: 'package:desy_design_system/src/desy_sidebar.dart',
-  preview: (context) => SizedBox(
-    width: 248,
-    height: 110,
-    child: DesySidebar(
-      children: [
-        DesySidebarSection(
-          label: 'Workspace',
-          children: [
+  knobs: (k) => (
+    label: k.string('label', name: 'Label', initial: 'Atlas'),
+    opensScreen: k.boolean('opensScreen', name: 'Opens a screen', initial: true),
+    selected: k.boolean('selected', name: 'Selected', initial: false),
+    enabled: k.boolean('enabled', name: 'Enabled', initial: true),
+  ),
+  build: (context, knobs) => _buildSidebarItem(
+    context,
+    label: knobs.label.value,
+    opensScreen: knobs.opensScreen.value,
+    selected: knobs.selected.value,
+    enabled: knobs.enabled.value,
+  ),
+  instances: (knobs) => {
+    'default': [
+      knobs.label('Atlas'),
+      knobs.opensScreen(true),
+      knobs.selected(false),
+      knobs.enabled(true),
+    ],
+  },
+);
+
+Widget _buildSidebarItem(
+  BuildContext context, {
+  required String label,
+  required bool opensScreen,
+  required bool selected,
+  required bool enabled,
+}) => SizedBox(
+  width: 248,
+  height: 110,
+  child: DesySidebar(
+    children: [
+      DesySidebarSection(
+        label: 'Workspace',
+        children: [
+          if (opensScreen)
             DesySidebarItem.screen(
-              icon: Icon(DesyIcons.layoutGrid),
-              label: Text('Atlas'),
+              icon: const Icon(DesyIcons.layoutGrid),
+              label: Text(label),
+              selected: selected,
+              onPress: enabled ? () {} : null,
+            )
+          else
+            DesySidebarItem(
+              icon: const Icon(DesyIcons.layoutGrid),
+              label: Text(label),
+              selected: selected,
+              onPress: enabled ? () {} : null,
             ),
-          ],
-        ),
-      ],
-    ),
+        ],
+      ),
+    ],
   ),
 );
 
@@ -517,21 +806,57 @@ final _tabsComponent = _component(
   name: 'Tabs',
   path: '/navigation',
   description: 'Switches between peer views without changing route ownership.',
-  preview: (context) => SizedBox(
-    width: 360,
-    height: 180,
-    child: DesyTabs(
-      children: const [
-        DesyTabEntry(
-          label: Text('Assets'),
-          child: Center(child: Text('Assets')),
-        ),
-        DesyTabEntry(
-          label: Text('Layers'),
-          child: Center(child: Text('Layers')),
-        ),
-      ],
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/control_aliases.dart',
+  knobs: (k) => (
+    firstLabel: k.string('firstLabel', name: 'First label', initial: 'Assets'),
+    secondLabel: k.string('secondLabel', name: 'Second label', initial: 'Layers'),
+    scrollable: k.boolean('scrollable', name: 'Scrollable tabs', initial: false),
+    expandContent: k.boolean(
+      'expandContent',
+      name: 'Expand content',
+      initial: true,
     ),
+  ),
+  build: (context, knobs) => _buildTabs(
+    context,
+    firstLabel: knobs.firstLabel.value,
+    secondLabel: knobs.secondLabel.value,
+    scrollable: knobs.scrollable.value,
+    expandContent: knobs.expandContent.value,
+  ),
+  instances: (knobs) => {
+    'default': [
+      knobs.firstLabel('Assets'),
+      knobs.secondLabel('Layers'),
+      knobs.scrollable(false),
+      knobs.expandContent(true),
+    ],
+  },
+);
+
+Widget _buildTabs(
+  BuildContext context, {
+  required String firstLabel,
+  required String secondLabel,
+  required bool scrollable,
+  required bool expandContent,
+}) => SizedBox(
+  width: 360,
+  height: 180,
+  child: DesyTabs(
+    scrollable: scrollable,
+    expands: expandContent,
+    children: [
+      DesyTabEntry(
+        label: Text(firstLabel),
+        child: Center(child: Text(firstLabel)),
+      ),
+      DesyTabEntry(
+        label: Text(secondLabel),
+        child: Center(child: Text(secondLabel)),
+      ),
+    ],
   ),
 );
 
@@ -542,28 +867,32 @@ final _tileComponent = DesyComponent(
   icon: DesyIcons.component,
   description: 'A compact interactive row for navigation and selection.',
   source: 'package:desy_design_system/src/control_aliases.dart',
-  preview: (context) => _buildTile(
-    context,
-    DesyKnobValues({
-      'title': 'Release channel',
-      'suffix': _badgeDefaultInstanceId,
-    }),
-    desyDesignSystemRegistry.widgetBuilder,
-  ),
-  knobs: [
-    const DesyStringKnob(
-      id: 'title',
-      name: 'Title',
-      initial: 'Release channel',
-    ),
-    DesyComponentKnob(
-      id: 'suffix',
+  knobs: (k) => (
+    title: k.string('title', name: 'Title', initial: 'Release channel'),
+    suffix: k.widgetInstance(
+      'suffix',
       name: 'Suffix instance',
       initial: _badgeDefaultInstanceId,
-      options: const [_badgeDefaultInstanceId, _shortcutSingleKeyInstanceId],
+      options: const [
+        _badgeDefaultInstanceId,
+        _shortcutSingleKeyInstanceId,
+      ],
     ),
-  ],
-  buildWithKnobs: _buildTile,
+  ),
+  build: (context, knobs) => _buildTileField(
+    title: knobs.title.value,
+    suffix: knobs.suffix.widget,
+  ),
+  instances: (knobs) => {
+    'with-badge': [
+      knobs.title('Release channel'),
+      knobs.suffix(_badgeDefaultInstanceId),
+    ],
+    'with-shortcut': [
+      knobs.title('Open command menu'),
+      knobs.suffix(_shortcutSingleKeyInstanceId),
+    ],
+  },
   contract: DesyComponentContract(
     guidance:
         'Resolve the suffix from the registry so compositions retain stable '
@@ -587,66 +916,87 @@ final _tileComponent = DesyComponent(
       description:
           'Exercises the clickable diagnostic rendered for an unresolved '
           'registry ID.',
-      builder: (context) => _buildTile(
-        context,
-        DesyKnobValues({
-          'title': 'Unresolved registry link',
-          'suffix': _missingTileSuffixInstanceId,
-        }),
-        desyDesignSystemRegistry.widgetBuilder,
+      builder: (context) => _buildTileField(
+        title: 'Unresolved registry link',
+        suffix: desyDesignSystemRegistry.widgetBuilder.build(
+          context,
+          _missingTileSuffixInstanceId,
+        ),
       ),
-    ),
-  ],
-  instances: [
-    DesyComponentInstance(
-      id: 'with-badge',
-      name: 'Metadata badge',
-      knobValues: DesyKnobValues({
-        'title': 'Release channel',
-        'suffix': _badgeDefaultInstanceId,
-      }),
-    ),
-    DesyComponentInstance(
-      id: 'with-shortcut',
-      name: 'Keyboard shortcut',
-      knobValues: DesyKnobValues({
-        'title': 'Open command menu',
-        'suffix': _shortcutSingleKeyInstanceId,
-      }),
     ),
   ],
 );
 
-Widget _buildTile(
-  BuildContext context,
-  DesyKnobValues values,
-  DesyRegistryWidgetBuilder widgets,
-) => SizedBox(
-  width: 340,
-  child: DesyTile(
-    prefix: const Icon(DesyIcons.component),
-    title: Text(values.string('title')),
-    subtitle: const Text('Registry-backed suffix'),
-    suffix: widgets.build(context, values.component('suffix')),
-    onPress: () {},
-  ),
-);
+Widget _buildTileField({required String title, required Widget suffix}) =>
+    SizedBox(
+      width: 340,
+      child: DesyTile(
+        prefix: const Icon(DesyIcons.component),
+        title: Text(title),
+        subtitle: const Text('Registry-backed suffix'),
+        suffix: suffix,
+        onPress: () {},
+      ),
+    );
 
 final _scaffoldComponent = _component(
   id: 'desy.component.scaffold',
   name: 'Scaffold',
   path: '/surfaces',
   description: 'The neutral structural surface around one workbench route.',
-  preview: (context) => const SizedBox(
-    width: 380,
-    height: 220,
-    child: DesyScaffold(
-      header: Padding(
-        padding: EdgeInsets.all(DesyDesignSystemTokens.spaceMd),
-        child: Text('Workbench header'),
-      ),
-      child: Center(child: Text('Route content')),
-    ),
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/control_aliases.dart',
+  knobs: (k) => (
+    header: k.string('header', name: 'Header', initial: 'Workbench header'),
+    content: k.string('content', name: 'Content', initial: 'Route content'),
+    showHeader: k.boolean('showHeader', name: 'Show header', initial: true),
+    showFooter: k.boolean('showFooter', name: 'Show footer', initial: false),
+    padContent: k.boolean('padContent', name: 'Pad content', initial: true),
+  ),
+  build: (context, knobs) => _buildScaffold(
+    context,
+    header: knobs.header.value,
+    content: knobs.content.value,
+    showHeader: knobs.showHeader.value,
+    showFooter: knobs.showFooter.value,
+    padContent: knobs.padContent.value,
+  ),
+  instances: (knobs) => {
+    'default': [
+      knobs.header('Workbench header'),
+      knobs.content('Route content'),
+      knobs.showHeader(true),
+      knobs.showFooter(false),
+      knobs.padContent(true),
+    ],
+  },
+);
+
+Widget _buildScaffold(
+  BuildContext context, {
+  required String header,
+  required String content,
+  required bool showHeader,
+  required bool showFooter,
+  required bool padContent,
+}) => SizedBox(
+  width: 380,
+  height: 220,
+  child: DesyScaffold(
+    childPad: padContent,
+    header: showHeader
+        ? Padding(
+            padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceMd),
+            child: Text(header),
+          )
+        : null,
+    footer: showFooter
+        ? const Padding(
+            padding: EdgeInsets.all(DesyDesignSystemTokens.spaceMd),
+            child: Text('Workbench footer'),
+          )
+        : null,
+    child: Center(child: Text(content)),
   ),
 );
 
@@ -687,59 +1037,65 @@ final _shortcutComponent = DesyComponent(
   name: 'Keyboard shortcut label',
   path: '/utilities',
   icon: DesyIcons.component,
-  description:
-      'A compact semantic keycap treatment for discoverable shortcuts.',
-  accessibility:
-      'Announce the complete chord rather than individual decoration.',
+  description: 'A compact semantic keycap treatment for discoverable shortcuts.',
+  accessibility: 'Announce the complete chord rather than individual decoration.',
   source: 'package:desy_design_system/src/keyboard_shortcut_label.dart',
-  preview: (context) => const DesyKeyboardShortcutLabel(keys: ['⌘', 'K']),
-  knobs: const [DesyBooleanKnob(id: 'chord', name: 'Chord', initial: true)],
-  buildWithKnobs: (context, values, _) => DesyKeyboardShortcutLabel(
-    keys: values.boolean('chord') ? const ['⌘', 'K'] : const ['Esc'],
+  knobs: (k) => (
+    key: k.string('key', name: 'Key', initial: 'K'),
+    chord: k.boolean('chord', name: 'Include modifier', initial: true),
   ),
-  instances: [
-    DesyComponentInstance(
-      id: 'single-key',
-      name: 'Single key',
-      knobValues: DesyKnobValues({'chord': false}),
-    ),
-    DesyComponentInstance(
-      id: 'chord',
-      name: 'Chord',
-      knobValues: DesyKnobValues({'chord': true}),
-    ),
-  ],
+  build: (context, knobs) => DesyKeyboardShortcutLabel(
+    keys: knobs.chord.value
+        ? ['⌘', knobs.key.value]
+        : [knobs.key.value],
+  ),
+  instances: (knobs) => {
+    'single-key': [knobs.key('Esc'), knobs.chord(false)],
+    'chord': [knobs.chord(true)],
+  },
 );
 
-DesyComponent _component({
+DesyComponent<K> _component<K>({
   required String id,
   required String name,
   required String path,
   required String description,
-  required DesyPreviewBuilder preview,
-  String source = 'package:desy_design_system/src/control_aliases.dart',
-}) => DesyComponent(
+  required IconData icon,
+  required String source,
+  required K Function(KnobScope k) knobs,
+  required Widget Function(BuildContext context, K knobs) build,
+  required Map<String, Iterable<KnobSettingBase>> Function(K knobs) instances,
+}) => DesyComponent<K>(
   id: id,
   name: name,
   path: path,
-  icon: DesyIcons.component,
+  icon: icon,
   description: description,
   source: source,
-  preview: preview,
-  instances: [DesyComponentInstance(id: 'default', name: 'Default')],
+  knobs: knobs,
+  build: build,
+  instances: instances,
 );
 
 class _SidebarSpecimen extends StatelessWidget {
-  const _SidebarSpecimen();
+  const _SidebarSpecimen({
+    required this.title,
+    required this.showAtoms,
+    required this.previewGrid,
+  });
+
+  final String title;
+  final bool showAtoms;
+  final bool previewGrid;
 
   @override
   Widget build(BuildContext context) => SizedBox(
     width: 248,
     height: 560,
     child: DesySidebar(
-      header: const Padding(
-        padding: EdgeInsets.fromLTRB(16, 14, 16, 10),
-        child: Text('DESY BENCH'),
+      header: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+        child: Text(title),
       ),
       children: [
         const DesySidebarSection(
@@ -760,21 +1116,27 @@ class _SidebarSpecimen extends StatelessWidget {
             ),
           ],
         ),
-        const DesySidebarSection(
-          label: 'Atoms',
-          children: [
-            DesySidebarItem(
-              icon: Icon(DesyIcons.palette),
-              label: Text('Colors'),
-            ),
-            DesySidebarItem(icon: Icon(DesyIcons.type), label: Text('Fonts')),
-          ],
-        ),
+        if (showAtoms)
+          const DesySidebarSection(
+            label: 'Atoms',
+            children: [
+              DesySidebarItem(
+                icon: Icon(DesyIcons.palette),
+                label: Text('Colors'),
+              ),
+              DesySidebarItem(icon: Icon(DesyIcons.type), label: Text('Fonts')),
+            ],
+          ),
         DesySidebarSection(
           label: 'Components',
-          count: 13,
-          action: const Icon(DesyIcons.layoutGrid, size: 15),
-          actionSemanticsLabel: 'Use component preview grid',
+          count: 16,
+          action: Icon(
+            previewGrid ? DesyIcons.folderTree : DesyIcons.layoutGrid,
+            size: 15,
+          ),
+          actionSemanticsLabel: previewGrid
+              ? 'Use component file tree'
+              : 'Use component preview grid',
           onActionPress: () {},
           children: const [
             DesySidebarItem(

@@ -10,6 +10,9 @@ typedef DesyAccordionItem = FAccordionItem;
 /// Desy's compact status badge.
 typedef DesyBadge = FBadge;
 
+/// Semantic Desy badge variants supplied by the Forui foundation.
+typedef DesyBadgeVariant = FBadgeVariant;
+
 /// Desy's action button.
 typedef DesyButton = FButton;
 

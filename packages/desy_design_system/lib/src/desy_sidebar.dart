@@ -3,11 +3,12 @@ import 'package:forui/forui.dart';
 
 import 'desy_icons.dart';
 
-/// A named, non-interactive group of related sidebar items.
+/// A named group of related sidebar items.
 ///
 /// A section may expose one small section-level action, such as switching a
-/// component browser between its file tree and preview grid. The section name
-/// itself never navigates or expands.
+/// component browser between its file tree and preview grid. Labels are
+/// non-interactive by default; [onLabelPress] is reserved for a label that is
+/// also a meaningful root destination, such as opening the component Atlas.
 class DesySidebarSection extends StatelessWidget {
   /// Creates a sidebar section.
   const DesySidebarSection({
@@ -18,6 +19,7 @@ class DesySidebarSection extends StatelessWidget {
     this.action,
     this.actionSemanticsLabel,
     this.onActionPress,
+    this.onLabelPress,
   });
 
   /// The concise section name shown above its items.
@@ -35,12 +37,17 @@ class DesySidebarSection extends StatelessWidget {
   /// Changes the section-level setting without making the label interactive.
   final VoidCallback? onActionPress;
 
+  /// Opens the root destination represented by [label].
+  ///
+  /// Leave this null for ordinary organizational section labels.
+  final VoidCallback? onLabelPress;
+
   /// The items belonging to this section.
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) => FSidebarGroup(
-    style: const FSidebarGroupStyleDelta.delta(
+  Widget build(BuildContext context) {
+    const styleDelta = FSidebarGroupStyleDelta.delta(
       padding: EdgeInsetsDelta.value(EdgeInsets.symmetric(vertical: 6)),
       headerPadding: EdgeInsetsGeometryDelta.value(
         EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -58,33 +65,57 @@ class DesySidebarSection extends StatelessWidget {
           EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         ),
       ),
-    ),
-    label: Semantics(
-      header: true,
-      child: Row(
-        children: [
-          Text(label),
-          if (count case final value?) ...[
-            const SizedBox(width: 7),
-            Text(
-              '$value',
-              style: TextStyle(color: context.theme.colors.mutedForeground),
-            ),
-          ],
-        ],
-      ),
-    ),
-    action: action == null
-        ? null
-        : Semantics(
-            button: true,
-            label: actionSemanticsLabel,
-            excludeSemantics: actionSemanticsLabel != null,
-            child: action!,
+    );
+    final baseStyle =
+        FSidebarData.maybeOf(context)?.style.groupStyle ??
+        context.theme.sidebarStyle.groupStyle;
+    final style = styleDelta(baseStyle);
+    final labelContent = Row(
+      children: [
+        Text(label),
+        if (count case final value?) ...[
+          const SizedBox(width: 7),
+          Text(
+            '$value',
+            style: TextStyle(color: context.theme.colors.mutedForeground),
           ),
-    onActionPress: onActionPress,
-    children: children,
-  );
+        ],
+      ],
+    );
+
+    return FSidebarGroup(
+      style: styleDelta,
+      label: Semantics(
+        key: onLabelPress == null
+            ? null
+            : ValueKey('sidebar-section-label-$label'),
+        container: onLabelPress != null,
+        header: true,
+        button: onLabelPress != null,
+        label: onLabelPress == null ? null : label,
+        excludeSemantics: onLabelPress != null,
+        onTap: onLabelPress,
+        child: onLabelPress == null
+            ? labelContent
+            : FTappable(
+                style: style.tappableStyle,
+                focusedOutlineStyle: style.focusedOutlineStyle,
+                onPress: onLabelPress,
+                child: labelContent,
+              ),
+      ),
+      action: action == null
+          ? null
+          : Semantics(
+              button: true,
+              label: actionSemanticsLabel,
+              excludeSemantics: actionSemanticsLabel != null,
+              child: action!,
+            ),
+      onActionPress: onActionPress,
+      children: children,
+    );
+  }
 }
 
 /// A compact icon-and-label row inside a [DesySidebarSection].

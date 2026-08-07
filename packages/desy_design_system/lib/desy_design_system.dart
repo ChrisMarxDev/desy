@@ -8,6 +8,7 @@ library;
 export 'package:forui/forui.dart';
 
 export 'src/control_aliases.dart';
+export 'src/desy_catalogue_card.dart';
 export 'src/desy_design_system_scope.dart';
 export 'src/desy_icons.dart';
 export 'src/desy_sidebar.dart';

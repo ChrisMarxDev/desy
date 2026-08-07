@@ -21,9 +21,9 @@ class DesyComponentKnobPanel extends StatelessWidget {
   });
 
   final DesyRegistry registry;
-  final List<DesyKnob<Object>> knobs;
+  final List<KnobDefinition<Object>> knobs;
   final Map<String, Object> values;
-  final void Function(DesyKnob<Object> knob, Object value) onChanged;
+  final void Function(KnobDefinition<Object> knob, Object value) onChanged;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -31,24 +31,24 @@ class DesyComponentKnobPanel extends StatelessWidget {
       for (final knob in knobs)
         Padding(
           padding: const EdgeInsets.only(bottom: 16),
-          child: switch (knob) {
-            DesyBooleanKnob() => DesySwitch(
+          child: switch (knob.kind) {
+            DesyKnobKind.boolean => DesySwitch(
               label: Text(knob.name),
-              value: values[knob.id] as bool? ?? knob.initial,
+              value: values[knob.id] as bool? ?? knob.initial as bool,
               onChange: (value) => onChanged(knob, value),
             ),
-            DesyStringKnob() => DesyTextField(
+            DesyKnobKind.string => DesyTextField(
               label: knob.name,
-              value: values[knob.id] as String? ?? knob.initial,
+              value: values[knob.id] as String? ?? knob.initial as String,
               onChanged: (value) => onChanged(knob, value),
             ),
-            DesyComponentKnob() => _ComponentInstanceKnob(
+            DesyKnobKind.widgetInstance => _ComponentInstanceKnob(
               registry: registry,
-              knob: knob,
-              selected: values[knob.id] as String? ?? knob.initial,
+              definition: knob,
+              selected: (values[knob.id] as String?) ??
+                  (knob.initial as DesyInstanceId).value,
               onChanged: (value) => onChanged(knob, value),
             ),
-            _ => const SizedBox.shrink(),
           },
         ),
     ],
@@ -58,13 +58,13 @@ class DesyComponentKnobPanel extends StatelessWidget {
 class _ComponentInstanceKnob extends StatelessWidget {
   const _ComponentInstanceKnob({
     required this.registry,
-    required this.knob,
+    required this.definition,
     required this.selected,
     required this.onChanged,
   });
 
   final DesyRegistry registry;
-  final DesyComponentKnob knob;
+  final KnobDefinition<Object> definition;
   final String selected;
   final ValueChanged<String> onChanged;
 
@@ -74,13 +74,13 @@ class _ComponentInstanceKnob extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(knob.name, style: Theme.of(context).textTheme.labelLarge),
+        Text(definition.name, style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 8),
         DesyTile(
-          key: ValueKey('instance-swap-current-${knob.id}'),
-          prefix: Icon(instance?.instance.icon ?? DesyIcons.component),
+          key: ValueKey('instance-swap-current-${definition.id}'),
+          prefix: Icon(instance?.component.icon ?? DesyIcons.component),
           title: Text(
-            'Swap · ${instance?.instance.name ?? selected}',
+            'Swap · ${instance?.name ?? selected}',
             overflow: TextOverflow.ellipsis,
           ),
           suffix: const Icon(DesyIcons.chevronsUpDown),
@@ -95,9 +95,9 @@ class _ComponentInstanceKnob extends StatelessWidget {
       context: context,
       builder: (context, _, animation) => DesyDialog(
         animation: animation,
-        semanticsLabel: 'Swap ${knob.name}',
+        semanticsLabel: 'Swap ${definition.name}',
         builder: (context, _) =>
-            _InstancePicker(registry: registry, options: knob.options),
+            _InstancePicker(registry: registry, definition: definition),
       ),
     );
     if (result != null) onChanged(result);
@@ -105,10 +105,10 @@ class _ComponentInstanceKnob extends StatelessWidget {
 }
 
 class _InstancePicker extends StatefulWidget {
-  const _InstancePicker({required this.registry, required this.options});
+  const _InstancePicker({required this.registry, required this.definition});
 
   final DesyRegistry registry;
-  final List<String> options;
+  final KnobDefinition<Object> definition;
 
   @override
   State<_InstancePicker> createState() => _InstancePickerState();
@@ -119,11 +119,15 @@ class _InstancePickerState extends State<_InstancePicker> {
 
   @override
   Widget build(BuildContext context) {
-    final options = widget.options.where((optionId) {
-      final option = widget.registry.resolveComponentInstance(optionId);
+    Iterable<DesyRegisteredComponentInstance> all = widget.registry
+        .allComponentInstances;
+    if (widget.definition.options.isNotEmpty) {
+      all = all.where((option) => widget.definition.options.contains(option.id));
+    }
+    final options = all.where((option) {
       final query = _query.toLowerCase();
-      return (option?.instance.name.toLowerCase().contains(query) ?? false) ||
-          optionId.toLowerCase().contains(query);
+      return (option.name.toLowerCase().contains(query) ||
+          option.id.toLowerCase().contains(query));
     }).toList();
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -144,24 +148,23 @@ class _InstancePickerState extends State<_InstancePicker> {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: ListView.separated(
-                itemCount: options.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final optionId = options[index];
-                  final option = widget.registry.resolveComponentInstance(
-                    optionId,
-                  );
-                  return DesyTile(
-                    key: ValueKey('instance-swap-option-$optionId'),
-                    prefix: Icon(option?.instance.icon ?? DesyIcons.component),
-                    title: Text(
-                      option?.instance.name ?? optionId,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onPress: () => Navigator.of(context).pop(optionId),
-                  );
-                },
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (final option in options) ...[
+                      DesyTile(
+                        key: ValueKey('instance-swap-option-${option.id}'),
+                        prefix: Icon(option.component.icon ?? DesyIcons.component),
+                        title: Text(
+                          option.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onPress: () => Navigator.of(context).pop(option.id),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ],
+                ),
               ),
             ),
           ],

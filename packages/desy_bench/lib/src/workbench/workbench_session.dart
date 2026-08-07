@@ -39,9 +39,9 @@ class DesyWorkbenchSession {
 
   final activeThemeIndex = Beacon.writable(0);
   final selectedScenario = Beacon.writable<DesyComponentScenario?>(null);
-  final selectedComponentInstance = Beacon.writable<DesyComponentInstance?>(
-    null,
-  );
+  final selectedComponentInstance = Beacon.writable<
+    DesyRegisteredComponentInstance?
+  >(null);
   final previewBezel = Beacon.writable<DesyPreviewBezel?>(null);
   final knobValues = Beacon.writable<Map<String, Object>>({});
   final atlasQuery = Beacon.writable('');
@@ -71,10 +71,7 @@ class DesyWorkbenchSession {
     selectedScenario.value = null;
     selectedComponentInstance.value = null;
     previewBezel.value = null;
-    knobValues.value = {
-      for (final knob in entry.component?.knobs ?? const <DesyKnob<Object>>[])
-        knob.id: knob.initial,
-    };
+    knobValues.value = _defaults(entry.component);
     stage.value = const DesyPreviewStage();
   }
 
@@ -92,34 +89,26 @@ class DesyWorkbenchSession {
   /// The mutable knob map is derived from the component defaults and optional
   /// instance preset. The consumer-owned declaration remains immutable.
   void editComponentVariant({
-    required DesyComponent component,
-    DesyComponentInstance? instance,
+    required DesyRegistryComponent component,
+    DesyRegisteredComponentInstance? instance,
   }) {
-    knobValues.value = {
-      for (final knob in component.knobs) knob.id: knob.initial,
-      ...?instance?.knobValues.entries,
-    };
+    knobValues.value = instance == null
+        ? _defaults(component)
+        : component.valuesFor(instance.instanceId);
     selectedScenario.value = null;
     selectedComponentInstance.value = instance;
   }
 
-  void setKnob(DesyKnob<Object> knob, Object value) {
-    if (!_isLegalKnobValue(knob, value)) {
-      throw ArgumentError.value(
-        value,
-        knob.id,
-        'The value must be one of the component knob\'s declared options.',
-      );
-    }
-    knobValues.value = {...knobValues.value, knob.id: value};
+  void setKnob(KnobDefinition<Object> definition, Object value) {
+    knobValues.value = {...knobValues.value, definition.id: value};
     selectedScenario.value = null;
   }
 
-  bool _isLegalKnobValue(DesyKnob<Object> knob, Object value) => switch (knob) {
-    DesyBooleanKnob() => value is bool,
-    DesyStringKnob() => value is String,
-    DesyComponentKnob() => value is String && knob.options.contains(value),
-    _ => false,
+  Map<String, Object> _defaults(DesyRegistryComponent? component) => {
+    for (final definition in component?.knobDefinitions ?? const [])
+      definition.id: definition.kind == DesyKnobKind.widgetInstance
+          ? (definition.initial as DesyInstanceId).value
+          : definition.initial,
   };
 
   void selectPreviewBezel(DesyPreviewBezel? bezel) {

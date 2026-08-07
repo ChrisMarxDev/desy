@@ -97,6 +97,45 @@ void main() {
     );
   });
 
+  testWidgets(
+    'catalogue card closes the preview bay with muted path metadata',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DesyDesignSystemScope(
+            theme: DesyDesignSystemTheme.light,
+            child: const Center(
+              child: SizedBox(
+                width: 280,
+                height: 236,
+                child: DesyCatalogueCard(
+                  path: 'Actions',
+                  identifier: 'desy.component.button',
+                  preview: Center(child: Text('Preview')),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final path = tester.widget<Text>(find.text('ACTIONS'));
+      expect(
+        path.style?.color,
+        DesyDesignSystemFoundation.themeData(
+          DesyDesignSystemTheme.light,
+        ).colors.mutedForeground,
+      );
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey('desy-catalogue-card-divider')))
+            .height,
+        1,
+      );
+      expect(find.text('desy.component.button'), findsOneWidget);
+    },
+  );
+
   testWidgets('sidebar screen items add an arrow without becoming tree nodes', (
     tester,
   ) async {

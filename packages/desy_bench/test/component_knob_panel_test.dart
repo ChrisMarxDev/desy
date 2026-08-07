@@ -5,36 +5,29 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 
 void main() {
-  testWidgets('instance swaps render each declared instance icon', (
+  testWidgets('instance swaps list every registered instance to choose from', (
     tester,
   ) async {
-    final clear = DesyComponentInstance(
-      id: 'clear',
-      name: 'Clear',
-      icon: FLucideIcons.badgeCheck,
-    );
-    final delayed = DesyComponentInstance(
-      id: 'delayed',
-      name: 'Delayed',
-      icon: FLucideIcons.octagonAlert,
-    );
     final registry = DesyRegistry(
-      name: 'Icons',
+      name: 'Instance swaps',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
       components: [
-        DesyComponent(
+        DesyStaticComponent(
           id: 'status',
           name: 'Status',
-          preview: (_) => const SizedBox(),
-          instances: [clear, delayed],
+          instances: {
+            'clear': (_) => const SizedBox(),
+            'delayed': (_) => const SizedBox(),
+            'dropped': (_) => const SizedBox(),
+          },
         ),
       ],
     );
-    final knob = DesyComponentKnob(
+    final knob = KnobDefinition(
       id: 'status',
       name: 'Status',
-      initial: 'status.clear',
-      options: const ['status.clear', 'status.delayed'],
+      kind: DesyKnobKind.widgetInstance,
+      initial: const DesyInstanceId('status.clear'),
     );
 
     await tester.pumpWidget(
@@ -53,31 +46,21 @@ void main() {
       ),
     );
 
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('instance-swap-current-status')),
-        matching: find.byIcon(FLucideIcons.badgeCheck),
-      ),
-      findsOneWidget,
-    );
-
     await tester.tap(
       find.byKey(const ValueKey('instance-swap-current-status')),
     );
     await tester.pumpAndSettle();
 
     expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('instance-swap-option-status.clear')),
-        matching: find.byIcon(FLucideIcons.badgeCheck),
-      ),
+      find.byKey(const ValueKey('instance-swap-option-status.clear')),
       findsOneWidget,
     );
     expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('instance-swap-option-status.delayed')),
-        matching: find.byIcon(FLucideIcons.octagonAlert),
-      ),
+      find.byKey(const ValueKey('instance-swap-option-status.delayed')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('instance-swap-option-status.dropped')),
       findsOneWidget,
     );
   });

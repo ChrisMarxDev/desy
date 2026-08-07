@@ -55,7 +55,7 @@ class DesyRegistry {
     List<DesyEffectEntry> effects = const [],
     List<DesyIconEntry> icons = const [],
     List<DesyAssetEntry> assets = const [],
-    List<DesyComponent> components = const [],
+    List<DesyRegistryComponent> components = const [],
     List<DesyShowcase> showcases = const [],
   }) : assert(themes.isNotEmpty, 'A Desy registry needs at least one theme.'),
        themes = List.unmodifiable(themes),
@@ -105,7 +105,7 @@ class DesyRegistry {
   final List<DesyAssetEntry> assets;
 
   /// Real consumer widgets available in the catalogue.
-  final List<DesyComponent> components;
+  final List<DesyRegistryComponent> components;
 
   /// Complete consumer-defined examples rendered by the experimental showcase.
   ///
@@ -181,31 +181,30 @@ class DesyRegistry {
   List<DesyAssetEntry> get allAssets => assets;
 
   /// Every declared component.
-  List<DesyComponent> get allComponents => components;
+  List<DesyRegistryComponent> get allComponents => components;
 
   /// Every experimental showcase declared by this system.
   List<DesyShowcase> get allShowcases => showcases;
 
   /// Every named component instance declared by this system.
   ///
-  /// An instance is owned by its [DesyComponent] and can be resolved to the
-  /// component's real widget. Workbench composition surfaces use these
+  /// An instance is owned by its [DesyRegistryComponent] and can be resolved to
+  /// the component's real widget. Workbench composition surfaces use these
   /// references for instance swapping instead of maintaining a second widget
   /// gallery.
   List<DesyRegisteredComponentInstance> get allComponentInstances =>
       List.unmodifiable([
         for (final component in allComponents)
-          for (final instance in component.instances)
+          for (final instanceId in component.instanceIds)
             DesyRegisteredComponentInstance(
               registry: this,
               component: component,
-              instance: instance,
+              instanceId: instanceId,
             ),
       ]);
 
   /// Widget resolver used by component builders that expose instance swaps.
-  DesyRegistryWidgetBuilder get widgetBuilder =>
-      DesyRegistryWidgetBuilder._(this);
+  DesyWidgetResolver get widgetBuilder => DesyWidgetResolver(this);
 
   /// Finds a component instance by its registry-scoped stable ID.
   DesyRegisteredComponentInstance? resolveComponentInstance(String id) {
@@ -252,13 +251,13 @@ class DesyRegistry {
     components: const [],
   );
 
-  DesyRegistryEntry _componentEntry(DesyComponent component) =>
+  DesyRegistryEntry _componentEntry(DesyRegistryComponent component) =>
       DesyRegistryEntry(
         id: component.id,
         name: component.name,
         folderIds: component.componentPath.cumulativePaths,
         folderNames: component.componentPath.labels,
-        builder: component.preview,
+        builder: (context) => component.preview(context, widgetBuilder),
         source: component,
         description: component.description,
         component: component,
@@ -318,7 +317,7 @@ class DesyComponentGroup {
   DesyComponentGroup._({
     required this.path,
     required this.name,
-    required List<DesyComponent> components,
+    required List<DesyRegistryComponent> components,
     required List<DesyComponentGroup> children,
   }) : components = List.unmodifiable(components),
        children = List.unmodifiable(children);
@@ -330,7 +329,7 @@ class DesyComponentGroup {
   final String name;
 
   /// Components declared directly at this path.
-  final List<DesyComponent> components;
+  final List<DesyRegistryComponent> components;
 
   /// Nested path groups in first-registration order.
   final List<DesyComponentGroup> children;
@@ -342,7 +341,7 @@ class DesyComponentGroup {
   ]);
 
   /// Every component in this group and its descendants.
-  List<DesyComponent> get allComponents => List.unmodifiable([
+  List<DesyRegistryComponent> get allComponents => List.unmodifiable([
     ...components,
     for (final child in children) ...child.allComponents,
   ]);
@@ -353,7 +352,7 @@ class _MutableComponentGroup {
 
   final String path;
   final String name;
-  final components = <DesyComponent>[];
+  final components = <DesyRegistryComponent>[];
   final children = <String, _MutableComponentGroup>{};
 
   DesyComponentGroup freeze() => DesyComponentGroup._(
@@ -364,7 +363,7 @@ class _MutableComponentGroup {
   );
 }
 
-List<DesyComponentGroup> _buildComponentGroups(List<DesyComponent> components) {
+List<DesyComponentGroup> _buildComponentGroups(List<DesyRegistryComponent> components) {
   final roots = <String, _MutableComponentGroup>{};
   for (final component in components) {
     var siblings = roots;
@@ -517,7 +516,7 @@ class DesyRegistryEntry {
   final String? value;
 
   /// Component declaration when this entry represents a component.
-  final DesyComponent? component;
+  final DesyRegistryComponent? component;
 
   /// Typography declaration when this entry represents a text style.
   final DesyTypographyEntry? typography;
@@ -603,53 +602,16 @@ class DesyRegistryValidator {
       add(id, 'extension');
     }
     for (final component in registry.allComponents) {
-      final knobsById = {for (final knob in component.knobs) knob.id: knob};
-      for (final instance in component.instances) {
-        if (component.buildWithKnobs == null &&
-            instance.knobValues.entries.isNotEmpty) {
-          issues.add(
-            DesyRegistryValidationIssue(
-              id: '${component.id}.${instance.id}',
-              message:
-                  'Component instance "${component.id}.${instance.id}" has '
-                  'knob settings, but its component has no knob builder.',
-            ),
-          );
-        }
-        for (final MapEntry(key: knobId, value: value)
-            in instance.knobValues.entries.entries) {
-          final knob = knobsById[knobId];
-          if (knob == null) {
+      for (final instanceId in component.instanceIds) {
+        for (final reference in component.referencesFor(instanceId)) {
+          if (registry.resolveComponentInstance(reference.value) == null) {
             issues.add(
               DesyRegistryValidationIssue(
-                id: '${component.id}.${instance.id}',
-                message:
-                    'Component instance "${component.id}.${instance.id}" '
-                    'sets unknown knob "$knobId".',
-              ),
-            );
-          } else if (!_isLegalKnobValue(knob, value)) {
-            issues.add(
-              DesyRegistryValidationIssue(
-                id: '${component.id}.${instance.id}',
-                message:
-                    'Component instance "${component.id}.${instance.id}" '
-                    'has an invalid value for knob "$knobId".',
-              ),
-            );
-          }
-        }
-      }
-      for (final knob in component.knobs.whereType<DesyComponentKnob>()) {
-        for (final optionId in knob.options) {
-          if (registry.resolveComponentInstance(optionId) == null) {
-            issues.add(
-              DesyRegistryValidationIssue(
-                id: optionId,
+                id: reference.value,
                 severity: DesyRegistryValidationSeverity.warning,
                 message:
-                    'Component knob "${component.id}.${knob.id}" references '
-                    'unknown component instance "$optionId".',
+                    'Component "${component.id}" instance "$instanceId" '
+                    'references unknown component instance "${reference.value}".',
               ),
             );
           }
@@ -658,13 +620,6 @@ class DesyRegistryValidator {
     }
     return List.unmodifiable(issues);
   }
-
-  bool _isLegalKnobValue(DesyKnob<Object> knob, Object value) => switch (knob) {
-    DesyBooleanKnob() => value is bool,
-    DesyStringKnob() => value is String,
-    DesyComponentKnob() => value is String && knob.options.contains(value),
-    _ => false,
-  };
 }
 
 List<DesyRegistryEntry> _entriesFor({
@@ -676,7 +631,7 @@ List<DesyRegistryEntry> _entriesFor({
   required List<DesyEffectEntry> effects,
   required List<DesyIconEntry> icons,
   required List<DesyAssetEntry> assets,
-  required List<DesyComponent> components,
+  required List<DesyRegistryComponent> components,
   List<String> folderIds = const [],
   List<String> folderNames = const [],
   DesyAtomKind? atomKind,
@@ -785,13 +740,28 @@ List<DesyRegistryEntry> _entriesFor({
       name: component.name,
       folderIds: folderIds,
       folderNames: folderNames,
-      builder: component.preview,
+      builder: (context) => component.preview(
+        context,
+        DesyWidgetResolver(_bareRegistry(component)),
+      ),
       source: component,
       description: component.description,
       component: component,
       atomKind: atomKind,
     ),
 ];
+
+// `_entriesFor` is only ever called with `components: const []`, so the
+// component branch never observes a themed registry. This helper keeps the
+// signature self-contained while preserving the widget-returning contract.
+DesyRegistry _bareRegistry(DesyRegistryComponent component) =>
+    DesyRegistry(
+      name: component.name,
+      themes: const [DesyTheme(id: 'bare', name: 'Bare', wrap: _bareTheme)],
+      components: [component],
+    );
+
+Widget _bareTheme(BuildContext context, Widget child) => child;
 
 Widget _effectSpecimen(BuildContext context, DesyEffectEntry effect) =>
     Container(
@@ -1272,74 +1242,40 @@ class DesyEffectEntry {
 /// Builder for a real consumer component preview.
 typedef DesyPreviewBuilder = Widget Function(BuildContext context);
 
-/// Builds a real consumer component from the current workbench knob values.
-typedef DesyKnobPreviewBuilder =
-    Widget Function(
-      BuildContext context,
-      DesyKnobValues values,
-      DesyRegistryWidgetBuilder widgets,
-    );
+/// The typed kinds of knob a component can declare through [KnobScope].
+enum DesyKnobKind {
+  /// A free-form text value.
+  string,
 
-/// Resolves registry-owned component instances for instance-swap slots.
+  /// A true/false value.
+  boolean,
+
+  /// A stable ID selecting another registered component instance.
+  widgetInstance,
+}
+
+/// A registry-scoped stable ID for a declared component instance.
+final class DesyInstanceId {
+  /// Creates a stable registry-scoped instance ID.
+  const DesyInstanceId(this.value);
+
+  /// The dotted `componentId.instanceId` value.
+  final String value;
+}
+
+/// One immutable declaration produced while a component's knobs callback runs.
 ///
-/// Knob values store only stable IDs. This builder is the explicit bridge back
-/// to the consumer's real widget and keeps callbacks out of declarations and
-/// future serializable composition data.
-class DesyRegistryWidgetBuilder {
-  const DesyRegistryWidgetBuilder._(this._registry);
-
-  final DesyRegistry? _registry;
-
-  /// Builds the component instance identified by [id].
-  Widget build(BuildContext context, String id) {
-    final instance = _registry?.resolveComponentInstance(id);
-    if (instance == null) {
-      return buildDesyMissingRegistryWidget(
-        registryName: _registry?.name ?? 'Unavailable',
-        instanceId: id,
-      );
-    }
-    return instance.build(context, widgets: this);
-  }
-}
-
-const _unboundRegistryWidgetBuilder = DesyRegistryWidgetBuilder._(null);
-
-/// Values currently selected for a component's declared knobs.
-class DesyKnobValues {
-  /// Creates values for one component preview.
-  DesyKnobValues([Map<String, Object> values = const {}])
-    : _values = Map.unmodifiable(values);
-
-  final Map<String, Object> _values;
-
-  /// Whether a value was explicitly supplied for [id].
-  bool contains(String id) => _values.containsKey(id);
-
-  /// Returns the strongly typed value stored for [id].
-  T value<T extends Object>(String id) => _values[id]! as T;
-
-  /// Returns an immutable view for adapters that need to merge values.
-  Map<String, Object> get entries => Map.unmodifiable(_values);
-
-  /// Returns these values with [overrides] taking precedence.
-  DesyKnobValues merge(DesyKnobValues overrides) =>
-      DesyKnobValues({..._values, ...overrides._values});
-
-  /// Returns a boolean knob value.
-  bool boolean(String id) => _values[id]! as bool;
-
-  /// Returns a string knob value.
-  String string(String id) => _values[id]! as String;
-
-  /// Returns the stable ID selected by a component-instance knob.
-  String component(String id) => _values[id]! as String;
-}
-
-/// A serializable control declared by a component contract.
-abstract class DesyKnob<T extends Object> {
-  /// Creates a knob.
-  const DesyKnob({required this.id, required this.name, required this.initial});
+/// It is the runtime schema Desy renders in the knob panel and validates
+/// against declared instances.
+final class KnobDefinition<T extends Object> {
+  /// Creates an immutable knob schema entry.
+  const KnobDefinition({
+    required this.id,
+    required this.name,
+    required this.kind,
+    required this.initial,
+    this.options = const [],
+  });
 
   /// Stable knob identifier within a component.
   final String id;
@@ -1347,84 +1283,224 @@ abstract class DesyKnob<T extends Object> {
   /// Visible control label.
   final String name;
 
-  /// Initial value used by the preview.
+  /// The typed knob kind selected for the panel.
+  final DesyKnobKind kind;
+
+  /// Initial value used by the default preview.
   final T initial;
+
+  /// Registry-scoped instance IDs legal in this composition slot.
+  ///
+  /// Widget-instance knobs use this as an explicit legal-slot allow-list so a
+  /// swap picker offers only meaningful choices; empty means any registered
+  /// instance is allowed.
+  final List<String> options;
 }
 
-/// A true/false component knob.
-class DesyBooleanKnob extends DesyKnob<bool> {
-  /// Creates a boolean knob.
-  const DesyBooleanKnob({
-    required super.id,
-    required super.name,
-    required super.initial,
+/// A typed handle bound to a [KnobDefinition]; reading [value] yields the knob.
+final class Knob<T extends Object> {
+  const Knob._(this.definition, this.value);
+
+  /// The declared definition this handle is bound to.
+  final KnobDefinition<T> definition;
+
+  /// The currently selected value.
+  final T value;
+
+  /// Returns an override for this knob when authoring a named instance.
+  KnobSetting<T> call(T value) => KnobSetting(definition, value);
+}
+
+/// A typed handle that selects a registered component instance by stable ID.
+final class WidgetInstanceKnob {
+  const WidgetInstanceKnob._(this.definition, this.value, this.widget);
+
+  /// The declared widget-instance definition.
+  final KnobDefinition<DesyInstanceId> definition;
+
+  /// The selected registry-scoped instance ID.
+  final DesyInstanceId value;
+
+  /// The resolved real widget for the currently selected instance.
+  final Widget widget;
+
+  /// Returns an override selecting [registeredInstanceId] for this slot.
+  KnobSetting<DesyInstanceId> call(String registeredInstanceId) =>
+      KnobSetting(definition, DesyInstanceId(registeredInstanceId));
+}
+
+/// A typed knob override contributed by a named component instance.
+abstract interface class KnobSettingBase {
+  /// The declared definition this override targets.
+  KnobDefinition<Object> get definition;
+
+  /// The override value typed against [definition].
+  Object get value;
+}
+
+/// A strongly typed [KnobSettingBase] produced by [Knob.call].
+final class KnobSetting<T extends Object> implements KnobSettingBase {
+  /// Creates a typed override for [typedDefinition] with [typedValue].
+  const KnobSetting(this.typedDefinition, this.typedValue);
+
+  /// The declared definition targeted by this override.
+  final KnobDefinition<T> typedDefinition;
+
+  /// The override value.
+  final T typedValue;
+
+  @override
+  KnobDefinition<Object> get definition => typedDefinition;
+  @override
+  Object get value => typedValue;
+}
+
+/// The knob-authoring surface passed to a component's knob and instance
+/// declarations. Each call both declares the schema and returns a typed handle.
+abstract interface class KnobScope {
+  /// Declares a text knob and returns its typed handle.
+  Knob<String> string(String id, {String? name, required String initial});
+
+  /// Declares a boolean knob and returns its typed handle.
+  Knob<bool> boolean(String id, {String? name, required bool initial});
+
+  /// Declares a component-instance knob and returns its typed handle.
+  WidgetInstanceKnob widgetInstance(
+    String id, {
+    String? name,
+    required String initial,
+    List<String> options = const [],
   });
 }
 
-/// A text component knob.
-class DesyStringKnob extends DesyKnob<String> {
-  /// Creates a string knob.
-  const DesyStringKnob({
-    required super.id,
-    required super.name,
-    required super.initial,
-  });
-}
+/// The schema-collecting [KnobScope] used while a component is declared.
+final class DeclarationKnobScope implements KnobScope {
+  final List<KnobDefinition<Object>> _definitions = [];
 
-/// A named, predefined set of knob values for one component.
-class DesyComponentInstance {
-  /// Creates a named combination of the owning component's declared knobs.
-  DesyComponentInstance({
-    required this.id,
-    required this.name,
-    this.icon,
-    this.description,
-    DesyKnobValues? knobValues,
-  }) : knobValues = knobValues ?? DesyKnobValues();
-
-  /// Stable identifier within the owning component.
-  final String id;
-
-  /// Human-readable option name.
-  final String name;
-
-  /// Optional icon used when this instance is offered as a swap choice.
-  final IconData? icon;
-
-  /// Optional explanation of the intended composition.
-  final String? description;
-
-  /// Predefined knob values for this instance.
-  final DesyKnobValues knobValues;
-}
-
-/// A typed knob that selects a registered component instance by stable ID.
-class DesyComponentKnob extends DesyKnob<String> {
-  /// Creates a component-instance knob.
-  DesyComponentKnob({
-    required super.id,
-    required super.name,
-    required super.initial,
-    required List<String> options,
-  }) : options = List.unmodifiable(options) {
-    if (this.options.isEmpty) {
-      throw ArgumentError.value(
-        options,
-        'options',
-        'A component knob needs an option.',
+  @override
+  Knob<String> string(String id, {String? name, required String initial}) =>
+      _register(
+        KnobDefinition(
+          id: id,
+          name: name ?? _humanize(id),
+          kind: DesyKnobKind.string,
+          initial: initial,
+        ),
       );
-    }
-    if (!this.options.contains(initial)) {
+
+  @override
+  Knob<bool> boolean(String id, {String? name, required bool initial}) =>
+      _register(
+        KnobDefinition(
+          id: id,
+          name: name ?? _humanize(id),
+          kind: DesyKnobKind.boolean,
+          initial: initial,
+        ),
+      );
+
+  @override
+  WidgetInstanceKnob widgetInstance(
+    String id, {
+    String? name,
+    required String initial,
+    List<String> options = const [],
+  }) {
+    if (initial.isNotEmpty &&
+        options.isNotEmpty &&
+        !options.contains(initial)) {
       throw ArgumentError.value(
         initial,
         'initial',
-        'A component knob initial value must be one of its options.',
+        'A widget-instance knob initial value must be one of its options.',
       );
+    }
+    final definition = KnobDefinition(
+      id: id,
+      name: name ?? _humanize(id),
+      kind: DesyKnobKind.widgetInstance,
+      initial: DesyInstanceId(initial),
+      options: List.unmodifiable(options),
+    );
+    _definitions.add(definition);
+    return WidgetInstanceKnob._(
+      definition,
+      definition.initial,
+      const SizedBox.shrink(),
+    );
+  }
+
+  Knob<T> _register<T extends Object>(KnobDefinition<T> definition) {
+    if (_definitions.any((existing) => existing.id == definition.id)) {
+      throw ArgumentError('Duplicate knob ID ${definition.id}.');
+    }
+    _definitions.add(definition);
+    return Knob._(definition, definition.initial);
+  }
+
+  /// The immutable knob schema gathered during declaration.
+  List<KnobDefinition<Object>> get definitions =>
+      List.unmodifiable(_definitions);
+}
+
+/// A [KnobScope] that resolves declared knob values from a component's default,
+/// its named-instance overrides, and live workbench edits.
+final class ResolvedKnobScope implements KnobScope {
+  /// Builds a resolve scope from [definitions] with [overrides] applied.
+  ResolvedKnobScope(
+    Iterable<KnobDefinition<Object>> definitions,
+    Iterable<KnobSettingBase> overrides,
+    this.context,
+    this.widgets,
+  ) : _definitions = {
+        for (final definition in definitions) definition.id: definition,
+      },
+      _values = {
+        for (final definition in definitions) definition: definition.initial,
+      } {
+    for (final override in overrides) {
+      _values[override.definition] = override.value;
     }
   }
 
-  /// Registry-scoped component-instance IDs legal in this composition slot.
-  final List<String> options;
+  /// Context used to resolve widget-instance knobs to their real widgets.
+  final BuildContext context;
+
+  /// Resolver that builds referenced component instances.
+  final DesyWidgetResolver widgets;
+  final Map<String, KnobDefinition<Object>> _definitions;
+  final Map<KnobDefinition<Object>, Object> _values;
+
+  @override
+  Knob<String> string(String id, {String? name, required String initial}) =>
+      _resolve(id);
+
+  @override
+  Knob<bool> boolean(String id, {String? name, required bool initial}) =>
+      _resolve(id);
+
+  @override
+  WidgetInstanceKnob widgetInstance(
+    String id, {
+    String? name,
+    required String initial,
+    List<String> options = const [],
+  }) {
+    final knob = _resolve<DesyInstanceId>(id);
+    return WidgetInstanceKnob._(
+      knob.definition,
+      knob.value,
+      widgets.resolve(context, knob.value),
+    );
+  }
+
+  Knob<T> _resolve<T extends Object>(String id) {
+    final definition = _definitions[id];
+    if (definition is! KnobDefinition<T>) {
+      throw StateError('Knob $id was not declared as $T.');
+    }
+    return Knob._(definition, _values[definition]! as T);
+  }
 }
 
 /// A property documented by a [DesyComponentContract].
@@ -1640,110 +1716,437 @@ class DesyTypographyEntry {
 }
 
 /// A reusable application-facing widget supplied by the consumer system.
-class DesyComponent {
-  /// Creates a catalogue component.
-  DesyComponent({
+///
+/// A registered component is either a static catalog mapping
+/// ([DesyStaticComponent]) or a typed, bound-record component made from an
+/// immutable knob schema and one production builder ([DesyComponent]). Every
+/// component ultimately returns the consumer's real widget.
+abstract class DesyRegistryComponent {
+  /// Stable component identifier.
+  String get id;
+
+  /// Human-readable component name.
+  String get name;
+
+  /// Normalized navigation path derived from the supplied slash syntax.
+  String get path;
+
+  /// Parsed path used to derive the component file tree.
+  DesyComponentPath get componentPath;
+
+  /// Optional icon used by Desy navigation and component-picking surfaces.
+  IconData? get icon;
+
+  /// Optional intent and usage guidance.
+  String? get description;
+
+  /// Catalogue category, such as Atom, Molecule, or Component.
+  String get category;
+
+  /// Optional accessibility requirement.
+  String? get accessibility;
+
+  /// Consumer-owned source path for navigation and review.
+  String? get source;
+
+  /// Recommended starting size for this component on the composition canvas.
+  Size? get defaultSize;
+
+  /// Optional inspectable API and slot contract for this real widget.
+  DesyComponentContract? get contract;
+
+  /// Named real states that can be inspected alongside the default preview.
+  List<DesyComponentScenario> get scenarios;
+
+  /// The immutable knob schema Desy renders in the knob panel.
+  List<KnobDefinition<Object>> get knobDefinitions;
+
+  /// Stable IDs of the declared named instances.
+  List<String> get instanceIds;
+
+  /// Human-readable label for a declared [instanceId].
+  String instanceLabel(String instanceId);
+
+  /// Builds a declared named instance through the consumer's real widget.
+  Widget buildInstance(
+    BuildContext context,
+    String instanceId,
+    DesyWidgetResolver widgets,
+  );
+
+  /// Builds the real widget from live workbench knob [values].
+  Widget buildWithValues(
+    BuildContext context,
+    Map<String, Object> values, {
+    required DesyWidgetResolver widgets,
+  });
+
+  /// Builds the default/preview form of the component.
+  Widget preview(BuildContext context, DesyWidgetResolver widgets);
+
+  /// Declared knob values for [instanceId]: defaults merged with its overrides.
+  Map<String, Object> valuesFor(String instanceId) => {
+    for (final definition in knobDefinitions) definition.id: definition.initial,
+  };
+
+  /// Registry-scoped instance IDs referenced by this instance's widget knobs.
+  Iterable<DesyInstanceId> referencesFor(String instanceId);
+
+  /// The stable registry ID of the default instance, when one is declared.
+  String? get defaultInstanceId =>
+      instanceIds.isEmpty ? null : '$id.${instanceIds.first}';
+}
+
+/// A reusable application-facing widget supplied by the consumer system,
+/// declared as a stable ID, an immutable typed knob schema, one real build
+/// callback, and named instances authored only as typed knob overrides.
+final class DesyComponent<K> extends DesyRegistryComponent {
+  /// Creates a typed component without a separate schema/wiring declaration.
+  ///
+  /// [knobs] runs once at declaration time to produce both the immutable knob
+  /// schema and the typed bound record `K` used by [build] and [instances].
+  factory DesyComponent({
+    required String id,
+    required String name,
+    String path = '/',
+    required K Function(KnobScope scope) knobs,
+    required Widget Function(BuildContext context, K knobs) build,
+    required Map<String, Iterable<KnobSettingBase>> Function(K knobs) instances,
+    IconData? icon,
+    String? description,
+    String category = 'Components',
+    String? accessibility,
+    String? source,
+    Size? defaultSize,
+    DesyComponentContract? contract,
+    List<DesyComponentScenario> scenarios = const [],
+  }) {
+    final declaration = DeclarationKnobScope();
+    final interface = knobs(declaration);
+    final definitions = declaration.definitions;
+    final declaredInstances = instances(interface);
+    final definitionsById = {for (final definition in definitions) definition.id: definition};
+
+    final overrides = <String, List<KnobSettingBase>>{};
+    for (final MapEntry(key: instanceId, value: settings)
+        in declaredInstances.entries) {
+      final resolved = List<KnobSettingBase>.unmodifiable(settings);
+      for (final setting in resolved) {
+        if (!identical(definitionsById[setting.definition.id], setting.definition)) {
+          throw ArgumentError(
+            'Instance $instanceId uses a knob from another component.',
+          );
+        }
+      }
+      overrides[instanceId] = resolved;
+    }
+
+    return DesyComponent._(
+      id: id,
+      name: name,
+      componentPath: DesyComponentPath.parse(path),
+      icon: icon,
+      description: description,
+      category: category,
+      accessibility: accessibility,
+      source: source,
+      defaultSize: defaultSize,
+      contract: contract,
+      scenarios: List.unmodifiable(scenarios),
+      knobDefinitions: definitions,
+      instances: Map.unmodifiable(overrides),
+      bind: knobs,
+      build: build,
+    );
+  }
+
+  DesyComponent._({
     required this.id,
     required this.name,
-    required this.preview,
+    required this.componentPath,
+    required this.icon,
+    required this.description,
+    required this.category,
+    required this.accessibility,
+    required this.source,
+    required this.defaultSize,
+    required this.contract,
+    required this.scenarios,
+    required this.knobDefinitions,
+    required this.instances,
+    required K Function(KnobScope scope) bind,
+    required Widget Function(BuildContext context, K knobs) build,
+  }) : _bind = bind,
+       _build = build;
+
+  @override
+  final String id;
+
+  @override
+  final String name;
+
+  @override
+  final DesyComponentPath componentPath;
+
+  @override
+  final IconData? icon;
+
+  @override
+  final String? description;
+
+  @override
+  final String category;
+
+  @override
+  final String? accessibility;
+
+  @override
+  final String? source;
+
+  @override
+  final Size? defaultSize;
+
+  @override
+  final DesyComponentContract? contract;
+
+  @override
+  final List<DesyComponentScenario> scenarios;
+
+  @override
+  final List<KnobDefinition<Object>> knobDefinitions;
+
+  /// Named instance overrides keyed by stable instance ID.
+  final Map<String, List<KnobSettingBase>> instances;
+
+  final K Function(KnobScope scope) _bind;
+  final Widget Function(BuildContext context, K knobs) _build;
+
+  @override
+  String get path => componentPath.value;
+
+  @override
+  List<String> get instanceIds => List.unmodifiable(instances.keys);
+
+  @override
+  String instanceLabel(String instanceId) => _humanize(instanceId);
+
+  @override
+  Widget buildInstance(
+    BuildContext context,
+    String instanceId,
+    DesyWidgetResolver widgets,
+  ) {
+    final scope = ResolvedKnobScope(
+      knobDefinitions,
+      instances[instanceId] ?? const [],
+      context,
+      widgets,
+    );
+    return _build(context, _bind(scope));
+  }
+
+  @override
+  Widget buildWithValues(
+    BuildContext context,
+    Map<String, Object> values, {
+    required DesyWidgetResolver widgets,
+  }) {
+    final overrides = <KnobSettingBase>[
+      for (final definition in knobDefinitions)
+        if (values.containsKey(definition.id))
+          KnobSetting<Object>(definition, _toSettingValue(definition.kind, values[definition.id]!)),
+    ];
+    final scope = ResolvedKnobScope(knobDefinitions, overrides, context, widgets);
+    return _build(context, _bind(scope));
+  }
+
+  @override
+  Widget preview(BuildContext context, DesyWidgetResolver widgets) {
+    final scope = ResolvedKnobScope(knobDefinitions, const [], context, widgets);
+    return _build(context, _bind(scope));
+  }
+
+  @override
+  Map<String, Object> valuesFor(String instanceId) => {
+    for (final definition in knobDefinitions)
+      definition.id: _knobValue(definition, definition.initial),
+    for (final setting in instances[instanceId] ?? const [])
+      setting.definition.id: _knobValue(
+        setting.definition,
+        setting.value,
+      ),
+  };
+
+  @override
+  Iterable<DesyInstanceId> referencesFor(String instanceId) sync* {
+    final settings = instances[instanceId] ?? const [];
+    for (final definition in knobDefinitions) {
+      if (definition.kind != DesyKnobKind.widgetInstance) continue;
+      var current = definition.initial as DesyInstanceId;
+      for (final setting in settings) {
+        if (definition.id == setting.definition.id) {
+          current = setting.value as DesyInstanceId;
+        }
+      }
+      yield current;
+    }
+  }
+}
+
+/// A static component whose named instances map directly to widget builders.
+final class DesyStaticComponent extends DesyRegistryComponent {
+  /// Creates a catalogue component made of static widget instances.
+  DesyStaticComponent({
+    required this.id,
+    required this.name,
     String path = '/',
+    required Map<String, WidgetBuilder> instances,
     this.icon,
     this.description,
     this.category = 'Components',
     this.accessibility,
     this.source,
     this.defaultSize,
-    List<DesyKnob<Object>> knobs = const [],
-    this.buildWithKnobs,
-    List<DesyComponentInstance> instances = const [],
     this.contract,
     List<DesyComponentScenario> scenarios = const [],
   }) : componentPath = DesyComponentPath.parse(path),
-       knobs = List.unmodifiable(knobs),
-       instances = List.unmodifiable(instances),
+       instanceBuilders = Map.unmodifiable(instances),
        scenarios = List.unmodifiable(scenarios);
 
-  /// Stable component identifier.
+  @override
   final String id;
 
-  /// Display name.
+  @override
   final String name;
 
-  /// Normalized navigation path derived from the supplied slash syntax.
-  String get path => componentPath.value;
-
-  /// Parsed path used to derive the component file tree.
+  @override
   final DesyComponentPath componentPath;
 
-  /// Optional icon used by Desy navigation and component-picking surfaces.
-  ///
-  /// Desy supplies a neutral component glyph when this is omitted.
+  @override
   final IconData? icon;
 
-  /// Renders the consumer's production widget.
-  final DesyPreviewBuilder preview;
-
-  /// Optional intent and usage guidance.
+  @override
   final String? description;
 
-  /// Catalogue category, such as Atom, Molecule, or Component.
+  @override
   final String category;
 
-  /// Optional accessibility requirement.
+  @override
   final String? accessibility;
 
-  /// Consumer-owned source path for navigation and review.
+  @override
   final String? source;
 
-  /// Recommended starting size for this component on the composition canvas.
-  ///
-  /// Declared sizes size a freshly dropped sketch node so the drag box wraps
-  /// the widget instead of starting at a fixed default. When omitted, nodes
-  /// fall back to a workbench default.
+  @override
   final Size? defaultSize;
 
-  /// Controls exposed by this component's live preview.
-  final List<DesyKnob<Object>> knobs;
-
-  /// Builds the production component using declared [knobs].
-  final DesyKnobPreviewBuilder? buildWithKnobs;
-
-  /// Named, inspectable combinations of this component's declared knobs.
-  ///
-  /// Instances are optional. They become reusable choices for future screen
-  /// composition and component-slot swapping through
-  /// [DesyRegistry.allComponentInstances].
-  final List<DesyComponentInstance> instances;
-
-  /// Resolves [instance] through this component's production builder.
-  ///
-  /// A component without a knob builder may still expose an empty/default
-  /// instance, which renders its normal [preview]. This keeps minimal component
-  /// registrations free from extra boilerplate while ensuring every customized
-  /// instance is expressed through declared knobs.
-  Widget buildInstance(
-    BuildContext context,
-    DesyComponentInstance instance, {
-    DesyRegistryWidgetBuilder widgets = _unboundRegistryWidgetBuilder,
-  }) {
-    final builder = buildWithKnobs;
-    if (builder != null) {
-      return builder(
-        context,
-        DesyKnobValues({
-          for (final knob in knobs) knob.id: knob.initial,
-        }).merge(instance.knobValues),
-        widgets,
-      );
-    }
-    return preview(context);
-  }
-
-  /// Optional inspectable API and slot contract for this real widget.
+  @override
   final DesyComponentContract? contract;
 
-  /// Named real states that can be inspected alongside the default preview.
+  @override
   final List<DesyComponentScenario> scenarios;
+
+  /// Named widget builders keyed by stable instance ID.
+  final Map<String, WidgetBuilder> instanceBuilders;
+
+  @override
+  String get path => componentPath.value;
+
+  @override
+  List<KnobDefinition<Object>> get knobDefinitions => const [];
+
+  @override
+  List<String> get instanceIds => List.unmodifiable(instanceBuilders.keys);
+
+  @override
+  String instanceLabel(String instanceId) => _humanize(instanceId);
+
+  @override
+  Widget buildInstance(
+    BuildContext context,
+    String instanceId,
+    DesyWidgetResolver widgets,
+  ) => instanceBuilders[instanceId]!(context);
+
+  @override
+  Widget buildWithValues(
+    BuildContext context,
+    Map<String, Object> values, {
+    required DesyWidgetResolver widgets,
+  }) => preview(context, widgets);
+
+  @override
+  Widget preview(BuildContext context, DesyWidgetResolver widgets) {
+    if (instanceBuilders.isEmpty) {
+      return buildDesyMissingRegistryWidget(
+        registryName: name,
+        instanceId: id,
+      );
+    }
+    return instanceBuilders.values.first(context);
+  }
+
+  @override
+  Iterable<DesyInstanceId> referencesFor(String instanceId) => const [];
+}
+
+/// Resolves registered component instances for instance-swap slots without
+/// applying the selected theme twice. Runtime guards also cover live edits not
+/// present at startup, rendering a diagnostic for unresolved IDs.
+final class DesyWidgetResolver {
+  /// Creates a resolver over [registry] with the given resolved [ancestors].
+  DesyWidgetResolver(this.registry, [Set<String> ancestors = const {}])
+    : _ancestors = ancestors;
+
+  /// Registry this resolver resolves instances against.
+  final DesyRegistry registry;
+  final Set<String> _ancestors;
+
+  /// Builds the component instance identified by registry-scoped [value].
+  Widget build(BuildContext context, String value) =>
+      _build(context, DesyInstanceId(value));
+
+  /// Builds the component instance identified by a typed [id].
+  Widget resolve(BuildContext context, DesyInstanceId id) => _build(context, id);
+
+  Widget _build(BuildContext context, DesyInstanceId id) {
+    if (_ancestors.contains(id.value)) {
+      return _problem('Cyclic registry instance: ${id.value}');
+    }
+    final component = _componentFor(id);
+    if (component == null) {
+      return buildDesyMissingRegistryWidget(
+        registryName: registry.name,
+        instanceId: id.value,
+      );
+    }
+    final instanceId = id.value.substring(component.id.length + 1);
+    return component.buildInstance(
+      context,
+      instanceId,
+      DesyWidgetResolver(registry, {..._ancestors, id.value}),
+    );
+  }
+
+  // Component IDs may themselves contain dots (for example a namespaced
+  // `desy.component.badge`), so the full component prefix is matched before
+  // the remaining suffix is treated as the instance ID.
+  DesyRegistryComponent? _componentFor(DesyInstanceId id) {
+    DesyRegistryComponent? best;
+    for (final component in registry.components) {
+      if (!id.value.startsWith('${component.id}.')) continue;
+      if (best == null || component.id.length > best.id.length) best = component;
+    }
+    if (best == null) return null;
+    final instanceId = id.value.substring(best.id.length + 1);
+    return best.instanceIds.contains(instanceId) ? best : null;
+  }
+
+  Widget _problem(String message) => Container(
+    key: ValueKey(message),
+    padding: const EdgeInsets.all(8),
+    child: Text(message),
+  );
 }
 
 /// An experimental, consumer-owned composition built from real widgets.
@@ -1779,32 +2182,51 @@ class DesyShowcase {
 /// consumer to duplicate production widget builders.
 class DesyRegisteredComponentInstance {
   /// Creates a resolved reference owned by [component].
-  const DesyRegisteredComponentInstance({
+  DesyRegisteredComponentInstance({
     required this.registry,
     required this.component,
-    required this.instance,
+    required this.instanceId,
   });
 
   /// Registry that owns and resolves this instance.
   final DesyRegistry registry;
 
   /// Component that owns the instance's knob contract and production builder.
-  final DesyComponent component;
+  final DesyRegistryComponent component;
 
-  /// Consumer-declared named instance.
-  final DesyComponentInstance instance;
+  /// Stable instance ID within the owning component.
+  final String instanceId;
 
   /// Globally stable identifier for composition and future manifests.
-  String get id => '${component.id}.${instance.id}';
+  String get id => '${component.id}.$instanceId';
 
   /// Human-readable component name.
   String get componentName => component.name;
 
+  /// Human-readable instance label.
+  String get name => component.instanceLabel(instanceId);
+
   /// Builds the actual consumer widget in the component's real context.
-  Widget build(BuildContext context, {DesyRegistryWidgetBuilder? widgets}) =>
+  Widget build(BuildContext context, {DesyWidgetResolver? widgets}) =>
       component.buildInstance(
         context,
-        instance,
-        widgets: widgets ?? registry.widgetBuilder,
+        instanceId,
+        widgets ?? registry.widgetBuilder,
       );
 }
+
+String _humanize(String id) {
+  final words = id.split(RegExp('[-_]'));
+  return words
+      .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+      .join(' ');
+}
+
+/// Normalizes a knob's declared or overridden value into the value-map form:
+/// widget-instance knobs surface their stable ID string, other knobs their value.
+Object _knobValue(KnobDefinition<Object> definition, Object value) =>
+    value is DesyInstanceId ? value.value : value;
+
+/// Converts a value-map entry back into the typed value a knob setting expects.
+Object _toSettingValue(DesyKnobKind kind, Object value) =>
+    kind == DesyKnobKind.widgetInstance ? DesyInstanceId(value as String) : value;

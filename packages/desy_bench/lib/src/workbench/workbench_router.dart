@@ -219,35 +219,69 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
                     : const Duration(milliseconds: 180),
                 curve: Curves.easeOutCubic,
                 width: _sidebarVisible ? sidebarWidth : 0,
-                child: _AnimatedWorkbenchSidebar(
-                  visible: _sidebarVisible,
-                  child: DesyWorkbenchSidebar(
-                    session: widget.session,
-                    onCollapse: () => setState(() => _sidebarVisible = false),
+                child: ClipRect(
+                  child: OverflowBox(
+                    alignment: Alignment.centerLeft,
+                    minWidth: sidebarWidth,
+                    maxWidth: sidebarWidth,
+                    child: _AnimatedWorkbenchSidebar(
+                      visible: _sidebarVisible,
+                      child: DesyWorkbenchSidebar(
+                        session: widget.session,
+                        onCollapse: () =>
+                            setState(() => _sidebarVisible = false),
+                      ),
+                    ),
                   ),
                 ),
               ),
-              if (_sidebarVisible)
-                _SidebarResizeHandle(
-                  width: sidebarWidth,
-                  onResizeStart: () => setState(() => _resizingSidebar = true),
-                  onResize: (delta) => setState(
-                    () => _sidebarWidth = (sidebarWidth + delta).clamp(
-                      _minimumSidebarWidth,
-                      maximumSidebarWidth,
-                    ),
-                  ),
-                  onResizeEnd: () => setState(() => _resizingSidebar = false),
-                ),
               Expanded(
-                child: DesyScaffold(
-                  header: _sidebarVisible
-                      ? null
-                      : _DesktopSidebarRestore(
-                          onRestore: () =>
-                              setState(() => _sidebarVisible = true),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: DesyScaffold(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.only(
+                                top: _sidebarVisible ? 0 : 48,
+                              ),
+                              child: widget.child,
+                            ),
+                            if (!_sidebarVisible)
+                              Positioned(
+                                top: 8,
+                                left: 0,
+                                child: _DesktopSidebarRestore(
+                                  onRestore: () =>
+                                      setState(() => _sidebarVisible = true),
+                                ),
+                              ),
+                          ],
                         ),
-                  child: widget.child,
+                      ),
+                    ),
+                    if (_sidebarVisible)
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        child: _SidebarResizeHandle(
+                          width: sidebarWidth,
+                          onResizeStart: () =>
+                              setState(() => _resizingSidebar = true),
+                          onResize: (delta) => setState(
+                            () => _sidebarWidth = (sidebarWidth + delta).clamp(
+                              _minimumSidebarWidth,
+                              maximumSidebarWidth,
+                            ),
+                          ),
+                          onResizeEnd: () =>
+                              setState(() => _resizingSidebar = false),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],
@@ -349,9 +383,10 @@ class _SidebarResizeHandleState extends State<_SidebarResizeHandle> {
             width: 8,
             child: Center(
               child: AnimatedContainer(
+                key: const ValueKey('desktop-sidebar-resize-indicator'),
                 duration: const Duration(milliseconds: 100),
-                width: _active ? 2 : 1,
-                color: Theme.of(context).dividerColor,
+                width: _active ? 1 : 0,
+                color: context.theme.colors.border,
               ),
             ),
           ),
@@ -367,29 +402,13 @@ class _DesktopSidebarRestore extends StatelessWidget {
   final VoidCallback onRestore;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    child: Align(
-      alignment: Alignment.centerLeft,
-      child: Semantics(
-        button: true,
-        label: 'Show sidebar',
-        child: DesyButton(
-          key: const ValueKey('desktop-sidebar-restore'),
-          variant: DesyButtonVariant.outline,
-          size: DesyButtonSize.sm,
-          onPress: onRestore,
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(DesyIcons.panelLeftOpen, size: 16),
-              SizedBox(width: 6),
-              Text('Show sidebar'),
-            ],
-          ),
-        ),
-      ),
-    ),
+  Widget build(BuildContext context) => DesyButton.icon(
+    key: const ValueKey('desktop-sidebar-restore'),
+    size: DesyButtonSize.sm,
+    semanticsLabel: 'Show sidebar',
+    semanticsTooltip: 'Show sidebar',
+    onPress: onRestore,
+    child: const Icon(DesyIcons.panelLeftOpen, size: 16),
   );
 }
 

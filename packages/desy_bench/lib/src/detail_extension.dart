@@ -109,5 +109,5 @@ class DesyDetailExtensionContext {
   final DesyRegistryEntry entry;
 
   /// The component declaration represented by [entry], when it is a component.
-  DesyComponent? get component => entry.component;
+  DesyRegistryComponent? get component => entry.component;
 }

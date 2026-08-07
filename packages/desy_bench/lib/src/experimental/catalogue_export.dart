@@ -127,7 +127,7 @@ class DesyCatalogueExport {
     ],
   };
 
-  Map<String, Object?> _component(DesyComponent component) => {
+  Map<String, Object?> _component(DesyRegistryComponent component) => {
     ..._entry(
       id: component.id,
       name: component.name,
@@ -139,17 +139,13 @@ class DesyCatalogueExport {
           'accessibility': accessibility,
       },
     ),
-    'knobs': [for (final knob in component.knobs) _knob(knob)],
+    'knobs': [for (final definition in component.knobDefinitions) _knob(definition)],
     'instances': [
-      for (final instance in component.instances)
+      for (final instanceId in component.instanceIds)
         _entry(
-          id: instance.id,
-          name: instance.name,
-          description: instance.description,
-          extra: {
-            'kind': 'knob-preset',
-            'knobValues': instance.knobValues.entries,
-          },
+          id: '${component.id}.$instanceId',
+          name: component.instanceLabel(instanceId),
+          extra: {'kind': 'knob-preset'},
         ),
     ],
     if (component.contract case DesyComponentContract contract)
@@ -178,14 +174,13 @@ class DesyCatalogueExport {
       },
   };
 
-  Map<String, Object?> _knob(DesyKnob<Object> knob) => {
+  Map<String, Object?> _knob(KnobDefinition<Object> knob) => {
     'id': knob.id,
     'name': knob.name,
-    'kind': switch (knob) {
-      DesyBooleanKnob() => 'boolean',
-      DesyStringKnob() => 'string',
-      DesyComponentKnob() => 'component-instance',
-      _ => 'unknown',
+    'kind': switch (knob.kind) {
+      DesyKnobKind.boolean => 'boolean',
+      DesyKnobKind.string => 'string',
+      DesyKnobKind.widgetInstance => 'component-instance',
     },
   };
 

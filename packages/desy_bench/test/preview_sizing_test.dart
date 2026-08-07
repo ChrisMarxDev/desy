@@ -238,23 +238,24 @@ void main() {
   ) async {
     await tester.binding.setSurfaceSize(const Size(1400, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    final component = DesyComponent(
+    final component = DesyStaticComponent(
       id: 'responsive',
       name: 'Responsive',
-      preview: (context) => LayoutBuilder(
-        builder: (context, constraints) {
-          return SizedBox(
-            key: ValueKey(
-              constraints.maxWidth >= 320
-                  ? 'responsive-sketch-wide'
-                  : 'responsive-sketch-compact',
-            ),
-            width: constraints.maxWidth,
-            height: constraints.maxHeight,
-          );
-        },
-      ),
-      instances: [DesyComponentInstance(id: 'default', name: 'Default')],
+      instances: {
+        'default': (context) => LayoutBuilder(
+          builder: (context, constraints) {
+            return SizedBox(
+              key: ValueKey(
+                constraints.maxWidth >= 320
+                    ? 'responsive-sketch-wide'
+                    : 'responsive-sketch-compact',
+              ),
+              width: constraints.maxWidth,
+              height: constraints.maxHeight,
+            );
+          },
+        ),
+      },
     );
     final session = DesyWorkbenchSession(
       registry: DesyRegistry(
@@ -321,18 +322,19 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1400, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     var previewBuilds = 0;
-    final component = DesyComponent(
+    final component = DesyStaticComponent(
       id: 'counted',
       name: 'Counted',
-      preview: (context) {
-        previewBuilds++;
-        return const SizedBox(
-          key: ValueKey('counted-visual'),
-          width: 220,
-          height: 120,
-        );
+      instances: {
+        'default': (context) {
+          previewBuilds++;
+          return const SizedBox(
+            key: ValueKey('counted-visual'),
+            width: 220,
+            height: 120,
+          );
+        },
       },
-      instances: [DesyComponentInstance(id: 'default', name: 'Default')],
     );
     final session = DesyWorkbenchSession(
       registry: DesyRegistry(
@@ -519,14 +521,15 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1400, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     Size? mediaSize;
-    final component = DesyComponent(
+    final component = DesyStaticComponent(
       id: 'media-aware',
       name: 'Media aware',
-      preview: (context) {
-        mediaSize = MediaQuery.sizeOf(context);
-        return const SizedBox(key: ValueKey('media-aware-visual'));
+      instances: {
+        'default': (context) {
+          mediaSize = MediaQuery.sizeOf(context);
+          return const SizedBox(key: ValueKey('media-aware-visual'));
+        },
       },
-      instances: [DesyComponentInstance(id: 'default', name: 'Default')],
     );
     final session = DesyWorkbenchSession(
       registry: DesyRegistry(
@@ -695,15 +698,16 @@ class _CanvasFixture {
         ),
       );
 
-  static final _component = DesyComponent(
+  static final _component = DesyStaticComponent(
     id: 'gesture',
     name: 'Gesture',
-    preview: (context) => const SizedBox(
-      key: ValueKey('gesture-visual'),
-      width: 220,
-      height: 120,
-    ),
-    instances: [DesyComponentInstance(id: 'default', name: 'Default')],
+    instances: {
+      'default': (context) => const SizedBox(
+        key: ValueKey('gesture-visual'),
+        width: 220,
+        height: 120,
+      ),
+    },
   );
 
   final DesyWorkbenchSession session;

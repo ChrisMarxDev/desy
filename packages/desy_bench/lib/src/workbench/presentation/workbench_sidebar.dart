@@ -153,6 +153,7 @@ class DesyWorkbenchSidebar extends StatelessWidget {
             sections: componentSections,
             theme: session.registry.themes[theme],
             selectedEntryId: _selectedEntryId(currentLocation),
+            onOpenAtlas: () => _go(context, DesyWorkbenchRoutes.atlasPath),
             onOpenSection: (section) => _go(
               context,
               DesyWorkbenchRoutes.atlas(folderId: section.folderId),
@@ -353,6 +354,7 @@ class _ComponentsSidebarSection extends StatefulWidget {
     required this.sections,
     required this.theme,
     required this.selectedEntryId,
+    required this.onOpenAtlas,
     required this.onOpenSection,
     required this.onOpen,
     required this.treeChildren,
@@ -362,6 +364,7 @@ class _ComponentsSidebarSection extends StatefulWidget {
   final List<_SidebarPreviewSection> sections;
   final DesyTheme theme;
   final String? selectedEntryId;
+  final VoidCallback onOpenAtlas;
   final ValueChanged<_SidebarPreviewSection> onOpenSection;
   final ValueChanged<DesyRegistryEntry> onOpen;
   final List<Widget> treeChildren;
@@ -423,6 +426,7 @@ class _ComponentsSidebarSectionState extends State<_ComponentsSidebarSection> {
     key: const ValueKey('sidebar-section-components'),
     label: 'Components',
     count: widget.entryCount,
+    onLabelPress: widget.onOpenAtlas,
     action: widget.sections.isEmpty
         ? null
         : KeyedSubtree(

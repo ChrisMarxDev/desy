@@ -343,12 +343,12 @@ Widget _harness(
     name: 'Acme',
     themes: const [DesyTheme(id: 'acme.dark', name: 'Dark', wrap: _wrap)],
     components: [
-      DesyComponent(
+      DesyStaticComponent(
         id: 'acme.button.primary',
         name: 'Primary button',
         path: '/components/action',
         source: 'lib/src/sample_button.dart',
-        preview: _preview,
+        instances: {'default': _preview},
       ),
     ],
   );

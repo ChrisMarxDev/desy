@@ -13,17 +13,17 @@ void main() {
         DesyComponent(
           id: 'card',
           name: 'Card',
-          preview: _emptyPreview,
-          knobs: [
-            DesyComponentKnob(
-              id: 'trailing',
+          knobs: (k) => (
+            trailing: k.widgetInstance(
+              'trailing',
               name: 'Trailing',
               initial: 'status.missing',
-              options: const ['status.missing'],
             ),
-          ],
-          buildWithKnobs: (context, values, widgets) =>
-              widgets.build(context, values.component('trailing')),
+          ),
+          build: (context, knobs) => knobs.trailing.widget,
+          instances: (knobs) => {
+            'missing': [knobs.trailing('status.missing')],
+          },
         ),
       ],
     );
@@ -196,7 +196,5 @@ void main() {
     );
   });
 }
-
-Widget _emptyPreview(BuildContext context) => const SizedBox();
 
 Widget _wrap(BuildContext context, Widget child) => child;

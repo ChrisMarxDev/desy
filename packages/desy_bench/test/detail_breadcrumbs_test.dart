@@ -14,11 +14,11 @@ void main() {
           name: 'Breadcrumb navigation',
           themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
           components: [
-            DesyComponent(
+            DesyStaticComponent(
               id: 'button.primary',
               name: 'Primary button',
               path: '/actions',
-              preview: _preview,
+              instances: {'default': _preview},
             ),
           ],
         ),

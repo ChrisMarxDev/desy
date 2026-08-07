@@ -1,4 +1,5 @@
 import 'package:desy_bench/desy_bench.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -130,6 +131,12 @@ void main() {
     );
 
     final card = find.semantics.byLabel('Open $name');
+    final catalogueCard = find.byType(DesyCatalogueCard);
+    expect(catalogueCard, findsOneWidget);
+    expect(
+      find.descendant(of: catalogueCard, matching: find.text(name)),
+      findsNothing,
+    );
     expect(
       card.evaluate().single,
       matchesSemantics(isButton: true, hasTapAction: true, label: 'Open $name'),
@@ -176,12 +183,12 @@ DesyToken _token(String id) => DesyToken(
   builder: (_) => const SizedBox(),
 );
 
-DesyComponent _component(String id, {String? name, String path = '/'}) =>
-    DesyComponent(
+DesyRegistryComponent _component(String id, {String? name, String path = '/'}) =>
+    DesyStaticComponent(
       id: id,
       name: name ?? id,
       path: path,
-      preview: (_) => const SizedBox(),
+      instances: {'default': (_) => const SizedBox()},
     );
 
 Widget _wrap(BuildContext context, Widget child) => child;

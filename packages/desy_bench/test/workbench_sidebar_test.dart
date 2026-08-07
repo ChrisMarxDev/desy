@@ -189,6 +189,47 @@ void main() {
     expect(destination, '/atlas?folder=${DesyAtomKind.colors.id}');
   });
 
+  testWidgets('Components section label opens the Atlas root', (tester) async {
+    final semantics = tester.ensureSemantics();
+    String? destination;
+    final session = DesyWorkbenchSession(
+      registry: DesyRegistry(
+        name: 'Components destination',
+        themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+        components: [_component('components.button', path: '/actions')],
+      ),
+    );
+    addTearDown(session.dispose);
+
+    await tester.pumpWidget(
+      FTheme(
+        data: FTheme.neutral.light.desktop,
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: DesyWorkbenchSidebar(
+            session: session,
+            location: Uri.parse('/entries/components.button'),
+            onNavigate: (location) => destination = location,
+          ),
+        ),
+      ),
+    );
+
+    final label = find.byKey(
+      const ValueKey('sidebar-section-label-Components'),
+    );
+    expect(label, findsOneWidget);
+    final labelSemantics = tester.getSemantics(label);
+    expect(labelSemantics.label, 'Components');
+    expect(labelSemantics.flagsCollection.isButton, isTrue);
+
+    await tester.tap(label);
+    await tester.pump();
+
+    expect(destination, '/atlas');
+    semantics.dispose();
+  });
+
   testWidgets('sidebar omits Atoms when every typed lane is empty', (
     tester,
   ) async {
@@ -217,13 +258,13 @@ void main() {
   });
 }
 
-DesyComponent _component(String id, {IconData? icon, String path = '/'}) =>
-    DesyComponent(
+DesyRegistryComponent _component(String id, {IconData? icon, String path = '/'}) =>
+    DesyStaticComponent(
       id: id,
       name: id,
       icon: icon,
       path: path,
-      preview: (_) => const SizedBox(),
+      instances: {'default': (_) => const SizedBox()},
     );
 
 Widget _wrap(BuildContext context, Widget child) => child;

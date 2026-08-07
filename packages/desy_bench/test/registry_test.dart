@@ -134,11 +134,11 @@ void main() {
         ),
       ],
       components: [
-        DesyComponent(
+        DesyStaticComponent(
           id: 'status.badge',
           name: 'Status badge',
           path: '/feedback/status',
-          preview: (_) => const SizedBox(),
+          instances: {'default': (_) => const SizedBox()},
         ),
       ],
     );
@@ -179,23 +179,23 @@ void main() {
       name: 'Normalized paths',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
       components: [
-        DesyComponent(
+        DesyStaticComponent(
           id: 'plain',
           name: 'Plain',
           path: 'input',
-          preview: _emptyPreview,
+          instances: {'default': _emptyPreview},
         ),
-        DesyComponent(
+        DesyStaticComponent(
           id: 'slashed',
           name: 'Slashed',
           path: '/input/',
-          preview: _emptyPreview,
+          instances: {'default': _emptyPreview},
         ),
-        DesyComponent(
+        DesyStaticComponent(
           id: 'nested',
           name: 'Nested',
           path: '//input//text//',
-          preview: _emptyPreview,
+          instances: {'default': _emptyPreview},
         ),
       ],
     );
@@ -212,7 +212,11 @@ void main() {
       name: 'Duplicate IDs',
       themes: const [DesyTheme(id: 'shared', name: 'Same label', wrap: _wrap)],
       components: [
-        DesyComponent(id: 'shared', name: 'Same label', preview: _emptyPreview),
+        DesyStaticComponent(
+          id: 'shared',
+          name: 'Same label',
+          instances: {'default': _emptyPreview},
+        ),
       ],
     );
 
@@ -229,11 +233,11 @@ void main() {
       name: 'Derived labels',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
       components: [
-        DesyComponent(
+        DesyStaticComponent(
           id: 'primary-button',
           name: 'Primary button',
           path: '/form-controls/action-buttons',
-          preview: _emptyPreview,
+          instances: {'default': _emptyPreview},
         ),
       ],
     );
@@ -245,20 +249,20 @@ void main() {
 
   test('component paths reject traversal and invalid segments', () {
     expect(
-      () => DesyComponent(
+      () => DesyStaticComponent(
         id: 'traversal',
         name: 'Traversal',
         path: '/input/../secret',
-        preview: _emptyPreview,
+        instances: {'default': _emptyPreview},
       ),
       throwsArgumentError,
     );
     expect(
-      () => DesyComponent(
+      () => DesyStaticComponent(
         id: 'spaces',
         name: 'Spaces',
         path: '/Input fields',
-        preview: _emptyPreview,
+        instances: {'default': _emptyPreview},
       ),
       throwsArgumentError,
     );
@@ -291,62 +295,38 @@ void main() {
   });
 
   test('nested declaration collections are defensive immutable copies', () {
-    final shadows = <BoxShadow>[const BoxShadow(blurRadius: 4)];
-    final values = <String, Object>{'label': 'Initial'};
-    final instances = <DesyComponentInstance>[
-      DesyComponentInstance(id: 'icon', name: 'Icon'),
+    final scenarios = <DesyComponentScenario>[
+      DesyComponentScenario(
+        id: 'default',
+        name: 'Default',
+        builder: _emptyPreview,
+      ),
     ];
-    final options = <String>['component.icon'];
     final properties = <DesyContractProperty>[
       const DesyContractProperty(name: 'label', type: 'String'),
     ];
     final effect = DesyEffectEntry.boxShadow(
       id: 'shadow',
       name: 'Shadow',
-      shadows: shadows,
-    );
-    final knob = DesyComponentKnob(
-      id: 'slot',
-      name: 'Slot',
-      initial: 'component.icon',
-      options: options,
+      shadows: [BoxShadow(blurRadius: 4)],
     );
     final contract = DesyComponentContract(properties: properties);
-    final component = DesyComponent(
+    final component = DesyStaticComponent(
       id: 'component',
       name: 'Component',
-      preview: _emptyPreview,
-      knobs: [knob],
-      instances: instances,
-      scenarios: [
-        DesyComponentScenario(
-          id: 'default',
-          name: 'Default',
-          builder: _emptyPreview,
-        ),
-      ],
+      instances: {'default': _emptyPreview},
+      scenarios: scenarios,
       contract: contract,
     );
-    final knobValues = DesyKnobValues(values);
 
-    shadows.clear();
-    values['label'] = 'Changed';
-    options.clear();
-    instances.clear();
+    scenarios.clear();
     properties.clear();
 
-    expect(effect.shadows, hasLength(1));
-    expect(knob.options, hasLength(1));
-    expect(contract.properties, hasLength(1));
-    expect(component.knobs, hasLength(1));
-    expect(component.instances, hasLength(1));
     expect(component.scenarios, hasLength(1));
-    expect(knobValues.string('label'), 'Initial');
+    expect(component.contract?.properties, hasLength(1));
     expect(() => effect.shadows.clear(), throwsUnsupportedError);
-    expect(() => knob.options.clear(), throwsUnsupportedError);
-    expect(() => contract.properties.clear(), throwsUnsupportedError);
     expect(() => component.scenarios.clear(), throwsUnsupportedError);
-    expect(() => knobValues.entries.clear(), throwsUnsupportedError);
+    expect(() => component.contract!.properties.clear(), throwsUnsupportedError);
   });
 
   testWidgets('box-shadow effects decorate the supplied widget', (
@@ -386,63 +366,57 @@ void main() {
     expect(entry.displayValue, '16 dp');
   });
 
-  test('component knobs expose stable registered instance IDs', () {
-    final knob = DesyComponentKnob(
-      id: 'trailing',
-      name: 'Operational status',
-      initial: 'status.clear',
-      options: const ['status.clear'],
-    );
-
-    expect(knob.options.single, 'status.clear');
-  });
-
-  test('component knobs retain only their declared slot choices', () {
-    final knob = DesyComponentKnob(
-      id: 'trailing',
-      name: 'Operational status',
-      initial: 'status.clear',
-      options: const ['status.clear'],
-    );
-
-    expect(knob.options, ['status.clear']);
-    expect(knob.options, isNot(contains('button.publish')));
-  });
-
-  test('component knobs reject empty options and an undeclared initial ID', () {
-    expect(
-      () => DesyComponentKnob(
-        id: 'slot',
-        name: 'Slot',
-        initial: 'status.clear',
-        options: const [],
+  test('bound-record components expose their declared knob schema', () {
+    final component = DesyComponent(
+      id: 'trail.activity',
+      name: 'Activity',
+      knobs: (k) => (
+        title: k.string('title', initial: 'Activity'),
+        enabled: k.boolean('enabled', initial: true),
       ),
-      throwsArgumentError,
+      build: (context, knobs) => Text(knobs.title.value),
+      instances: (knobs) => {'default': [knobs.title('Activity')]},
     );
+
+    final ids = component.knobDefinitions.map((d) => d.id).toList();
+    expect(ids, ['title', 'enabled']);
+    expect(component.instanceIds, ['default']);
     expect(
-      () => DesyComponentKnob(
-        id: 'slot',
-        name: 'Slot',
-        initial: 'status.clear',
-        options: const ['status.delayed'],
-      ),
-      throwsArgumentError,
+      component.knobDefinitions
+          .where((d) => d.kind == DesyKnobKind.widgetInstance),
+      isEmpty,
     );
   });
 
-  test('registry validation rejects unknown component-instance IDs', () {
+  test('widget-instance knobs are typed registry references', () {
+    final component = DesyComponent(
+      id: 'trail.tile',
+      name: 'Tile',
+      knobs: (k) => (
+        title: k.string('title', initial: 'Release channel'),
+        suffix: k.widgetInstance('suffix', initial: 'status.delayed'),
+      ),
+      build: (context, knobs) =>
+          Text('${knobs.title.value}:${knobs.suffix.value.value}'),
+      instances: (knobs) => {'default': [knobs.suffix('status.clear')]},
+    );
+
+    final suffix = component.knobDefinitions.firstWhere(
+      (d) => d.id == 'suffix',
+    );
+    expect(suffix.kind, DesyKnobKind.widgetInstance);
+    expect(component.referencesFor('default').single.value, 'status.clear');
+  });
+
+  test('registry validation rejects unknown component-instance references', () {
     final component = DesyComponent(
       id: 'card',
       name: 'Card',
-      preview: _emptyPreview,
-      knobs: [
-        DesyComponentKnob(
-          id: 'trailing',
-          name: 'Trailing',
-          initial: 'status.missing',
-          options: const ['status.missing'],
-        ),
-      ],
+      knobs: (k) => (
+        trailing: k.widgetInstance('trailing', initial: 'status.missing'),
+      ),
+      build: (context, knobs) => Text(knobs.trailing.value.value),
+      instances: (knobs) => {'default': [knobs.trailing('status.missing')]},
     );
     final registry = DesyRegistry(
       name: 'Broken swap',
@@ -458,35 +432,25 @@ void main() {
     expect(issue.severity, DesyRegistryValidationSeverity.warning);
   });
 
-  test('registry validation rejects invalid instance knob settings', () {
-    final component = DesyComponent(
-      id: 'status',
-      name: 'Status',
-      preview: _emptyPreview,
-      knobs: const [
-        DesyBooleanKnob(id: 'enabled', name: 'Enabled', initial: true),
-      ],
-      buildWithKnobs: (context, values, _) => const SizedBox(),
-      instances: [
-        DesyComponentInstance(
-          id: 'invalid',
-          name: 'Invalid',
-          knobValues: DesyKnobValues({'enabled': 'yes', 'unknown': true}),
-        ),
-      ],
+  test('component declaration rejects overrides from another component', () {
+    final other = DesyComponent(
+      id: 'other',
+      name: 'Other',
+      knobs: (k) => (title: k.string('title', initial: 'x')),
+      build: (context, knobs) => Text(knobs.title.value),
+      instances: (knobs) => {'default': [knobs.title('x')]},
     );
-    final registry = DesyRegistry(
-      name: 'Invalid settings',
-      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-      components: [component],
-    );
+    final foreignSetting = other.instances['default']!.single;
 
     expect(
-      registry.validate().map((issue) => issue.message),
-      containsAll([
-        contains('invalid value for knob "enabled"'),
-        contains('sets unknown knob "unknown"'),
-      ]),
+      () => DesyComponent(
+        id: 'card',
+        name: 'Card',
+        knobs: (k) => (body: k.string('body', initial: 'b')),
+        build: (context, knobs) => Text(knobs.body.value),
+        instances: (knobs) => {'default': [foreignSetting]},
+      ),
+      throwsArgumentError,
     );
   });
 
@@ -516,10 +480,9 @@ void main() {
         DesyComponent(
           id: 'button.primary',
           name: 'Primary button',
-          preview: (_) => const SizedBox(),
-          knobs: const [
-            DesyStringKnob(id: 'label', name: 'Label', initial: 'Save'),
-          ],
+          knobs: (k) => (label: k.string('label', name: 'Label', initial: 'Save')),
+          build: (context, knobs) => Text(knobs.label.value),
+          instances: (knobs) => {'primary': [knobs.label('Save')]},
         ),
       ],
     );
@@ -546,33 +509,37 @@ void main() {
     expect(export.toString(), isNot(contains('Closure')));
   });
 
-  testWidgets('component presets merge their values with knob defaults', (
+  testWidgets('named instances resolve through their bound record', (
     tester,
   ) async {
     final component = DesyComponent(
       id: 'action',
       name: 'Action',
-      preview: _emptyPreview,
-      knobs: const [
-        DesyStringKnob(id: 'label', name: 'Label', initial: 'Default'),
-        DesyBooleanKnob(id: 'enabled', name: 'Enabled', initial: true),
-      ],
-      buildWithKnobs: _knobbedPreview,
-      instances: [
-        DesyComponentInstance(
-          id: 'archived',
-          name: 'Archived',
-          knobValues: DesyKnobValues({'label': 'Archived', 'enabled': false}),
-        ),
-      ],
+      knobs: (k) => (
+        label: k.string('label', name: 'Label', initial: 'Default'),
+        enabled: k.boolean('enabled', name: 'Enabled', initial: true),
+      ),
+      build: (context, knobs) =>
+          Text('${knobs.label.value} · ${knobs.enabled.value}'),
+      instances: (knobs) => {
+        'archived': [knobs.label('Archived'), knobs.enabled(false)],
+      },
+    );
+    final registry = DesyRegistry(
+      name: 'Instances',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [component],
     );
 
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
         child: Builder(
-          builder: (context) =>
-              component.buildInstance(context, component.instances.single),
+          builder: (context) => component.buildInstance(
+            context,
+            'archived',
+            registry.widgetBuilder,
+          ),
         ),
       ),
     );
@@ -584,8 +551,9 @@ void main() {
     final component = DesyComponent(
       id: 'action',
       name: 'Action',
-      preview: _emptyPreview,
-      instances: [DesyComponentInstance(id: 'default', name: 'Default')],
+      knobs: (k) => (label: k.string('label', initial: 'Do it')),
+      build: (context, knobs) => Text(knobs.label.value),
+      instances: (knobs) => {'default': [knobs.label('Do it')]},
     );
     final registry = DesyRegistry(
       name: 'Instances',
@@ -597,10 +565,11 @@ void main() {
 
     expect(instance.id, 'action.default');
     expect(instance.componentName, 'Action');
+    expect(instance.name, 'Default');
     final resolved = registry.resolveComponentInstance('action.default');
     expect(resolved?.id, instance.id);
     expect(resolved?.component, same(component));
-    expect(resolved?.instance, same(instance.instance));
+    expect(resolved?.component, same(instance.component));
   });
 
   testWidgets('registry widget builder resolves an instance-swap ID', (
@@ -609,18 +578,9 @@ void main() {
     final status = DesyComponent(
       id: 'status',
       name: 'Status',
-      preview: _emptyPreview,
-      knobs: const [
-        DesyStringKnob(id: 'label', name: 'Label', initial: 'Clear'),
-      ],
-      buildWithKnobs: (context, values, _) => Text(values.string('label')),
-      instances: [
-        DesyComponentInstance(
-          id: 'delayed',
-          name: 'Delayed',
-          knobValues: DesyKnobValues({'label': 'Delayed'}),
-        ),
-      ],
+      knobs: (k) => (label: k.string('label', name: 'Label', initial: 'Clear')),
+      build: (context, knobs) => Text(knobs.label.value),
+      instances: (knobs) => {'delayed': [knobs.label('Delayed')]},
     );
     final registry = DesyRegistry(
       name: 'Resolved swap',
@@ -645,9 +605,3 @@ void main() {
 Widget _wrap(BuildContext context, Widget child) => child;
 
 Widget _emptyPreview(BuildContext context) => const SizedBox();
-
-Widget _knobbedPreview(
-  BuildContext context,
-  DesyKnobValues values,
-  DesyRegistryWidgetBuilder widgets,
-) => Text('${values.string('label')} · ${values.boolean('enabled')}');

@@ -302,52 +302,26 @@ class _AtlasCard extends StatelessWidget {
       label: 'Open ${entry.name}',
       onTap: onOpen,
       child: GestureDetector(
+        key: ValueKey('atlas-card-${entry.id}'),
         // The card owns the semantic tap action above. Keep this gesture for
         // pointer input without adding a second, competing accessibility action.
         excludeFromSemantics: true,
         onTap: onOpen,
-        child: DesyCard(
-          clipBehavior: Clip.antiAlias,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.path.toUpperCase(),
-                  style: Theme.of(context).textTheme.labelSmall,
+        child: DesyCatalogueCard(
+          path: entry.path,
+          identifier: entry.id,
+          preview: ClipRect(
+            child: Center(
+              child: DesyFittedPreview(
+                // The consumer widget is measured at its true natural size
+                // where possible; the completed preview then scales down for
+                // this card. Greedy widgets fall back to a capped pass.
+                child: DesyWidgetPreview(
+                  theme: theme,
+                  builder: previewBuilder,
+                  withThemeBackground: true,
                 ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: ClipRect(
-                    child: Center(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        // The consumer widget lays itself out at its intended
-                        // logical size; the completed preview then scales down
-                        // for this atlas card. Do not impose a compact artboard
-                        // on consumer widgets here.
-                        child: DesyWidgetPreview(
-                          theme: theme,
-                          builder: previewBuilder,
-                          withThemeBackground: true,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(entry.name, style: Theme.of(context).textTheme.titleSmall),
-                // DesyWorkbenchShell supplies SelectionArea for the workbench.
-                // A regular Text keeps this identifier on one polished line while
-                // retaining selection through that shared surface.
-                Text(
-                  entry.id,
-                  style: Theme.of(context).textTheme.labelSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+              ),
             ),
           ),
         ),

@@ -103,7 +103,7 @@ class _DesyMissingRegistryWidget extends StatelessWidget {
             ),
             const SizedBox(height: DesyDesignSystemTokens.spaceXs),
             Text(
-              'Check the DesyComponentKnob option and ensure a component '
+              'Check the widget-instance knob value and ensure a component '
               'declares an instance whose registry-scoped ID matches exactly. '
               'Registry validation reports the same broken link at startup.',
               style: style.bodyTextStyle,

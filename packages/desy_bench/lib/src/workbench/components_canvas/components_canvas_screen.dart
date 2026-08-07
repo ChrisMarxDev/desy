@@ -150,10 +150,7 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
   }
 
   void _addInstance(DesyRegisteredComponentInstance instance) {
-    final values = <String, Object>{
-      for (final knob in instance.component.knobs) knob.id: knob.initial,
-      ...instance.instance.knobValues.entries,
-    };
+    final values = instance.component.valuesFor(instance.instanceId);
     _controller.add(
       instance.id,
       knobValues: values,
@@ -834,8 +831,7 @@ class _ComponentPaletteState extends State<_ComponentPalette> {
                 (entry) => [
                   entry.id,
                   entry.componentName,
-                  entry.instance.name,
-                  entry.instance.description ?? '',
+                  entry.name,
                 ].any((value) => value.toLowerCase().contains(normalizedQuery)),
               )
               .toList(growable: false);
@@ -933,8 +929,7 @@ class _ComponentPreviewTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DesyButton(
     key: ValueKey('palette-instance-${instance.id}'),
-    semanticsLabel:
-        'Add ${instance.componentName}, ${instance.instance.name} to sketch',
+    semanticsLabel: 'Add ${instance.componentName}, ${instance.name} to sketch',
     semanticsTooltip: 'Add to sketch',
     variant: DesyButtonVariant.outline,
     size: DesyButtonSize.xs,
@@ -962,7 +957,7 @@ class _ComponentPreviewTile extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            instance.instance.name,
+            instance.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -1001,31 +996,27 @@ class _CanvasInspector extends StatelessWidget {
         Text('INSTANCE', style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(height: 4),
         Text(
-          instance.instance.name,
+          instance.name,
           style: Theme.of(context).textTheme.titleMedium,
         ),
         Text(
           instance.component.name,
           style: Theme.of(context).textTheme.bodySmall,
         ),
-        if (instance.instance.description case final description?) ...[
-          const SizedBox(height: 12),
-          Text(description, style: Theme.of(context).textTheme.bodySmall),
-        ],
         const SizedBox(height: 24),
         Text('Knobs', style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 12),
-        if (instance.component.knobs.isEmpty)
+        if (instance.component.knobDefinitions.isEmpty)
           Text(
             'No knobs declared.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         DesyComponentKnobPanel(
           registry: registry,
-          knobs: instance.component.knobs,
+          knobs: instance.component.knobDefinitions,
           values: node.knobValues,
-          onChanged: (knob, value) =>
-              controller.setKnob(node.id, knob.id, value),
+          onChanged: (definition, value) =>
+              controller.setKnob(node.id, definition.id, value),
         ),
         const SizedBox(height: 16),
         DesyButton(
@@ -1242,7 +1233,7 @@ class _CanvasOutline extends StatelessWidget {
                           onPress: () => onSelect(node.id),
                           prefix: const Icon(DesyIcons.boxes, size: 16),
                           title: Text(
-                            instance.instance.name,
+                            instance.name,
                             overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Text(
@@ -1813,17 +1804,11 @@ class _CanvasElement extends StatelessWidget {
           alignment: Alignment.topLeft,
           child: DesyWidgetPreview(
             theme: theme,
-            builder: (context) => instance.component.buildWithKnobs == null
-                ? instance.component.buildInstance(
-                    context,
-                    instance.instance,
-                    widgets: registry.widgetBuilder,
-                  )
-                : instance.component.buildWithKnobs!(
-                    context,
-                    DesyKnobValues(node.knobValues),
-                    registry.widgetBuilder,
-                  ),
+            builder: (context) => instance.component.buildWithValues(
+              context,
+              node.knobValues,
+              widgets: registry.widgetBuilder,
+            ),
           ),
         ),
       ),
