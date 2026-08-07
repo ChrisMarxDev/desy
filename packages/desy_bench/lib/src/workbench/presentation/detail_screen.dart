@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
 
@@ -29,7 +30,7 @@ double _boundedBoxExtent(double value) =>
     value < _minimumBoxExtent ? _minimumBoxExtent : value;
 
 /// The inspect-and-adjust surface for a single entry.
-class DesyDetailScreen extends StatelessWidget {
+class DesyDetailScreen extends StatefulWidget {
   const DesyDetailScreen({
     super.key,
     required this.session,
@@ -40,21 +41,49 @@ class DesyDetailScreen extends StatelessWidget {
   final DesyRegistryEntry entry;
 
   @override
+  State<DesyDetailScreen> createState() => _DesyDetailScreenState();
+}
+
+class _DesyDetailScreenState extends State<DesyDetailScreen> {
+  String _selectedVariantId = 'default';
+
+  @override
+  void didUpdateWidget(covariant DesyDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.entry.id != widget.entry.id) {
+      _selectedVariantId = 'default';
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final session = widget.session;
+    final entry = widget.entry;
     final theme = session.activeTheme;
     final bezel = session.previewBezel.watch(context);
     final values = session.knobValues.watch(context);
     final component = entry.component;
+    final defaults = {
+      for (final knob in component?.knobs ?? const <DesyKnob<Object>>[])
+        knob.id: knob.initial,
+    };
+    final activeValues = {...defaults, ...values};
     final variants = <_DetailVariant>[
       _DetailVariant(
         id: 'default',
         name: component == null ? entry.name : 'Default',
+        selected: _selectedVariantId == 'default',
+        onSelect: component == null
+            ? null
+            : () => _selectVariant(component: component),
         builder: component == null
             ? entry.builder
             : (context) =>
                   component.buildWithKnobs?.call(
                     context,
-                    DesyKnobValues(values),
+                    DesyKnobValues(
+                      _selectedVariantId == 'default' ? activeValues : defaults,
+                    ),
                     session.registry.widgetBuilder,
                   ) ??
                   component.preview(context),
@@ -64,17 +93,33 @@ class DesyDetailScreen extends StatelessWidget {
           _DetailVariant(
             id: 'instance-${instance.id}',
             name: instance.name,
-            builder: (context) => component.buildInstance(
-              context,
-              instance,
-              widgets: session.registry.widgetBuilder,
-            ),
+            selected: _selectedVariantId == 'instance-${instance.id}',
+            onSelect: () =>
+                _selectVariant(component: component, instance: instance),
+            builder: (context) {
+              final builder = component.buildWithKnobs;
+              if (_selectedVariantId == 'instance-${instance.id}' &&
+                  builder != null) {
+                return builder(
+                  context,
+                  DesyKnobValues(activeValues),
+                  session.registry.widgetBuilder,
+                );
+              }
+              return component.buildInstance(
+                context,
+                instance,
+                widgets: session.registry.widgetBuilder,
+              );
+            },
           ),
       if (component != null)
         for (final scenario in component.scenarios)
           _DetailVariant(
             id: 'scenario-${scenario.id}',
             name: 'State · ${scenario.name}',
+            selected: false,
+            onSelect: null,
             builder: scenario.builder,
           ),
     ];
@@ -96,7 +141,23 @@ class DesyDetailScreen extends StatelessWidget {
         component: component,
         entry: entry,
         values: values,
+        selectedVariantName: variants
+            .firstWhere((variant) => variant.selected)
+            .name,
       ),
+    );
+  }
+
+  void _selectVariant({
+    required DesyComponent component,
+    DesyComponentInstance? instance,
+  }) {
+    final variantId = instance == null ? 'default' : 'instance-${instance.id}';
+    if (_selectedVariantId == variantId) return;
+    setState(() => _selectedVariantId = variantId);
+    widget.session.editComponentVariant(
+      component: component,
+      instance: instance,
     );
   }
 }
@@ -105,11 +166,15 @@ class _DetailVariant {
   const _DetailVariant({
     required this.id,
     required this.name,
+    required this.selected,
+    required this.onSelect,
     required this.builder,
   });
 
   final String id;
   final String name;
+  final bool selected;
+  final VoidCallback? onSelect;
   final DesyPreviewBuilder builder;
 }
 
@@ -149,25 +214,55 @@ class _DetailInstanceGallery extends StatelessWidget {
           }
           final variant = variants[index - 1];
           final isDefault = variant.id == 'default';
-          return SizedBox(
-            key: ValueKey('detail-instance-viewer-${variant.id}'),
-            height: viewerHeight,
-            child: DesyPreviewCanvas(
-              session: session,
-              theme: theme,
-              bezel: bezel,
-              toolbar: null,
-              instanceLabel: variant.name,
-              canvasKey: isDefault
-                  ? const ValueKey('detail-preview-canvas')
-                  : ValueKey('detail-instance-canvas-${variant.id}'),
-              artboardKey: isDefault
-                  ? const ValueKey('detail-artboard')
-                  : ValueKey('detail-instance-artboard-${variant.id}'),
-              selectionLabelKey: isDefault
-                  ? const ValueKey('detail-selection-size')
-                  : ValueKey('detail-instance-label-${variant.id}'),
-              child: DesyWidgetPreview(theme: theme, builder: variant.builder),
+          return FocusableActionDetector(
+            key: ValueKey('detail-instance-focus-${variant.id}'),
+            enabled: variant.onSelect != null,
+            shortcuts: const {
+              SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+              SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+            },
+            actions: {
+              ActivateIntent: CallbackAction<ActivateIntent>(
+                onInvoke: (_) {
+                  variant.onSelect?.call();
+                  return null;
+                },
+              ),
+            },
+            child: Semantics(
+              key: ValueKey('detail-instance-selector-${variant.id}'),
+              button: variant.onSelect != null,
+              selected: variant.selected,
+              onTap: variant.onSelect,
+              label: variant.onSelect == null
+                  ? '${variant.name} preview'
+                  : '${variant.name} instance preview',
+              child: SizedBox(
+                key: ValueKey('detail-instance-viewer-${variant.id}'),
+                height: viewerHeight,
+                child: DesyPreviewCanvas(
+                  session: session,
+                  theme: theme,
+                  bezel: bezel,
+                  toolbar: null,
+                  instanceLabel: variant.name,
+                  selected: variant.selected,
+                  onSelect: variant.onSelect,
+                  canvasKey: isDefault
+                      ? const ValueKey('detail-preview-canvas')
+                      : ValueKey('detail-instance-canvas-${variant.id}'),
+                  artboardKey: isDefault
+                      ? const ValueKey('detail-artboard')
+                      : ValueKey('detail-instance-artboard-${variant.id}'),
+                  selectionLabelKey: isDefault
+                      ? const ValueKey('detail-selection-size')
+                      : ValueKey('detail-instance-label-${variant.id}'),
+                  child: DesyWidgetPreview(
+                    theme: theme,
+                    builder: variant.builder,
+                  ),
+                ),
+              ),
             ),
           );
         },
@@ -322,12 +417,14 @@ class _DetailInspector extends StatelessWidget {
     required this.component,
     required this.entry,
     required this.values,
+    required this.selectedVariantName,
   });
 
   final DesyWorkbenchSession session;
   final DesyComponent? component;
   final DesyRegistryEntry entry;
   final Map<String, Object> values;
+  final String selectedVariantName;
 
   @override
   Widget build(BuildContext context) => ColoredBox(
@@ -336,6 +433,12 @@ class _DetailInspector extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       children: [
         Text('Controls', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(
+          'Editing $selectedVariantName',
+          key: const ValueKey('detail-selected-instance'),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         if (component != null && component!.knobs.isNotEmpty) ...[
           const SizedBox(height: 24),
           Text('Knobs', style: Theme.of(context).textTheme.labelLarge),
@@ -376,6 +479,8 @@ class DesyPreviewCanvas extends StatelessWidget {
     this.canvasKey = const ValueKey('detail-preview-canvas'),
     this.artboardKey = const ValueKey('detail-artboard'),
     this.selectionLabelKey = const ValueKey('detail-selection-size'),
+    this.selected = true,
+    this.onSelect,
   });
 
   final DesyWorkbenchSession session;
@@ -387,6 +492,8 @@ class DesyPreviewCanvas extends StatelessWidget {
   final Key canvasKey;
   final Key artboardKey;
   final Key selectionLabelKey;
+  final bool selected;
+  final VoidCallback? onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -478,6 +585,8 @@ class DesyPreviewCanvas extends StatelessWidget {
                   ),
                   frameKey: artboardKey,
                   resizeHandleKeyPrefix: 'detail-resize',
+                  selected: selected,
+                  onSelect: onSelect,
                   ignoreChildPointer: false,
                   onChanged: (geometry) => session.updateStage(
                     stage.copyWith(

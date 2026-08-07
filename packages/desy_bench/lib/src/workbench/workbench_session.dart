@@ -87,10 +87,18 @@ class DesyWorkbenchSession {
     selectedComponentInstance.value = null;
   }
 
-  /// Applies a named component preset without making a separate mutable copy
-  /// of the consumer's instance declaration.
-  void applyInstance(DesyComponentInstance instance) {
-    knobValues.value = {...knobValues.value, ...instance.knobValues.entries};
+  /// Starts editing one declared component variant in the detail inspector.
+  ///
+  /// The mutable knob map is derived from the component defaults and optional
+  /// instance preset. The consumer-owned declaration remains immutable.
+  void editComponentVariant({
+    required DesyComponent component,
+    DesyComponentInstance? instance,
+  }) {
+    knobValues.value = {
+      for (final knob in component.knobs) knob.id: knob.initial,
+      ...?instance?.knobValues.entries,
+    };
     selectedScenario.value = null;
     selectedComponentInstance.value = instance;
   }
@@ -105,7 +113,6 @@ class DesyWorkbenchSession {
     }
     knobValues.value = {...knobValues.value, knob.id: value};
     selectedScenario.value = null;
-    selectedComponentInstance.value = null;
   }
 
   bool _isLegalKnobValue(DesyKnob<Object> knob, Object value) => switch (knob) {
