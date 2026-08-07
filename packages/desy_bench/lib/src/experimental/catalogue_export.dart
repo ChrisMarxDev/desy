@@ -90,6 +90,19 @@ class DesyCatalogueExport {
             extra: {'group': effect.group},
           ),
       ],
+      'icons': [
+        for (final icon in registry.allIcons)
+          _entry(
+            id: icon.id,
+            name: icon.name,
+            value: icon.value,
+            description: icon.description,
+            extra: {
+              'codePoint': icon.icon.codePoint,
+              'fontFamily': icon.icon.fontFamily,
+            },
+          ),
+      ],
       'assets': [
         for (final asset in registry.allAssets)
           _entry(

@@ -42,9 +42,10 @@
   result down within the Desy canvas. Do not make a widget look smaller by
   giving it artificial compact constraints.
 - Treat Atoms as the top-level structural folder for foundational primitives:
-  Colors, Fonts, and future Spacing/Numeric folders. Do not create a duplicate
-  Atom entry category: swatches, gradients, and consumer-supplied color widgets
-  are color entries under `Atoms/Colors`.
+  Colors, Fonts, Icons, and Measurements. Do not create a duplicate Atom entry
+  category: swatches, gradients, and consumer-supplied color widgets are color
+  entries under `Atoms/Colors`; Flutter icon glyphs are `DesyIconEntry`
+  declarations under `Atoms/Icons`.
 - Route numeric primitives through typed `DesyNumericEntry` declarations and
   the Measurements board; do not recover their meaning from strings or create
   separate Shape/Spacing navigation sections.

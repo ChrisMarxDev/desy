@@ -115,6 +115,40 @@ final _sampleColors = [
   ),
 ];
 
+final _sampleIcons = [
+  _sampleIcon('arrow-right', 'Arrow right', FLucideIcons.arrowRight),
+  _sampleIcon('anchor', 'Anchor', FLucideIcons.anchor),
+  _sampleIcon('badge-check', 'Badge check', FLucideIcons.badgeCheck),
+  _sampleIcon('calendar', 'Calendar', FLucideIcons.calendar),
+  _sampleIcon('calendar-clock', 'Calendar clock', FLucideIcons.calendarClock),
+  _sampleIcon('calendar-x', 'Calendar unavailable', FLucideIcons.calendarX),
+  _sampleIcon(
+    'chart',
+    'Operational chart',
+    FLucideIcons.chartNoAxesColumnIncreasing,
+  ),
+  _sampleIcon('chevron-right', 'Chevron right', FLucideIcons.chevronRight),
+  _sampleIcon('form-input', 'Form input', FLucideIcons.formInput),
+  _sampleIcon('gauge', 'Gauge', FLucideIcons.gauge),
+  _sampleIcon('inbox', 'Inbox', FLucideIcons.inbox),
+  _sampleIcon('info', 'Information', FLucideIcons.info),
+  _sampleIcon('layout-panel-top', 'Panel layout', FLucideIcons.layoutPanelTop),
+  _sampleIcon(
+    'mouse-pointer-click',
+    'Pointer click',
+    FLucideIcons.mousePointerClick,
+  ),
+  _sampleIcon('navigation', 'Navigation', FLucideIcons.navigation),
+  _sampleIcon('octagon-alert', 'Critical alert', FLucideIcons.octagonAlert),
+  _sampleIcon('search-x', 'No search results', FLucideIcons.searchX),
+  _sampleIcon('ship', 'Ship', FLucideIcons.ship),
+  _sampleIcon('sliders', 'Sliders', FLucideIcons.slidersHorizontal),
+  _sampleIcon('triangle-alert', 'Warning', FLucideIcons.triangleAlert),
+];
+
+DesyIconEntry _sampleIcon(String id, String name, IconData icon) =>
+    DesyIconEntry(id: 'icon.$id', name: name, icon: icon);
+
 final _sampleTypography = [
   DesyTypographyEntry(
     id: 'type.display',
@@ -781,6 +815,7 @@ final sampleRegistry = DesyRegistry(
           name: 'Fonts',
           typography: _sampleTypography,
         ),
+        DesyFolder(id: 'atoms.icons', name: 'Icons', icons: _sampleIcons),
         DesyFolder(
           id: 'atoms.measurements',
           name: 'Measurements',

@@ -24,6 +24,7 @@ void main() {
       expect(atoms.children.map((folder) => folder.name), [
         'Colors',
         'Fonts',
+        'Icons',
         'Measurements',
         'Motion',
         'Effects',
@@ -79,6 +80,8 @@ void main() {
       );
       expect(sampleRegistry.allColors, hasLength(greaterThanOrEqualTo(6)));
       expect(sampleRegistry.allTypography, hasLength(greaterThanOrEqualTo(4)));
+      expect(sampleRegistry.allIcons, hasLength(20));
+      expect(sampleRegistry.resolve('icon.anchor')?.path, 'Atoms / Icons');
       expect(sampleRegistry.allNumbers, hasLength(greaterThanOrEqualTo(1)));
       expect(
         sampleRegistry.allNumbers.where(

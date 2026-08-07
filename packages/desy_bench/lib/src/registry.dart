@@ -14,6 +14,7 @@ class DesyRegistry {
     List<DesyNumericEntry> numbers = const [],
     List<DesyMotionEntry> motion = const [],
     List<DesyEffectEntry> effects = const [],
+    List<DesyIconEntry> icons = const [],
     List<DesyAssetEntry> assets = const [],
     List<DesyComponent> components = const [],
     List<DesyShowcase> showcases = const [],
@@ -26,6 +27,7 @@ class DesyRegistry {
        numbers = List.unmodifiable(numbers),
        motion = List.unmodifiable(motion),
        effects = List.unmodifiable(effects),
+       icons = List.unmodifiable(icons),
        assets = List.unmodifiable(assets),
        components = List.unmodifiable(components),
        showcases = List.unmodifiable(showcases),
@@ -57,6 +59,9 @@ class DesyRegistry {
 
   /// Widget decorators such as consumer-owned shadow recipes.
   final List<DesyEffectEntry> effects;
+
+  /// Consumer-owned icon glyphs.
+  final List<DesyIconEntry> icons;
 
   /// Consumer-owned image, GIF, video, and audio resources.
   final List<DesyAssetEntry> assets;
@@ -111,6 +116,12 @@ class DesyRegistry {
   List<DesyEffectEntry> get allEffects => List.unmodifiable([
     ...effects,
     for (final folder in folders) ...folder.allEffects,
+  ]);
+
+  /// Every icon primitive declared at the root or inside a folder.
+  List<DesyIconEntry> get allIcons => List.unmodifiable([
+    ...icons,
+    for (final folder in folders) ...folder.allIcons,
   ]);
 
   /// Every asset primitive declared at the root or inside a folder.
@@ -191,6 +202,7 @@ class DesyRegistry {
     numbers: numbers,
     motion: motion,
     effects: effects,
+    icons: icons,
     assets: assets,
     components: components,
   );
@@ -212,6 +224,7 @@ class DesyFolder {
     List<DesyNumericEntry> numbers = const [],
     List<DesyMotionEntry> motion = const [],
     List<DesyEffectEntry> effects = const [],
+    List<DesyIconEntry> icons = const [],
     List<DesyAssetEntry> assets = const [],
     List<DesyComponent> components = const [],
     List<DesyShowcase> showcases = const [],
@@ -222,6 +235,7 @@ class DesyFolder {
        numbers = List.unmodifiable(numbers),
        motion = List.unmodifiable(motion),
        effects = List.unmodifiable(effects),
+       icons = List.unmodifiable(icons),
        assets = List.unmodifiable(assets),
        components = List.unmodifiable(components),
        showcases = List.unmodifiable(showcases),
@@ -253,6 +267,9 @@ class DesyFolder {
 
   /// Widget effects directly declared by this folder.
   final List<DesyEffectEntry> effects;
+
+  /// Icon primitives directly declared by this folder.
+  final List<DesyIconEntry> icons;
 
   /// Asset primitives directly declared by this folder.
   final List<DesyAssetEntry> assets;
@@ -302,6 +319,12 @@ class DesyFolder {
     for (final folder in children) ...folder.allEffects,
   ]);
 
+  /// Every icon primitive in this branch, including descendants.
+  List<DesyIconEntry> get allIcons => List.unmodifiable([
+    ...icons,
+    for (final folder in children) ...folder.allIcons,
+  ]);
+
   /// Every asset primitive in this branch, including descendants.
   List<DesyAssetEntry> get allAssets => List.unmodifiable([
     ...assets,
@@ -338,6 +361,7 @@ class DesyFolder {
       numbers: numbers,
       motion: motion,
       effects: effects,
+      icons: icons,
       assets: assets,
       components: components,
       folderIds: folderIds,
@@ -632,6 +656,7 @@ List<DesyRegistryEntry> _entriesFor({
   required List<DesyNumericEntry> numbers,
   required List<DesyMotionEntry> motion,
   required List<DesyEffectEntry> effects,
+  required List<DesyIconEntry> icons,
   required List<DesyAssetEntry> assets,
   required List<DesyComponent> components,
   List<String> folderIds = const [],
@@ -704,6 +729,17 @@ List<DesyRegistryEntry> _entriesFor({
       source: effect,
       description: effect.description,
       value: effect.displayValue,
+    ),
+  for (final icon in icons)
+    DesyRegistryEntry(
+      id: icon.id,
+      name: icon.name,
+      folderIds: folderIds,
+      folderNames: folderNames,
+      builder: icon.build,
+      source: icon,
+      description: icon.description,
+      value: icon.value,
     ),
   for (final asset in assets)
     DesyRegistryEntry(
@@ -973,6 +1009,47 @@ class DesyMotionEntry {
 
   /// Concise display value.
   String get displayValue => '${duration.inMilliseconds} ms · $curve';
+}
+
+/// A consumer-owned icon glyph rendered by Flutter's real icon widget.
+class DesyIconEntry {
+  /// Creates a typed icon primitive.
+  const DesyIconEntry({
+    required this.id,
+    required this.name,
+    required this.icon,
+    this.description,
+    this.value,
+    this.semanticLabel,
+    this.size,
+  });
+
+  /// Stable identifier for the entry.
+  final String id;
+
+  /// Human-readable icon name.
+  final String name;
+
+  /// Consumer-owned Flutter glyph.
+  final IconData icon;
+
+  /// Optional usage guidance.
+  final String? description;
+
+  /// Optional source-facing name such as `FLucideIcons.anchor`.
+  final String? value;
+
+  /// Accessible meaning announced by assistive technology.
+  final String? semanticLabel;
+
+  /// Optional consumer-specified size in logical pixels.
+  ///
+  /// When omitted, the selected consumer theme's icon size remains in charge.
+  final double? size;
+
+  /// Builds the actual consumer icon under the selected consumer theme.
+  Widget build(BuildContext context) =>
+      Icon(icon, size: size, semanticLabel: semanticLabel ?? name);
 }
 
 /// The media type of a consumer-owned asset resource.

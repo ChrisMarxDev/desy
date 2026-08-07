@@ -283,6 +283,7 @@ class DesyWorkbenchSidebar extends StatelessWidget {
   IconData _folderIcon(String name) => switch (name) {
     'Colors' => DesyIcons.palette,
     'Fonts' => DesyIcons.type,
+    'Icons' => DesyIcons.shapes,
     'Spacing' || 'Sizing' || 'Shape' => DesyIcons.ruler,
     'Motion' => DesyIcons.sparkles,
     'Effects' => DesyIcons.layers,

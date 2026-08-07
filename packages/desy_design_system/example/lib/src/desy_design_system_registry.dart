@@ -128,6 +128,7 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
             ),
           ],
         ),
+        DesyFolder(id: 'desy.atoms.icons', name: 'Icons', icons: _desyIcons),
         DesyFolder(
           id: 'desy.atoms.measurements',
           name: 'Measurements',
@@ -262,7 +263,7 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
         DesyFolder(
           id: 'desy.components.utilities',
           name: 'Utilities',
-          components: [_iconsComponent, _shortcutComponent],
+          components: [_shortcutComponent],
         ),
       ],
     ),
@@ -571,41 +572,33 @@ final _scaffoldComponent = _component(
   ),
 );
 
-final _iconsComponent = _component(
-  id: 'desy.component.icons',
-  name: 'Icon vocabulary',
-  description: 'The stable glyph vocabulary for Desy-owned workbench chrome.',
-  preview: (context) => const SizedBox(
-    width: 320,
-    child: Wrap(
-      spacing: DesyDesignSystemTokens.spaceMd,
-      runSpacing: DesyDesignSystemTokens.spaceMd,
-      children: [
-        Icon(DesyIcons.layoutGrid),
-        Icon(DesyIcons.boxes),
-        Icon(DesyIcons.component),
-        Icon(DesyIcons.folder),
-        Icon(DesyIcons.palette),
-        Icon(DesyIcons.type),
-        Icon(DesyIcons.ruler),
-        Icon(DesyIcons.layers),
-        Icon(DesyIcons.image),
-        Icon(DesyIcons.smartphone),
-        Icon(DesyIcons.tablet),
-        Icon(DesyIcons.sparkles),
-        Icon(DesyIcons.camera),
-        Icon(DesyIcons.panelLeftOpen),
-        Icon(DesyIcons.panelLeftClose),
-        Icon(DesyIcons.chevronRight),
-        Icon(DesyIcons.chevronDown),
-        Icon(DesyIcons.chevronUp),
-        Icon(DesyIcons.chevronsUpDown),
-        Icon(DesyIcons.check),
-        Icon(DesyIcons.arrowLeft),
-      ],
-    ),
-  ),
-);
+final _desyIcons = [
+  _desyIcon('layout-grid', 'Layout grid', DesyIcons.layoutGrid),
+  _desyIcon('boxes', 'Boxes', DesyIcons.boxes),
+  _desyIcon('component', 'Component', DesyIcons.component),
+  _desyIcon('folder', 'Folder', DesyIcons.folder),
+  _desyIcon('palette', 'Palette', DesyIcons.palette),
+  _desyIcon('type', 'Type', DesyIcons.type),
+  _desyIcon('ruler', 'Ruler', DesyIcons.ruler),
+  _desyIcon('shapes', 'Shapes', DesyIcons.shapes),
+  _desyIcon('layers', 'Layers', DesyIcons.layers),
+  _desyIcon('image', 'Image', DesyIcons.image),
+  _desyIcon('smartphone', 'Smartphone', DesyIcons.smartphone),
+  _desyIcon('tablet', 'Tablet', DesyIcons.tablet),
+  _desyIcon('sparkles', 'Sparkles', DesyIcons.sparkles),
+  _desyIcon('camera', 'Camera', DesyIcons.camera),
+  _desyIcon('panel-left-open', 'Panel left open', DesyIcons.panelLeftOpen),
+  _desyIcon('panel-left-close', 'Panel left close', DesyIcons.panelLeftClose),
+  _desyIcon('chevron-right', 'Chevron right', DesyIcons.chevronRight),
+  _desyIcon('chevron-down', 'Chevron down', DesyIcons.chevronDown),
+  _desyIcon('chevron-up', 'Chevron up', DesyIcons.chevronUp),
+  _desyIcon('chevrons-up-down', 'Chevrons up down', DesyIcons.chevronsUpDown),
+  _desyIcon('check', 'Check', DesyIcons.check),
+  _desyIcon('arrow-left', 'Arrow left', DesyIcons.arrowLeft),
+];
+
+DesyIconEntry _desyIcon(String id, String name, IconData icon) =>
+    DesyIconEntry(id: 'desy.icon.$id', name: name, icon: icon);
 
 final _shortcutComponent = DesyComponent(
   id: 'desy.component.shortcut-label',

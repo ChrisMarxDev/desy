@@ -12,7 +12,12 @@ void main() {
     expect(desyDesignSystemRegistry.allNumbers, hasLength(7));
     expect(desyDesignSystemRegistry.allMotion, hasLength(2));
     expect(desyDesignSystemRegistry.allEffects, hasLength(1));
+    expect(desyDesignSystemRegistry.allIcons, hasLength(22));
     expect(desyDesignSystemRegistry.allShowcases, hasLength(1));
+    expect(
+      desyDesignSystemRegistry.resolve('desy.icon.shapes')?.path,
+      'Atoms / Icons',
+    );
 
     expect(
       desyDesignSystemRegistry.allComponents.map((component) => component.id),
@@ -22,7 +27,6 @@ void main() {
         'desy.component.button',
         'desy.component.card',
         'desy.component.dialog',
-        'desy.component.icons',
         'desy.component.scaffold',
         'desy.component.select',
         'desy.component.shortcut-label',

@@ -90,11 +90,12 @@ workbench controls the presentation scale.
 ## 9. Atoms organize foundational primitives
 
 Atoms is a top-level folder in the registry tree, not a duplicate entry type or
-parallel inventory. It contains folders such as Colors, Fonts, and—later—
-Spacing and other numeric values. Solid swatches, gradients, and
-consumer-supplied color/treatment widgets are all color entries inside
-`Atoms/Colors`; they do not also appear as generic atoms. This prevents
-duplicated visual inventories while keeping color-specific builders as thin
+parallel inventory. It contains folders such as Colors, Fonts, Icons, and
+Measurements. Solid swatches, gradients, and consumer-supplied
+color/treatment widgets are color entries inside `Atoms/Colors`; Flutter icon
+glyphs are typed `DesyIconEntry` declarations inside `Atoms/Icons`. They do not
+also appear as generic atoms or fake components. This prevents duplicated
+visual inventories while keeping primitive-specific adapters as thin
 widget-returning conveniences.
 
 ## 10. Flutter-platform compatible by default

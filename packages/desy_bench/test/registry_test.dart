@@ -88,6 +88,46 @@ void main() {
     expect(audio.group, 'Sounds');
   });
 
+  testWidgets('icon entries remain typed and resolve through folders', (
+    tester,
+  ) async {
+    const icon = DesyIconEntry(
+      id: 'icon.anchor',
+      name: 'Anchor',
+      icon: IconData(0xe001),
+      semanticLabel: 'Anchor point',
+      value: 'AppIcons.anchor',
+    );
+    final registry = DesyRegistry(
+      name: 'Icons',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      folders: [
+        DesyFolder(
+          id: 'atoms',
+          name: 'Atoms',
+          children: [
+            DesyFolder(id: 'atoms.icons', name: 'Icons', icons: [icon]),
+          ],
+        ),
+      ],
+    );
+
+    expect(registry.allIcons, [icon]);
+    expect(registry.resolve(icon.id)?.path, 'Atoms / Icons');
+    expect(registry.resolve(icon.id)?.source, same(icon));
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Builder(builder: icon.build),
+      ),
+    );
+    final rendered = tester.widget<Icon>(find.byType(Icon));
+    expect(rendered.icon, icon.icon);
+    expect(rendered.semanticLabel, 'Anchor point');
+    expect(rendered.size, isNull);
+  });
+
   test('workspace extension builder does not require sidebar metadata', () {
     final extension = DesyWorkspaceExtension.builder(
       id: 'release-notes',
@@ -486,6 +526,14 @@ void main() {
           builder: (_) => const SizedBox(),
         ),
       ],
+      icons: const [
+        DesyIconEntry(
+          id: 'icon.anchor',
+          name: 'Anchor',
+          icon: IconData(0xe001),
+          value: 'AppIcons.anchor',
+        ),
+      ],
       components: [
         DesyComponent(
           id: 'button.primary',
@@ -503,6 +551,16 @@ void main() {
     final component = components.single! as Map<String, Object?>;
 
     expect(export['schemaVersion'], '0.1-experimental');
+    final primitives = export['primitives']! as Map<String, Object?>;
+    expect(primitives['icons'], [
+      {
+        'id': 'icon.anchor',
+        'name': 'Anchor',
+        'value': 'AppIcons.anchor',
+        'codePoint': 0xe001,
+        'fontFamily': null,
+      },
+    ]);
     expect(component['id'], 'button.primary');
     expect(component['knobs'], [
       {'id': 'label', 'name': 'Label', 'kind': 'string'},

@@ -54,6 +54,9 @@ abstract final class DesyIcons {
   /// Numeric measurements.
   static const IconData ruler = FLucideIcons.ruler;
 
+  /// Icon and glyph foundations.
+  static const IconData shapes = FLucideIcons.shapes;
+
   /// A phone preview bezel.
   static const IconData smartphone = FLucideIcons.smartphone;
 
