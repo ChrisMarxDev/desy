@@ -258,13 +258,16 @@ void main() {
   });
 }
 
-DesyRegistryComponent _component(String id, {IconData? icon, String path = '/'}) =>
-    DesyStaticComponent(
-      id: id,
-      name: id,
-      icon: icon,
-      path: path,
-      instances: {'default': (_) => const SizedBox()},
-    );
+DesyRegistryComponent _component(
+  String id, {
+  IconData? icon,
+  String path = '/',
+}) => DesyStaticComponent(
+  id: id,
+  name: id,
+  icon: icon,
+  path: path,
+  instances: {'default': (_) => const SizedBox()},
+);
 
 Widget _wrap(BuildContext context, Widget child) => child;

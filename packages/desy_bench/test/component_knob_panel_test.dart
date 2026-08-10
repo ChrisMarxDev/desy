@@ -64,6 +64,60 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('instance swaps honor a widget-slot allow-list', (tester) async {
+    final registry = DesyRegistry(
+      name: 'Restricted instance swaps',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [
+        DesyStaticComponent(
+          id: 'status',
+          name: 'Status',
+          instances: {
+            'clear': (_) => const SizedBox(),
+            'delayed': (_) => const SizedBox(),
+          },
+        ),
+      ],
+    );
+    final knob = KnobDefinition(
+      id: 'status',
+      name: 'Status',
+      kind: DesyKnobKind.widgetInstance,
+      initial: const DesyInstanceId('status.clear'),
+      options: const ['status.clear'],
+    );
+
+    await tester.pumpWidget(
+      FTheme(
+        data: FTheme.neutral.light.desktop,
+        child: MaterialApp(
+          home: Scaffold(
+            body: DesyComponentKnobPanel(
+              registry: registry,
+              knobs: [knob],
+              values: const {'status': 'status.clear'},
+              onChanged: (_, _) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('instance-swap-current-status')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('instance-swap-option-status.clear')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('instance-swap-option-status.delayed')),
+      findsNothing,
+    );
+  });
 }
 
 Widget _wrap(BuildContext context, Widget child) => child;

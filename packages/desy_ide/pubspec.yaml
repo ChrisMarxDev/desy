@@ -1,0 +1,24 @@
+name: desy_ide
+description: Prototype host for Desy's isolated headless Flutter runtime.
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: ^3.8.0
+  flutter: '>=3.29.0'
+
+resolution: workspace
+
+dependencies:
+  desy_bench:
+    path: ../desy_bench
+  desy_design_system:
+    path: ../desy_design_system
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

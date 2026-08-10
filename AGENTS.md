@@ -41,7 +41,10 @@
   app's `DesyRegistry` is the only runtime inventory of Desy's exported UI.
 - Render consumer previews at their intended logical dimensions, then scale the
   result down within the Desy canvas. Do not make a widget look smaller by
-  giving it artificial compact constraints.
+  giving it artificial compact constraints. Responsive previews derive their
+  logical size from the drag box. Named device previews keep fixed screen and
+  media geometry, clip to the screen, and scale the screen and bezel down
+  together without inserting `SafeArea` or scrolling.
 - Treat Colors, Fonts, Icons, Measurements, Motion, and Effects as optional,
   typed `DesyRegistry` parameters. They are built-in atom lanes, never
   consumer-declared folder branches or inferred labels.
@@ -70,7 +73,7 @@
 ## Verification
 
 From the repository root, `task check` is the canonical verification command.
-It runs root analysis, the Forui dependency-boundary check, all five test
+It runs root analysis, the Forui dependency-boundary check, all six test
 suites, and a production dogfood web compile, including optional extensions:
 
 ```sh
@@ -80,4 +83,5 @@ task check
 `flutter test` at the repository root is not equivalent: it does not express
 the workspace's package-by-package test coverage. For focused work, use
 `task design_system:test`, `task dogfood:test`, `task bench:test`,
-`task agent_annotations:test`, or `task screenshot_builder:test`.
+`task agent_annotations:test`, `task screenshot_builder:test`, or
+`task surface_browser:test`.

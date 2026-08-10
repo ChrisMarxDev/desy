@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Desy annotation fix loop</title><link rel="stylesheet" href="../styles.css"></head>
+<body><main class="shell">
+  <nav><a href="index.html">← Planned features</a><span>Impact 4 · Complexity 3 · Yield 1.33</span></nav>
+  <section class="hero"><div class="eyebrow">Rank 6 · Closed loop</div><h1>From visual observation to verified agent fix.</h1><p class="lede">Extend agent annotations from a comment callback into a reproducible local work item containing the exact registry state, screenshot evidence, and verification receipt.</p></section>
+  <section class="grid">
+    <article class="card"><h2>Reason and user value</h2><p>“The padding looks wrong here” is weak agent input. “Component X, instance Y, theme Z, width 390, these knob values, this screenshot, expected golden plan” is actionable and can be reopened after the patch.</p></article>
+    <article class="card"><h2>Scope</h2><ul><li>Snapshot selected entry, instance, scenario, values, theme, viewport, locale, and text scale.</li><li>Attach screenshot and source paths when available.</li><li>Persist through the existing consumer-owned callback.</li><li>Generate an Agent Brief from an annotation.</li><li>Accept a verification receipt: commands run, resulting capture, status, and comment.</li><li>Reopen the exact state in Desy.</li></ul></article>
+    <article class="card"><h2>Non-goals</h2><ul><li>No issue tracker or account system in core.</li><li>No autonomous patch execution from the workbench.</li><li>No mutation of registry declarations.</li><li>No universal “resolved” state without consumer-owned persistence.</li></ul></article>
+    <article class="card"><h2>Implementation sketch</h2><ol><li>Add a versioned <code>DesyPreviewState</code> value object.</li><li>Extend annotation payloads compatibly with optional evidence.</li><li>Add “Create agent brief” and “Reopen state” actions.</li><li>Define a verification receipt independent of any agent vendor.</li><li>Dogfood using the existing local Markdown sink.</li></ol></article>
+    <article class="card full"><h2>Loop</h2><div class="flow"><strong>Observe</strong><span>→</span><strong>Snapshot</strong><span>→</span><strong>Agent brief</strong><span>→</span><strong>Patch</strong><span>→</span><strong>Golden verify</strong><span>→</span><strong>Receipt</strong></div></article>
+    <article class="card"><h2>Open questions</h2><ul><li>Should screenshot evidence be bytes, a repository path, or sink-owned?</li><li>How are annotations migrated when registry IDs change?</li><li>Can the workbench deep-link directly to a serialized preview state?</li><li>What evidence is required before a sink may mark an item verified?</li></ul></article>
+    <article class="card accent"><h2>Do or don’t?</h2><p><strong>Do incrementally.</strong> Impact 4/5, complexity 3/5, risk 2/5. State snapshot and brief generation are the valuable core; task dispatch and status storage remain consumer concerns.</p></article>
+  </section>
+  <footer>Decision: enrich the existing extension boundary; do not add a second task system.</footer>
+</main></body></html>

@@ -16,6 +16,10 @@ dependencies:
     path: ../../desy_bench
   desy_design_system:
     path: ..
+  desy_surface_browser:
+    path: ../../extensions/desy_surface_browser
+  desy_widget_workshop:
+    path: ../../extensions/desy_widget_workshop
   file_selector: ^1.1.0
   flutter:
     sdk: flutter

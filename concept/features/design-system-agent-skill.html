@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Desy design-system agent skill</title><link rel="stylesheet" href="../styles.css"></head>
+<body><main class="shell">
+  <nav><a href="index.html">← Planned features</a><span>Impact 5 · Complexity 3 · Yield 1.67</span></nav>
+  <section class="hero"><div class="eyebrow">Rank 5 · Agent integration</div><h1>A repository skill that teaches agents to use this design system.</h1><p class="lede">Ship a generated or installable agent skill backed by stable CLI queries. The skill explains the workflow; the CLI provides current registry facts. Neither copies the registry into prose.</p></section>
+  <section class="grid">
+    <article class="card"><h2>Reason and user value</h2><p>Repository instructions can tell an agent to respect a design system, but cannot reliably enumerate its live components, contracts, or valid states. A Desy skill makes the method durable while commands keep the facts current.</p></article>
+    <article class="card"><h2>Scope</h2><ul><li><code>desy registry inspect</code>, <code>search</code>, <code>validate</code>, and <code>export</code>.</li><li><code>desy brief</code> and <code>golden verify</code> as agent workflow steps.</li><li>Stable JSON output with schema/version metadata.</li><li>A compact <code>SKILL.md</code> that requires registry lookup before authoring UI.</li><li>Optional installation into common repository agent-instruction locations.</li></ul></article>
+    <article class="card"><h2>Non-goals</h2><ul><li>No agent-specific business logic inside <code>desy_bench</code>.</li><li>No generated prose dump of every component.</li><li>No direct source modification by the CLI.</li><li>No assumption that one agent vendor owns the workflow.</li></ul></article>
+    <article class="card"><h2>Implementation sketch</h2><ol><li>Stabilize a read-only CLI query protocol over the registry export.</li><li>Define agent-safe commands with bounded output and exact source paths.</li><li>Create a reusable skill template referencing those commands.</li><li>Add a consistency check: exported registry hash and skill version.</li><li>Dogfood the skill on Desy itself and a second consumer repository.</li></ol></article>
+    <article class="card full"><h2>Agent contract</h2><pre><code>Before implementing Flutter UI:
+1. Run `desy registry search --intent ... --json`.
+2. Inspect exact components, instances, contracts, and source paths.
+3. Use consumer-owned widgets; do not recreate them.
+4. Run `desy validate` and the focused golden plan.
+5. Report any missing registry capability instead of inventing one.</code></pre></article>
+    <article class="card"><h2>Open questions</h2><ul><li>Can registry construction run cheaply enough for frequent CLI queries?</li><li>Should a derived cache be permitted, and how is staleness detected?</li><li>Which agent skill formats deserve first-class installers?</li><li>How should intent search work before semantic metadata exists?</li></ul></article>
+    <article class="card accent"><h2>Do or don’t?</h2><p><strong>Do after the first CLI query surface exists.</strong> Impact 5/5, complexity 3/5, risk 2/5. The key refusal is duplicating component facts into a generated skill; commands must remain authoritative.</p></article>
+  </section>
+  <footer>Decision: skill owns agent behavior; CLI owns current facts; registry owns truth.</footer>
+</main></body></html>

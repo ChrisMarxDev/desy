@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Desy Golden CLI</title><link rel="stylesheet" href="../styles.css"></head>
+<body><main class="shell">
+  <nav><a href="index.html">← Planned features</a><span>Impact 5 · Complexity 3 · Yield 1.67</span></nav>
+  <section class="hero"><div class="eyebrow">Rank 3 · Verification</div><h1>Golden tooling generated from registry truth.</h1><p class="lede">A local CLI selects real registry entries and renders deterministic golden matrices across themes, instances, scenarios, viewports, and text scales—then gives agents precise visual failures.</p></section>
+  <section class="grid">
+    <article class="card"><h2>Reason and user value</h2><p>Golden tests are valuable but expensive to author and keep organized. Desy already knows what can render and how it should be addressed. The CLI converts that inventory into intentional, reviewable coverage without creating a separate gallery.</p></article>
+    <article class="card"><h2>Scope</h2><ul><li><code>desy golden plan</code>: preview the capture matrix.</li><li><code>desy golden capture</code>: create missing baselines.</li><li><code>desy golden verify</code>: compare without mutation.</li><li><code>desy golden update --accept</code>: explicit baseline acceptance.</li><li><code>desy golden diff</code>: emit images plus registry state and source context.</li><li>Selection by stable IDs, paths, themes, scenarios, or tags derived from typed lanes.</li></ul></article>
+    <article class="card"><h2>Non-goals</h2><ul><li>No silent golden updates.</li><li>No hosted comparison service.</li><li>No promise of pixel stability across arbitrary Flutter SDKs and operating systems.</li><li>No automatic capture of every combinatorial knob value.</li></ul></article>
+    <article class="card"><h2>Implementation sketch</h2><ol><li>Consumer supplies a tiny Flutter test entrypoint that imports its registry.</li><li>The CLI writes only ephemeral runner configuration under <code>.dart_tool</code> and invokes <code>flutter test</code>.</li><li>A versioned capture recipe records registry ID, values, theme, viewport, pixel ratio, fonts, locale, and settle policy.</li><li>Store PNGs and recipe metadata in consumer source control.</li><li>Emit human output plus stable JSON for agent tooling.</li></ol></article>
+    <article class="card full"><h2>Proposed integration</h2><pre><code>// tool/desy.dart
+void main(List&lt;String&gt; args) =&gt;
+  DesyCli(registry: appDesignSystem).run(args);
+
+$ flutter test tool/desy_golden_test.dart --dart-define=DESY_PLAN=goldens.json
+$ desy golden verify --changed</code></pre><p class="muted">The exact launcher is an open technical spike: Flutter rendering must remain inside the test binding even if a thin Dart command orchestrates it.</p></article>
+    <article class="card"><h2>Open questions</h2><ul><li>Should the public command be a global executable or <code>dart run</code>?</li><li>How are fonts and platform rendering pinned?</li><li>What constitutes “affected” without a usage graph?</li><li>Should animation capture use a fixed clock or named frame checkpoints?</li></ul></article>
+    <article class="card accent"><h2>Do or don’t?</h2><p><strong>Do a selected-matrix MVP.</strong> Impact 5/5, complexity 3/5, risk 2/5. Defer affected-only selection and cross-platform normalization until deterministic local captures are proven.</p></article>
+  </section>
+  <footer>Decision: CLI orchestrates Flutter test infrastructure; the registry remains the only capture inventory.</footer>
+</main></body></html>

@@ -363,7 +363,9 @@ class _MutableComponentGroup {
   );
 }
 
-List<DesyComponentGroup> _buildComponentGroups(List<DesyRegistryComponent> components) {
+List<DesyComponentGroup> _buildComponentGroups(
+  List<DesyRegistryComponent> components,
+) {
   final roots = <String, _MutableComponentGroup>{};
   for (final component in components) {
     var siblings = roots;
@@ -602,19 +604,45 @@ class DesyRegistryValidator {
       add(id, 'extension');
     }
     for (final component in registry.allComponents) {
-      for (final instanceId in component.instanceIds) {
-        for (final reference in component.referencesFor(instanceId)) {
-          if (registry.resolveComponentInstance(reference.value) == null) {
-            issues.add(
-              DesyRegistryValidationIssue(
-                id: reference.value,
-                severity: DesyRegistryValidationSeverity.warning,
-                message:
-                    'Component "${component.id}" instance "$instanceId" '
-                    'references unknown component instance "${reference.value}".',
-              ),
+      final contextsByReference = <String, List<String>>{};
+      void recordReference(DesyInstanceId reference, String context) {
+        final contexts = contextsByReference.putIfAbsent(
+          reference.value,
+          () => [],
+        );
+        if (!contexts.contains(context)) contexts.add(context);
+      }
+
+      for (final definition in component.knobDefinitions) {
+        if (definition.kind == DesyKnobKind.widgetInstance) {
+          recordReference(
+            definition.initial as DesyInstanceId,
+            'default preview',
+          );
+          for (final option in definition.options) {
+            recordReference(
+              DesyInstanceId(option),
+              'knob "${definition.id}" option',
             );
           }
+        }
+      }
+      for (final instanceId in component.instanceIds) {
+        for (final reference in component.referencesFor(instanceId)) {
+          recordReference(reference, 'instance "$instanceId"');
+        }
+      }
+      for (final entry in contextsByReference.entries) {
+        if (registry.resolveComponentInstance(entry.key) == null) {
+          issues.add(
+            DesyRegistryValidationIssue(
+              id: entry.key,
+              severity: DesyRegistryValidationSeverity.warning,
+              message:
+                  'Component "${component.id}" ${entry.value.join(' and ')} '
+                  'references unknown component instance "${entry.key}".',
+            ),
+          );
         }
       }
     }
@@ -754,12 +782,11 @@ List<DesyRegistryEntry> _entriesFor({
 // `_entriesFor` is only ever called with `components: const []`, so the
 // component branch never observes a themed registry. This helper keeps the
 // signature self-contained while preserving the widget-returning contract.
-DesyRegistry _bareRegistry(DesyRegistryComponent component) =>
-    DesyRegistry(
-      name: component.name,
-      themes: const [DesyTheme(id: 'bare', name: 'Bare', wrap: _bareTheme)],
-      components: [component],
-    );
+DesyRegistry _bareRegistry(DesyRegistryComponent component) => DesyRegistry(
+  name: component.name,
+  themes: const [DesyTheme(id: 'bare', name: 'Bare', wrap: _bareTheme)],
+  components: [component],
+);
 
 Widget _bareTheme(BuildContext context, Widget child) => child;
 
@@ -1269,13 +1296,13 @@ final class DesyInstanceId {
 /// against declared instances.
 final class KnobDefinition<T extends Object> {
   /// Creates an immutable knob schema entry.
-  const KnobDefinition({
+  KnobDefinition({
     required this.id,
     required this.name,
     required this.kind,
     required this.initial,
-    this.options = const [],
-  });
+    List<String> options = const [],
+  }) : options = List.unmodifiable(options);
 
   /// Stable knob identifier within a component.
   final String id;
@@ -1406,6 +1433,13 @@ final class DeclarationKnobScope implements KnobScope {
     required String initial,
     List<String> options = const [],
   }) {
+    if (options.toSet().length != options.length) {
+      throw ArgumentError.value(
+        options,
+        'options',
+        'Widget-instance knob options must be unique.',
+      );
+    }
     if (initial.isNotEmpty &&
         options.isNotEmpty &&
         !options.contains(initial)) {
@@ -1420,9 +1454,9 @@ final class DeclarationKnobScope implements KnobScope {
       name: name ?? _humanize(id),
       kind: DesyKnobKind.widgetInstance,
       initial: DesyInstanceId(initial),
-      options: List.unmodifiable(options),
+      options: options,
     );
-    _definitions.add(definition);
+    _addDefinition(definition);
     return WidgetInstanceKnob._(
       definition,
       definition.initial,
@@ -1431,11 +1465,15 @@ final class DeclarationKnobScope implements KnobScope {
   }
 
   Knob<T> _register<T extends Object>(KnobDefinition<T> definition) {
+    _addDefinition(definition);
+    return Knob._(definition, definition.initial);
+  }
+
+  void _addDefinition(KnobDefinition<Object> definition) {
     if (_definitions.any((existing) => existing.id == definition.id)) {
       throw ArgumentError('Duplicate knob ID ${definition.id}.');
     }
     _definitions.add(definition);
-    return Knob._(definition, definition.initial);
   }
 
   /// The immutable knob schema gathered during declaration.
@@ -1825,18 +1863,35 @@ final class DesyComponent<K> extends DesyRegistryComponent {
     final interface = knobs(declaration);
     final definitions = declaration.definitions;
     final declaredInstances = instances(interface);
-    final definitionsById = {for (final definition in definitions) definition.id: definition};
+    final definitionsById = {
+      for (final definition in definitions) definition.id: definition,
+    };
 
     final overrides = <String, List<KnobSettingBase>>{};
     for (final MapEntry(key: instanceId, value: settings)
         in declaredInstances.entries) {
       final resolved = List<KnobSettingBase>.unmodifiable(settings);
+      final usedDefinitions = <KnobDefinition<Object>>{};
       for (final setting in resolved) {
-        if (!identical(definitionsById[setting.definition.id], setting.definition)) {
+        if (!identical(
+          definitionsById[setting.definition.id],
+          setting.definition,
+        )) {
           throw ArgumentError(
             'Instance $instanceId uses a knob from another component.',
           );
         }
+        if (!usedDefinitions.add(setting.definition)) {
+          throw ArgumentError(
+            'Instance $instanceId overrides knob '
+            '${setting.definition.id} more than once.',
+          );
+        }
+        _validateWidgetInstanceOption(
+          setting.definition,
+          setting.value,
+          argumentName: 'instances[$instanceId]',
+        );
       }
       overrides[instanceId] = resolved;
     }
@@ -1954,15 +2009,28 @@ final class DesyComponent<K> extends DesyRegistryComponent {
     final overrides = <KnobSettingBase>[
       for (final definition in knobDefinitions)
         if (values.containsKey(definition.id))
-          KnobSetting<Object>(definition, _toSettingValue(definition.kind, values[definition.id]!)),
+          KnobSetting<Object>(
+            definition,
+            _toSettingValue(definition, values[definition.id]!),
+          ),
     ];
-    final scope = ResolvedKnobScope(knobDefinitions, overrides, context, widgets);
+    final scope = ResolvedKnobScope(
+      knobDefinitions,
+      overrides,
+      context,
+      widgets,
+    );
     return _build(context, _bind(scope));
   }
 
   @override
   Widget preview(BuildContext context, DesyWidgetResolver widgets) {
-    final scope = ResolvedKnobScope(knobDefinitions, const [], context, widgets);
+    final scope = ResolvedKnobScope(
+      knobDefinitions,
+      const [],
+      context,
+      widgets,
+    );
     return _build(context, _bind(scope));
   }
 
@@ -1971,10 +2039,7 @@ final class DesyComponent<K> extends DesyRegistryComponent {
     for (final definition in knobDefinitions)
       definition.id: _knobValue(definition, definition.initial),
     for (final setting in instances[instanceId] ?? const [])
-      setting.definition.id: _knobValue(
-        setting.definition,
-        setting.value,
-      ),
+      setting.definition.id: _knobValue(setting.definition, setting.value),
   };
 
   @override
@@ -2078,10 +2143,7 @@ final class DesyStaticComponent extends DesyRegistryComponent {
   @override
   Widget preview(BuildContext context, DesyWidgetResolver widgets) {
     if (instanceBuilders.isEmpty) {
-      return buildDesyMissingRegistryWidget(
-        registryName: name,
-        instanceId: id,
-      );
+      return buildDesyMissingRegistryWidget(registryName: name, instanceId: id);
     }
     return instanceBuilders.values.first(context);
   }
@@ -2107,7 +2169,8 @@ final class DesyWidgetResolver {
       _build(context, DesyInstanceId(value));
 
   /// Builds the component instance identified by a typed [id].
-  Widget resolve(BuildContext context, DesyInstanceId id) => _build(context, id);
+  Widget resolve(BuildContext context, DesyInstanceId id) =>
+      _build(context, id);
 
   Widget _build(BuildContext context, DesyInstanceId id) {
     if (_ancestors.contains(id.value)) {
@@ -2134,10 +2197,16 @@ final class DesyWidgetResolver {
   DesyRegistryComponent? _componentFor(DesyInstanceId id) {
     DesyRegistryComponent? best;
     for (final component in registry.components) {
-      if (!id.value.startsWith('${component.id}.')) continue;
-      if (best == null || component.id.length > best.id.length) best = component;
+      if (!id.value.startsWith('${component.id}.')) {
+        continue;
+      }
+      if (best == null || component.id.length > best.id.length) {
+        best = component;
+      }
     }
-    if (best == null) return null;
+    if (best == null) {
+      return null;
+    }
     final instanceId = id.value.substring(best.id.length + 1);
     return best.instanceIds.contains(instanceId) ? best : null;
   }
@@ -2207,12 +2276,8 @@ class DesyRegisteredComponentInstance {
   String get name => component.instanceLabel(instanceId);
 
   /// Builds the actual consumer widget in the component's real context.
-  Widget build(BuildContext context, {DesyWidgetResolver? widgets}) =>
-      component.buildInstance(
-        context,
-        instanceId,
-        widgets ?? registry.widgetBuilder,
-      );
+  Widget build(BuildContext context, {DesyWidgetResolver? widgets}) => component
+      .buildInstance(context, instanceId, widgets ?? registry.widgetBuilder);
 }
 
 String _humanize(String id) {
@@ -2228,5 +2293,45 @@ Object _knobValue(KnobDefinition<Object> definition, Object value) =>
     value is DesyInstanceId ? value.value : value;
 
 /// Converts a value-map entry back into the typed value a knob setting expects.
-Object _toSettingValue(DesyKnobKind kind, Object value) =>
-    kind == DesyKnobKind.widgetInstance ? DesyInstanceId(value as String) : value;
+Object _toSettingValue(KnobDefinition<Object> definition, Object value) {
+  switch (definition.kind) {
+    case DesyKnobKind.string:
+      if (value is String) return value;
+    case DesyKnobKind.boolean:
+      if (value is bool) return value;
+    case DesyKnobKind.widgetInstance:
+      if (value is String) {
+        final id = DesyInstanceId(value);
+        _validateWidgetInstanceOption(
+          definition,
+          id,
+          argumentName: definition.id,
+        );
+        return id;
+      }
+  }
+  throw ArgumentError.value(
+    value,
+    definition.id,
+    'Expected a ${definition.kind.name} knob value.',
+  );
+}
+
+void _validateWidgetInstanceOption(
+  KnobDefinition<Object> definition,
+  Object value, {
+  required String argumentName,
+}) {
+  if (definition.kind != DesyKnobKind.widgetInstance ||
+      definition.options.isEmpty) {
+    return;
+  }
+  final id = (value as DesyInstanceId).value;
+  if (!definition.options.contains(id)) {
+    throw ArgumentError.value(
+      id,
+      argumentName,
+      'A widget-instance knob value must be one of its options.',
+    );
+  }
+}

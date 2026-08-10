@@ -3,7 +3,6 @@
 
 import 'dart:math' as math;
 
-import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:desy_design_system/desy_design_system.dart';
@@ -13,6 +12,7 @@ import 'component_knob_panel.dart';
 import 'desy_drag_box.dart';
 import 'detail_extensions_region.dart';
 import 'motion_playback_controls.dart';
+import '../../device_preview.dart';
 import '../../motion_playback.dart';
 import '../../registry.dart';
 import '../widget_preview.dart';
@@ -101,7 +101,7 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
     final session = widget.session;
     final entry = widget.entry;
     final theme = session.activeTheme;
-    final bezel = session.previewBezel.watch(context);
+    final device = session.previewDevice.watch(context);
     final values = session.knobValues.watch(context);
     final component = entry.component;
     final motion = _motion;
@@ -117,12 +117,11 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
             ? motion == null
                   ? entry.builder
                   : _buildMotionPreview
-            : (context) =>
-                  component.buildWithValues(
-                    context,
-                    _selectedVariantId == 'default' ? values : const {},
-                    widgets: session.registry.widgetBuilder,
-                  ),
+            : (context) => component.buildWithValues(
+                context,
+                _selectedVariantId == 'default' ? values : const {},
+                widgets: session.registry.widgetBuilder,
+              ),
       ),
       for (final instanceId in component?.instanceIds ?? const [])
         _DetailVariant(
@@ -158,11 +157,11 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
       preview: _DetailInstanceGallery(
         session: session,
         theme: theme,
-        bezel: bezel,
+        device: device,
         toolbar: _DetailPreviewToolbar(
           session: session,
           entry: entry,
-          selectedBezel: bezel,
+          selectedDevice: device,
           onOpenFolder: widget.onOpenFolder,
         ),
         variants: variants,
@@ -234,21 +233,21 @@ class _DetailInstanceGallery extends StatelessWidget {
   const _DetailInstanceGallery({
     required this.session,
     required this.theme,
-    required this.bezel,
+    required this.device,
     required this.toolbar,
     required this.variants,
   });
 
   final DesyWorkbenchSession session;
   final DesyTheme theme;
-  final DesyPreviewBezel? bezel;
+  final DesyDevicePreset? device;
   final Widget toolbar;
   final List<_DetailVariant> variants;
 
   @override
   Widget build(BuildContext context) {
     final stage = session.stage.watch(context);
-    final viewerHeight = bezel == null
+    final viewerHeight = device == null
         ? (stage.size.height + 72).clamp(280, 640).toDouble()
         : 540.0;
     final background =
@@ -295,7 +294,7 @@ class _DetailInstanceGallery extends StatelessWidget {
                 child: DesyPreviewCanvas(
                   session: session,
                   theme: theme,
-                  bezel: bezel,
+                  device: device,
                   toolbar: null,
                   instanceLabel: variant.name,
                   selected: variant.selected,
@@ -364,13 +363,13 @@ class _DetailPreviewToolbar extends StatelessWidget {
   const _DetailPreviewToolbar({
     required this.session,
     required this.entry,
-    required this.selectedBezel,
+    required this.selectedDevice,
     required this.onOpenFolder,
   });
 
   final DesyWorkbenchSession session;
   final DesyRegistryEntry entry;
-  final DesyPreviewBezel? selectedBezel;
+  final DesyDevicePreset? selectedDevice;
   final ValueChanged<String>? onOpenFolder;
 
   @override
@@ -394,16 +393,16 @@ class _DetailPreviewToolbar extends StatelessWidget {
             spacing: 6,
             runSpacing: 6,
             children: [
-              _button(context, label: 'Canvas', bezel: null),
+              _button(context, label: 'Responsive', device: null),
               _button(
                 context,
                 label: 'iPhone 15 Pro',
-                bezel: DesyPreviewBezel.iPhone15Pro,
+                device: DesyDevicePreset.iPhone15Pro,
               ),
               _button(
                 context,
                 label: 'iPad Pro 11',
-                bezel: DesyPreviewBezel.iPadPro11,
+                device: DesyDevicePreset.iPadPro11,
               ),
             ],
           ),
@@ -415,14 +414,14 @@ class _DetailPreviewToolbar extends StatelessWidget {
   Widget _button(
     BuildContext context, {
     required String label,
-    required DesyPreviewBezel? bezel,
+    required DesyDevicePreset? device,
   }) => DesyButton(
     size: DesyButtonSize.xs,
     mainAxisSize: MainAxisSize.min,
-    variant: selectedBezel == bezel
+    variant: selectedDevice == device
         ? DesyButtonVariant.primary
         : DesyButtonVariant.outline,
-    onPress: () => session.selectPreviewBezel(bezel),
+    onPress: () => session.selectPreviewDevice(device),
     child: Text(label),
   );
 }
@@ -562,7 +561,7 @@ class DesyPreviewCanvas extends StatelessWidget {
     super.key,
     required this.session,
     required this.theme,
-    required this.bezel,
+    required this.device,
     required this.toolbar,
     required this.child,
     this.instanceLabel,
@@ -575,7 +574,7 @@ class DesyPreviewCanvas extends StatelessWidget {
 
   final DesyWorkbenchSession session;
   final DesyTheme theme;
-  final DesyPreviewBezel? bezel;
+  final DesyDevicePreset? device;
   final Widget? toolbar;
   final Widget child;
   final String? instanceLabel;
@@ -609,7 +608,7 @@ class DesyPreviewCanvas extends StatelessWidget {
         // never scale an already-laid-out result. Device frames are the sole
         // exception because their fixed logical dimensions may need to be
         // scaled down as one complete preview to fit the Desy canvas.
-        final scale = bezel == null
+        final scale = device == null
             ? 1.0
             : math.min(
                 1,
@@ -618,7 +617,7 @@ class DesyPreviewCanvas extends StatelessWidget {
                   maxHeight / stage.size.height,
                 ),
               );
-        final size = bezel == null
+        final size = device == null
             ? Size(
                 math.max(stage.size.width, _minimumBoxExtent),
                 math.max(stage.size.height, _minimumBoxExtent),
@@ -678,6 +677,28 @@ class DesyPreviewCanvas extends StatelessWidget {
                   selected: selected,
                   onSelect: onSelect,
                   ignoreChildPointer: false,
+                  onDoubleTap: device == null
+                      ? null
+                      : () => session.selectPreviewDevice(device),
+                  geometryResolver: device == null
+                      ? null
+                      : (geometry, interaction) => DesyDragBoxGeometry(
+                          rect: DesyDeviceGeometry.lockFrameAspect(
+                            preset: device!,
+                            current: interaction.initialRect,
+                            proposed: geometry.rect,
+                            clampingRect: Rect.fromLTRB(
+                              12,
+                              selectionMinimumTop,
+                              constraints.maxWidth - 12,
+                              constraints.maxHeight -
+                                  12 -
+                                  _selectionLabelGap -
+                                  _selectionLabelReservedHeight,
+                            ),
+                          ),
+                          flip: geometry.flip,
+                        ),
                   onChanged: (geometry) => session.updateStage(
                     stage.copyWith(
                       offset: geometry.rect.topLeft,
@@ -689,18 +710,28 @@ class DesyPreviewCanvas extends StatelessWidget {
                   ),
                   label: DesyDragBoxLabel(
                     key: selectionLabelKey,
-                    size: stage.size,
+                    size: device?.screenSize ?? stage.size,
                     identifier: instanceLabel ?? 'Default',
                   ),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      border: Border.all(color: context.theme.colors.primary),
+                      border: Border.all(
+                        color: context.theme.colors.primary.withValues(
+                          alpha: .48,
+                        ),
+                      ),
                     ),
                     child: ClipRect(
                       child: Center(
-                        child: bezel == null
+                        child: device == null
                             ? child
-                            : _DeviceBezel(bezel: bezel!, child: child),
+                            : DesyDevicePreview(
+                                device: device!,
+                                child: Align(
+                                  alignment: Alignment.center,
+                                  child: child,
+                                ),
+                              ),
                       ),
                     ),
                   ),
@@ -710,32 +741,6 @@ class DesyPreviewCanvas extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _DeviceBezel extends StatelessWidget {
-  const _DeviceBezel({required this.bezel, required this.child});
-
-  final DesyPreviewBezel bezel;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final device = bezel.device;
-    return Semantics(
-      label: '${bezel.label} preview bezel',
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: SizedBox(
-          width: device.frameSize.width,
-          height: device.frameSize.height,
-          child: DeviceFrame(
-            device: device,
-            screen: Align(alignment: Alignment.center, child: child),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -764,11 +769,4 @@ class _DottedPreviewPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _DottedPreviewPainter oldDelegate) =>
       oldDelegate.background != background;
-}
-
-extension on DesyPreviewBezel {
-  String get label => switch (this) {
-    DesyPreviewBezel.iPhone15Pro => 'iPhone 15 Pro',
-    DesyPreviewBezel.iPadPro11 => 'iPad Pro 11',
-  };
 }

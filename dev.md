@@ -19,6 +19,21 @@ Consumer previews build the real Flutter widget under the selected consumer
 theme. Render at the intended logical dimensions, then scale the completed
 preview inside the canvas. Do not force compact constraints onto the widget.
 
+Preview vocabulary and behavior are shared across component details, Sketch,
+and JSON prototypes:
+
+- **Canvas** is Desy's workspace around previews; it is not part of the app.
+- **Drag box** is the workbench interaction boundary.
+- **Responsive viewport** takes its logical dimensions from the drag box.
+- **Device screen** uses the selected device's immutable logical viewport and
+  media geometry. Desy does not insert `SafeArea`.
+- **Bezel** is the visible device frame. The screen and bezel form one device
+  preview, clipped at the screen edge and scaled down together when necessary.
+
+Device selection is viewer session state, not serialized prototype data.
+Consumer widgets and surface documents own overflow and scrolling; the
+workbench never injects either behavior.
+
 `packages/desy_design_system` is the only Desy-owned package that imports Forui
 directly. `desy_bench` and packages under `packages/extensions/` consume its
 public controls and theme surface. Editable text uses the centralized native
@@ -53,6 +68,24 @@ The dogfood registry is the only maintained executable inventory:
 `packages/desy_design_system/example/lib/src/desy_design_system_registry.dart`.
 It must contain purposeful production-like entries, never test fixtures.
 
+## Surface DSL
+
+`DesySurfaceDocument` is the typed, serializable form of the local Desy screen
+DSL. Parsing normalizes JSON immediately into immutable row, column, stack,
+padding, scroll, spacer, and component nodes. Layout nodes only arrange content; every
+visible UI element is a `DesySurfaceComponent` resolved through the active
+registry. `DesySurfaceValidator` checks component IDs, named instances, knob
+types, legal widget-instance choices, and registry-backed spacing before
+`DesySurfacePreview` renders the real widgets under a consumer theme.
+
+Scroll nodes explicitly select `horizontal` or `vertical` behavior and may
+request a visible scrollbar. Different-axis nesting is supported for realistic
+mocks; same-axis nesting remains renderable but produces a validation warning.
+
+The DSL is a prototyping surface, not an SDUI runtime. Do not add callbacks,
+navigation, networking, application state, arbitrary widget declarations, or
+a second component catalogue to it.
+
 ## Sidebar model
 
 The public sidebar building blocks live in
@@ -79,11 +112,27 @@ Optional packages live under `packages/extensions/` to keep the core boundary
 obvious. Extensions receive typed, read-only registry/theme context and own
 only their screen or detail UI and explicit local state.
 
+An opt-in standalone workspace extension replaces the ordinary Desy navigation
+for the duration of its route and receives a typed exit callback. This is for a
+workflow that needs its own focused shell, not for adding another global
+navigation system.
+
 - `desy_agent_annotations` collects an entry-scoped comment and sends one typed
   submission to a consumer callback. The consumer owns persistence,
   authentication, and external integrations.
 - `desy_screenshot_builder` is an experimental workspace extension proving the
   screen-extension boundary; it is not a persistence format.
+- `desy_surface_browser` is a contained beta workspace extension that selects a
+  local folder, recursively lists `*.desy.json` files, watches desktop changes,
+  and renders valid files through `DesySurfacePreview`. It is read-only and
+  owns no component inventory.
+- `desy_widget_workshop` is an experimental workspace extension for reviewing
+  successive rounds of real Flutter widget prototypes as continuous local
+  journeys. Its standalone screen owns a chat-style sidebar containing only
+  code-defined Homepage, Checkout, and Project dashboard sessions. The beta
+  proves selection, comments, clipboard agent handoff, hot-reloadable round
+  builders, and active consumer-theme wrapping before an embedded agent is
+  introduced.
 
 Extensions must not import hidden workbench state, mutate routing, introduce a
 second registry, or import Forui directly.
@@ -101,10 +150,12 @@ task check
 ```
 
 `task check` runs workspace analysis, the Forui dependency-boundary check, all
-five package/application test suites, and a production dogfood web build.
+seven package/application test suites, and a production dogfood web build.
 Focused tests are available as `task bench:test`, `task design_system:test`,
 `task dogfood:test`, `task agent_annotations:test`, and
-`task screenshot_builder:test`.
+`task screenshot_builder:test`. Use `task surface_browser:test` for the beta
+JSON prototype browser and `task widget_workshop:test` for the experimental
+workshop journey.
 
 For debug-only widget inspection, run the dogfood app and use
 `task simdeck:describe:flutter`. SimDeck is a development companion, not a

@@ -5,8 +5,8 @@ import 'registry.dart';
 /// An optional, typed screen mounted below Workspace in Desy Bench.
 ///
 /// Extensions are deliberately UI-only at this boundary. Desy owns routing and
-/// the workbench shell, while an extension supplies a single screen that is
-/// derived from the consumer-owned registry.
+/// the workbench shell, while an extension supplies one screen derived from
+/// the consumer-owned registry.
 abstract class DesyWorkspaceExtension {
   /// Creates a custom extension through a small typed declaration.
   ///
@@ -18,8 +18,17 @@ abstract class DesyWorkspaceExtension {
     required String name,
     String? description,
     IconData? icon,
+    DesyWorkspaceExtensionPresentation presentation =
+        DesyWorkspaceExtensionPresentation.workbench,
     required DesyWorkspaceExtensionBuilder builder,
-  }) = _BuiltDesyWorkspaceExtension;
+  }) => _BuiltDesyWorkspaceExtension(
+    id: id,
+    name: name,
+    description: description,
+    icon: icon,
+    presentation: presentation,
+    builder: builder,
+  );
 
   /// Creates an extension subtype with custom behavior.
   const DesyWorkspaceExtension();
@@ -38,6 +47,10 @@ abstract class DesyWorkspaceExtension {
   /// Optional concise explanation shown by extension-owned UI.
   String? get description => null;
 
+  /// Whether this screen keeps or replaces the ordinary workbench navigation.
+  DesyWorkspaceExtensionPresentation get presentation =>
+      DesyWorkspaceExtensionPresentation.workbench;
+
   /// Builds this extension's workspace screen.
   Widget build(BuildContext context, DesyWorkspaceExtensionContext extension);
 }
@@ -49,13 +62,23 @@ typedef DesyWorkspaceExtensionBuilder =
       DesyWorkspaceExtensionContext extension,
     );
 
+/// How a workspace extension is presented by the Desy shell.
+enum DesyWorkspaceExtensionPresentation {
+  /// Keep Desy's global sidebar around the extension screen.
+  workbench,
+
+  /// Give the extension the complete content area so it can own its workflow.
+  standalone,
+}
+
 class _BuiltDesyWorkspaceExtension extends DesyWorkspaceExtension {
-  const _BuiltDesyWorkspaceExtension({
+  _BuiltDesyWorkspaceExtension({
     required this.id,
     required this.name,
     required this.builder,
     this.description,
     this.icon,
+    this.presentation = DesyWorkspaceExtensionPresentation.workbench,
   });
 
   @override
@@ -69,6 +92,9 @@ class _BuiltDesyWorkspaceExtension extends DesyWorkspaceExtension {
 
   @override
   final IconData? icon;
+
+  @override
+  final DesyWorkspaceExtensionPresentation presentation;
 
   final DesyWorkspaceExtensionBuilder builder;
 
@@ -86,6 +112,7 @@ class DesyWorkspaceExtensionContext {
   const DesyWorkspaceExtensionContext({
     required this.registry,
     required this.activeTheme,
+    this.onExit,
   });
 
   /// The consumer-owned registry; extensions must treat it as immutable.
@@ -93,6 +120,9 @@ class DesyWorkspaceExtensionContext {
 
   /// The consumer theme currently active in Desy Bench.
   final DesyTheme activeTheme;
+
+  /// Returns from a standalone extension to the ordinary Desy workspace.
+  final VoidCallback? onExit;
 
   /// Renders a real consumer widget below the active consumer theme wrapper.
   Widget preview(WidgetBuilder builder) => Builder(

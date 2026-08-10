@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Change-impact graph · Desy</title><link rel="stylesheet" href="../styles.css"></head>
+<body><main class="shell">
+  <nav><a href="index.html">← Feature index</a><span>Design-system evolution · Rank 10</span></nav>
+  <section class="hero"><div class="eyebrow">Change intelligence</div><h1>Know what a token or component change can break.</h1><p class="lede">Desy can connect primitives, component instances, surfaces, scenarios, and golden recipes into an explainable dependency graph.</p><span class="pill">Impact 4/5</span><span class="pill">Complexity 4/5</span><span class="pill">Risk 3/5</span></section>
+  <section class="grid">
+    <article class="card"><h2>Reason and user value</h2><p>A design-system change becomes safer when developers and agents can ask “what should I inspect and retest?” and receive evidence instead of a full-suite guess.</p></article>
+    <article class="card"><h2>Scope</h2><ul><li>Exact edges for manifest component references, registry instance dependencies, scenarios, and golden recipes.</li><li>Optional source-derived edges marked with confidence and origin.</li><li>Registry snapshots and semantic diffs: added, removed, deprecated, contract-changed, visual-input-changed.</li><li><code>desy impact</code> output for affected previews, tests, and migration hints.</li><li>Machine-readable reports for agents and CI.</li></ul></article>
+    <article class="card"><h2>Non-goals</h2><ul><li>No promise of perfect Dart call-graph analysis.</li><li>No hidden telemetry or hosted dependency service.</li><li>No automatic semantic-version decision without consumer policy.</li><li>No silent registry migration.</li></ul></article>
+    <article class="card"><h2>Implementation sketch</h2><ol><li>Define a stable registry snapshot and semantic diff format.</li><li>Record exact edges while validating manifests and golden recipes.</li><li>Add optional analyzer-produced evidence with confidence labels.</li><li>Calculate affected sets and explain every traversal path.</li><li>Integrate with golden planning and deprecation guidance.</li></ol></article>
+    <article class="card"><h2>Open questions</h2><ul><li>Can token usage be declared explicitly without too much boilerplate?</li><li>What snapshot data is safe and stable across Flutter versions?</li><li>How should aliases and renamed IDs preserve history?</li><li>Which changes should block CI versus request review?</li></ul></article>
+    <article class="card accent"><h2>Do or don’t?</h2><p><strong>Do once surfaces and golden recipes create exact edges.</strong> Start honest and partial; an explainable incomplete graph is more useful than opaque “affected” magic.</p></article>
+  </section><footer>Offline concept artifact. No remote assets or runtime dependencies.</footer>
+</main></body></html>

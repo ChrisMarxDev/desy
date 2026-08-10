@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Conformance checker · Desy</title><link rel="stylesheet" href="../styles.css"></head>
+<body><main class="shell">
+  <nav><a href="index.html">← Feature index</a><span>Executable policy · Rank 8</span></nav>
+  <section class="hero"><div class="eyebrow">Design-system guardrails</div><h1>Turn the registry into a compiler for design intent.</h1><p class="lede">The agent should receive precise feedback when it chooses an unregistered component, illegal value, raw color, unsupported slot, or inaccessible state.</p><span class="pill">Impact 5/5</span><span class="pill">Complexity 4/5</span><span class="pill">Risk 3/5</span></section>
+  <section class="grid">
+    <article class="card"><h2>Reason and user value</h2><p>Instructions like “follow the design system” are too soft. Machine-readable diagnostics let an agent repair its own work and give human reviewers a consistent policy baseline.</p></article>
+    <article class="card"><h2>Scope</h2><ul><li>Strict validation for Desy manifests and generated A2UI/SDUI surfaces.</li><li>Rules for registered IDs, knob domains, legal slots, deprecated entries, and required scenarios.</li><li>Optional Dart analyzer package for consumer-defined policies such as raw colors or direct primitive usage.</li><li>Human output, SARIF, and stable JSON with suggested registry alternatives.</li><li>Severity and rule configuration owned by the consumer.</li></ul></article>
+    <article class="card"><h2>Non-goals</h2><ul><li>No claim to understand arbitrary runtime widget trees statically.</li><li>No mandatory “Desy widgets only” policy.</li><li>No auto-fix when semantics are ambiguous.</li><li>No Forui rule leakage into consumer previews.</li></ul></article>
+    <article class="card"><h2>Implementation sketch</h2><ol><li>Define diagnostic codes alongside manifest validation.</li><li>Add registry-backed suggestions and deprecation replacements.</li><li>Expose <code>desy check</code> and machine-readable output.</li><li>Add an opt-in analyzer plugin for a small set of high-confidence source rules.</li><li>Feed diagnostics back into the agent skill and annotation loop.</li></ol></article>
+    <article class="card"><h2>Open questions</h2><ul><li>Which source rules are reliable without false positives?</li><li>How do consumers declare approved exceptions?</li><li>Should accessibility rules live here or in scenario verification?</li><li>How are rules versioned with the registry?</li></ul></article>
+    <article class="card accent"><h2>Do or don’t?</h2><p><strong>Do in layers.</strong> Manifest checks are exact and should come first. Dart analysis is valuable only where a consumer can opt into narrow, explainable rules.</p></article>
+  </section><footer>Offline concept artifact. No remote assets or runtime dependencies.</footer>
+</main></body></html>

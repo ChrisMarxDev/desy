@@ -1,3 +1,4 @@
+import 'package:desy_bench/src/device_preview.dart';
 import 'package:desy_bench/src/registry.dart';
 import 'package:desy_bench/src/workbench/components_canvas/components_canvas_controller.dart';
 import 'package:desy_bench/src/workbench/components_canvas/components_canvas_screen.dart';
@@ -15,6 +16,62 @@ import 'package:state_beacon/state_beacon.dart';
 
 void main() {
   const theme = DesyTheme(id: 'test', name: 'Test', wrap: _wrap);
+
+  testWidgets(
+    'shared device preview lays out at real geometry before scaling down',
+    (tester) async {
+      Size? mediaSize;
+      EdgeInsets? safeArea;
+      double? pixelRatio;
+      BoxConstraints? constraints;
+
+      await tester.pumpWidget(
+        _TestHarness(
+          child: Center(
+            child: SizedBox(
+              width: 220,
+              height: 320,
+              child: DesyDevicePreview(
+                device: DesyDevicePreset.iPhone15Pro,
+                child: LayoutBuilder(
+                  builder: (context, value) {
+                    constraints = value;
+                    final media = MediaQuery.of(context);
+                    mediaSize = media.size;
+                    safeArea = media.viewPadding;
+                    pixelRatio = media.devicePixelRatio;
+                    return const SizedBox.expand();
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final profile = Devices.ios.iPhone15Pro;
+      expect(mediaSize, profile.screenSize);
+      expect(safeArea, profile.safeAreas);
+      expect(pixelRatio, profile.pixelRatio);
+      expect(constraints!.biggest, profile.screenSize);
+      expect(
+        tester.getSize(
+          find.byKey(const ValueKey('desy-device-frame-iPhone15Pro')),
+        ),
+        profile.frameSize,
+      );
+      final frameBox = tester.renderObject<RenderBox>(
+        find.byKey(const ValueKey('desy-device-frame-iPhone15Pro')),
+      );
+      final visualTopLeft = frameBox.localToGlobal(Offset.zero);
+      final visualBottomRight = frameBox.localToGlobal(
+        frameBox.size.bottomRight(Offset.zero),
+      );
+      final visualSize = visualBottomRight - visualTopLeft;
+      expect(visualSize.dx, lessThanOrEqualTo(220));
+      expect(visualSize.dy, lessThanOrEqualTo(320));
+    },
+  );
 
   testWidgets('drag box clips oversized content to its frame', (tester) async {
     const frameKey = ValueKey('clipped-frame');
@@ -144,6 +201,37 @@ void main() {
     expect(finalChanges, 1);
   });
 
+  testWidgets('drag box exposes a double-tap reset gesture', (tester) async {
+    var doubleTaps = 0;
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 320,
+          height: 240,
+          child: DesyDragBox(
+            geometry: const DesyDragBoxGeometry(
+              rect: Rect.fromLTWH(60, 40, 120, 80),
+            ),
+            clampingRect: const Rect.fromLTWH(0, 0, 320, 240),
+            constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
+            contentKey: const ValueKey('double-tap-content'),
+            onChanged: (_) {},
+            onDoubleTap: () => doubleTaps++,
+            child: const ColoredBox(color: Colors.red),
+          ),
+        ),
+      ),
+    );
+
+    final content = find.byKey(const ValueKey('double-tap-content'));
+    await tester.tap(content);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(content);
+    await tester.pumpAndSettle();
+
+    expect(doubleTaps, 1);
+  });
+
   testWidgets(
     'detail resizes responsive widgets and only scales fixed device previews',
     (tester) async {
@@ -164,7 +252,7 @@ void main() {
               builder: (context) => DesyPreviewCanvas(
                 session: session,
                 theme: theme,
-                bezel: session.previewBezel.watch(context),
+                device: session.previewDevice.watch(context),
                 toolbar: const SizedBox.shrink(),
                 child: DesyWidgetPreview(
                   theme: theme,
@@ -217,7 +305,7 @@ void main() {
         findsOneWidget,
       );
 
-      session.selectPreviewBezel(DesyPreviewBezel.iPhone15Pro);
+      session.selectPreviewDevice(DesyDevicePreset.iPhone15Pro);
       await tester.pumpAndSettle();
       final phoneSize = tester.getSize(
         find.byKey(const ValueKey('detail-artboard')),
@@ -293,26 +381,27 @@ void main() {
     expect(find.text('220 × 120 px'), findsOneWidget);
     expect(tester.getSize(compactPreview), const Size(220, 120));
 
-    final nodeBox = tester.getRect(
-      find.byKey(const ValueKey('responsive.default#0')),
-    );
     await tester.dragFrom(
-      nodeBox.bottomRight - const Offset(3, 3),
+      tester.getCenter(
+        find.byKey(
+          const ValueKey('canvas-resize-responsive.default#0-bottomRight'),
+        ),
+      ),
       const Offset(160, 80),
     );
     await tester.pump();
 
     expect(
       controller.nodes.value['responsive.default#0']!.rect.size,
-      const Size(384, 200),
+      const Size(384, 204),
     );
     final widePreview = find.descendant(
       of: find.byKey(const ValueKey('responsive.default#0')),
       matching: find.byKey(const ValueKey('responsive-sketch-wide')),
     );
     expect(widePreview, findsOneWidget);
-    expect(tester.getSize(widePreview), const Size(384, 200));
-    expect(find.text('384 × 200 px'), findsOneWidget);
+    expect(tester.getSize(widePreview), const Size(384, 204));
+    expect(find.text('384 × 204 px'), findsOneWidget);
     expect(find.text('220 × 120 px'), findsNothing);
   });
 
@@ -434,6 +523,195 @@ void main() {
     );
   });
 
+  testWidgets('a selected small sketch node moves on its first drag', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final fixture = _CanvasFixture();
+    final component = fixture.controller.add('gesture.default');
+    final initial = fixture.controller.nodes.value[component]!;
+    fixture.controller.update(
+      initial.copyWith(
+        rect: Rect.fromLTWH(initial.rect.left, initial.rect.top, 32, 24),
+      ),
+    );
+    addTearDown(fixture.dispose);
+
+    await tester.pumpWidget(_TestHarness(child: fixture.canvas()));
+    final before = fixture.controller.nodes.value[component]!.rect;
+    final frame = find.byKey(ValueKey(component));
+    final frameBefore = tester.getRect(frame);
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(ValueKey('canvas-hit-$component'))),
+    );
+
+    await gesture.moveBy(const Offset(32, 16));
+    await gesture.moveBy(const Offset(32, 16));
+    await tester.pump();
+
+    expect(fixture.controller.nodes.value[component]!.rect, before);
+    expect(tester.getRect(frame).topLeft, isNot(frameBefore.topLeft));
+    expect(tester.getRect(frame).size, frameBefore.size);
+
+    await gesture.up();
+    await tester.pump();
+
+    final after = fixture.controller.nodes.value[component]!.rect;
+    expect(after.topLeft, isNot(before.topLeft));
+    expect(after.size, before.size);
+  });
+
+  testWidgets('a palette instance can be dragged into the sketch', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final fixture = _CanvasFixture();
+    addTearDown(fixture.dispose);
+
+    await tester.pumpWidget(_TestHarness(child: fixture.canvas()));
+    await tester.pumpAndSettle();
+    final source = find.byKey(const ValueKey('palette-drag-gesture.default'));
+    final stage = tester.getRect(find.byKey(const ValueKey('sketch-stage')));
+    final dropGlobal = stage.topLeft + const Offset(360, 260);
+    final gesture = await tester.startGesture(tester.getCenter(source));
+
+    await gesture.moveBy(const Offset(12, 0));
+    await tester.pump();
+    await gesture.moveTo(dropGlobal);
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(fixture.controller.nodes.value, hasLength(1));
+    final dropped = fixture.controller.nodes.value.values.single;
+    expect(dropped.instanceId, 'gesture.default');
+    expect(dropped.rect.center.dx, closeTo(360, .01));
+    expect(dropped.rect.center.dy, closeTo(260, .01));
+    expect(fixture.controller.selectedId.value, dropped.id);
+  });
+
+  testWidgets('arrow keys move the selected sketch component', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final fixture = _CanvasFixture();
+    final component = fixture.controller.add('gesture.default');
+    final before = fixture.controller.nodes.value[component]!.rect;
+    addTearDown(fixture.dispose);
+
+    await tester.pumpWidget(_TestHarness(child: fixture.canvas()));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+
+    expect(
+      fixture.controller.nodes.value[component]!.rect.topLeft,
+      before.topLeft + const Offset(8, 0),
+    );
+  });
+
+  testWidgets('custom grid size controls keyboard movement', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final fixture = _CanvasFixture();
+    final component = fixture.controller.add('gesture.default');
+    final before = fixture.controller.nodes.value[component]!.rect;
+    addTearDown(fixture.dispose);
+
+    await tester.pumpWidget(_TestHarness(child: fixture.canvas()));
+    await tester.enterText(
+      find.byKey(const ValueKey('sketch-grid-custom')),
+      '12',
+    );
+    await tester.pump();
+    expect(fixture.controller.gridStep.value, 12);
+
+    await tester.tap(find.byKey(ValueKey('canvas-hit-$component')));
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+
+    expect(
+      fixture.controller.nodes.value[component]!.rect.topLeft,
+      before.topLeft + const Offset(12, 0),
+    );
+  });
+
+  testWidgets('element snapping stays local and paints guides while dragging', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final fixture = _CanvasFixture();
+    final active = fixture.controller.add('gesture.default');
+    final target = fixture.controller.add('gesture.default');
+    fixture.controller.update(
+      fixture.controller.nodes.value[active]!.copyWith(
+        rect: const Rect.fromLTWH(100, 100, 80, 60),
+      ),
+    );
+    fixture.controller.update(
+      fixture.controller.nodes.value[target]!.copyWith(
+        rect: const Rect.fromLTWH(200, 100, 100, 60),
+      ),
+    );
+    fixture.controller.select(active);
+    addTearDown(fixture.dispose);
+
+    await tester.pumpWidget(_TestHarness(child: fixture.canvas()));
+    final frame = find.byKey(ValueKey(active));
+    final beforeFrame = tester.getRect(frame);
+    final committedBefore = fixture.controller.nodes.value[active]!.rect;
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(ValueKey('canvas-hit-$active'))),
+    );
+
+    // The first move crosses Flutter's drag slop; the second is the actual
+    // transform proposal and lands three pixels short of the target edge.
+    await gesture.moveBy(const Offset(20, 0));
+    await gesture.moveBy(const Offset(17, 0));
+    await tester.pump();
+
+    expect(fixture.controller.nodes.value[active]!.rect, committedBefore);
+    expect(tester.getRect(frame).left, closeTo(beforeFrame.left + 20, 0.01));
+    expect(fixture.controller.activeSnapGuides.value, isNotEmpty);
+    expect(find.byKey(const ValueKey('sketch-snap-guides')), findsOneWidget);
+
+    await gesture.up();
+    await tester.pump();
+
+    expect(fixture.controller.nodes.value[active]!.rect.left, 120);
+    expect(fixture.controller.activeSnapGuides.value, isEmpty);
+  });
+
+  testWidgets('double tap restores a sketch component normal size', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final fixture = _CanvasFixture();
+    final component = fixture.controller.add('gesture.default');
+    final node = fixture.controller.nodes.value[component]!;
+    fixture.controller.update(
+      node.copyWith(
+        rect: Rect.fromLTWH(node.rect.left, node.rect.top, 360, 200),
+      ),
+    );
+    addTearDown(fixture.dispose);
+
+    await tester.pumpWidget(_TestHarness(child: fixture.canvas()));
+    final content = find.byKey(ValueKey('canvas-hit-$component'));
+    await tester.tap(content);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(content);
+    await tester.pumpAndSettle();
+
+    expect(
+      fixture.controller.nodes.value[component]!.rect.size,
+      const Size(220, 120),
+    );
+  });
+
   testWidgets('Backspace and Delete remove the selected sketch node', (
     tester,
   ) async {
@@ -467,55 +745,29 @@ void main() {
     expect(fixture.controller.nodes.value, isEmpty);
   });
 
-  testWidgets('bezel and component are independent flat stack items', (
+  testWidgets('a component added to a bezel renders inside its device screen', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1400, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final fixture = _CanvasFixture();
-    final bezel = fixture.controller.addArtboard(
-      DesyCanvasArtboard.iPhone15Pro,
-    );
+    final bezel = fixture.controller.addArtboard(DesyDevicePreset.iPhone15Pro);
     final component = fixture.controller.add('gesture.default');
-    const overlap = Rect.fromLTWH(120, 160, 220, 120);
-    fixture.controller.update(
-      fixture.controller.nodes.value[component]!.copyWith(rect: overlap),
-    );
     fixture.controller.select(component);
     addTearDown(fixture.dispose);
 
     await tester.pumpWidget(_TestHarness(child: fixture.canvas()));
-    final bezelBefore = fixture.controller.nodes.value[bezel]!.rect;
-    final componentBefore = fixture.controller.nodes.value[component]!.rect;
-
-    await tester.drag(
-      find.byKey(ValueKey('canvas-hit-$component')),
-      const Offset(64, 0),
-    );
-    await tester.pump();
-
-    final componentAfterDrag = fixture.controller.nodes.value[component]!.rect;
-    expect(componentAfterDrag.left, greaterThan(componentBefore.left));
-    expect(fixture.controller.nodes.value[bezel]!.rect, bezelBefore);
-
-    fixture.controller.update(
-      fixture.controller.nodes.value[bezel]!.copyWith(
-        rect: bezelBefore.shift(const Offset(48, 32)),
-      ),
-    );
-    await tester.pump();
-
-    expect(fixture.controller.nodes.value[component]!.rect, componentAfterDrag);
+    expect(fixture.controller.nodes.value[component]!.parentArtboardId, bezel);
     expect(
       find.descendant(
-        of: find.byKey(ValueKey(component)),
+        of: find.byKey(ValueKey('canvas-artboard-screen-$bezel')),
         matching: find.byKey(const ValueKey('gesture-visual')),
       ),
       findsOneWidget,
     );
   });
 
-  testWidgets('components over a bezel keep the workspace media context', (
+  testWidgets('artboard children receive the real device media context', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1400, 900));
@@ -539,13 +791,8 @@ void main() {
       ),
     );
     final controller = DesyComponentsCanvasController();
-    final bezel = controller.addArtboard(DesyCanvasArtboard.iPhone15Pro);
+    final bezel = controller.addArtboard(DesyDevicePreset.iPhone15Pro);
     final item = controller.add('media-aware.default');
-    controller.update(
-      controller.nodes.value[item]!.copyWith(
-        rect: controller.nodes.value[bezel]!.rect.deflate(24),
-      ),
-    );
     addTearDown(session.dispose);
     addTearDown(controller.dispose);
 
@@ -566,8 +813,8 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(mediaSize, const Size(800, 600));
-    expect(mediaSize, isNot(Devices.ios.iPhone15Pro.screenSize));
+    expect(controller.nodes.value[item]!.parentArtboardId, bezel);
+    expect(mediaSize, Devices.ios.iPhone15Pro.screenSize);
   });
 
   testWidgets('flat stack hit testing follows insertion order', (tester) async {
@@ -575,9 +822,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final fixture = _CanvasFixture();
     final lower = fixture.controller.add('gesture.default');
-    final bezel = fixture.controller.addArtboard(
-      DesyCanvasArtboard.iPhone15Pro,
-    );
+    final bezel = fixture.controller.addArtboard(DesyDevicePreset.iPhone15Pro);
     final overlap = fixture.controller.nodes.value[bezel]!.rect.deflate(24);
     fixture.controller.update(
       fixture.controller.nodes.value[lower]!.copyWith(rect: overlap),
@@ -592,6 +837,7 @@ void main() {
     expect(fixture.controller.selectedId.value, bezel);
 
     final upper = fixture.controller.add('gesture.default');
+    fixture.controller.detachFromArtboard(upper);
     fixture.controller.update(
       fixture.controller.nodes.value[upper]!.copyWith(rect: overlap),
     );
@@ -611,9 +857,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final fixture = _CanvasFixture();
     final component = fixture.controller.add('gesture.default');
-    final bezel = fixture.controller.addArtboard(
-      DesyCanvasArtboard.iPhone15Pro,
-    );
+    final bezel = fixture.controller.addArtboard(DesyDevicePreset.iPhone15Pro);
     fixture.controller.update(
       fixture.controller.nodes.value[component]!.copyWith(
         rect: fixture.controller.nodes.value[bezel]!.rect.deflate(24),
@@ -636,9 +880,10 @@ void main() {
     expect(moved.size, bezelBefore.size);
     expect(fixture.controller.nodes.value[component]!.rect, componentRect);
 
-    final bezelBox = tester.getRect(find.byKey(ValueKey(bezel)));
     await tester.dragFrom(
-      bezelBox.bottomRight - const Offset(3, 3),
+      tester.getCenter(
+        find.byKey(ValueKey('canvas-resize-$bezel-bottomRight')),
+      ),
       const Offset(-32, -24),
     );
     await tester.pump();
@@ -655,9 +900,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1400, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final fixture = _CanvasFixture();
-    final bezel = fixture.controller.addArtboard(
-      DesyCanvasArtboard.iPhone15Pro,
-    );
+    final bezel = fixture.controller.addArtboard(DesyDevicePreset.iPhone15Pro);
     final component = fixture.controller.add('gesture.default');
     fixture.controller.select(null);
     addTearDown(fixture.dispose);

@@ -9,6 +9,7 @@ import 'package:state_beacon/state_beacon.dart';
 
 import 'components_canvas/components_canvas_screen.dart';
 import '../registry.dart';
+import '../workspace_extension.dart';
 import 'presentation/atlas_screen.dart';
 import 'presentation/detail_screen.dart';
 import 'presentation/measures_screen.dart';
@@ -145,6 +146,16 @@ NoTransitionPage<void> _instantPage(GoRouterState state, Widget child) =>
 DesyRegistryEntry? _entryFor(DesyRegistry registry, String id) =>
     registry.resolve(id);
 
+DesyWorkspaceExtension? _workspaceExtensionFor(
+  Uri location,
+  List<DesyWorkspaceExtension> extensions,
+) {
+  final segments = location.pathSegments;
+  if (segments.length != 2 || segments.first != 'workspace') return null;
+  final id = Uri.decodeComponent(segments.last);
+  return extensions.where((extension) => extension.id == id).firstOrNull;
+}
+
 /// The persistent Forui scaffold mounted by [ShellRoute].
 class DesyWorkbenchShell extends StatefulWidget {
   const DesyWorkbenchShell({
@@ -179,6 +190,13 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
       widget.session.registry,
       extensions: widget.session.extensions,
     );
+    final workspaceExtension = _workspaceExtensionFor(
+      location,
+      widget.session.extensions,
+    );
+    final standaloneExtension =
+        workspaceExtension?.presentation ==
+        DesyWorkspaceExtensionPresentation.standalone;
     final isSketch = location.path == DesyWorkbenchRoutes.sketchPath;
     final scaffold = DesyWorkbenchShortcuts(
       location: location,
@@ -186,6 +204,12 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
       onNavigate: context.go,
       child: LayoutBuilder(
         builder: (context, constraints) {
+          if (standaloneExtension) {
+            return DesyScaffold(
+              key: const ValueKey('standalone-workspace-extension-shell'),
+              child: widget.child,
+            );
+          }
           if (constraints.maxWidth < 640) {
             return SafeArea(
               child: DesyScaffold(

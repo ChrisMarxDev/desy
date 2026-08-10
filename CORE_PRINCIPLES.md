@@ -94,6 +94,14 @@ not simulate a compact preview by passing arbitrary smaller constraints to the
 consumer widget; the consumer's true layout remains inspectable while the
 workbench controls the presentation scale.
 
+Responsive previews take their logical size from the drag box. A named device
+preview instead has an immutable logical screen, device pixel ratio, platform,
+and safe-area geometry. Desy draws the screen and bezel at that real geometry,
+clips content to the screen, and scales the completed device down as one unit;
+it never scales up, inserts `SafeArea`, or adds scrolling for the consumer.
+This contract is shared by component details, Sketch artboards, and local JSON
+prototypes.
+
 ## 9. Atoms are optional typed registry lanes
 
 Atoms is a built-in workbench section derived from typed `DesyRegistry`

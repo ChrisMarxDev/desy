@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Atlas workshop workspace</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="shell">
+    <nav><a href="index.html">← Planned features</a><span>Impact 5 · Complexity 3 · Yield 1.67</span></nav>
+
+    <section class="hero">
+      <div class="eyebrow">Rank 1 · Product-shaping workflow</div>
+      <h1>The Atlas is home. Workshops are how the system evolves.</h1>
+      <p class="lede">Unify Desy’s strongest shipped surface and its hot-reload prototype into one loop: understand the real registry, start an exploration from that context, compare real Flutter implementations, give precise feedback, and watch the same repository update through hot reload.</p>
+      <div class="flow">
+        <strong>Browse Atlas</strong><span>→</span><strong>Attach registry context</strong><span>→</span><strong>Workshop real Dart</strong><span>→</span><strong>Hot reload</strong><span>→</span><strong>Review in Atlas</strong>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Reason and user value</h2>
+        <p>Flutter developers can already write code and hot reload it, but the feedback loop is fragmented: find an existing component, explain its context to an agent, run the app, compare one result, and repeat. Desy can make the visible design system the working context for that whole conversation.</p>
+        <p class="good">The differentiator is not an embedded terminal. It is a registry-aware design journey where every proposal is immediately visible under the real theme and remains connected to the components that inspired it.</p>
+      </article>
+
+      <article class="card">
+        <h2>Product model</h2>
+        <ul>
+          <li><strong>Atlas</strong> is the default home and the map of what exists.</li>
+          <li><strong>Workshop</strong> is a separate focused workspace for changing what exists or exploring what comes next.</li>
+          <li><strong>Registry context</strong> is passed by stable IDs and resolved live; it is never copied into a second catalogue.</li>
+          <li><strong>Hot reload</strong> is runtime infrastructure, not a destination in navigation.</li>
+          <li><strong>Sessions</strong> preserve the exploration journey: prompts, candidates, selections, comments, reloads, and accepted direction.</li>
+        </ul>
+      </article>
+
+      <article class="card full accent">
+        <h2>Core UX decision</h2>
+        <p>Do not merge the registry tree and workshop chats into one overloaded sidebar. Atlas keeps the existing registry navigation. Workshop keeps its session-only sidebar. The bridge is contextual: “Workshop this” from an Atlas entry, an “Add from Atlas” picker inside a workshop, and compact context chips above the candidate canvas.</p>
+      </article>
+
+      <article class="card full">
+        <h2>Home is an Atlas overview, not a dashboard</h2>
+        <p>The current Atlas layout stays recognizable. Its registry sidebar remains the navigation source, and the main canvas gains only a thin product layer above the real preview grid:</p>
+        <ol>
+          <li>A quiet status bar names the connected repository, selected theme, and Flutter runtime state.</li>
+          <li>A single prompt composer asks “What do you want to explore?” and starts a blank or context-seeded workshop.</li>
+          <li>One “Continue working” row reopens the most recent workshop without turning the page into a task dashboard.</li>
+          <li>The existing Atlas grid immediately follows and remains the visual center of gravity.</li>
+        </ol>
+        <p class="muted">No analytics, setup checklists, registry-health theatre, or vanity metrics. If a section does not help someone browse, start, or resume, it does not belong on home.</p>
+      </article>
+
+      <article class="card full">
+        <h2>The focused workshop</h2>
+        <p>The existing standalone Workshop is the correct shell. Its session-only sidebar remains intact; the body becomes a focused three-layer workspace:</p>
+        <ol>
+          <li><strong>Session header:</strong> title, hot-reload state, and a clear exit back to Atlas.</li>
+          <li><strong>Context strip:</strong> attached registry entries, active theme, current preview state, and “Add from Atlas.”</li>
+          <li><strong>Work area:</strong> conversation and activity on the left; a horizontally scrollable rail of described, selectable real-widget candidates on the right.</li>
+        </ol>
+        <p class="muted">Candidate selection and later render-object annotations become structured feedback for the next agent turn. The registry enters as context, not navigation clutter.</p>
+      </article>
+
+      <article class="card">
+        <h2>Scope</h2>
+        <ul>
+          <li>Make Atlas the root and product home.</li>
+          <li>Show repository, active theme, and Flutter connection state in quiet persistent chrome.</li>
+          <li>Add one start/resume workshop affordance to the Atlas overview.</li>
+          <li>Launch a workshop from a registry entry, instance, or current detail state.</li>
+          <li>Resolve attached context from the live registry by stable ID.</li>
+          <li>Move the proven hot-reload/Codex runtime behind the existing standalone Widget Workshop extension.</li>
+          <li>Render candidates through <code>DesyWidgetPreview</code> with the active consumer theme.</li>
+          <li>Keep workshop sessions ephemeral and repository-local in the first integrated slice.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Non-goals</h2>
+        <ul>
+          <li>No general-purpose IDE, source explorer, debugger, or terminal product.</li>
+          <li>No second registry owned by <code>desy_ide</code> or the workshop.</li>
+          <li>No automatic registration of experimental candidates.</li>
+          <li>No hosted compilation, multiplayer, accounts, or cloud session storage.</li>
+          <li>No JSON-widget or surface-manifest screen in the primary navigation.</li>
+          <li>No deletion of experimental packages until the unified loop has replaced any useful test coverage.</li>
+          <li>No home-screen analytics or project-management dashboard.</li>
+        </ul>
+      </article>
+
+      <article class="card full">
+        <h2>Information architecture</h2>
+        <table>
+          <thead><tr><th>Surface</th><th>Primary job</th><th>Sidebar</th><th>Registry relationship</th></tr></thead>
+          <tbody>
+            <tr><td>Atlas overview</td><td>Orient, browse, start, resume</td><td>Typed registry lanes and component paths</td><td>Directly renders the active registry</td></tr>
+            <tr><td>Entry detail</td><td>Inspect states, knobs, source, and theme</td><td>Registry navigation remains visible</td><td>One resolved registry entry</td></tr>
+            <tr><td>Workshop</td><td>Explore, compare, select, comment, continue</td><td>Workshop sessions only</td><td>Attached IDs resolve live through extension context</td></tr>
+            <tr><td>Labs</td><td>Keep narrow experiments available without defining the product</td><td>Collapsed secondary destination</td><td>Typed extensions only; no alternate catalogue</td></tr>
+          </tbody>
+        </table>
+      </article>
+
+      <article class="card">
+        <h2>Implementation sketch</h2>
+        <ol>
+          <li>Keep <code>DesyBenchApp(registry: ...)</code> as the consumer entrypoint and the one owner of registry validation and workbench session state.</li>
+          <li>Promote the existing <code>DesyWidgetWorkshopExtension</code> as the focused workspace. It already has standalone presentation, a session-only sidebar, registry access, and the active theme.</li>
+          <li>Extract the proven process controller and hot-reload boundary from <code>desy_ide</code> into a narrow, desktop-only runtime injected into that extension. Keep <code>desy_ide</code> as a lab until the extraction is stable.</li>
+          <li>Add a typed optional entry-action boundary so the Workshop extension can contribute “Workshop this” without <code>desy_bench</code> depending on the extension.</li>
+          <li>Represent a workshop seed with session ID, registry entry IDs, theme ID, preview state, and source paths. Resolve widgets from the registry at render time.</li>
+          <li>Use ordinary Dart candidate files as the editable boundary. On reload, the Workshop and Atlas both reflect the repository’s real code.</li>
+          <li>Remove <code>DesySurfaceBrowserExtension</code> from the dogfood app’s primary extension list only after the integrated Workshop is usable; retain the package as a lab or delete it in a separate cleanup decision.</li>
+        </ol>
+      </article>
+
+      <article class="card">
+        <h2>Smallest useful flow</h2>
+        <ol>
+          <li>Open Desy into the Atlas.</li>
+          <li>Open Button and choose “Workshop this.”</li>
+          <li>A new workshop opens with Button, the active theme, and current preview state attached.</li>
+          <li>Ask Codex for three alternatives.</li>
+          <li>Compare real widgets, select one or more, and send feedback.</li>
+          <li>Codex edits ordinary Dart; Flutter hot reload updates the candidates.</li>
+          <li>Exit to Atlas and inspect any real registered component changes.</li>
+        </ol>
+      </article>
+
+      <article class="card third">
+        <h2>What to remove from the core</h2>
+        <p>JSON widgets, generic AI-prompts placeholders, and overlapping prototype surfaces should leave primary navigation. They dilute the “see the system, workshop the system” story.</p>
+      </article>
+      <article class="card third">
+        <h2>What to preserve</h2>
+        <p>Atlas, detail inspection, real theme previews, typed atoms, component paths, session journeys, hot reload, candidate selection, and eventually render-object annotations all strengthen one loop.</p>
+      </article>
+      <article class="card third">
+        <h2>What to defer</h2>
+        <p>Session persistence, GitHub snapshots, hosted rendering, multiplayer, agent vendors beyond the local runtime, and candidate promotion should follow demonstrated daily use.</p>
+      </article>
+
+      <article class="card">
+        <h2>Open questions</h2>
+        <ul>
+          <li>Should the Atlas composer start a blank workshop, or always require at least one attached registry entry?</li>
+          <li>Does “Workshop this” capture current knob, scenario, device, and viewport state in the first slice?</li>
+          <li>Are candidates session-owned files under a hidden local directory, or normal visible repository files from day one?</li>
+          <li>When Codex changes an already-registered component, should the candidate rail show the modified registry entry automatically?</li>
+          <li>What is the explicit user action that promotes an experimental candidate into the consumer registry?</li>
+          <li>Should Labs exist in the shipped product at all, or only in dogfood/debug builds?</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Acceptance criteria</h2>
+        <ul>
+          <li>A consumer still declares exactly one <code>DesyRegistry</code>.</li>
+          <li>Atlas remains useful without installing or configuring the Workshop runtime.</li>
+          <li>A registry entry can seed a workshop without copying its widget builder.</li>
+          <li>Workshop navigation lists only sessions.</li>
+          <li>Every candidate uses the active consumer theme and real preview geometry.</li>
+          <li>One Codex edit produces a visible hot-reloaded change without relaunching Desy.</li>
+          <li>Returning to Atlas shows repository changes through the same registry declaration.</li>
+          <li>JSON widgets are absent from primary dogfood navigation.</li>
+        </ul>
+      </article>
+
+      <article class="card full accent">
+        <h2>Do or don’t?</h2>
+        <p><strong>Do—this should be the next product slice.</strong> Impact 5/5, complexity 3/5, risk 2/5, yield 1.67. The codebase already proves the expensive primitives independently: a registry-driven Atlas, real themed previews, a standalone session-based Workshop extension, a same-process Codex console, and working Flutter hot reload. The remaining risk is product integration and state ownership, not renderer feasibility. Build one entry-to-workshop loop before adding persistence, hosting, or more tools.</p>
+      </article>
+    </section>
+
+    <footer>Decision: make Atlas + Workshop the core Desy loop. Keep the registry authoritative, keep Workshop focused, and treat the hot-reload runtime as replaceable infrastructure.</footer>
+  </main>
+</body>
+</html>

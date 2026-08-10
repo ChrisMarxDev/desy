@@ -1,20 +1,22 @@
 // This screen is an internal workbench module, not consumer-facing package API.
 // ignore_for_file: public_member_api_docs
 
-import 'package:device_preview/device_preview.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_box_transform/flutter_box_transform.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
 
+import '../../device_preview.dart';
 import '../../registry.dart';
 import '../presentation/component_knob_panel.dart';
 import '../presentation/desy_drag_box.dart';
 import '../widget_preview.dart';
 import '../workbench_session.dart';
 import 'components_canvas_controller.dart';
+import 'snapping/snap_models.dart';
 
 /// A local composition surface built entirely from named registry instances.
 ///
@@ -62,6 +64,7 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
               entry.unit == DesyNumberUnit.dp,
         )
         .toList(growable: false);
+    final gridStep = _controller.gridStep.watch(context);
     return Focus(
       focusNode: _sketchFocusNode,
       autofocus: true,
@@ -94,6 +97,8 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
                   ),
                   repaintRainbowEnabled: _repaintRainbowEnabled,
                   onToggleRepaintRainbow: _toggleRepaintRainbow,
+                  gridStep: gridStep,
+                  onGridStepChanged: _controller.setGridStep,
                 ),
                 const SizedBox(height: 12),
                 Expanded(
@@ -131,14 +136,26 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
-    if (event.logicalKey != LogicalKeyboardKey.backspace &&
-        event.logicalKey != LogicalKeyboardKey.delete) {
+    if (_isEditingText()) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.backspace ||
+        event.logicalKey == LogicalKeyboardKey.delete) {
+      final selected = _controller.selectedId.value;
+      if (selected == null) return KeyEventResult.ignored;
+      _controller.remove(selected);
+      return KeyEventResult.handled;
+    }
+    final step = _controller.gridStep.value;
+    final multiplier = HardwareKeyboard.instance.isShiftPressed ? 4.0 : 1.0;
+    final delta = switch (event.logicalKey) {
+      LogicalKeyboardKey.arrowLeft => Offset(-step * multiplier, 0),
+      LogicalKeyboardKey.arrowRight => Offset(step * multiplier, 0),
+      LogicalKeyboardKey.arrowUp => Offset(0, -step * multiplier),
+      LogicalKeyboardKey.arrowDown => Offset(0, step * multiplier),
+      _ => null,
+    };
+    if (delta == null || !_controller.moveSelectedBy(delta)) {
       return KeyEventResult.ignored;
     }
-    if (_isEditingText()) return KeyEventResult.ignored;
-    final selected = _controller.selectedId.value;
-    if (selected == null) return KeyEventResult.ignored;
-    _controller.remove(selected);
     return KeyEventResult.handled;
   }
 
@@ -149,15 +166,22 @@ class _DesyComponentsCanvasState extends State<DesyComponentsCanvas> {
         focusContext.findAncestorWidgetOfExactType<EditableText>() != null;
   }
 
-  void _addInstance(DesyRegisteredComponentInstance instance) {
+  void _addInstance(
+    DesyRegisteredComponentInstance instance, {
+    Offset? center,
+  }) {
     final values = instance.component.valuesFor(instance.instanceId);
     _controller.add(
       instance.id,
       knobValues: values,
       defaultSize: instance.component.defaultSize,
+      center: center,
     );
   }
 }
+
+typedef _DropSketchInstance =
+    void Function(DesyRegisteredComponentInstance instance, Offset center);
 
 class _ReactiveSketchWorkspace extends StatelessWidget {
   const _ReactiveSketchWorkspace({
@@ -174,7 +198,11 @@ class _ReactiveSketchWorkspace extends StatelessWidget {
   final List<DesyNumericEntry> spacingEntries;
   final DesyTheme theme;
   final DesyComponentsCanvasController controller;
-  final ValueChanged<DesyRegisteredComponentInstance> onAddInstance;
+  final void Function(
+    DesyRegisteredComponentInstance instance, {
+    Offset? center,
+  })
+  onAddInstance;
 
   @override
   Widget build(BuildContext context) {
@@ -196,6 +224,8 @@ class _ReactiveSketchWorkspace extends StatelessWidget {
         instances: instances,
         theme: theme,
         controller: controller,
+        onDropInstance: (instance, center) =>
+            onAddInstance(instance, center: center),
       ),
       inspector: hasSelection
           ? _ReactiveCanvasInspector(
@@ -239,17 +269,20 @@ class _ReactiveCanvasStage extends StatelessWidget {
     required this.instances,
     required this.theme,
     required this.controller,
+    required this.onDropInstance,
   });
 
   final DesyRegistry registry;
   final List<DesyRegisteredComponentInstance> instances;
   final DesyTheme theme;
   final DesyComponentsCanvasController controller;
+  final _DropSketchInstance onDropInstance;
 
   @override
   Widget build(BuildContext context) {
     final nodes = controller.nodes.watch(context);
     final selectedId = controller.selectedId.watch(context);
+    final gridStep = controller.gridStep.watch(context);
     return RepaintBoundary(
       key: const ValueKey('sketch-stage-repaint-boundary'),
       child: _CanvasStage(
@@ -259,6 +292,8 @@ class _ReactiveCanvasStage extends StatelessWidget {
         selectedId: selectedId,
         theme: theme,
         controller: controller,
+        gridStep: gridStep,
+        onDropInstance: onDropInstance,
       ),
     );
   }
@@ -328,20 +363,36 @@ class _SketchPreviewToolbar extends StatefulWidget {
     required this.onAddLayout,
     required this.repaintRainbowEnabled,
     required this.onToggleRepaintRainbow,
+    required this.gridStep,
+    required this.onGridStepChanged,
   });
 
   final List<DesyNumericEntry> spacingEntries;
-  final ValueChanged<DesyCanvasArtboard> onAddArtboard;
+  final ValueChanged<DesyDevicePreset> onAddArtboard;
   final _AddSketchLayout onAddLayout;
   final bool repaintRainbowEnabled;
   final VoidCallback onToggleRepaintRainbow;
+  final double gridStep;
+  final ValueChanged<double> onGridStepChanged;
 
   @override
   State<_SketchPreviewToolbar> createState() => _SketchPreviewToolbarState();
 }
 
 class _SketchPreviewToolbarState extends State<_SketchPreviewToolbar> {
+  static const _gridPresets = <double>[1, 2, 4, 8, 12, 16, 24, 32];
   var _spacingIndex = 0;
+  late var _gridOption = _gridOptionFor(widget.gridStep);
+  var _gridInputValid = true;
+
+  @override
+  void didUpdateWidget(covariant _SketchPreviewToolbar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.gridStep != widget.gridStep) {
+      _gridOption = _gridOptionFor(widget.gridStep);
+      _gridInputValid = true;
+    }
+  }
 
   DesyNumericEntry? get _spacing => widget.spacingEntries.isEmpty
       ? null
@@ -426,13 +477,76 @@ class _SketchPreviewToolbarState extends State<_SketchPreviewToolbar> {
                 const SizedBox(width: 6),
                 _artboardButton(
                   label: 'iPhone 15 Pro',
-                  value: DesyCanvasArtboard.iPhone15Pro,
+                  value: DesyDevicePreset.iPhone15Pro,
                 ),
                 const SizedBox(width: 6),
                 _artboardButton(
                   label: 'iPad Pro 11',
-                  value: DesyCanvasArtboard.iPadPro11,
+                  value: DesyDevicePreset.iPadPro11,
                 ),
+                const SizedBox(width: 16),
+                const Text('Grid'),
+                const SizedBox(width: 6),
+                SizedBox(
+                  width: 104,
+                  child: DesySelect<int>.rich(
+                    key: const ValueKey('sketch-grid-preset'),
+                    control: DesySelectControl.lifted(
+                      value: _gridOption,
+                      onChange: (index) {
+                        if (index == null) return;
+                        setState(() => _gridOption = index);
+                        if (index < _gridPresets.length) {
+                          widget.onGridStepChanged(_gridPresets[index]);
+                        }
+                      },
+                    ),
+                    format: (index) => index < _gridPresets.length
+                        ? '${_gridPresets[index].toInt()} px'
+                        : 'Custom',
+                    children: [
+                      for (final (index, step) in _gridPresets.indexed)
+                        DesySelectItem.item(
+                          value: index,
+                          title: Text('${step.toInt()} px'),
+                        ),
+                      DesySelectItem.item(
+                        value: _gridPresets.length,
+                        title: const Text('Custom'),
+                        subtitle: const Text('Enter 1–256 px'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  width: 62,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.background,
+                    border: Border.all(
+                      color: _gridInputValid
+                          ? colors.border
+                          : colors.destructive,
+                    ),
+                  ),
+                  child: DesyTextField(
+                    key: const ValueKey('sketch-grid-custom'),
+                    label: 'Custom grid size in pixels',
+                    value: widget.gridStep.toInt().toString(),
+                    errorText: _gridInputValid
+                        ? null
+                        : 'Enter a whole number from 1 to 256',
+                    keyboardType: TextInputType.number,
+                    onChanged: _setCustomGrid,
+                    onSubmitted: _setCustomGrid,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Text('px'),
                 if (kDebugMode) ...[
                   const SizedBox(width: 12),
                   DesyButton(
@@ -465,7 +579,7 @@ class _SketchPreviewToolbarState extends State<_SketchPreviewToolbar> {
 
   Widget _artboardButton({
     required String label,
-    required DesyCanvasArtboard value,
+    required DesyDevicePreset value,
   }) => DesyButton(
     key: ValueKey('sketch-add-artboard-${value.name}'),
     size: DesyButtonSize.xs,
@@ -474,6 +588,23 @@ class _SketchPreviewToolbarState extends State<_SketchPreviewToolbar> {
     onPress: () => widget.onAddArtboard(value),
     child: Text(label),
   );
+
+  void _setCustomGrid(String text) {
+    final value = int.tryParse(text);
+    final valid = value != null && value >= 1 && value <= 256;
+    setState(() {
+      _gridInputValid = valid;
+      if (valid && !_gridPresets.contains(value.toDouble())) {
+        _gridOption = _gridPresets.length;
+      }
+    });
+    if (valid) widget.onGridStepChanged(value.toDouble());
+  }
+
+  static int _gridOptionFor(double step) {
+    final index = _gridPresets.indexOf(step);
+    return index < 0 ? _gridPresets.length : index;
+  }
 }
 
 class _SketchWorkspace extends StatefulWidget {
@@ -927,7 +1058,47 @@ class _ComponentPreviewTile extends StatelessWidget {
   final ValueChanged<DesyRegisteredComponentInstance> onSelect;
 
   @override
-  Widget build(BuildContext context) => DesyButton(
+  Widget build(BuildContext context) =>
+      Draggable<DesyRegisteredComponentInstance>(
+        key: ValueKey('palette-drag-${instance.id}'),
+        data: instance,
+        dragAnchorStrategy: pointerDragAnchorStrategy,
+        feedback: Material(
+          color: Colors.transparent,
+          child: Opacity(
+            opacity: .9,
+            child: SizedBox(
+              width: 132,
+              child: DesyCard(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(DesyIcons.component, size: 16),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          instance.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        childWhenDragging: Opacity(opacity: .35, child: _tile(context)),
+        child: _tile(context),
+      );
+
+  Widget _tile(BuildContext context) => DesyButton(
     key: ValueKey('palette-instance-${instance.id}'),
     semanticsLabel: 'Add ${instance.componentName}, ${instance.name} to sketch',
     semanticsTooltip: 'Add to sketch',
@@ -995,10 +1166,7 @@ class _CanvasInspector extends StatelessWidget {
       children: [
         Text('INSTANCE', style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(height: 4),
-        Text(
-          instance.name,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text(instance.name, style: Theme.of(context).textTheme.titleMedium),
         Text(
           instance.component.name,
           style: Theme.of(context).textTheme.bodySmall,
@@ -1019,6 +1187,27 @@ class _CanvasInspector extends StatelessWidget {
               controller.setKnob(node.id, definition.id, value),
         ),
         const SizedBox(height: 16),
+        if (node.parentArtboardId != null) ...[
+          Text(
+            'Rendered in the device’s logical viewport and clipped to its screen.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          DesyButton(
+            variant: DesyButtonVariant.outline,
+            size: DesyButtonSize.sm,
+            onPress: () => controller.detachFromArtboard(node.id),
+            child: const Text('Move to canvas'),
+          ),
+          const SizedBox(height: 8),
+        ],
+        DesyButton(
+          variant: DesyButtonVariant.outline,
+          size: DesyButtonSize.sm,
+          onPress: () => controller.resetToNormalSize(node.id),
+          child: const Text('Reset size'),
+        ),
+        const SizedBox(height: 8),
         DesyButton(
           variant: DesyButtonVariant.outline,
           size: DesyButtonSize.sm,
@@ -1054,10 +1243,17 @@ class _CanvasArtboardInspector extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'A visual canvas item. Components can overlap it, but remain independent layers.',
+            'A functional device artboard. Components placed inside use its fixed logical viewport, pixel ratio, and safe-area values.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const Spacer(),
+          DesyButton(
+            variant: DesyButtonVariant.outline,
+            size: DesyButtonSize.sm,
+            onPress: () => controller.resetToNormalSize(node.id),
+            child: const Text('Reset size'),
+          ),
+          const SizedBox(height: 8),
           DesyButton(
             variant: DesyButtonVariant.outline,
             size: DesyButtonSize.sm,
@@ -1227,6 +1423,14 @@ class _CanvasOutline extends StatelessWidget {
                         }
                         final instance = _instanceFor(node.instanceId!);
                         if (instance == null) return const SizedBox.shrink();
+                        final parentArtboard = node.parentArtboardId == null
+                            ? null
+                            : placedNodes
+                                  .where(
+                                    (candidate) =>
+                                        candidate.id == node.parentArtboardId,
+                                  )
+                                  .firstOrNull;
                         return DesyTile(
                           key: ValueKey('canvas-node-${node.id}'),
                           selected: selectedId == node.id,
@@ -1237,9 +1441,11 @@ class _CanvasOutline extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Text(
-                            node.parentLayoutId == null
-                                ? instance.component.name
-                                : '${instance.component.name} · Slot ${(node.slotIndex ?? 0) + 1}',
+                            node.parentLayoutId != null
+                                ? '${instance.component.name} · Slot ${(node.slotIndex ?? 0) + 1}'
+                                : parentArtboard != null
+                                ? '${instance.component.name} · ${parentArtboard.artboard!.label}'
+                                : instance.component.name,
                             overflow: TextOverflow.ellipsis,
                           ),
                         );
@@ -1268,6 +1474,8 @@ class _CanvasStage extends StatelessWidget {
     required this.selectedId,
     required this.theme,
     required this.controller,
+    required this.gridStep,
+    required this.onDropInstance,
   });
 
   final DesyRegistry registry;
@@ -1276,6 +1484,8 @@ class _CanvasStage extends StatelessWidget {
   final String? selectedId;
   final DesyTheme theme;
   final DesyComponentsCanvasController controller;
+  final double gridStep;
+  final _DropSketchInstance onDropInstance;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -1288,47 +1498,85 @@ class _CanvasStage extends StatelessWidget {
       );
       // Bounds normalization can update watched nodes, so apply layout-driven
       // stage changes after this build has completed.
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => controller.setStageBounds(clampingRect),
-      );
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          color:
-              theme.previewBackgroundColor ?? context.theme.colors.background,
-        ),
-        child: CustomPaint(
-          painter: _CanvasGridPainter(
-            minorColor: context.theme.colors.border,
-            majorColor: context.theme.colors.mutedForeground,
-          ),
-          child: Stack(
-            key: const ValueKey('sketch-stage'),
-            clipBehavior: Clip.hardEdge,
-            children: [
-              Positioned.fill(
-                child: GestureDetector(
-                  key: const ValueKey('sketch-background'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => controller.select(null),
-                ),
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        controller.setStageBounds(clampingRect);
+        controller.prepareSnapSceneIndex();
+      });
+      return Builder(
+        builder: (stageContext) => DragTarget<DesyRegisteredComponentInstance>(
+          key: const ValueKey('sketch-drop-target'),
+          onWillAcceptWithDetails: (_) => true,
+          onAcceptWithDetails: (details) {
+            final renderBox = stageContext.findRenderObject() as RenderBox;
+            onDropInstance(
+              details.data,
+              renderBox.globalToLocal(details.offset),
+            );
+          },
+          builder: (context, candidates, rejected) => DecoratedBox(
+            decoration: BoxDecoration(
+              color:
+                  theme.previewBackgroundColor ??
+                  context.theme.colors.background,
+              border: candidates.isEmpty
+                  ? null
+                  : Border.all(color: context.theme.colors.primary, width: 2),
+            ),
+            child: CustomPaint(
+              painter: _CanvasGridPainter(
+                minorColor: context.theme.colors.border,
+                majorColor: context.theme.colors.mutedForeground,
+                step: gridStep,
               ),
-              if (nodes.isEmpty)
-                const Center(
-                  child: Text('Choose an instance from the palette.'),
-                ),
-              for (final nodeId in nodes.keys)
-                _ReactiveCanvasNode(
-                  key: ValueKey('canvas-node-signal-$nodeId'),
-                  nodeId: nodeId,
-                  committedNodes: nodes,
-                  selectedId: selectedId,
-                  clampingRect: clampingRect,
-                  registry: registry,
-                  instances: instances,
-                  theme: theme,
-                  controller: controller,
-                ),
-            ],
+              child: Stack(
+                key: const ValueKey('sketch-stage'),
+                clipBehavior: Clip.hardEdge,
+                children: [
+                  Positioned.fill(
+                    child: GestureDetector(
+                      key: const ValueKey('sketch-background'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => controller.select(null),
+                    ),
+                  ),
+                  if (nodes.isEmpty)
+                    const Center(
+                      child: Text(
+                        'Choose or drag an instance from the palette.',
+                      ),
+                    ),
+                  for (final nodeId in nodes.keys)
+                    _ReactiveCanvasNode(
+                      key: ValueKey('canvas-node-signal-$nodeId'),
+                      nodeId: nodeId,
+                      committedNodes: nodes,
+                      selectedId: selectedId,
+                      clampingRect: clampingRect,
+                      registry: registry,
+                      instances: instances,
+                      theme: theme,
+                      controller: controller,
+                    ),
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: RepaintBoundary(
+                        key: const ValueKey('sketch-snap-guides-repaint'),
+                        child: ValueListenableBuilder<List<DesySnapGuide>>(
+                          valueListenable: controller.activeSnapGuides,
+                          builder: (context, guides, _) => CustomPaint(
+                            key: const ValueKey('sketch-snap-guides'),
+                            painter: _CanvasSnapGuidePainter(
+                              guides: guides,
+                              color: context.theme.colors.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       );
@@ -1383,7 +1631,15 @@ class _ReactiveCanvasNode extends StatelessWidget {
 
   Widget? _contentFor(DesyCanvasNode node) {
     if (node.isArtboard) {
-      return _CanvasArtboard(artboardNode: node, theme: theme);
+      return _CanvasArtboard(
+        artboardNode: node,
+        children: _artboardChildren(node.id),
+        registry: registry,
+        instances: instances,
+        selectedId: selectedId,
+        theme: theme,
+        controller: controller,
+      );
     }
     if (node.isLayout) {
       return _CanvasLayout(
@@ -1396,7 +1652,9 @@ class _ReactiveCanvasNode extends StatelessWidget {
         controller: controller,
       );
     }
-    if (node.parentLayoutId != null) return null;
+    if (node.parentLayoutId != null || node.parentArtboardId != null) {
+      return null;
+    }
     final instance = _instanceFor(node.instanceId!);
     if (instance == null) return null;
     return _CanvasElement(
@@ -1421,6 +1679,11 @@ class _ReactiveCanvasNode extends StatelessWidget {
           .where((node) => node.parentLayoutId == layoutId)
           .toList(growable: false)
         ..sort((a, b) => (a.slotIndex ?? 0).compareTo(b.slotIndex ?? 0));
+
+  List<DesyCanvasNode> _artboardChildren(String artboardId) => committedNodes
+      .values
+      .where((node) => node.parentArtboardId == artboardId)
+      .toList(growable: false);
 }
 
 /// A flat, freely overlapping canvas layer with minimal Figma-like handles.
@@ -1454,8 +1717,15 @@ class _CanvasNodeFrame extends StatelessWidget {
         ),
         frameKey: ValueKey(node.id),
         contentKey: ValueKey('canvas-hit-${node.id}'),
+        resizeHandleKeyPrefix: 'canvas-resize-${node.id}',
         selected: selected,
         onSelect: () => controller.select(node.id),
+        onDoubleTap: node.isLayout
+            ? null
+            : () => controller.resetToNormalSize(node.id),
+        onInteractionStart: (_) => controller.beginSnapInteraction(node.id),
+        geometryResolver: _resolveGeometry,
+        onInteractionEnd: (_) => controller.endSnapInteraction(),
         onChanged: (geometry) {
           final current = controller.nodeValue(node.id);
           if (current != null && current.rect.size != geometry.rect.size) {
@@ -1472,10 +1742,13 @@ class _CanvasNodeFrame extends StatelessWidget {
                 identifier: node.instanceId ?? node.id,
               )
             : null,
+        ignoreChildPointer: !node.isArtboard,
         child: DecoratedBox(
           decoration: selected
               ? BoxDecoration(
-                  border: Border.all(color: context.theme.colors.primary),
+                  border: Border.all(
+                    color: context.theme.colors.primary.withValues(alpha: .48),
+                  ),
                 )
               : const BoxDecoration(),
           child: RepaintBoundary(child: child),
@@ -1486,58 +1759,188 @@ class _CanvasNodeFrame extends StatelessWidget {
 
   DesyCanvasNode _nodeFor(DesyDragBoxGeometry geometry) {
     final current = controller.nodeValue(node.id) ?? node;
-    final snapped = _CanvasGrid.snapRect(geometry.rect);
-    if (!current.isArtboard) {
-      return current.copyWith(rect: snapped, flip: geometry.flip);
+    return current.copyWith(rect: geometry.rect, flip: geometry.flip);
+  }
+
+  DesyDragBoxGeometry _resolveGeometry(
+    DesyDragBoxGeometry geometry,
+    DesyDragBoxInteraction interaction,
+  ) {
+    final current = controller.nodeValue(node.id) ?? node;
+    final operation = interaction.kind == DesyDragBoxInteractionKind.move
+        ? DesySnapOperation.move
+        : DesySnapOperation.resize;
+    final edges = _snapEdgesFor(interaction.handle);
+    var proposed = geometry.rect;
+    double? aspectRatio;
+    if (current.isArtboard && operation == DesySnapOperation.resize) {
+      final initial = current.copyWith(rect: interaction.initialRect);
+      proposed = DesyCanvasGeometry.lockFrameAspect(
+        initial,
+        proposed,
+        clampingRect: clampingRect,
+      );
+      aspectRatio = DesyCanvasGeometry.deviceFor(
+        current.artboard!,
+      ).frameSize.aspectRatio;
     }
-    final isTranslation =
-        (geometry.rect.width - current.rect.width).abs() < 0.001 &&
-        (geometry.rect.height - current.rect.height).abs() < 0.001;
-    return current.copyWith(
-      rect: isTranslation
-          ? Rect.fromLTWH(
-              snapped.left,
-              snapped.top,
-              current.rect.width,
-              current.rect.height,
-            )
-          : DesyCanvasGeometry.lockFrameAspect(
-              current,
-              snapped,
-              clampingRect: clampingRect,
-            ),
-      flip: geometry.flip,
+    final result = controller.resolveSnap(
+      node.id,
+      DesySnapRequest(
+        rect: proposed,
+        operation: operation,
+        edges: edges,
+        bounds: clampingRect,
+        minimumSize: minSize,
+        aspectRatio: aspectRatio,
+      ),
     );
+    return DesyDragBoxGeometry(rect: result.rect, flip: geometry.flip);
   }
 }
 
+DesySnapEdges _snapEdgesFor(HandlePosition handle) => switch (handle) {
+  HandlePosition.topLeft => const DesySnapEdges(left: true, top: true),
+  HandlePosition.top => const DesySnapEdges(top: true),
+  HandlePosition.topRight => const DesySnapEdges(right: true, top: true),
+  HandlePosition.left => const DesySnapEdges(left: true),
+  HandlePosition.right => const DesySnapEdges(right: true),
+  HandlePosition.bottomLeft => const DesySnapEdges(left: true, bottom: true),
+  HandlePosition.bottom => const DesySnapEdges(bottom: true),
+  HandlePosition.bottomRight => const DesySnapEdges(right: true, bottom: true),
+  HandlePosition.none => const DesySnapEdges(),
+};
+
 class _CanvasArtboard extends StatelessWidget {
-  const _CanvasArtboard({required this.artboardNode, required this.theme});
+  const _CanvasArtboard({
+    required this.artboardNode,
+    required this.children,
+    required this.registry,
+    required this.instances,
+    required this.selectedId,
+    required this.theme,
+    required this.controller,
+  });
 
   final DesyCanvasNode artboardNode;
+  final List<DesyCanvasNode> children;
+  final DesyRegistry registry;
+  final List<DesyRegisteredComponentInstance> instances;
+  final String? selectedId;
   final DesyTheme theme;
-
-  DeviceInfo get _device =>
-      DesyCanvasGeometry.deviceFor(artboardNode.artboard!);
+  final DesyComponentsCanvasController controller;
 
   @override
   Widget build(BuildContext context) => SizedBox.expand(
-    child: FittedBox(
-      fit: BoxFit.fill,
-      child: SizedBox(
-        width: _device.frameSize.width,
-        height: _device.frameSize.height,
-        child: DeviceFrame(
-          device: _device,
-          screen: ColoredBox(
-            color:
-                theme.previewBackgroundColor ??
-                Theme.of(context).colorScheme.surface,
-          ),
+    child: DesyDevicePreview(
+      device: artboardNode.artboard!,
+      child: ColoredBox(
+        color:
+            theme.previewBackgroundColor ??
+            Theme.of(context).colorScheme.surface,
+        child: Stack(
+          key: ValueKey('canvas-artboard-screen-${artboardNode.id}'),
+          clipBehavior: Clip.hardEdge,
+          children: [
+            for (final child in children)
+              _ReactiveArtboardChild(
+                key: ValueKey('canvas-artboard-child-${child.id}'),
+                node: child,
+                artboard: artboardNode,
+                registry: registry,
+                instances: instances,
+                selected: selectedId == child.id,
+                theme: theme,
+                controller: controller,
+              ),
+          ],
         ),
       ),
     ),
   );
+}
+
+class _ReactiveArtboardChild extends StatelessWidget {
+  const _ReactiveArtboardChild({
+    super.key,
+    required this.node,
+    required this.artboard,
+    required this.registry,
+    required this.instances,
+    required this.selected,
+    required this.theme,
+    required this.controller,
+  });
+
+  final DesyCanvasNode node;
+  final DesyCanvasNode artboard;
+  final DesyRegistry registry;
+  final List<DesyRegisteredComponentInstance> instances;
+  final bool selected;
+  final DesyTheme theme;
+  final DesyComponentsCanvasController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final signal = controller.nodeListenable(node.id);
+    final instance = instances
+        .where((candidate) => candidate.id == node.instanceId)
+        .firstOrNull;
+    if (signal == null || instance == null) return const SizedBox.shrink();
+    final screenSize = artboard.artboard!.screenSize;
+    final interactionBounds = Rect.fromLTRB(
+      -screenSize.width,
+      -screenSize.height,
+      screenSize.width * 2,
+      screenSize.height * 2,
+    );
+    return ValueListenableBuilder<DesyCanvasNode>(
+      valueListenable: signal,
+      child: _CanvasElement(
+        registry: registry,
+        instance: instance,
+        node: node,
+        theme: theme,
+        selected: selected,
+        controller: controller,
+      ),
+      builder: (context, current, child) => DesyDragBox(
+        geometry: DesyDragBoxGeometry(rect: current.rect, flip: current.flip),
+        clampingRect: interactionBounds,
+        constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
+        frameKey: ValueKey(current.id),
+        contentKey: ValueKey('canvas-hit-${current.id}'),
+        resizeHandleKeyPrefix: 'canvas-resize-${current.id}',
+        selected: selected,
+        onSelect: () => controller.select(current.id),
+        onDoubleTap: () => controller.resetToNormalSize(current.id),
+        onChanged: (geometry) => controller.updateTransient(
+          current.copyWith(rect: geometry.rect, flip: geometry.flip),
+        ),
+        onChangeEnd: (geometry) => controller.commitArtboardChildInteraction(
+          current.copyWith(rect: geometry.rect, flip: geometry.flip),
+          artboard,
+        ),
+        label: selected
+            ? DesyDragBoxLabel(
+                key: ValueKey('sketch-node-label-${current.id}'),
+                size: current.rect.size,
+                identifier: current.instanceId!,
+              )
+            : null,
+        child: DecoratedBox(
+          decoration: selected
+              ? BoxDecoration(
+                  border: Border.all(
+                    color: context.theme.colors.primary.withValues(alpha: .48),
+                  ),
+                )
+              : const BoxDecoration(),
+          child: child,
+        ),
+      ),
+    );
+  }
 }
 
 class _CanvasLayout extends StatelessWidget {
@@ -1721,41 +2124,23 @@ class _CanvasLayoutSlot extends StatelessWidget {
   }
 }
 
-extension on DesyCanvasArtboard {
-  String get label => switch (this) {
-    DesyCanvasArtboard.iPhone15Pro => 'iPhone 15 Pro',
-    DesyCanvasArtboard.iPadPro11 => 'iPad Pro 11',
-  };
-
+extension on DesyDevicePreset {
   IconData get icon => switch (this) {
-    DesyCanvasArtboard.iPhone15Pro => DesyIcons.smartphone,
-    DesyCanvasArtboard.iPadPro11 => DesyIcons.tablet,
+    DesyDevicePreset.iPhone15Pro => DesyIcons.smartphone,
+    DesyDevicePreset.iPadPro11 => DesyIcons.tablet,
   };
-}
-
-/// The shared geometry unit for the lightweight composition grid.
-class _CanvasGrid {
-  static const step = 8.0;
-  static const majorStep = step * 8;
-
-  static Rect snapRect(Rect rect) => Rect.fromLTWH(
-    _snap(rect.left),
-    _snap(rect.top),
-    _snap(rect.width),
-    _snap(rect.height),
-  );
-
-  static double _snap(double value) => (value / step).round() * step;
 }
 
 class _CanvasGridPainter extends CustomPainter {
   const _CanvasGridPainter({
     required this.minorColor,
     required this.majorColor,
+    required this.step,
   });
 
   final Color minorColor;
   final Color majorColor;
+  final double step;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1766,18 +2151,29 @@ class _CanvasGridPainter extends CustomPainter {
       ..color = majorColor.withAlpha(50)
       ..strokeWidth = 1;
 
-    for (var x = 0.0; x <= size.width; x += _CanvasGrid.step) {
+    final showMinor = step >= 4;
+    final paintedStep = showMinor ? step : step * 8;
+    final majorEvery = showMinor ? 8 : 1;
+    for (
+      var index = 0, x = 0.0;
+      x <= size.width;
+      index++, x = index * paintedStep
+    ) {
       canvas.drawLine(
         Offset(x, 0),
         Offset(x, size.height),
-        x % _CanvasGrid.majorStep == 0 ? major : minor,
+        index % majorEvery == 0 ? major : minor,
       );
     }
-    for (var y = 0.0; y <= size.height; y += _CanvasGrid.step) {
+    for (
+      var index = 0, y = 0.0;
+      y <= size.height;
+      index++, y = index * paintedStep
+    ) {
       canvas.drawLine(
         Offset(0, y),
         Offset(size.width, y),
-        y % _CanvasGrid.majorStep == 0 ? major : minor,
+        index % majorEvery == 0 ? major : minor,
       );
     }
   }
@@ -1785,7 +2181,43 @@ class _CanvasGridPainter extends CustomPainter {
   @override
   bool shouldRepaint(_CanvasGridPainter oldDelegate) =>
       oldDelegate.minorColor != minorColor ||
-      oldDelegate.majorColor != majorColor;
+      oldDelegate.majorColor != majorColor ||
+      oldDelegate.step != step;
+}
+
+class _CanvasSnapGuidePainter extends CustomPainter {
+  const _CanvasSnapGuidePainter({required this.guides, required this.color});
+
+  final List<DesySnapGuide> guides;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (guides.isEmpty) return;
+    final paint = Paint()
+      ..color = color.withValues(alpha: .82)
+      ..strokeWidth = 1;
+    for (final guide in guides) {
+      const extension = 6.0;
+      if (guide.axis == DesySnapAxis.x) {
+        canvas.drawLine(
+          Offset(guide.coordinate, guide.start - extension),
+          Offset(guide.coordinate, guide.end + extension),
+          paint,
+        );
+      } else {
+        canvas.drawLine(
+          Offset(guide.start - extension, guide.coordinate),
+          Offset(guide.end + extension, guide.coordinate),
+          paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CanvasSnapGuidePainter oldDelegate) =>
+      !identical(oldDelegate.guides, guides) || oldDelegate.color != color;
 }
 
 /// A placed component has no Desy-owned card or title bar. The only chrome is
@@ -1830,18 +2262,15 @@ class _CanvasElement extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         ClipRect(
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: measured,
-          ),
+          child: Align(alignment: Alignment.topLeft, child: measured),
         ),
         if (selected)
           IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: context.theme.colors.primary,
-                  width: 1.5,
+                  color: context.theme.colors.primary.withValues(alpha: .32),
+                  width: 1,
                 ),
               ),
             ),

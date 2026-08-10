@@ -1,23 +1,26 @@
 import 'dart:ui';
 
 import 'package:desy_bench/src/workbench/components_canvas/components_canvas_controller.dart';
+import 'package:desy_bench/src/device_preview.dart';
+import 'package:desy_bench/src/workbench/components_canvas/snapping/snap_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('canvas controller keeps a flat ephemeral stack', () {
+  test('canvas controller keeps one ephemeral node collection', () {
     final controller = DesyComponentsCanvasController();
 
     final primary = controller.add(
       'acme.button.primary.publish-schedule',
       knobValues: const {'label': 'Publish schedule'},
     );
-    final artboard = controller.addArtboard(DesyCanvasArtboard.iPhone15Pro);
+    final artboard = controller.addArtboard(DesyDevicePreset.iPhone15Pro);
     final duplicate = controller.add('acme.button.primary.publish-schedule');
 
     expect(controller.nodes.value.keys, [primary, artboard, duplicate]);
     expect(controller.selectedId.value, duplicate);
     expect(duplicate, isNot(primary));
     expect(controller.nodes.value[artboard]!.isArtboard, isTrue);
+    expect(controller.nodes.value[duplicate]!.parentArtboardId, artboard);
 
     final button = controller.nodes.value[primary]!;
     controller.update(
@@ -30,6 +33,7 @@ void main() {
     controller.remove(artboard);
     expect(controller.nodes.value.containsKey(artboard), isFalse);
     expect(controller.nodes.value.containsKey(primary), isTrue);
+    expect(controller.nodes.value.containsKey(duplicate), isFalse);
 
     controller.clear();
     expect(controller.nodes.value, isEmpty);
@@ -46,13 +50,54 @@ void main() {
     );
     final fallback = controller.add('button.fallback');
 
-    expect(
-      controller.nodes.value[declared]!.rect.size,
-      const Size(300, 48),
+    expect(controller.nodes.value[declared]!.rect.size, const Size(300, 48));
+    expect(controller.nodes.value[fallback]!.rect.size, const Size(220, 120));
+    controller.dispose();
+  });
+
+  test(
+    'canvas places a dropped component around the pointer and clamps it',
+    () {
+      final controller = DesyComponentsCanvasController()
+        ..setStageBounds(const Rect.fromLTWH(0, 0, 500, 400));
+
+      final centered = controller.add(
+        'button.centered',
+        defaultSize: const Size(100, 40),
+        center: const Offset(240, 180),
+      );
+      final clamped = controller.add(
+        'button.clamped',
+        defaultSize: const Size(100, 40),
+        center: const Offset(490, 390),
+      );
+
+      expect(
+        controller.nodes.value[centered]!.rect,
+        const Rect.fromLTWH(190, 160, 100, 40),
+      );
+      expect(
+        controller.nodes.value[clamped]!.rect,
+        const Rect.fromLTWH(400, 360, 100, 40),
+      );
+      controller.dispose();
+    },
+  );
+
+  test('positioned drops stay free when a layout is selected', () {
+    final controller = DesyComponentsCanvasController()
+      ..setStageBounds(const Rect.fromLTWH(0, 0, 900, 700));
+    controller.addLayout(DesyCanvasLayoutPreset.singleColumn, spacing: 16);
+
+    final dropped = controller.add(
+      'button.dropped',
+      center: const Offset(400, 300),
     );
+
+    expect(controller.nodes.value[dropped]!.parentLayoutId, isNull);
     expect(
-      controller.nodes.value[fallback]!.rect.size,
-      const Size(220, 120),
+      controller.nodes.value[dropped]!.rect.center,
+      const Offset(400, 300),
     );
     controller.dispose();
   });
@@ -63,10 +108,7 @@ void main() {
 
     controller.fitToContent(node, const Size(140, 36));
 
-    expect(
-      controller.nodes.value[node]!.rect.size,
-      const Size(140, 36),
-    );
+    expect(controller.nodes.value[node]!.rect.size, const Size(140, 36));
     controller.dispose();
   });
 
@@ -90,6 +132,98 @@ void main() {
     controller.fitToContent(node, const Size(140, 36));
 
     expect(controller.nodes.value[node]!.rect, before);
+    controller.dispose();
+  });
+
+  test('resetToNormalSize restores declared and measured component sizes', () {
+    final controller = DesyComponentsCanvasController();
+    final declared = controller.add(
+      'button.declared',
+      defaultSize: const Size(300, 48),
+    );
+    final measured = controller.add('button.measured');
+    controller.fitToContent(measured, const Size(140, 36));
+
+    for (final nodeId in [declared, measured]) {
+      final node = controller.nodes.value[nodeId]!;
+      controller.update(
+        node.copyWith(
+          rect: Rect.fromLTWH(node.rect.left, node.rect.top, 480, 200),
+        ),
+      );
+    }
+
+    expect(controller.resetToNormalSize(declared), isTrue);
+    expect(controller.resetToNormalSize(measured), isTrue);
+    expect(controller.nodes.value[declared]!.rect.size, const Size(300, 48));
+    expect(controller.nodes.value[measured]!.rect.size, const Size(140, 36));
+    controller.dispose();
+  });
+
+  test('keyboard movement moves only selected free components', () {
+    final controller = DesyComponentsCanvasController()
+      ..setStageBounds(const Rect.fromLTWH(0, 0, 400, 300));
+    final component = controller.add('button.default');
+    final before = controller.nodes.value[component]!.rect;
+
+    expect(controller.moveSelectedBy(const Offset(8, -8)), isTrue);
+    expect(
+      controller.nodes.value[component]!.rect.topLeft,
+      before.topLeft + const Offset(8, -8),
+    );
+
+    controller.addArtboard(DesyDevicePreset.iPhone15Pro);
+    expect(controller.moveSelectedBy(const Offset(8, 0)), isFalse);
+    controller.dispose();
+  });
+
+  test('grid size accepts only whole session-local values from 1 to 256', () {
+    final controller = DesyComponentsCanvasController();
+
+    expect(controller.gridStep.value, 8);
+    expect(controller.setGridStep(12), isTrue);
+    expect(controller.gridStep.value, 12);
+    expect(controller.setGridStep(12.5), isFalse);
+    expect(controller.setGridStep(0), isFalse);
+    expect(controller.setGridStep(257), isFalse);
+    expect(controller.gridStep.value, 12);
+    controller.dispose();
+  });
+
+  test('snap targets are an immutable gesture snapshot and guides clear', () {
+    final controller = DesyComponentsCanvasController();
+    final activeId = controller.add('active');
+    final targetId = controller.add('target');
+    controller.update(
+      controller.nodes.value[activeId]!.copyWith(
+        rect: const Rect.fromLTWH(57, 40, 40, 20),
+      ),
+    );
+    controller.update(
+      controller.nodes.value[targetId]!.copyWith(
+        rect: const Rect.fromLTWH(100, 100, 50, 50),
+      ),
+    );
+    controller.beginSnapInteraction(activeId);
+    controller.update(
+      controller.nodes.value[targetId]!.copyWith(
+        rect: const Rect.fromLTWH(200, 100, 50, 50),
+      ),
+    );
+
+    final result = controller.resolveSnap(
+      activeId,
+      const DesySnapRequest(
+        rect: Rect.fromLTWH(57, 40, 40, 20),
+        operation: DesySnapOperation.move,
+      ),
+    );
+
+    expect(result.rect.right, 100);
+    expect(result.xSource, DesySnapSource.element);
+    expect(controller.activeSnapGuides.value, isNotEmpty);
+    controller.endSnapInteraction();
+    expect(controller.activeSnapGuides.value, isEmpty);
     controller.dispose();
   });
 
@@ -181,33 +315,89 @@ void main() {
     controller.dispose();
   });
 
-  test('components and bezels remain independent when they overlap', () {
-    final controller = DesyComponentsCanvasController();
-    final artboardId = controller.addArtboard(DesyCanvasArtboard.iPhone15Pro);
-    final componentId = controller.add('button.default');
-    const overlap = Rect.fromLTWH(96, 120, 160, 80);
-    controller.update(
-      controller.nodes.value[componentId]!.copyWith(rect: overlap),
+  test('device artboards own components in logical screen coordinates', () {
+    final controller = DesyComponentsCanvasController()
+      ..setStageBounds(const Rect.fromLTWH(0, 0, 900, 700));
+    final artboardId = controller.addArtboard(DesyDevicePreset.iPhone15Pro);
+    final artboard = controller.nodes.value[artboardId]!;
+    final screen = DesyDeviceGeometry.screenRectInFrame(
+      artboard.rect,
+      DesyDevicePreset.iPhone15Pro,
+    );
+    final componentId = controller.add(
+      'button.default',
+      center: screen.center,
+      defaultSize: const Size(120, 48),
     );
 
-    final componentBefore = controller.nodes.value[componentId]!.rect;
-    final artboard = controller.nodes.value[artboardId]!;
+    final componentBefore = controller.nodes.value[componentId]!;
+    expect(componentBefore.parentArtboardId, artboardId);
+    expect(
+      (Offset.zero & DesyDevicePreset.iPhone15Pro.screenSize).contains(
+        componentBefore.rect.center,
+      ),
+      isTrue,
+    );
     controller.update(
       artboard.copyWith(rect: artboard.rect.shift(const Offset(80, 40))),
     );
 
-    expect(controller.nodes.value[componentId]!.rect, componentBefore);
+    expect(controller.nodes.value[componentId]!.rect, componentBefore.rect);
 
     controller.remove(artboardId);
-    expect(controller.nodes.value[componentId]!.rect, componentBefore);
+    expect(controller.nodes.value.containsKey(componentId), isFalse);
     controller.dispose();
   });
 
+  test('device artboards clamp content auto-fitting to the logical screen', () {
+    final controller = DesyComponentsCanvasController()
+      ..setStageBounds(const Rect.fromLTWH(0, 0, 900, 700));
+    final artboardId = controller.addArtboard(DesyDevicePreset.iPhone15Pro);
+    final componentId = controller.add(
+      'card.default',
+      defaultSize: const Size(120, 48),
+    );
+
+    controller.fitToContent(componentId, const Size(500, 700));
+
+    final component = controller.nodes.value[componentId]!;
+    final screen = controller.nodes.value[artboardId]!.artboard!.screenSize;
+    expect(component.parentArtboardId, artboardId);
+    expect(component.rect.left, greaterThanOrEqualTo(0));
+    expect(component.rect.top, greaterThanOrEqualTo(0));
+    expect(component.rect.right, lessThanOrEqualTo(screen.width));
+    expect(component.rect.bottom, lessThanOrEqualTo(screen.height));
+    controller.dispose();
+  });
+
+  test(
+    'detaching an artboard child preserves its displayed canvas position',
+    () {
+      final controller = DesyComponentsCanvasController()
+        ..setStageBounds(const Rect.fromLTWH(0, 0, 900, 700));
+      final artboardId = controller.addArtboard(DesyDevicePreset.iPhone15Pro);
+      final componentId = controller.add(
+        'button.default',
+        defaultSize: const Size(120, 48),
+      );
+      final before = controller.nodes.value[componentId]!;
+
+      expect(before.parentArtboardId, artboardId);
+      expect(controller.detachFromArtboard(componentId), isTrue);
+
+      final detached = controller.nodes.value[componentId]!;
+      expect(detached.parentArtboardId, isNull);
+      expect(detached.rect.width, greaterThan(0));
+      expect(detached.rect.height, greaterThan(0));
+      controller.dispose();
+    },
+  );
+
   test('device bezels use physical frame aspect', () {
     final controller = DesyComponentsCanvasController();
-    final phone = controller.addArtboard(DesyCanvasArtboard.iPhone15Pro);
+    final phone = controller.addArtboard(DesyDevicePreset.iPhone15Pro);
     final artboard = controller.nodes.value[phone]!;
-    final device = DesyCanvasGeometry.deviceFor(DesyCanvasArtboard.iPhone15Pro);
+    final device = DesyCanvasGeometry.deviceFor(DesyDevicePreset.iPhone15Pro);
 
     expect(device.screenSize, const Size(393, 852));
     expect(device.frameSize, const Size(873, 1792));
@@ -218,10 +408,31 @@ void main() {
     controller.dispose();
   });
 
+  test('device bezels reset to their initial readable size', () {
+    final controller = DesyComponentsCanvasController()
+      ..setStageBounds(const Rect.fromLTWH(0, 0, 900, 700));
+    final phone = controller.addArtboard(DesyDevicePreset.iPhone15Pro);
+    final normal = controller.nodes.value[phone]!.rect;
+    controller.update(
+      controller.nodes.value[phone]!.copyWith(
+        rect: Rect.fromLTWH(
+          normal.left,
+          normal.top,
+          normal.width / 2,
+          normal.height / 2,
+        ),
+      ),
+    );
+
+    expect(controller.resetToNormalSize(phone), isTrue);
+    expect(controller.nodes.value[phone]!.rect, normal);
+    controller.dispose();
+  });
+
   test('new bezels fit a compact stage while retaining frame aspect', () {
     final controller = DesyComponentsCanvasController()
       ..setStageBounds(const Rect.fromLTWH(0, 0, 180, 240));
-    final id = controller.addArtboard(DesyCanvasArtboard.iPadPro11);
+    final id = controller.addArtboard(DesyDevicePreset.iPadPro11);
     final rect = controller.nodes.value[id]!.rect;
     expect(rect.width, lessThanOrEqualTo(164));
     expect(rect.height, lessThanOrEqualTo(224));
@@ -232,7 +443,7 @@ void main() {
 
   test('aspect-locked bezel remains contained at every stage edge', () {
     final controller = DesyComponentsCanvasController();
-    final id = controller.addArtboard(DesyCanvasArtboard.iPhone15Pro);
+    final id = controller.addArtboard(DesyDevicePreset.iPhone15Pro);
     final artboard = controller.nodes.value[id]!;
     const bounds = Rect.fromLTWH(0, 0, 180, 240);
     final ratio = artboard.rect.size.aspectRatio;
@@ -263,7 +474,7 @@ void main() {
     ]) {
       final controller = DesyComponentsCanvasController()
         ..setStageBounds(bounds);
-      final id = controller.addArtboard(DesyCanvasArtboard.iPhone15Pro);
+      final id = controller.addArtboard(DesyDevicePreset.iPhone15Pro);
       final rect = controller.nodes.value[id]!.rect;
       expect(rect.left.isFinite && rect.top.isFinite, isTrue);
       expect(rect.width.isFinite && rect.height.isFinite, isTrue);
@@ -276,7 +487,7 @@ void main() {
     const wide = Rect.fromLTWH(0, 0, 900, 700);
     const compact = Rect.fromLTWH(0, 0, 180, 240);
     final controller = DesyComponentsCanvasController()..setStageBounds(wide);
-    final artboardId = controller.addArtboard(DesyCanvasArtboard.iPhone15Pro);
+    final artboardId = controller.addArtboard(DesyDevicePreset.iPhone15Pro);
     final componentId = controller.add('button.default');
     final componentRect = controller.nodes.value[componentId]!.rect;
     final initial = controller.nodes.value[artboardId]!.rect;
@@ -300,7 +511,7 @@ void main() {
   test('transient zero bounds preserve existing bezel geometry', () {
     const wide = Rect.fromLTWH(0, 0, 900, 700);
     final controller = DesyComponentsCanvasController()..setStageBounds(wide);
-    final id = controller.addArtboard(DesyCanvasArtboard.iPhone15Pro);
+    final id = controller.addArtboard(DesyDevicePreset.iPhone15Pro);
     final before = controller.nodes.value[id]!.rect;
 
     controller.setStageBounds(Rect.zero);

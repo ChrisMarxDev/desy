@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Desy Bench — Performant element snapping plan</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f5f2;
+      --panel: #fff;
+      --ink: #1c1d1f;
+      --muted: #676a70;
+      --line: #dddcd7;
+      --accent: #4c58d7;
+      --accent-soft: #eef0ff;
+      --good: #13745a;
+      --warn: #9a5b00;
+      --code: #f0efeb;
+      --shadow: 0 12px 35px rgba(25, 27, 32, .07);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #161719;
+        --panel: #202226;
+        --ink: #f2f2ef;
+        --muted: #aaadb4;
+        --line: #36383e;
+        --accent: #aab1ff;
+        --accent-soft: #2c3054;
+        --good: #6fd6b2;
+        --warn: #f2bf68;
+        --code: #292b30;
+        --shadow: none;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 15px/1.55 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { width: min(1160px, calc(100% - 32px)); margin: 38px auto 80px; }
+    header, section, .decision, .export {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+    }
+    header { padding: 32px; }
+    section, .decision, .export { padding: 24px; margin-top: 18px; }
+    .eyebrow { color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+    h1 { margin: 8px 0 10px; max-width: 840px; font-size: clamp(30px, 5vw, 52px); line-height: 1.04; letter-spacing: -.035em; }
+    h2 { margin: 0; font-size: 22px; letter-spacing: -.015em; }
+    h3 { margin: 24px 0 8px; font-size: 16px; }
+    p { margin: 8px 0; }
+    code { padding: 2px 6px; border-radius: 6px; background: var(--code); font-size: .92em; }
+    a { color: var(--accent); }
+    .lede { max-width: 900px; color: var(--muted); font-size: 17px; }
+    .meta, .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+    .pill { border: 1px solid var(--line); border-radius: 999px; padding: 5px 10px; color: var(--muted); font-size: 12px; }
+    .decision { border-left: 5px solid var(--good); }
+    .decision strong { color: var(--good); }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+    select, textarea, button {
+      font: inherit;
+      color: var(--ink);
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+    }
+    select { padding: 7px 10px; }
+    textarea { width: 100%; min-height: 74px; margin-top: 16px; padding: 10px; resize: vertical; }
+    button { padding: 9px 13px; cursor: pointer; }
+    button.primary { color: #fff; background: #4c58d7; border-color: #4c58d7; }
+    ul, ol { padding-left: 22px; }
+    li { margin: 6px 0; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .card { border: 1px solid var(--line); border-radius: 12px; padding: 15px; }
+    .card h3 { margin-top: 0; }
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      align-items: stretch;
+      margin: 20px 0;
+    }
+    .flow > div { position: relative; border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: var(--bg); }
+    .flow > div:not(:last-child)::after { content: "→"; position: absolute; right: -13px; top: 42%; z-index: 2; color: var(--accent); font-weight: 800; }
+    .flow b { display: block; margin-bottom: 5px; color: var(--accent); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
+    th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+    .checklist label { display: block; margin: 8px 0; }
+    input[type="checkbox"] { margin-right: 8px; accent-color: var(--accent); }
+    .callout { margin: 16px 0; padding: 14px; border-radius: 10px; background: var(--accent-soft); }
+    .metric { font-size: 26px; font-weight: 800; letter-spacing: -.025em; }
+    .muted { color: var(--muted); }
+    .good { color: var(--good); }
+    .warn { color: var(--warn); }
+    .export-output { white-space: pre-wrap; min-height: 120px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    @media (max-width: 820px) {
+      .grid { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr; }
+      .flow > div:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -18px; }
+      .section-head { align-items: flex-start; flex-direction: column; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">Implementation handoff · 2026-08-09</div>
+    <h1>Performant element and pixel-grid snapping</h1>
+    <p class="lede">A private, pure-geometry snapping engine for Desy Bench that gives Figma-like edge and center alignment without making pointer movement depend on widget rebuilds or full-scene scans.</p>
+    <div class="meta">
+      <span class="pill">Repository: flutter_design_system_bench</span>
+      <span class="pill">Package: desy_bench</span>
+      <span class="pill">Status: ready for implementation approval</span>
+      <span class="pill">Scope: Sketch canvas</span>
+    </div>
+  </header>
+
+  <aside class="decision">
+    <div class="eyebrow">Decision needed</div>
+    <p><strong>None remaining.</strong> The batch-grill defaults were accepted: element snapping outranks grid snapping, snapping is always on, grid size is session-local, and equal-spacing guides are deferred to phase 2.</p>
+  </aside>
+
+  <section id="goal">
+    <div class="section-head"><h2>1. Goal and scope</h2><select data-status><option>Ready</option><option>Needs changes</option><option>Approved</option></select></div>
+    <div class="grid">
+      <div class="card">
+        <h3>In scope</h3>
+        <ul>
+          <li>Always-on element snapping for move and resize.</li>
+          <li>Left/center/right and top/center/bottom anchors, including adjacency such as right-to-left.</li>
+          <li>Always-on configurable pixel grid: presets 1, 2, 4, 8, 12, 16, 24, 32 and custom integer 1–256.</li>
+          <li>Scale-aware 6 screen-pixel acquisition and 10 screen-pixel release hysteresis.</li>
+          <li>Localized smart guides for every collinear target at the winning coordinate.</li>
+          <li>Keyboard movement by one grid unit; Shift moves four units.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Explicitly out of scope</h3>
+        <ul>
+          <li>Equal-distance and distribution snapping (phase 2).</li>
+          <li>Nested slot-child snapping; only top-level canvas components, layouts, and bezels participate.</li>
+          <li>Registry or manifest persistence for grid settings.</li>
+          <li>A public package in the first pass.</li>
+          <li>Replacing <code>flutter_box_transform</code>.</li>
+        </ul>
+      </div>
+    </div>
+    <textarea data-note placeholder="Review note for goal and scope"></textarea>
+  </section>
+
+  <section id="files">
+    <div class="section-head"><h2>2. Touched files and classes</h2><select data-status><option>Ready</option><option>Needs changes</option><option>Approved</option></select></div>
+    <table>
+      <thead><tr><th>File</th><th>Responsibility</th><th>Main symbols</th></tr></thead>
+      <tbody>
+        <tr><td><code>lib/src/workbench/components_canvas/snapping/snap_models.dart</code></td><td>Immutable geometry-domain values; no Flutter widgets or registry coupling.</td><td><code>DesySnapConfiguration</code>, <code>DesySnapAnchor</code>, <code>DesySnapGuide</code>, <code>DesySnapResult</code>, <code>DesySnapLock</code></td></tr>
+        <tr><td><code>…/snapping/snap_scene_index.dart</code></td><td>Build compact, axis-sorted anchor arrays once per interaction; binary window lookup.</td><td><code>DesySnapSceneIndex</code></td></tr>
+        <tr><td><code>…/snapping/snap_engine.dart</code></td><td>Pure move/resize resolution, grid arithmetic, candidate priority, and hysteresis.</td><td><code>DesySnapEngine</code></td></tr>
+        <tr><td><code>…/snapping/snap_session.dart</code></td><td>Gesture-scoped index, X/Y locks, cached winner and guide state.</td><td><code>DesySnapSession</code></td></tr>
+        <tr><td><code>…/components_canvas_controller.dart</code></td><td>Own ephemeral grid configuration and the non-widget snapping coordinator; rebuild the index only at gesture boundaries.</td><td><code>DesyComponentsCanvasController</code></td></tr>
+        <tr><td><code>…/presentation/desy_drag_box.dart</code></td><td>Resolve proposed geometry locally before painting and commit shared geometry only at interaction end.</td><td><code>DesyDragBox</code>, transform callbacks</td></tr>
+        <tr><td><code>…/components_canvas_screen.dart</code></td><td>Provide top-level targets, grid controls, active resize edges, adaptive grid paint, and isolated guide overlay.</td><td><code>DesyComponentsCanvasScreen</code>, <code>_CanvasNodeFrame</code>, <code>_CanvasGridPainter</code>, new guide painter</td></tr>
+        <tr><td><code>test/snap_engine_test.dart</code></td><td>Pure-geometry behavior and deterministic tie-breaking.</td><td>Move, resize, priority, hysteresis, scale tests</td></tr>
+        <tr><td><code>test/snap_scene_index_test.dart</code></td><td>Index exclusion, sorted lookup, duplicate targets, and stable ordering.</td><td>Correctness/property-style cases</td></tr>
+        <tr><td><code>benchmark/snap_engine_benchmark.dart</code></td><td>100/1,000/10,000 target p50/p95 latency and allocation sampling.</td><td>VM and compiled-web benchmark harness</td></tr>
+        <tr><td><code>packages/desy_bench/Taskfile.yml</code></td><td>Add an opt-in benchmark task; keep wall-clock thresholds out of the canonical test suite to prevent CI flakiness.</td><td><code>benchmark:snap</code></td></tr>
+      </tbody>
+    </table>
+    <div class="callout"><b>Package boundary:</b> keep this internal to <code>desy_bench</code>. Extract only after the API survives real Sketch usage and the performance suite. The engine itself stays pure enough to move later without a rewrite.</div>
+    <textarea data-note placeholder="Review note for files and ownership"></textarea>
+  </section>
+
+  <section id="flow">
+    <div class="section-head"><h2>3. Logic and data flow</h2><select data-status><option>Ready</option><option>Needs changes</option><option>Approved</option></select></div>
+    <div class="flow" aria-label="Snapping interaction flow">
+      <div><b>1 · Begin</b>Snapshot committed top-level rects and exclude the active node.</div>
+      <div><b>2 · Index</b>Create three X and three Y anchors per target, then sort each flat array.</div>
+      <div><b>3 · Resolve</b>For each pointer proposal, query only the tolerance windows with binary search.</div>
+      <div><b>4 · Paint</b>Apply the corrected rect to the local transform controller; repaint node and guides only.</div>
+      <div><b>5 · Commit</b>Write one final rect to the shared node map, clear locks/guides, discard the index.</div>
+    </div>
+    <h3>Hot path per pointer event</h3>
+    <ol>
+      <li>Convert 6 screen pixels to canvas units using the current zoom. If an axis is already locked, test its 10-pixel release threshold first.</li>
+      <li>Derive at most three moving anchors per axis (fewer during an edge resize).</li>
+      <li>Use <code>lowerBound</code>/<code>upperBound</code> on the sorted axis arrays to inspect only anchors inside the acquisition window. No scan of every canvas node.</li>
+      <li>Rank candidates by smallest correction, then corresponding edge, adjacency, center, and stable node ID. Resolve X and Y independently.</li>
+      <li>If no element wins an axis, snap that axis to the grid with constant-time rounding. Element snapping therefore always outranks grid snapping.</li>
+      <li>Apply resize correction only to active edges. Preserve the opposite edge; for corner resizing, resolve both axes and apply bezel aspect-ratio rules deterministically.</li>
+      <li>Update the guide notifier only when the winning coordinate/target set changes. Reuse the current result otherwise.</li>
+    </ol>
+    <div class="grid">
+      <div class="card"><div class="metric">O(n log n)</div><div class="muted">Once, when a gesture begins, to create sorted anchor arrays.</div></div>
+      <div class="card"><div class="metric">O(log n + k)</div><div class="muted">Per axis and moving anchor, where k is only the anchors inside the tolerance window.</div></div>
+      <div class="card"><div class="metric">O(1)</div><div class="muted">Grid fallback through arithmetic; changing the grid never rebuilds the element index.</div></div>
+      <div class="card"><div class="metric">1 commit</div><div class="muted">Shared canvas state changes once per completed gesture, not once per pointer event.</div></div>
+    </div>
+    <h3>Why sorted axis arrays first</h3>
+    <p>Snapping asks a one-dimensional nearest-coordinate question independently on X and Y. Flat sorted arrays have less allocation and indirection than an R-tree and produce predictable cache-friendly lookups. A spatial tree is reserved for a later continuous/infinite canvas only if profiling shows candidate density makes <code>k</code> too large.</p>
+    <h3>Repaint and allocation discipline</h3>
+    <ul>
+      <li>The snap engine receives <code>Rect</code> snapshots, never measures widgets, traverses render objects, or uses global keys.</li>
+      <li>The moving preview and guide overlay sit behind separate <code>RepaintBoundary</code>s. Stationary previews do not repaint during drag.</li>
+      <li>Anchor arrays are flat immutable lists. The session reuses locks and result buffers; guide lists are recreated only when the winning match changes.</li>
+      <li>Grid painting calculates visible line indices and skips minor lines when zoomed out, with one major line every eight cells.</li>
+      <li>Frame-coalesced presentation updates are allowed for labels/guides, but geometry correction itself stays synchronous and local so the pointer never outruns the object.</li>
+    </ul>
+    <textarea data-note placeholder="Review note for logic and data flow"></textarea>
+  </section>
+
+  <section id="state">
+    <div class="section-head"><h2>4. State model</h2><select data-status><option>Ready</option><option>Needs changes</option><option>Approved</option></select></div>
+    <table>
+      <thead><tr><th>State</th><th>Owner</th><th>Lifetime</th><th>Invalidation</th></tr></thead>
+      <tbody>
+        <tr><td>Grid step and presets/custom value</td><td><code>DesyComponentsCanvasController</code></td><td>Sketch session</td><td>User changes value; no registry write</td></tr>
+        <tr><td>Committed node geometry</td><td>Existing canvas node map/controller</td><td>Canvas session</td><td>Add, remove, reset, or interaction commit</td></tr>
+        <tr><td>Sorted X/Y target anchors</td><td><code>DesySnapSession</code></td><td>One move/resize gesture</td><td>Discard on end/cancel; rebuild at next begin</td></tr>
+        <tr><td>X/Y snap locks</td><td><code>DesySnapSession</code></td><td>One gesture</td><td>Release past 10 screen px or end/cancel</td></tr>
+        <tr><td>Proposed local rect</td><td><code>DesyDragBox</code> transform controller</td><td>One frame/gesture</td><td>Every pointer update; final rect committed at end</td></tr>
+        <tr><td>Active guides</td><td>Snap coordinator notifier</td><td>Only while element-snapped</td><td>Winner changes, releases, or gesture ends</td></tr>
+      </tbody>
+    </table>
+    <p class="callout"><b>No parallel product state:</b> the snapshot index is a derived acceleration structure, not a second registry or durable canvas model.</p>
+    <textarea data-note placeholder="Review note for state ownership"></textarea>
+  </section>
+
+  <section id="ui">
+    <div class="section-head"><h2>5. UI states and transitions</h2><select data-status><option>Ready</option><option>Needs changes</option><option>Approved</option></select></div>
+    <table>
+      <thead><tr><th>From</th><th>Event</th><th>To</th><th>Visible behavior</th></tr></thead>
+      <tbody>
+        <tr><td>Idle</td><td>Pointer down on selected node</td><td>Interaction ready</td><td>Index builds before meaningful movement; no guide yet.</td></tr>
+        <tr><td>Dragging/resizing</td><td>Element enters 6 px tolerance</td><td>Axis snapped</td><td>Node corrects to target; thin localized guide appears.</td></tr>
+        <tr><td>Axis snapped</td><td>Pointer remains within 10 px</td><td>Locked</td><td>Hysteresis prevents flicker even if a grid coordinate is closer.</td></tr>
+        <tr><td>Locked</td><td>Pointer crosses 10 px release</td><td>Dragging/resizing</td><td>Guide clears; grid fallback resumes until another element wins.</td></tr>
+        <tr><td>Any interaction</td><td>End/cancel</td><td>Idle</td><td>Final rect commits once; session/index/guides clear.</td></tr>
+        <tr><td>Idle with selection</td><td>Arrow / Shift+Arrow</td><td>Idle with moved selection</td><td>Move by one/four grid units; no magnetic element jump.</td></tr>
+        <tr><td>Grid control</td><td>Custom invalid input</td><td>Validation state</td><td>Keep prior valid grid; explain integer 1–256 constraint.</td></tr>
+      </tbody>
+    </table>
+    <p>Guides use Desy-owned semantic colors and remain readable in light/dark themes. They are not part of consumer previews and do not alter preview layout or semantics.</p>
+    <textarea data-note placeholder="Review note for UI states"></textarea>
+  </section>
+
+  <section id="backend">
+    <div class="section-head"><h2>6. Backend and database</h2><select data-status><option>Ready</option><option>Needs changes</option><option>Approved</option></select></div>
+    <p><b>None.</b> This remains local-first and repository-native. Grid settings and snap sessions are ephemeral; no schema, storage, network API, migration, account, or generated production widget code is introduced.</p>
+    <textarea data-note placeholder="Review note for backend/database"></textarea>
+  </section>
+
+  <section id="tests">
+    <div class="section-head"><h2>7. Tests and verification</h2><select data-status><option>Ready</option><option>Needs changes</option><option>Approved</option></select></div>
+    <div class="grid">
+      <div class="card checklist">
+        <h3>Correctness gates</h3>
+        <label><input type="checkbox">Every edge/center and adjacency pairing</label>
+        <label><input type="checkbox">Element-over-grid priority and deterministic ties</label>
+        <label><input type="checkbox">Scale-aware 6/10 px hysteresis</label>
+        <label><input type="checkbox">Move vs active-edge/corner resize behavior</label>
+        <label><input type="checkbox">Bezel aspect-ratio interaction</label>
+        <label><input type="checkbox">Index excludes active and nested nodes</label>
+        <label><input type="checkbox">Keyboard grid-only movement</label>
+        <label><input type="checkbox">Adaptive grid and guide widget tests</label>
+      </div>
+      <div class="card checklist">
+        <h3>Performance gates</h3>
+        <label><input type="checkbox">100 targets: warm-up + p50/p95</label>
+        <label><input type="checkbox">1,000 targets: warm-up + p50/p95</label>
+        <label><input type="checkbox">10,000 targets: warm-up + p50/p95</label>
+        <label><input type="checkbox">Desktop p95 &lt; 1 ms per resolve</label>
+        <label><input type="checkbox">Compiled web p95 &lt; 2 ms per resolve</label>
+        <label><input type="checkbox">Stationary preview repaint count remains zero</label>
+        <label><input type="checkbox">No per-frame scene-index allocation</label>
+      </div>
+    </div>
+    <h3>Commands</h3>
+    <ul>
+      <li>Focused: <code>task bench:test</code></li>
+      <li>Performance: <code>task bench:benchmark:snap</code> (new, opt-in and non-flaky)</li>
+      <li>Canonical final gate: <code>task check</code></li>
+      <li>Manual profile: dogfood macOS app with Flutter DevTools frame chart and repaint tracking.</li>
+    </ul>
+    <p class="muted">The benchmark records the environment and raw distribution. Timing thresholds live in the benchmark/report rather than ordinary unit tests; structural regression tests still assert that an update performs bounded index lookups instead of a full-scene scan.</p>
+    <textarea data-note placeholder="Review note for tests and performance budgets"></textarea>
+  </section>
+
+  <section id="risks">
+    <div class="section-head"><h2>8. Risks and seams</h2><select data-status><option>Ready</option><option>Needs changes</option><option>Approved</option></select></div>
+    <table>
+      <thead><tr><th>Risk</th><th>Impact</th><th>Mitigation / seam</th></tr></thead>
+      <tbody>
+        <tr><td>Current drag box sends geometry through parent state during interaction.</td><td class="warn">High</td><td>Add a local proposed-geometry resolver and end-only commit. Verify no visual one-frame lag and preserve existing callbacks.</td></tr>
+        <tr><td>Bezel aspect ratio and edge snapping can request incompatible corrections.</td><td class="warn">High</td><td>Define order in pure tests: identify active edges, resolve candidates, then enforce aspect from the anchored opposite corner/edge and revalidate tolerance.</td></tr>
+        <tr><td>Dense duplicate coordinates enlarge k despite binary lookup.</td><td>Medium</td><td>Group identical coordinates in the index so lookup returns one bucket plus stable target references; guide expansion happens only for the winning bucket.</td></tr>
+        <tr><td>Zoomed-out grids can generate thousands of paint operations.</td><td>Medium</td><td>Compute visible line range and suppress minor lines below a minimum screen spacing; retain major every eight cells.</td></tr>
+        <tr><td>Extracting a package too early freezes Desy-specific assumptions.</td><td>Medium</td><td>Keep geometry types private and dependency-free; extract only after real usage and benchmark evidence settle the API.</td></tr>
+        <tr><td>Adding distribution snapping later could distort the current API.</td><td>Low</td><td>Represent candidates with typed kinds/priorities rather than edge-specific flags, leaving room for phase-2 candidate producers.</td></tr>
+      </tbody>
+    </table>
+    <textarea data-note placeholder="Review note for risks"></textarea>
+  </section>
+
+  <section id="decisions">
+    <div class="section-head"><h2>9. Accepted decisions and open decisions</h2><select data-status><option>Ready</option><option>Needs changes</option><option>Approved</option></select></div>
+    <div class="grid">
+      <div class="card">
+        <h3 class="good">Accepted</h3>
+        <ul>
+          <li>Private Desy engine first; potential package later.</li>
+          <li>Keep <code>flutter_box_transform</code>; use Fluera only as a source reference.</li>
+          <li>Element beats grid; stable deterministic tie-breaks.</li>
+          <li>6 px acquire / 10 px release in screen space.</li>
+          <li>Grid defaults to 8 and is always on.</li>
+          <li>Top-level nodes only; keyboard is grid-only.</li>
+          <li>Gesture-start index and end-only shared commit.</li>
+          <li>Distribution/equal spacing is phase 2.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Open</h3>
+        <p><b>No product decisions block implementation.</b></p>
+        <p class="muted">One implementation detail is deliberately resolved by profiling: identical-coordinate buckets start as compact lists; a broader spatial index is added only if 10,000-target traces miss budget.</p>
+      </div>
+    </div>
+    <h3>Research basis</h3>
+    <p>No published Dart package is a clean reusable fit. <a href="https://pub.dev/packages/stack_board_plus">stack_board_plus</a> and similar packages are full boards with grid snapping. <a href="https://pub.dev/packages/fluera_canvas">fluera_canvas</a> is the closest reference; its GitHub main branch exposes a pure engine, but the API is unpublished and still expects caller-side candidate culling. See the repository note at <code>docs/research/flutter_snap_alignment_packages.md</code>.</p>
+    <textarea data-note placeholder="Review note for decisions"></textarea>
+  </section>
+
+  <section class="export">
+    <div class="section-head"><h2>Review export</h2><span class="pill">Local-only</span></div>
+    <p class="muted">Mark sections, tick verification items, add notes, then generate a compact response to paste back into Codex.</p>
+    <div class="actions">
+      <button class="primary" id="generate">Generate response</button>
+      <button id="copy">Copy response</button>
+      <button id="approve">Mark all approved</button>
+    </div>
+    <textarea class="export-output" id="output" aria-label="Generated review response" placeholder="Your review response will appear here"></textarea>
+  </section>
+</main>
+<script>
+  const sections = [...document.querySelectorAll('section[id]')];
+  document.getElementById('approve').addEventListener('click', () => {
+    document.querySelectorAll('[data-status]').forEach(select => select.value = 'Approved');
+  });
+  document.getElementById('generate').addEventListener('click', () => {
+    const lines = ['Snap plan review:'];
+    sections.forEach(section => {
+      const title = section.querySelector('h2')?.textContent?.trim();
+      const status = section.querySelector('[data-status]')?.value;
+      const note = section.querySelector('[data-note]')?.value?.trim();
+      if (title && status) lines.push(`- ${title}: ${status}${note ? ` — ${note}` : ''}`);
+    });
+    const checks = [...document.querySelectorAll('.checklist input')];
+    lines.push(`- Verification reviewed: ${checks.filter(x => x.checked).length}/${checks.length}`);
+    document.getElementById('output').value = lines.join('\n');
+  });
+  document.getElementById('copy').addEventListener('click', async () => {
+    const output = document.getElementById('output');
+    if (!output.value) document.getElementById('generate').click();
+    await navigator.clipboard.writeText(output.value);
+    document.getElementById('copy').textContent = 'Copied';
+    setTimeout(() => document.getElementById('copy').textContent = 'Copy response', 1400);
+  });
+</script>
+</body>
+</html>

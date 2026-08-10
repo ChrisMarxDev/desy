@@ -2,6 +2,7 @@
 // ignore_for_file: public_member_api_docs
 
 import 'package:desy_design_system/desy_design_system.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_box_transform/flutter_box_transform.dart';
@@ -13,6 +14,27 @@ class DesyDragBoxGeometry {
   final Rect rect;
   final Flip flip;
 }
+
+enum DesyDragBoxInteractionKind { move, resize }
+
+@immutable
+class DesyDragBoxInteraction {
+  const DesyDragBoxInteraction({
+    required this.kind,
+    required this.initialRect,
+    this.handle = HandlePosition.none,
+  });
+
+  final DesyDragBoxInteractionKind kind;
+  final Rect initialRect;
+  final HandlePosition handle;
+}
+
+typedef DesyDragBoxGeometryResolver =
+    DesyDragBoxGeometry Function(
+      DesyDragBoxGeometry geometry,
+      DesyDragBoxInteraction interaction,
+    );
 
 /// The shared move-and-resize frame used by Desy's editing surfaces.
 ///
@@ -36,6 +58,10 @@ class DesyDragBox extends StatefulWidget {
     this.resizable = true,
     this.ignoreChildPointer = true,
     this.onSelect,
+    this.onDoubleTap,
+    this.onInteractionStart,
+    this.geometryResolver,
+    this.onInteractionEnd,
     this.label,
     this.labelGap = 6,
   });
@@ -60,6 +86,10 @@ class DesyDragBox extends StatefulWidget {
   final bool resizable;
   final bool ignoreChildPointer;
   final VoidCallback? onSelect;
+  final VoidCallback? onDoubleTap;
+  final ValueChanged<DesyDragBoxInteraction>? onInteractionStart;
+  final DesyDragBoxGeometryResolver? geometryResolver;
+  final ValueChanged<DesyDragBoxInteraction>? onInteractionEnd;
   final Widget? label;
   final double labelGap;
 
@@ -78,6 +108,12 @@ class _DesyDragBoxState extends State<DesyDragBox> {
       );
   DesyDragBoxGeometry? _pendingGeometry;
   var _frameCallbackScheduled = false;
+  int? _activePointer;
+  Offset? _pointerDownPosition;
+  Duration? _lastClickTime;
+  Offset? _lastClickPosition;
+  var _pointerMoved = false;
+  DesyDragBoxInteraction? _activeInteraction;
 
   @override
   void didUpdateWidget(covariant DesyDragBox oldWidget) {
@@ -117,21 +153,43 @@ class _DesyDragBoxState extends State<DesyDragBox> {
         clipBehavior: Clip.none,
         children: [
           TransformableBox(
-            key: widget.frameKey,
             controller: _transformController,
             allowContentFlipping: false,
             allowFlippingWhileResizing: false,
-            handleAlignment: HandleAlignment.inside,
-            handleTapSize: 18,
+            // Keep resize hit regions outside the element. With inside-aligned
+            // handles, small selected widgets can have no remaining move
+            // surface because the eight resize detectors cover their content.
+            handleAlignment: HandleAlignment.outside,
+            handleTapSize: 12,
             draggable: widget.draggable,
             resizable: widget.selected && widget.resizable,
             visibleHandles: handles,
             enabledHandles: handles,
             onTap: widget.onSelect,
+            onDragStart: (_) => _beginInteraction(
+              const DesyDragBoxInteraction(
+                kind: DesyDragBoxInteractionKind.move,
+                initialRect: Rect.zero,
+              ),
+            ),
+            onDragUpdate: (result, _) => _applyProposedGeometry(
+              DesyDragBoxGeometry(rect: result.rect, flip: result.flip),
+              publishLiveChange: false,
+            ),
             onDragEnd: (_) => _finishInteraction(),
             onDragCancel: _finishInteraction,
+            onResizeStart: (handle, _) => _beginInteraction(
+              DesyDragBoxInteraction(
+                kind: DesyDragBoxInteractionKind.resize,
+                initialRect: _transformController.rect,
+                handle: handle,
+              ),
+            ),
             onResizeUpdate: (result, _) => _queueGeometry(
-              DesyDragBoxGeometry(rect: result.rect, flip: result.flip),
+              _applyProposedGeometry(
+                DesyDragBoxGeometry(rect: result.rect, flip: result.flip),
+                publishLiveChange: false,
+              ),
             ),
             onResizeEnd: (_, _) => _finishInteraction(),
             onResizeCancel: (_) => _finishInteraction(),
@@ -144,8 +202,8 @@ class _DesyDragBoxState extends State<DesyDragBox> {
                   color: context.theme.colors.background,
                   borderRadius: BorderRadius.circular(1),
                   border: Border.all(
-                    color: context.theme.colors.primary,
-                    width: 1.25,
+                    color: context.theme.colors.primary.withValues(alpha: .62),
+                    width: 1,
                   ),
                 ),
               ),
@@ -157,27 +215,31 @@ class _DesyDragBoxState extends State<DesyDragBox> {
                 length: 6,
                 thickness: 6,
                 decoration: BoxDecoration(
-                  color: context.theme.colors.primary,
+                  color: context.theme.colors.primary.withValues(alpha: .62),
                   borderRadius: BorderRadius.circular(1),
                 ),
               ),
             ),
-            contentBuilder: (context, rect, flip) => MouseRegion(
-              cursor: widget.draggable
-                  ? SystemMouseCursors.move
-                  : SystemMouseCursors.basic,
-              child: ClipRect(
-                child: Listener(
-                  key: widget.contentKey,
-                  behavior: HitTestBehavior.opaque,
-                  onPointerDown: (_) => widget.onSelect?.call(),
-                  child: IgnorePointer(
-                    ignoring: widget.ignoreChildPointer,
-                    child: child,
-                  ),
+            contentBuilder: (context, rect, flip) {
+              final content = Listener(
+                key: widget.contentKey,
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: _handlePointerDown,
+                onPointerMove: _handlePointerMove,
+                onPointerUp: _handlePointerUp,
+                onPointerCancel: _handlePointerCancel,
+                child: IgnorePointer(
+                  ignoring: widget.ignoreChildPointer,
+                  child: child,
                 ),
-              ),
-            ),
+              );
+              return MouseRegion(
+                cursor: widget.draggable
+                    ? SystemMouseCursors.move
+                    : SystemMouseCursors.basic,
+                child: ClipRect(key: widget.frameKey, child: content),
+              );
+            },
           ),
           if (widget.label case final label?)
             Positioned(
@@ -203,8 +265,90 @@ class _DesyDragBoxState extends State<DesyDragBox> {
     });
   }
 
+  void _beginInteraction(DesyDragBoxInteraction interaction) {
+    final actual = DesyDragBoxInteraction(
+      kind: interaction.kind,
+      initialRect: _transformController.rect,
+      handle: interaction.handle,
+    );
+    _activeInteraction = actual;
+    widget.onInteractionStart?.call(actual);
+  }
+
+  DesyDragBoxGeometry _applyProposedGeometry(
+    DesyDragBoxGeometry geometry, {
+    required bool publishLiveChange,
+  }) {
+    final interaction = _activeInteraction;
+    final resolved = interaction == null
+        ? geometry
+        : widget.geometryResolver?.call(geometry, interaction) ?? geometry;
+    if (_transformController.flip != resolved.flip) {
+      _transformController.setFlip(resolved.flip, notify: false);
+    }
+    if (_transformController.rect != resolved.rect || resolved != geometry) {
+      _transformController.setRect(resolved.rect, recalculate: false);
+    }
+    if (publishLiveChange) _queueGeometry(resolved);
+    return resolved;
+  }
+
+  void _handlePointerDown(PointerDownEvent event) {
+    widget.onSelect?.call();
+    if (widget.onDoubleTap == null) return;
+    _activePointer = event.pointer;
+    _pointerDownPosition = event.position;
+    _pointerMoved = false;
+  }
+
+  void _handlePointerMove(PointerMoveEvent event) {
+    if (event.pointer != _activePointer || _pointerMoved) return;
+    final origin = _pointerDownPosition;
+    if (origin != null && (event.position - origin).distance > kTouchSlop) {
+      _pointerMoved = true;
+    }
+  }
+
+  void _handlePointerUp(PointerUpEvent event) {
+    if (event.pointer != _activePointer) return;
+    _activePointer = null;
+    _pointerDownPosition = null;
+    if (_pointerMoved) {
+      _pointerMoved = false;
+      _lastClickTime = null;
+      _lastClickPosition = null;
+      return;
+    }
+    final lastTime = _lastClickTime;
+    final lastPosition = _lastClickPosition;
+    final isDoubleClick =
+        lastTime != null &&
+        event.timeStamp - lastTime <= kDoubleTapTimeout &&
+        lastPosition != null &&
+        (event.position - lastPosition).distance <= kDoubleTapSlop;
+    if (isDoubleClick) {
+      _lastClickTime = null;
+      _lastClickPosition = null;
+      widget.onDoubleTap?.call();
+    } else {
+      _lastClickTime = event.timeStamp;
+      _lastClickPosition = event.position;
+    }
+  }
+
+  void _handlePointerCancel(PointerCancelEvent event) {
+    if (event.pointer != _activePointer) return;
+    _activePointer = null;
+    _pointerDownPosition = null;
+    _pointerMoved = false;
+    _lastClickTime = null;
+    _lastClickPosition = null;
+  }
+
   void _finishInteraction() {
     _pendingGeometry = null;
+    final interaction = _activeInteraction;
+    _activeInteraction = null;
     final geometry = DesyDragBoxGeometry(
       rect: _transformController.rect,
       flip: _transformController.flip,
@@ -215,6 +359,7 @@ class _DesyDragBoxState extends State<DesyDragBox> {
     } else {
       onChangeEnd(geometry);
     }
+    if (interaction != null) widget.onInteractionEnd?.call(interaction);
   }
 
   Key? _handleKey(HandlePosition handle) =>

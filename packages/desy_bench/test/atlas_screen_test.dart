@@ -174,6 +174,43 @@ void main() {
     expect(idText.maxLines, 1);
     expect(idText.overflow, TextOverflow.ellipsis);
   });
+
+  testWidgets('Atlas keeps compact previews at their natural painted size', (
+    tester,
+  ) async {
+    const previewKey = ValueKey('natural-atlas-preview');
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      DesyBenchApp(
+        registry: DesyRegistry(
+          name: 'Readable Atlas',
+          themes: const [
+            DesyTheme(
+              id: 'light',
+              name: 'Light',
+              previewBackgroundColor: Color(0xFFF4F4F4),
+              wrap: _wrap,
+            ),
+          ],
+          components: [
+            DesyStaticComponent(
+              id: 'compact.component',
+              name: 'Compact component',
+              instances: {
+                'default': (_) =>
+                    const SizedBox(key: previewKey, width: 120, height: 48),
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.getRect(find.byKey(previewKey)).size, const Size(120, 48));
+  });
 }
 
 DesyToken _token(String id) => DesyToken(

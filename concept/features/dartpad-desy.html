@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DartPad Desy</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="shell">
+    <nav><a href="index.html">← Planned features</a><span>Impact 4 · Complexity 5 · Yield 0.80</span></nav>
+
+    <section class="hero">
+      <div class="eyebrow">Rank 13 · Parked hosted-workshop concept</div>
+      <h1>Real Flutter files, compiled into shareable design workshops.</h1>
+      <p class="lede">DartPad Desy is a possible hosted mode in which a consumer’s versioned design system becomes a Flutter compiler environment and workshop prototypes remain ordinary Dart files. Desy would compile, render, preserve, and share those files without introducing a Flutter-like DSL.</p>
+      <div class="flow">
+        <strong>Design-system revision</strong><span>→</span><strong>Flutter files</strong><span>→</span><strong>DDC compiler</strong><span>→</span><strong>Isolated preview</strong><span>→</span><strong>Workshop journey</strong>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Reason and user value</h2>
+        <p>Flutter developers can already iterate locally, but sharing an unfinished design journey requires code, a matching toolchain, and someone able to run it. A hosted compiler could make several real-widget directions reviewable from one link while preserving the source files that produced every round.</p>
+        <p class="good">Potential win: actual Flutter authoring with browser-speed review, durable alternatives, asynchronous feedback, and a later path to agent or multiplayer collaboration.</p>
+      </article>
+
+      <article class="card">
+        <h2>Product boundary</h2>
+        <p>The feature is not “run any Flutter repository.” It is a controlled UI workshop:</p>
+        <ul>
+          <li>A versioned, web-compatible consumer design-system package supplies the real registry, widgets, themes, fonts, and assets.</li>
+          <li>Each workshop owns a small set of normal Dart prototype files.</li>
+          <li>A generated runner imports the selected prototype and applies the consumer’s real theme wrapper.</li>
+          <li>Platform logic, application backends, and production behavior remain outside the renderer.</li>
+        </ul>
+      </article>
+
+      <article class="card full accent">
+        <h2>Core product decision</h2>
+        <p>DartPad Desy belongs only if Desy deliberately expands from a local design-system workbench into hosted collaborative Flutter authoring. It must remain an optional service derived from the consumer-owned registry and repository. It cannot become a second design-system source of truth or make hosted compilation necessary for ordinary Desy use.</p>
+      </article>
+
+      <article class="card">
+        <h2>Scope</h2>
+        <ul>
+          <li>Register a design-system revision as a cached compiler environment.</li>
+          <li>Store workshop prototypes as separate, ordinary <code>.dart</code> files.</li>
+          <li>Analyze and compile a typed file-map request with a known entrypoint.</li>
+          <li>Return compiler diagnostics and support DDC hot-reload deltas.</li>
+          <li>Render output in a credential-free, separate-origin iframe.</li>
+          <li>Preserve ordered rounds, candidates, comments, selections, source snapshots, and build hashes.</li>
+          <li>Publish read-only workshop links after an explicit save or snapshot action.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Non-goals</h2>
+        <ul>
+          <li>No Flutter subset, remote-widget format, or custom UI language.</li>
+          <li>No arbitrary whole-app execution or native platform plugins.</li>
+          <li>No unrestricted dependency installation during every edit.</li>
+          <li>No general-purpose cloud IDE, terminal, debugger, or production deployment.</li>
+          <li>No application business logic, secrets, authenticated APIs, or platform services.</li>
+          <li>No required agent, collaborative code editor, or multiplayer presence in the first slice.</li>
+          <li>No replacement for Desy’s local-first catalogue and preview workflow.</li>
+        </ul>
+      </article>
+
+      <article class="card full">
+        <h2>Smallest useful flow</h2>
+        <div class="flow">
+          <strong>Select design-system revision</strong><span>→</span><strong>Create three Flutter files</strong><span>→</span><strong>Compile and render</strong><span>→</span><strong>Comment and continue one</strong><span>→</span><strong>Save immutable round</strong><span>→</span><strong>Share read-only link</strong>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Implementation sketch</h2>
+        <ol>
+          <li>Fork only the DartPad compiler/runtime pieces needed by Desy; do not adopt its editor UI.</li>
+          <li>Extend the compiler request from one <code>source</code> string to a validated map of paths and source text plus one entrypoint.</li>
+          <li>Create a cached environment keyed by Flutter SDK, design-system revision, lockfile, generated sources, fonts, and assets.</li>
+          <li>Generate a small runner that imports a prototype builder and invokes the real consumer theme wrapper.</li>
+          <li>Compile with DDC, return diagnostics and the delta kernel, and load the result in an isolated renderer frame.</li>
+          <li>Store explicit source snapshots and compiled-build hashes as workshop rounds; treat live editor state as temporary.</li>
+          <li>Add GitHub import/export only after the compiler and asset boundary is proven.</li>
+        </ol>
+      </article>
+
+      <article class="card">
+        <h2>Technical evidence</h2>
+        <ul>
+          <li>DartPad’s backend already offers analyze and compile APIs and uses a persistent Dart Development Compiler worker.</li>
+          <li>Its current hot-reload path returns and accepts a delta kernel, so incremental Flutter web compilation is not speculative.</li>
+          <li>Upstream currently materializes only <code>lib/main.dart</code>; multi-file projects require a Desy-owned extension.</li>
+          <li>Packages are pinned and allow-listed in project templates. Consumer packages, generated files, fonts, and assets therefore need an environment-build stage.</li>
+          <li>The compiled preview remains untrusted browser code and requires origin, iframe, network, and resource isolation.</li>
+        </ul>
+      </article>
+
+      <article class="card third">
+        <h2>Value risk</h2>
+        <p>Developers may prefer local hot reload and GitHub review once the novelty of browser compilation wears off. The workshop journey must prove value before the compiler service is justified.</p>
+      </article>
+      <article class="card third">
+        <h2>Product risk</h2>
+        <p>Hosted authoring can pull Desy toward accounts, storage, permissions, sync, IDE features, and general app building—well beyond its current design-system workbench focus.</p>
+      </article>
+      <article class="card third">
+        <h2>Operational risk</h2>
+        <p>Compiler isolation, package environments, assets, quotas, abuse prevention, versioning, caching, and long-term build reproducibility become product responsibilities.</p>
+      </article>
+
+      <article class="card">
+        <h2>Open questions</h2>
+        <ul>
+          <li>Is Desy primarily a local workbench, or should shared hosted workshops become a defining workflow?</li>
+          <li>Will teams value the recorded design journey more than a branch, PR, or ordinary preview deployment?</li>
+          <li>Must consumer design systems be separate publishable packages, or should monorepo path packages be supported?</li>
+          <li>How often may dependencies change before environment rebuilding interrupts the creative loop?</li>
+          <li>Can fonts, assets, code generation, and theme wrappers be reproduced reliably across revisions?</li>
+          <li>Should saved workshop source live in GitHub, Desy storage, or both—and which one is authoritative?</li>
+          <li>What access and retention model is acceptable for private design-system code?</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Revisit triggers</h2>
+        <ul>
+          <li>The local Widget Workshop proves that developers repeatedly create, compare, and continue multiple real-code directions.</li>
+          <li>Users explicitly ask to share those journeys with people who cannot run the repository.</li>
+          <li>Desy chooses hosted collaboration as a product direction and accepts its account, security, storage, and operations costs.</li>
+          <li>A time-boxed spike compiles the dogfood design system with real fonts/assets and achieves an iteration loop worth using.</li>
+        </ul>
+      </article>
+
+      <article class="card full accent">
+        <h2>Do or don’t?</h2>
+        <p><strong>Don’t build now; preserve the option.</strong> Impact 4/5, complexity 5/5, risk 5/5, yield 0.80. The compiler mechanism is credible, but it commits Desy to a hosted product boundary before the workshop journey or collaboration demand has been validated. Revisit only after the local workflow proves repeat use and Desy consciously chooses hosted collaborative authoring.</p>
+      </article>
+    </section>
+
+    <footer>Decision: parked concept. Keep real Flutter source and the consumer registry authoritative; do not let the compiler service choose Desy’s product direction by accident.</footer>
+  </main>
+</body>
+</html>

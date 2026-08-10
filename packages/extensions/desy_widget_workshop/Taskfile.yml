@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  analyze:
+    desc: Analyze the experimental widget-workshop extension.
+    cmds:
+      - flutter analyze
+
+  test:
+    desc: Run widget-workshop extension tests.
+    cmds:
+      - flutter test
+
+  format:
+    desc: Format widget-workshop source and tests.
+    cmds:
+      - dart format lib test

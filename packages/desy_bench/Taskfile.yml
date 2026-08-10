@@ -15,3 +15,13 @@ tasks:
     desc: Format Desy Bench source and tests.
     cmds:
       - dart format lib test
+
+  benchmark:snap:
+    desc: Benchmark Sketch snapping on the Flutter VM.
+    cmds:
+      - flutter test test/benchmark/snap_engine_benchmark_test.dart --dart-define=DESY_SNAP_BENCHMARK=true --reporter expanded
+
+  benchmark:snap:web:
+    desc: Benchmark Sketch snapping in compiled Chrome.
+    cmds:
+      - flutter test --platform chrome test/benchmark/snap_engine_benchmark_test.dart --dart-define=DESY_SNAP_BENCHMARK=true --reporter expanded

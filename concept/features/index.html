@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Desy planned features</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="shell">
+    <nav><strong>Desy concepts</strong><span>Planned work only · ranked 2026-08-10</span></nav>
+    <section class="hero">
+      <div class="eyebrow">Feature index</div>
+      <h1>See the real system. Workshop what it becomes.</h1>
+      <p class="lede">Desy’s core loop starts in the registry-driven Atlas, carries real components and theme context into code-backed workshops, and returns repository changes through Flutter hot reload. Agent briefs, verification, and optional adapters strengthen that loop without becoming separate products.</p>
+      <div class="flow">
+        <strong>Registry</strong><span>→</span><strong>Atlas</strong><span>→</span><strong>Workshop</strong><span>→</span><strong>Real Dart + hot reload</strong><span>→</span><strong>Atlas</strong>
+      </div>
+    </section>
+
+    <section class="card full accent">
+      <h2>Architectural decision</h2>
+      <p>Make Atlas + Workshop the primary product path. The consumer registry remains the only design-system inventory; workshop context stores stable IDs and resolves them live. Surface manifests, JSON widgets, A2UI, and SDUI remain optional adapters or labs and do not appear in the core navigation.</p>
+    </section>
+
+    <h2>Ranked planned features</h2>
+    <table>
+      <thead><tr><th>Rank</th><th>Feature</th><th>Impact</th><th>Complexity</th><th>Yield</th><th>Decision</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><a href="atlas-workshop-workspace.html">Atlas workshop workspace</a></td><td><span class="score">5</span></td><td>3</td><td>1.67</td><td>Build next. It joins the strongest working surfaces into Desy’s core loop.</td></tr>
+        <tr><td>2</td><td><a href="agent-briefs.html">Agent briefs</a></td><td><span class="score">5</span></td><td>2</td><td>2.50</td><td>Use as the registry-to-agent context layer inside Workshops.</td></tr>
+        <tr><td>3</td><td><a href="golden-cli.html">Golden test CLI</a></td><td><span class="score">5</span></td><td>3</td><td>1.67</td><td>Build a deterministic selected-matrix MVP before affected-only intelligence.</td></tr>
+        <tr><td>4</td><td><a href="semantic-intent-index.html">Semantic intent index</a></td><td><span class="score">5</span></td><td>3</td><td>1.67</td><td>Teach agents why and when to use a component, not merely that it exists.</td></tr>
+        <tr><td>5</td><td><a href="design-system-agent-skill.html">Design-system agent skill + CLI</a></td><td><span class="score">5</span></td><td>3</td><td>1.67</td><td>Share the same query/export services as Agent Briefs; avoid agent-specific registry copies.</td></tr>
+        <tr><td>6</td><td><a href="annotation-fix-loop.html">Annotation fix loop</a></td><td><span class="score">4</span></td><td>3</td><td>1.33</td><td>Extend candidate selection into precise widget feedback and reproducible verification.</td></tr>
+        <tr><td>7</td><td><a href="surface-dsl.html">Desy surface DSL</a></td><td><span class="score">5</span></td><td>4</td><td>1.25</td><td>Keep out of core navigation; revisit only as an optional typed extension.</td></tr>
+        <tr><td>8</td><td><a href="conformance-checker.html">Design-system conformance checker</a></td><td><span class="score">5</span></td><td>4</td><td>1.25</td><td>Start with manifest and registry checks; make Dart source rules an optional analyzer package.</td></tr>
+        <tr><td>9</td><td><a href="scenario-synthesis.html">Constraint-aware scenario synthesis</a></td><td><span class="score">4</span></td><td>4</td><td>1.00</td><td>Generate meaningful test states, not a Cartesian explosion of every knob.</td></tr>
+        <tr><td>10</td><td><a href="change-impact-graph.html">Registry change-impact graph</a></td><td><span class="score">4</span></td><td>4</td><td>1.00</td><td>Use explicit manifest references first; treat Dart usage discovery as best-effort evidence.</td></tr>
+        <tr><td>11</td><td><a href="a2ui-adapter.html">A2UI catalog adapter</a></td><td><span class="score">4</span></td><td>4</td><td>1.00</td><td>Optional adapter only after a real workshop need appears; pin protocol versions.</td></tr>
+        <tr><td>12</td><td><a href="sdui-runtime.html">Registry-backed SDUI runtime</a></td><td><span class="score">5</span></td><td>5</td><td>1.00</td><td>Strategic later bet. Require signed/versioned payloads, allow-listed events, caching, and safe fallback.</td></tr>
+        <tr><td>13</td><td><a href="dartpad-desy.html">DartPad Desy</a></td><td><span class="score">4</span></td><td>5</td><td>0.80</td><td>Park. Revisit only if local workshops prove demand and Desy deliberately chooses hosted collaborative Flutter authoring.</td></tr>
+      </tbody>
+    </table>
+
+    <section class="grid">
+      <article class="card"><h2>Recommended sequence</h2><ol><li>Join Atlas and the hot-reload Workshop around one registry context.</li><li>Use Agent Briefs and semantic intent inside that loop.</li><li>Add render-object selection and state-rich annotations.</li><li>Add deterministic golden verification for accepted directions.</li><li>Move JSON widgets and speculative editors out of primary navigation.</li><li>Only then evaluate conformance, manifests, A2UI, SDUI, or hosted compilation against demonstrated needs.</li></ol></article>
+      <article class="card"><h2>Shared enabling work</h2><ul><li>Typed workshop seed containing registry IDs and preview state.</li><li>Optional entry actions contributed by workspace extensions.</li><li>Ordinary Dart candidate-file boundary.</li><li>Hot-reload runtime separated from the Workshop UI.</li><li>Stable registry export and deterministic rendering for later agent and verification work.</li></ul></article>
+    </section>
+    <footer>Offline concept artifact. No remote assets or runtime dependencies.</footer>
+  </main>
+</body>
+</html>

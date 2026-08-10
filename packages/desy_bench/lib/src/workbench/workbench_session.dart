@@ -1,25 +1,13 @@
 // Internal workbench session state; it is not consumer-facing package API.
 // ignore_for_file: public_member_api_docs
 
-import 'package:device_preview/device_preview.dart';
 import 'package:flutter/widgets.dart';
 import 'package:state_beacon/state_beacon.dart';
 
+import '../device_preview.dart';
 import '../detail_extension.dart';
 import '../registry.dart';
 import '../workspace_extension.dart';
-
-/// The small initial set of preview-frame profiles.
-///
-/// This is local workbench state and never changes the consumer registry.
-enum DesyPreviewBezel { iPhone15Pro, iPadPro11 }
-
-extension DesyPreviewBezelDevice on DesyPreviewBezel {
-  DeviceInfo get device => switch (this) {
-    DesyPreviewBezel.iPhone15Pro => Devices.ios.iPhone15Pro,
-    DesyPreviewBezel.iPadPro11 => Devices.ios.iPadPro11Inches,
-  };
-}
 
 /// Ephemeral interaction state for one open Desy workbench.
 ///
@@ -39,10 +27,9 @@ class DesyWorkbenchSession {
 
   final activeThemeIndex = Beacon.writable(0);
   final selectedScenario = Beacon.writable<DesyComponentScenario?>(null);
-  final selectedComponentInstance = Beacon.writable<
-    DesyRegisteredComponentInstance?
-  >(null);
-  final previewBezel = Beacon.writable<DesyPreviewBezel?>(null);
+  final selectedComponentInstance =
+      Beacon.writable<DesyRegisteredComponentInstance?>(null);
+  final previewDevice = Beacon.writable<DesyDevicePreset?>(null);
   final knobValues = Beacon.writable<Map<String, Object>>({});
   final atlasQuery = Beacon.writable('');
   final fontSampleText = Beacon.writable(
@@ -70,7 +57,7 @@ class DesyWorkbenchSession {
   void prepareEntry(DesyRegistryEntry entry) {
     selectedScenario.value = null;
     selectedComponentInstance.value = null;
-    previewBezel.value = null;
+    previewDevice.value = null;
     knobValues.value = _defaults(entry.component);
     stage.value = const DesyPreviewStage();
   }
@@ -111,11 +98,11 @@ class DesyWorkbenchSession {
           : definition.initial,
   };
 
-  void selectPreviewBezel(DesyPreviewBezel? bezel) {
+  void selectPreviewDevice(DesyDevicePreset? device) {
     stage.value = stage.value.copyWith(
-      size: bezel?.device.frameSize ?? const DesyPreviewStage().size,
+      size: device?.frameSize ?? const DesyPreviewStage().size,
     );
-    previewBezel.value = bezel;
+    previewDevice.value = device;
   }
 
   void updateStage(DesyPreviewStage next) => stage.value = next;
@@ -124,7 +111,7 @@ class DesyWorkbenchSession {
     activeThemeIndex.dispose();
     selectedScenario.dispose();
     selectedComponentInstance.dispose();
-    previewBezel.dispose();
+    previewDevice.dispose();
     knobValues.dispose();
     atlasQuery.dispose();
     fontSampleText.dispose();

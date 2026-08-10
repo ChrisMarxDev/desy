@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Scenario synthesis · Desy</title><link rel="stylesheet" href="../styles.css"></head>
+<body><main class="shell">
+  <nav><a href="index.html">← Feature index</a><span>Verification intelligence · Rank 9</span></nav>
+  <section class="hero"><div class="eyebrow">Constraint-aware coverage</div><h1>Generate the states that actually break UI.</h1><p class="lede">Use component contracts and typed knobs to propose a small, meaningful matrix across content, state, viewport, theme, locale, and text scale.</p><span class="pill">Impact 4/5</span><span class="pill">Complexity 4/5</span><span class="pill">Risk 3/5</span></section>
+  <section class="grid">
+    <article class="card"><h2>Reason and user value</h2><p>Agents often test the happy path they just built. Desy can systematically ask for long labels, empty data, errors, disabled actions, large text, dark theme, and narrow widths—without rendering every possible combination.</p></article>
+    <article class="card"><h2>Scope</h2><ul><li>Constraints and interesting-value hints on typed knobs.</li><li>Pairwise or risk-based scenario planning.</li><li>Named accessibility presets for text scale, contrast/theme, focus, and reduced motion.</li><li>CLI output that can feed golden and widget tests.</li><li>Coverage report showing declared, generated, skipped, and redundant states.</li></ul></article>
+    <article class="card"><h2>Non-goals</h2><ul><li>No exhaustive Cartesian product.</li><li>No fabricated business data in core.</li><li>No replacement for hand-authored semantic scenarios.</li><li>No automatic baseline acceptance.</li></ul></article>
+    <article class="card"><h2>Implementation sketch</h2><ol><li>Introduce optional knob-domain constraints and interesting values.</li><li>Generate a deterministic plan with a documented selection algorithm.</li><li>Let consumers approve or persist chosen scenarios in the registry.</li><li>Run approved states through golden, semantics, overflow, and exception checks.</li><li>Teach the agent skill to add missing high-risk scenarios.</li></ol></article>
+    <article class="card"><h2>Open questions</h2><ul><li>Should generated scenarios remain ephemeral or graduate into declarations?</li><li>How is risk weighted across component types?</li><li>Can Flutter semantics assertions be normalized across platforms?</li><li>How should sample data privacy be handled?</li></ul></article>
+    <article class="card accent"><h2>Do or don’t?</h2><p><strong>Do after golden recipes are deterministic.</strong> The feature’s value comes from selecting better inputs; it should reuse the test runner rather than invent another one.</p></article>
+  </section><footer>Offline concept artifact. No remote assets or runtime dependencies.</footer>
+</main></body></html>

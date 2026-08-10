@@ -10,11 +10,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_box_transform/flutter_box_transform.dart';
 import 'package:state_beacon/state_beacon.dart';
 
+import '../../device_preview.dart';
+import 'snapping/snap_engine.dart';
+import 'snapping/snap_models.dart';
+import 'snapping/snap_scene_index.dart';
+import 'snapping/snap_session.dart';
+
 /// The kind of local layer represented on a composition canvas.
 enum DesyCanvasNodeKind { component, artboard, layout }
-
-/// The small initial set of visual device bezels available in a composition.
-enum DesyCanvasArtboard { iPhone15Pro, iPadPro11 }
 
 /// Workbench-owned layout structures that can receive registry instances.
 ///
@@ -69,9 +72,11 @@ class DesyCanvasNode {
     required this.rect,
     Map<String, Object> knobValues = const {},
     this.parentLayoutId,
+    this.parentArtboardId,
     this.slotIndex,
     this.flip = Flip.none,
-  }) : kind = DesyCanvasNodeKind.component,
+  }) : assert(parentLayoutId == null || parentArtboardId == null),
+       kind = DesyCanvasNodeKind.component,
        artboard = null,
        layoutPreset = null,
        spacingEntryId = null,
@@ -89,6 +94,7 @@ class DesyCanvasNode {
        spacingEntryId = null,
        spacing = null,
        parentLayoutId = null,
+       parentArtboardId = null,
        slotIndex = null,
        knobValues = const {};
 
@@ -103,6 +109,7 @@ class DesyCanvasNode {
        instanceId = null,
        artboard = null,
        parentLayoutId = null,
+       parentArtboardId = null,
        slotIndex = null,
        knobValues = const {};
 
@@ -115,7 +122,7 @@ class DesyCanvasNode {
   final String? instanceId;
 
   /// Device frame rendered by a visual bezel node.
-  final DesyCanvasArtboard? artboard;
+  final DesyDevicePreset? artboard;
 
   /// The selected workbench layout contract for a structural canvas node.
   final DesyCanvasLayoutPreset? layoutPreset;
@@ -128,6 +135,9 @@ class DesyCanvasNode {
 
   /// Ephemeral parent structure for a component placed into a legal slot.
   final String? parentLayoutId;
+
+  /// Device artboard that owns this component's logical screen coordinates.
+  final String? parentArtboardId;
 
   /// Zero-based slot occupied inside [parentLayoutId].
   final int? slotIndex;
@@ -150,6 +160,7 @@ class DesyCanvasNode {
       rect: rect ?? this.rect,
       knobValues: knobValues ?? this.knobValues,
       parentLayoutId: parentLayoutId,
+      parentArtboardId: parentArtboardId,
       slotIndex: slotIndex,
       flip: flip ?? this.flip,
     ),
@@ -177,7 +188,34 @@ class DesyCanvasNode {
       rect: rect,
       knobValues: knobValues,
       parentLayoutId: layoutId,
+      parentArtboardId: null,
       slotIndex: slot,
+      flip: flip,
+    );
+  }
+
+  DesyCanvasNode placedInArtboard({
+    required String artboardId,
+    required Rect logicalRect,
+  }) {
+    if (!isComponent) return this;
+    return DesyCanvasNode.component(
+      id: id,
+      instanceId: instanceId!,
+      rect: logicalRect,
+      knobValues: knobValues,
+      parentArtboardId: artboardId,
+      flip: flip,
+    );
+  }
+
+  DesyCanvasNode detachedToCanvas(Rect canvasRect) {
+    if (!isComponent) return this;
+    return DesyCanvasNode.component(
+      id: id,
+      instanceId: instanceId!,
+      rect: canvasRect,
+      knobValues: knobValues,
       flip: flip,
     );
   }
@@ -195,11 +233,20 @@ class DesyCanvasNode {
 class DesyComponentsCanvasController with BeaconController {
   late final nodes = B.writable<Map<String, DesyCanvasNode>>({});
   late final selectedId = B.writable<String?>(null);
+  late final gridStep = B.writable<double>(8);
+  final activeSnapGuides = ValueNotifier<List<DesySnapGuide>>(const []);
   final _nodeSignals = <String, ValueNotifier<DesyCanvasNode>>{};
+  final _normalSizes = <String, Size>{};
   final _manuallySized = <String>{};
   final _externallySized = <String>{};
   var _nextNode = 0;
   Rect? _stageBounds;
+  DesySnapSession? _snapSession;
+  String? _snapNodeId;
+  DesySnapSceneIndex? _snapSceneIndex;
+  var _snapIndexDirty = true;
+
+  static const _snapEngine = DesySnapEngine();
 
   static const _autoFitMaximumSize = Size(1024, 768);
   static const _minimumAutoFitExtent = 8.0;
@@ -213,6 +260,63 @@ class DesyComponentsCanvasController with BeaconController {
       _nodeSignals[nodeId];
 
   DesyCanvasNode? nodeValue(String nodeId) => _nodeSignals[nodeId]?.value;
+
+  /// Precomputes the scene index while the canvas is idle.
+  ///
+  /// The stage calls this after committed layout changes. Gesture start keeps
+  /// a synchronous fallback for controllers used outside the mounted canvas.
+  void prepareSnapSceneIndex() {
+    if (_snapSession == null) _ensureSnapSceneIndex();
+  }
+
+  /// Updates the always-on pixel grid for this ephemeral Sketch session.
+  bool setGridStep(double value) {
+    if (!value.isFinite ||
+        value < 1 ||
+        value > 256 ||
+        value != value.roundToDouble()) {
+      return false;
+    }
+    if (gridStep.value == value) return true;
+    gridStep.value = value;
+    return true;
+  }
+
+  /// Starts a move/resize session over the precomputed element-anchor index.
+  void beginSnapInteraction(String activeNodeId, {double screenScale = 1}) {
+    _ensureSnapSceneIndex();
+    _snapSession = DesySnapSession(
+      index: _snapSceneIndex!,
+      configuration: DesySnapConfiguration(
+        gridStep: gridStep.value,
+        screenScale: screenScale,
+      ),
+      excludedTargetId: activeNodeId,
+    );
+    _snapNodeId = activeNodeId;
+    _setSnapGuides(const []);
+  }
+
+  /// Resolves one proposed geometry against the gesture snapshot.
+  DesySnapResult resolveSnap(
+    String nodeId,
+    DesySnapRequest request, {
+    double screenScale = 1,
+  }) {
+    if (_snapSession == null || _snapNodeId != nodeId) {
+      beginSnapInteraction(nodeId, screenScale: screenScale);
+    }
+    final result = _snapEngine.resolve(_snapSession!, request);
+    _setSnapGuides(result.guides);
+    return result;
+  }
+
+  void endSnapInteraction() {
+    _snapSession?.clear();
+    _snapSession = null;
+    _snapNodeId = null;
+    _setSnapGuides(const []);
+  }
 
   void setStageBounds(Rect bounds) {
     final previous = _stageBounds;
@@ -257,10 +361,12 @@ class DesyComponentsCanvasController with BeaconController {
     String instanceId, {
     Map<String, Object> knobValues = const {},
     Size? defaultSize,
+    Offset? center,
   }) {
     final index = nodes.value.length;
     final nodeId = '$instanceId#${_nextNode++}';
-    final selected = selectedId.value == null
+    final normalSize = defaultSize ?? const Size(220, 120);
+    final selected = center != null || selectedId.value == null
         ? null
         : nodes.value[selectedId.value];
     final layout = selected?.isLayout == true
@@ -269,17 +375,38 @@ class DesyComponentsCanvasController with BeaconController {
         ? null
         : nodes.value[selected!.parentLayoutId];
     final slot = layout == null ? null : _firstAvailableSlot(layout);
+    final artboard = slot == null
+        ? center == null
+              ? selected?.isArtboard == true
+                    ? selected
+                    : selected?.parentArtboardId == null
+                    ? null
+                    : nodes.value[selected!.parentArtboardId]
+              : _artboardAt(center)
+        : null;
+    final artboardRect = artboard == null
+        ? null
+        : _logicalRectInArtboard(artboard, center, normalSize, index);
     final node = DesyCanvasNode.component(
       id: nodeId,
       instanceId: instanceId,
       knobValues: knobValues,
       parentLayoutId: slot == null ? null : layout!.id,
+      parentArtboardId: artboard?.id,
       slotIndex: slot,
-      rect: _seedRect(
-        index,
-        defaultSize ?? const Size(220, 120),
-      ),
+      rect:
+          artboardRect ??
+          (center == null
+              ? _seedRect(index, normalSize)
+              : _clampPositionToStage(
+                  Rect.fromCenter(
+                    center: center,
+                    width: normalSize.width,
+                    height: normalSize.height,
+                  ),
+                )),
     );
+    _normalSizes[nodeId] = normalSize;
     _replaceNodes({...nodes.value, nodeId: node});
     selectedId.value = nodeId;
     return nodeId;
@@ -337,11 +464,11 @@ class DesyComponentsCanvasController with BeaconController {
         spacing: spacing,
         flip: node.flip,
       ),
-    });
+    }, snapGeometryChanged: false);
   }
 
   /// Adds a device frame as one regular, selectable canvas layer.
-  String addArtboard(DesyCanvasArtboard artboard) {
+  String addArtboard(DesyDevicePreset artboard) {
     final index = nodes.value.length;
     final nodeId = 'artboard.${artboard.name}#${_nextNode++}';
     final device = DesyCanvasGeometry.deviceFor(artboard);
@@ -364,6 +491,7 @@ class DesyComponentsCanvasController with BeaconController {
         ),
       ),
     );
+    _normalSizes[nodeId] = size;
     _replaceNodes({...nodes.value, nodeId: node});
     selectedId.value = nodeId;
     return nodeId;
@@ -377,7 +505,10 @@ class DesyComponentsCanvasController with BeaconController {
     if (current.rect != node.rect) {
       _externallySized.add(node.id);
     }
-    _replaceNodes({...nodes.value, node.id: node});
+    _replaceNodes({
+      ...nodes.value,
+      node.id: node,
+    }, snapGeometryChanged: current.rect != node.rect);
   }
 
   /// Publishes interaction geometry to one node without rebuilding listeners
@@ -390,17 +521,79 @@ class DesyComponentsCanvasController with BeaconController {
 
   /// Stores the final interaction geometry in both the node signal and the
   /// committed collection.
-  void commitInteraction(DesyCanvasNode node) {
+  void commitInteraction(DesyCanvasNode node, {bool attachToArtboard = true}) {
     if (!nodes.value.containsKey(node.id)) return;
+    var committed = node;
+    if (attachToArtboard &&
+        node.isComponent &&
+        node.parentLayoutId == null &&
+        node.parentArtboardId == null) {
+      final artboard = _artboardAt(node.rect.center);
+      if (artboard != null) {
+        committed = node.placedInArtboard(
+          artboardId: artboard.id,
+          logicalRect: _canvasRectToLogical(node.rect, artboard),
+        );
+      }
+    }
     declareManual(node.id);
-    _replaceNodes({...nodes.value, node.id: node});
+    _replaceNodes({...nodes.value, node.id: committed});
   }
 
   void select(String? componentId) => selectedId.value = componentId;
 
+  /// Moves the selected free component by one keyboard increment.
+  ///
+  /// Components assigned to layout slots remain owned by that layout and do
+  /// not have independent canvas coordinates to move.
+  bool moveSelectedBy(Offset delta) {
+    final nodeId = selectedId.value;
+    final node = nodeId == null ? null : nodes.value[nodeId];
+    if (node == null || !node.isComponent || node.parentLayoutId != null) {
+      return false;
+    }
+    final artboard = node.parentArtboardId == null
+        ? null
+        : nodes.value[node.parentArtboardId];
+    final rect = artboard == null
+        ? _clampPositionToStage(node.rect.shift(delta))
+        : _clampToLogicalScreen(
+            node.rect.shift(delta),
+            artboard.artboard!.screenSize,
+          );
+    if (rect == node.rect) return true;
+    _replaceNodes({...nodes.value, node.id: node.copyWith(rect: rect)});
+    return true;
+  }
+
   /// Marks a node as manually sized so content-based auto-fitting stops
   /// competing with the user's own drag-box geometry once they resize it.
   void declareManual(String nodeId) => _manuallySized.add(nodeId);
+
+  /// Restores a component or bezel to the size it had before manual resizing.
+  bool resetToNormalSize(String nodeId) {
+    final node = nodes.value[nodeId];
+    final normalSize = _normalSizes[nodeId];
+    if (node == null || normalSize == null || node.isLayout) return false;
+    final candidate = Rect.fromLTWH(
+      node.rect.left,
+      node.rect.top,
+      normalSize.width,
+      normalSize.height,
+    );
+    final parentArtboard = node.parentArtboardId == null
+        ? null
+        : nodes.value[node.parentArtboardId];
+    final rect = node.isArtboard
+        ? _clampFrameToStage(candidate)
+        : parentArtboard != null
+        ? _clampToLogicalScreen(candidate, parentArtboard.artboard!.screenSize)
+        : _clampPositionToStage(candidate);
+    _manuallySized.remove(nodeId);
+    _externallySized.remove(nodeId);
+    _replaceNodes({...nodes.value, nodeId: node.copyWith(rect: rect)});
+    return true;
+  }
 
   /// Fits a component node's drag box to its content's natural size.
   ///
@@ -409,8 +602,7 @@ class DesyComponentsCanvasController with BeaconController {
   /// widget that filled the loose measurement pass has no intrinsic size;
   /// those stay at the placeholder so full-bleed components do not explode.
   void fitToContent(String nodeId, Size size) {
-    if (_manuallySized.contains(nodeId) ||
-        _externallySized.contains(nodeId)) {
+    if (_manuallySized.contains(nodeId) || _externallySized.contains(nodeId)) {
       return;
     }
     final node = nodes.value[nodeId];
@@ -426,7 +618,14 @@ class DesyComponentsCanvasController with BeaconController {
         ? _minimumAutoFitExtent
         : size.height;
     final rect = node.rect;
-    final fitted = Rect.fromLTWH(rect.left, rect.top, width, height);
+    final candidate = Rect.fromLTWH(rect.left, rect.top, width, height);
+    final parentArtboard = node.parentArtboardId == null
+        ? null
+        : nodes.value[node.parentArtboardId];
+    final fitted = parentArtboard == null
+        ? candidate
+        : _clampToLogicalScreen(candidate, parentArtboard.artboard!.screenSize);
+    _normalSizes[nodeId] = candidate.size;
     if (fitted == rect) return;
     // Settle via the node collection directly rather than update(), so the fit
     // is not itself treated as external sizing and can keep following content.
@@ -441,18 +640,28 @@ class DesyComponentsCanvasController with BeaconController {
 
   void remove(String nodeId) {
     if (!nodes.value.containsKey(nodeId)) return;
+    if (_snapNodeId == nodeId) endSnapInteraction();
     final next = Map<String, DesyCanvasNode>.from(nodes.value)..remove(nodeId);
-    next.removeWhere((_, node) => node.parentLayoutId == nodeId);
+    next.removeWhere(
+      (_, node) =>
+          node.parentLayoutId == nodeId || node.parentArtboardId == nodeId,
+    );
+    final removedIds = nodes.value.keys
+        .where((candidate) => !next.containsKey(candidate))
+        .toSet();
     _replaceNodes(next);
-    _manuallySized.remove(nodeId);
-    _externallySized.remove(nodeId);
+    _normalSizes.removeWhere((candidate, _) => removedIds.contains(candidate));
+    _manuallySized.removeWhere(removedIds.contains);
+    _externallySized.removeWhere(removedIds.contains);
     if (selectedId.value == nodeId || !next.containsKey(selectedId.value)) {
       selectedId.value = null;
     }
   }
 
   void clear() {
+    endSnapInteraction();
     _replaceNodes({});
+    _normalSizes.clear();
     _manuallySized.clear();
     _externallySized.clear();
     selectedId.value = null;
@@ -460,6 +669,8 @@ class DesyComponentsCanvasController with BeaconController {
 
   @override
   void dispose() {
+    endSnapInteraction();
+    activeSnapGuides.dispose();
     for (final signal in _nodeSignals.values) {
       signal.dispose();
     }
@@ -467,7 +678,32 @@ class DesyComponentsCanvasController with BeaconController {
     super.dispose();
   }
 
-  void _replaceNodes(Map<String, DesyCanvasNode> next) {
+  void _setSnapGuides(List<DesySnapGuide> guides) {
+    final previous = activeSnapGuides.value;
+    if (_sameGuides(previous, guides)) return;
+    activeSnapGuides.value = List.unmodifiable(guides);
+  }
+
+  bool _sameGuides(List<DesySnapGuide> a, List<DesySnapGuide> b) {
+    if (a.length != b.length) return false;
+    for (var index = 0; index < a.length; index++) {
+      final left = a[index];
+      final right = b[index];
+      if (left.axis != right.axis ||
+          left.coordinate != right.coordinate ||
+          left.start != right.start ||
+          left.end != right.end ||
+          !listEquals(left.targetIds, right.targetIds)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void _replaceNodes(
+    Map<String, DesyCanvasNode> next, {
+    bool snapGeometryChanged = true,
+  }) {
     final removedIds = _nodeSignals.keys
         .where((nodeId) => !next.containsKey(nodeId))
         .toList(growable: false);
@@ -483,6 +719,31 @@ class DesyComponentsCanvasController with BeaconController {
       }
     }
     nodes.value = next;
+    if (snapGeometryChanged) _invalidateSnapSceneIndex();
+  }
+
+  void _invalidateSnapSceneIndex() {
+    _snapIndexDirty = true;
+  }
+
+  void _ensureSnapSceneIndex() {
+    if (_snapIndexDirty || _snapSceneIndex == null) {
+      _rebuildSnapSceneIndex();
+    }
+  }
+
+  void _rebuildSnapSceneIndex() {
+    final targets = nodes.value.values
+        .where(
+          (node) =>
+              node.parentLayoutId == null &&
+              node.parentArtboardId == null &&
+              node.rect.width > 0 &&
+              node.rect.height > 0,
+        )
+        .map((node) => DesySnapTarget(id: node.id, rect: node.rect));
+    _snapSceneIndex = DesySnapSceneIndex(targets);
+    _snapIndexDirty = false;
   }
 
   double _initialFrameHeight(DeviceInfo device) {
@@ -518,6 +779,130 @@ class DesyComponentsCanvasController with BeaconController {
     return null;
   }
 
+  DesyCanvasNode? _artboardAt(Offset canvasPoint) {
+    for (final node in nodes.value.values.toList().reversed) {
+      if (!node.isArtboard) continue;
+      final screen = DesyDeviceGeometry.screenRectInFrame(
+        node.rect,
+        node.artboard!,
+      );
+      if (screen.contains(canvasPoint)) return node;
+    }
+    return null;
+  }
+
+  Rect _logicalRectInArtboard(
+    DesyCanvasNode artboard,
+    Offset? canvasCenter,
+    Size componentSize,
+    int index,
+  ) {
+    final device = artboard.artboard!;
+    final screenSize = device.screenSize;
+    final center = canvasCenter == null
+        ? Offset(
+            screenSize.width / 2 + (index % 3) * 12,
+            screenSize.height / 2 + (index % 3) * 12,
+          )
+        : _canvasPointToLogical(canvasCenter, artboard);
+    return _clampToLogicalScreen(
+      Rect.fromCenter(
+        center: center,
+        width: componentSize.width,
+        height: componentSize.height,
+      ),
+      screenSize,
+    );
+  }
+
+  Offset _canvasPointToLogical(Offset point, DesyCanvasNode artboard) {
+    final preset = artboard.artboard!;
+    final screen = DesyDeviceGeometry.screenRectInFrame(artboard.rect, preset);
+    if (screen.width <= 0 || screen.height <= 0) return Offset.zero;
+    return Offset(
+      (point.dx - screen.left) * preset.screenSize.width / screen.width,
+      (point.dy - screen.top) * preset.screenSize.height / screen.height,
+    );
+  }
+
+  Rect _canvasRectToLogical(Rect rect, DesyCanvasNode artboard) {
+    final preset = artboard.artboard!;
+    final screen = DesyDeviceGeometry.screenRectInFrame(artboard.rect, preset);
+    if (screen.width <= 0 || screen.height <= 0) return Rect.zero;
+    final scale = screen.width / preset.screenSize.width;
+    return _clampToLogicalScreen(
+      Rect.fromLTWH(
+        (rect.left - screen.left) / scale,
+        (rect.top - screen.top) / scale,
+        rect.width / scale,
+        rect.height / scale,
+      ),
+      preset.screenSize,
+    );
+  }
+
+  Rect _clampToLogicalScreen(Rect rect, Size screenSize) {
+    final width = rect.width.clamp(0.0, screenSize.width).toDouble();
+    final height = rect.height.clamp(0.0, screenSize.height).toDouble();
+    return Rect.fromLTWH(
+      rect.left.clamp(0.0, screenSize.width - width).toDouble(),
+      rect.top.clamp(0.0, screenSize.height - height).toDouble(),
+      width,
+      height,
+    );
+  }
+
+  /// Commits a component interaction inside one functional device artboard.
+  ///
+  /// Dragging the component's center outside the logical screen detaches it
+  /// onto the Sketch canvas while preserving its displayed geometry.
+  void commitArtboardChildInteraction(
+    DesyCanvasNode node,
+    DesyCanvasNode artboard,
+  ) {
+    if (!node.isComponent || node.parentArtboardId != artboard.id) return;
+    final logicalBounds = Offset.zero & artboard.artboard!.screenSize;
+    if (logicalBounds.contains(node.rect.center)) {
+      commitInteraction(
+        node.copyWith(
+          rect: _clampToLogicalScreen(node.rect, logicalBounds.size),
+        ),
+      );
+      return;
+    }
+    _detachArtboardChild(node, artboard);
+  }
+
+  /// Moves an artboard-owned component back to the free Sketch canvas.
+  bool detachFromArtboard(String nodeId) {
+    final node = nodes.value[nodeId];
+    final artboard = node?.parentArtboardId == null
+        ? null
+        : nodes.value[node!.parentArtboardId];
+    if (node == null || artboard == null || !artboard.isArtboard) return false;
+    _detachArtboardChild(node, artboard);
+    return true;
+  }
+
+  void _detachArtboardChild(DesyCanvasNode node, DesyCanvasNode artboard) {
+    final preset = artboard.artboard!;
+    final screen = DesyDeviceGeometry.screenRectInFrame(artboard.rect, preset);
+    final logicalSize = preset.screenSize;
+    final scale = logicalSize.width <= 0
+        ? 1.0
+        : screen.width / logicalSize.width;
+    final canvasRect = Rect.fromLTWH(
+      screen.left + node.rect.left * scale,
+      screen.top + node.rect.top * scale,
+      node.rect.width * scale,
+      node.rect.height * scale,
+    );
+    commitInteraction(
+      node.detachedToCanvas(_clampPositionToStage(canvasRect)),
+      attachToArtboard: false,
+    );
+  }
+
   Rect _fitRectToStage(Rect rect) {
     final bounds = _stageBounds;
     if (bounds == null || !_hasPositiveExtent(bounds)) return _finiteRect(rect);
@@ -533,6 +918,18 @@ class DesyComponentsCanvasController with BeaconController {
       size.width,
       size.height,
     );
+  }
+
+  Rect _clampPositionToStage(Rect rect) {
+    final bounds = _stageBounds;
+    if (bounds == null || !_hasPositiveExtent(bounds)) return _finiteRect(rect);
+    final left = rect.width <= bounds.width
+        ? rect.left.clamp(bounds.left, bounds.right - rect.width).toDouble()
+        : bounds.left;
+    final top = rect.height <= bounds.height
+        ? rect.top.clamp(bounds.top, bounds.bottom - rect.height).toDouble()
+        : bounds.top;
+    return Rect.fromLTWH(left, top, rect.width, rect.height);
   }
 
   Rect _clampFrameToStage(Rect rect) {
@@ -598,11 +995,7 @@ class DesyComponentsCanvasController with BeaconController {
 /// Coordinate conversions shared by painting, hit testing, and controller
 /// updates. An artboard's scene rect is always the physical frame rectangle.
 class DesyCanvasGeometry {
-  static DeviceInfo deviceFor(DesyCanvasArtboard artboard) =>
-      switch (artboard) {
-        DesyCanvasArtboard.iPhone15Pro => Devices.ios.iPhone15Pro,
-        DesyCanvasArtboard.iPadPro11 => Devices.ios.iPadPro11Inches,
-      };
+  static DeviceInfo deviceFor(DesyDevicePreset artboard) => artboard.device;
 
   static Rect lockFrameAspect(
     DesyCanvasNode artboard,

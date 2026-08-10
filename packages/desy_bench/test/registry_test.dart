@@ -120,6 +120,24 @@ void main() {
 
     expect(extension.icon, isNull);
     expect(extension.description, isNull);
+    expect(
+      extension.presentation,
+      DesyWorkspaceExtensionPresentation.workbench,
+    );
+  });
+
+  test('workspace extension can opt into a standalone screen', () {
+    final extension = DesyWorkspaceExtension.builder(
+      id: 'focused-tool',
+      name: 'Focused tool',
+      presentation: DesyWorkspaceExtensionPresentation.standalone,
+      builder: (context, extension) => const SizedBox(),
+    );
+
+    expect(
+      extension.presentation,
+      DesyWorkspaceExtensionPresentation.standalone,
+    );
   });
 
   test('component paths derive groups while effects stay registry-level', () {
@@ -326,7 +344,10 @@ void main() {
     expect(component.contract?.properties, hasLength(1));
     expect(() => effect.shadows.clear(), throwsUnsupportedError);
     expect(() => component.scenarios.clear(), throwsUnsupportedError);
-    expect(() => component.contract!.properties.clear(), throwsUnsupportedError);
+    expect(
+      () => component.contract!.properties.clear(),
+      throwsUnsupportedError,
+    );
   });
 
   testWidgets('box-shadow effects decorate the supplied widget', (
@@ -375,16 +396,54 @@ void main() {
         enabled: k.boolean('enabled', initial: true),
       ),
       build: (context, knobs) => Text(knobs.title.value),
-      instances: (knobs) => {'default': [knobs.title('Activity')]},
+      instances: (knobs) => {
+        'default': [knobs.title('Activity')],
+      },
     );
 
     final ids = component.knobDefinitions.map((d) => d.id).toList();
     expect(ids, ['title', 'enabled']);
     expect(component.instanceIds, ['default']);
     expect(
-      component.knobDefinitions
-          .where((d) => d.kind == DesyKnobKind.widgetInstance),
+      component.knobDefinitions.where(
+        (d) => d.kind == DesyKnobKind.widgetInstance,
+      ),
       isEmpty,
+    );
+  });
+
+  test('knob definitions freeze caller-owned option lists', () {
+    final options = <String>['status.clear'];
+    final definition = KnobDefinition<DesyInstanceId>(
+      id: 'status',
+      name: 'Status',
+      kind: DesyKnobKind.widgetInstance,
+      initial: const DesyInstanceId('status.clear'),
+      options: options,
+    );
+
+    options.add('status.delayed');
+
+    expect(definition.options, ['status.clear']);
+    expect(
+      () => definition.options.add('status.dropped'),
+      throwsUnsupportedError,
+    );
+  });
+
+  test('component declaration rejects duplicate widget-instance knob IDs', () {
+    expect(
+      () => DesyComponent(
+        id: 'trail.tile',
+        name: 'Tile',
+        knobs: (k) => (
+          leading: k.widgetInstance('slot', initial: 'status.clear'),
+          trailing: k.widgetInstance('slot', initial: 'status.clear'),
+        ),
+        build: (context, knobs) => const SizedBox(),
+        instances: (knobs) => const <String, List<KnobSettingBase>>{},
+      ),
+      throwsArgumentError,
     );
   });
 
@@ -398,7 +457,9 @@ void main() {
       ),
       build: (context, knobs) =>
           Text('${knobs.title.value}:${knobs.suffix.value.value}'),
-      instances: (knobs) => {'default': [knobs.suffix('status.clear')]},
+      instances: (knobs) => {
+        'default': [knobs.suffix('status.clear')],
+      },
     );
 
     final suffix = component.knobDefinitions.firstWhere(
@@ -412,11 +473,12 @@ void main() {
     final component = DesyComponent(
       id: 'card',
       name: 'Card',
-      knobs: (k) => (
-        trailing: k.widgetInstance('trailing', initial: 'status.missing'),
-      ),
+      knobs: (k) =>
+          (trailing: k.widgetInstance('trailing', initial: 'status.missing')),
       build: (context, knobs) => Text(knobs.trailing.value.value),
-      instances: (knobs) => {'default': [knobs.trailing('status.missing')]},
+      instances: (knobs) => {
+        'default': [knobs.trailing('status.missing')],
+      },
     );
     final registry = DesyRegistry(
       name: 'Broken swap',
@@ -432,13 +494,179 @@ void main() {
     expect(issue.severity, DesyRegistryValidationSeverity.warning);
   });
 
+  test('registry validation includes default widget-instance references', () {
+    final component = DesyComponent(
+      id: 'card',
+      name: 'Card',
+      knobs: (k) =>
+          (trailing: k.widgetInstance('trailing', initial: 'status.missing')),
+      build: (context, knobs) => knobs.trailing.widget,
+      instances: (knobs) => const <String, List<KnobSettingBase>>{},
+    );
+    final registry = DesyRegistry(
+      name: 'Broken default',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [component],
+    );
+
+    final issue = registry.validate().single;
+
+    expect(issue.id, 'status.missing');
+    expect(issue.message, contains('default preview'));
+    expect(issue.severity, DesyRegistryValidationSeverity.warning);
+  });
+
+  test(
+    'component declaration rejects widget-instance values outside options',
+    () {
+      expect(
+        () => DesyComponent(
+          id: 'card',
+          name: 'Card',
+          knobs: (k) => (
+            trailing: k.widgetInstance(
+              'trailing',
+              initial: 'status.clear',
+              options: const ['status.clear'],
+            ),
+          ),
+          build: (context, knobs) => knobs.trailing.widget,
+          instances: (knobs) => {
+            'delayed': [knobs.trailing('status.delayed')],
+          },
+        ),
+        throwsArgumentError,
+      );
+    },
+  );
+
+  test('component declaration rejects duplicate widget-instance options', () {
+    expect(
+      () => DesyComponent(
+        id: 'card',
+        name: 'Card',
+        knobs: (k) => (
+          trailing: k.widgetInstance(
+            'trailing',
+            initial: 'status.clear',
+            options: const ['status.clear', 'status.clear'],
+          ),
+        ),
+        build: (context, knobs) => knobs.trailing.widget,
+        instances: (knobs) => const <String, List<KnobSettingBase>>{},
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  test('registry validation includes every widget-instance option', () {
+    final component = DesyComponent(
+      id: 'card',
+      name: 'Card',
+      knobs: (k) => (
+        trailing: k.widgetInstance(
+          'trailing',
+          initial: 'status.clear',
+          options: const ['status.clear', 'status.missing'],
+        ),
+      ),
+      build: (context, knobs) => knobs.trailing.widget,
+      instances: (knobs) => const <String, List<KnobSettingBase>>{},
+    );
+    final registry = DesyRegistry(
+      name: 'Broken option',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [
+        DesyStaticComponent(
+          id: 'status',
+          name: 'Status',
+          instances: {'clear': _emptyPreview},
+        ),
+        component,
+      ],
+    );
+
+    final issue = registry.validate().single;
+
+    expect(issue.id, 'status.missing');
+    expect(issue.message, contains('knob "trailing" option'));
+  });
+
+  test('component declaration rejects repeated overrides for one knob', () {
+    expect(
+      () => DesyComponent(
+        id: 'card',
+        name: 'Card',
+        knobs: (k) => (title: k.string('title', initial: 'Activity')),
+        build: (context, knobs) => Text(knobs.title.value),
+        instances: (knobs) => {
+          'runs': [knobs.title('Runs'), knobs.title('Running')],
+        },
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  testWidgets('live knob values respect types and widget-instance options', (
+    tester,
+  ) async {
+    final component = DesyComponent(
+      id: 'card',
+      name: 'Card',
+      knobs: (k) => (
+        title: k.string('title', initial: 'Activity'),
+        trailing: k.widgetInstance(
+          'trailing',
+          initial: 'status.clear',
+          options: const ['status.clear'],
+        ),
+      ),
+      build: (context, knobs) => Text(knobs.title.value),
+      instances: (knobs) => const <String, List<KnobSettingBase>>{},
+    );
+    final registry = DesyRegistry(
+      name: 'Live values',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [
+        DesyStaticComponent(
+          id: 'status',
+          name: 'Status',
+          instances: {'clear': _emptyPreview, 'delayed': _emptyPreview},
+        ),
+        component,
+      ],
+    );
+    await tester.pumpWidget(
+      const Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(key: ValueKey('context')),
+      ),
+    );
+    final context = tester.element(find.byKey(const ValueKey('context')));
+
+    expect(
+      () => component.buildWithValues(context, const {
+        'trailing': 'status.delayed',
+      }, widgets: registry.widgetBuilder),
+      throwsArgumentError,
+    );
+    expect(
+      () => component.buildWithValues(context, const {
+        'title': false,
+      }, widgets: registry.widgetBuilder),
+      throwsArgumentError,
+    );
+  });
+
   test('component declaration rejects overrides from another component', () {
     final other = DesyComponent(
       id: 'other',
       name: 'Other',
       knobs: (k) => (title: k.string('title', initial: 'x')),
       build: (context, knobs) => Text(knobs.title.value),
-      instances: (knobs) => {'default': [knobs.title('x')]},
+      instances: (knobs) => {
+        'default': [knobs.title('x')],
+      },
     );
     final foreignSetting = other.instances['default']!.single;
 
@@ -448,7 +676,9 @@ void main() {
         name: 'Card',
         knobs: (k) => (body: k.string('body', initial: 'b')),
         build: (context, knobs) => Text(knobs.body.value),
-        instances: (knobs) => {'default': [foreignSetting]},
+        instances: (knobs) => {
+          'default': [foreignSetting],
+        },
       ),
       throwsArgumentError,
     );
@@ -480,9 +710,12 @@ void main() {
         DesyComponent(
           id: 'button.primary',
           name: 'Primary button',
-          knobs: (k) => (label: k.string('label', name: 'Label', initial: 'Save')),
+          knobs: (k) =>
+              (label: k.string('label', name: 'Label', initial: 'Save')),
           build: (context, knobs) => Text(knobs.label.value),
-          instances: (knobs) => {'primary': [knobs.label('Save')]},
+          instances: (knobs) => {
+            'primary': [knobs.label('Save')],
+          },
         ),
       ],
     );
@@ -553,7 +786,9 @@ void main() {
       name: 'Action',
       knobs: (k) => (label: k.string('label', initial: 'Do it')),
       build: (context, knobs) => Text(knobs.label.value),
-      instances: (knobs) => {'default': [knobs.label('Do it')]},
+      instances: (knobs) => {
+        'default': [knobs.label('Do it')],
+      },
     );
     final registry = DesyRegistry(
       name: 'Instances',
@@ -580,7 +815,9 @@ void main() {
       name: 'Status',
       knobs: (k) => (label: k.string('label', name: 'Label', initial: 'Clear')),
       build: (context, knobs) => Text(knobs.label.value),
-      instances: (knobs) => {'delayed': [knobs.label('Delayed')]},
+      instances: (knobs) => {
+        'delayed': [knobs.label('Delayed')],
+      },
     );
     final registry = DesyRegistry(
       name: 'Resolved swap',

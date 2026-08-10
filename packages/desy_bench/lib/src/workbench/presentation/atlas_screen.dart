@@ -311,15 +311,20 @@ class _AtlasCard extends StatelessWidget {
           path: entry.path,
           identifier: entry.id,
           preview: ClipRect(
-            child: Center(
-              child: DesyFittedPreview(
-                // The consumer widget is measured at its true natural size
-                // where possible; the completed preview then scales down for
-                // this card. Greedy widgets fall back to a capped pass.
-                child: DesyWidgetPreview(
-                  theme: theme,
-                  builder: previewBuilder,
-                  withThemeBackground: true,
+            child: DesyWidgetPreview(
+              theme: theme,
+              builder: (previewContext) => ColoredBox(
+                color:
+                    theme.previewBackgroundColor ??
+                    Theme.of(previewContext).scaffoldBackgroundColor,
+                child: Center(
+                  child: DesyFittedPreview(
+                    // Measure only the consumer widget at its true natural
+                    // size. The full-card theme background must stay outside
+                    // this fitted subtree or its empty canvas scales compact
+                    // components down with it.
+                    child: Builder(builder: previewBuilder),
+                  ),
                 ),
               ),
             ),
