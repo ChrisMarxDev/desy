@@ -104,6 +104,41 @@ void main() {
     expect(calls, 1);
   });
 
+  testWidgets('annotation ledger can collapse without losing its draft', (
+    tester,
+  ) async {
+    final extension = DesyAgentAnnotationsExtension(
+      onSubmit: (annotation) async =>
+          const DesyAgentAnnotationReceipt(message: 'Saved.'),
+    );
+    await tester.pumpWidget(_harness(extension));
+
+    final field = find.byKey(const ValueKey('agent-annotation-comment'));
+    await tester.enterText(field, 'Keep this attached note');
+    await tester.pump();
+    expect(find.text('Draft'), findsOneWidget);
+    final item = find.byKey(const ValueKey('agent-annotation-ledger-item'));
+    final expandedHeight = tester.getSize(item).height;
+
+    await tester.tap(find.text('Primary button'));
+    await tester.pumpAndSettle();
+    final collapsedHeight = tester.getSize(item).height;
+    expect(collapsedHeight, lessThan(expandedHeight));
+
+    await tester.tap(find.text('Primary button'));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(item).height, greaterThan(collapsedHeight));
+    expect(
+      tester
+          .widget<EditableText>(
+            find.descendant(of: field, matching: find.byType(EditableText)),
+          )
+          .controller
+          .text,
+      'Keep this attached note',
+    );
+  });
+
   testWidgets(
     'success snapshots context, shows Uri receipt, and clears draft',
     (tester) async {
@@ -291,7 +326,10 @@ void main() {
     await tester.pumpWidget(_harness(extension, textScale: 2.4));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Comment for agent'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('agent-annotation-comment')),
+      findsOneWidget,
+    );
     expect(find.bySemanticsLabel('Send annotation to agent'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('agent-annotation-composer')),

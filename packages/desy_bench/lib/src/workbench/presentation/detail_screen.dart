@@ -716,7 +716,7 @@ class DesyPreviewCanvas extends StatelessWidget {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: context.theme.colors.primary.withValues(
+                        color: context.theme.colors.desy.signal.withValues(
                           alpha: .48,
                         ),
                       ),

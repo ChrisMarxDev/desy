@@ -30,6 +30,9 @@ abstract final class DesyIcons {
   /// A generic registered component.
   static const IconData component = FLucideIcons.component;
 
+  /// Select a precise point or widget on a canvas.
+  static const IconData crosshair = FLucideIcons.crosshair;
+
   /// A registry folder.
   static const IconData folder = FLucideIcons.folder;
 
@@ -41,6 +44,9 @@ abstract final class DesyIcons {
 
   /// Layered content or showcases.
   static const IconData layers = FLucideIcons.layers;
+
+  /// A compact feedback or annotation action.
+  static const IconData messageSquare = FLucideIcons.messageSquare;
 
   /// The catalogue Atlas.
   static const IconData layoutGrid = FLucideIcons.layoutGrid;
@@ -80,6 +86,9 @@ abstract final class DesyIcons {
 
   /// Typography foundations.
   static const IconData type = FLucideIcons.type;
+
+  /// Close or dismiss a compact surface.
+  static const IconData x = FLucideIcons.x;
 
   /// Screenshot capture workspace.
   static const IconData camera = FLucideIcons.camera;

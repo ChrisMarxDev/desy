@@ -1,6 +1,7 @@
 import 'workshop_candidate.dart';
 import 'workshop_runtime.dart';
 
+/// Creates a preview-only runtime on platforms without local processes.
 DesyWorkshopRuntime createDesyWorkshopRuntime(
   DesyWidgetWorkshopConfiguration configuration,
 ) => _UnsupportedWorkshopRuntime(configuration);
@@ -28,6 +29,9 @@ class _UnsupportedWorkshopRuntime extends DesyWorkshopRuntime {
   List<String> get logs => _logs;
 
   @override
+  String? get sessionId => null;
+
+  @override
   void setPrompt(String value) {
     _prompt = value;
     notifyListeners();
@@ -37,6 +41,7 @@ class _UnsupportedWorkshopRuntime extends DesyWorkshopRuntime {
   Future<void> run({
     required List<DesyWorkshopCandidate> candidates,
     required Set<String> selectedCandidateIds,
+    required List<DesyWorkshopAnnotation> annotations,
   }) async {}
 
   @override

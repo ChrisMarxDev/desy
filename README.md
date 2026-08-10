@@ -117,8 +117,8 @@ never makes overflowing content scroll on its own.
 - `packages/desy_bench/` — registry contracts and reusable workbench.
 - `packages/desy_design_system/` — Desy's Forui-based workbench UI and dogfood
   executable.
-- `packages/extensions/` — optional annotation, screenshot-builder, and beta
-  local JSON-prototype packages; these are not part of the core.
+- `packages/extensions/` — optional annotation, screenshot-builder, and
+  hot-reload Workshop packages; these are not part of the core.
 - [`dev.md`](dev.md) — the single contributor guide.
 - [`CORE_PRINCIPLES.md`](CORE_PRINCIPLES.md) — product and architecture
   decision gate.

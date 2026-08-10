@@ -202,7 +202,9 @@ class _DesyDragBoxState extends State<DesyDragBox> {
                   color: context.theme.colors.background,
                   borderRadius: BorderRadius.circular(1),
                   border: Border.all(
-                    color: context.theme.colors.primary.withValues(alpha: .62),
+                    color: context.theme.colors.desy.signal.withValues(
+                      alpha: .62,
+                    ),
                     width: 1,
                   ),
                 ),
@@ -215,7 +217,9 @@ class _DesyDragBoxState extends State<DesyDragBox> {
                 length: 6,
                 thickness: 6,
                 decoration: BoxDecoration(
-                  color: context.theme.colors.primary.withValues(alpha: .62),
+                  color: context.theme.colors.desy.signal.withValues(
+                    alpha: .62,
+                  ),
                   borderRadius: BorderRadius.circular(1),
                 ),
               ),
@@ -383,14 +387,14 @@ class DesyDragBoxLabel extends StatelessWidget {
     final colors = context.theme.colors;
     final textStyle = Theme.of(
       context,
-    ).textTheme.labelSmall?.copyWith(color: colors.primaryForeground);
+    ).textTheme.labelSmall?.copyWith(color: colors.desy.onSignal);
     return IgnorePointer(
       child: Semantics(
         label:
             '$identifier, selection size ${size.width.round()} by ${size.height.round()} pixels',
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: colors.primary,
+            color: colors.desy.signal,
             borderRadius: BorderRadius.circular(4),
           ),
           child: Padding(

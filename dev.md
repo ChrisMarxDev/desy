@@ -20,7 +20,7 @@ theme. Render at the intended logical dimensions, then scale the completed
 preview inside the canvas. Do not force compact constraints onto the widget.
 
 Preview vocabulary and behavior are shared across component details, Sketch,
-and JSON prototypes:
+and Workshop candidates:
 
 - **Canvas** is Desy's workspace around previews; it is not part of the app.
 - **Drag box** is the workbench interaction boundary.
@@ -38,6 +38,14 @@ workbench never injects either behavior.
 directly. `desy_bench` and packages under `packages/extensions/` consume its
 public controls and theme surface. Editable text uses the centralized native
 `DesyTextField` exception described in `CORE_PRINCIPLES.md`.
+
+The Desy theme translates the committed Registry Spine visual language onto
+Forui rather than mixing in another Flutter UI package. Primary actions remain
+neutral black; `DesyVisualColors.signal` is reserved for focus, selection,
+inspection, and annotation; positive green communicates runtime health. Light
+workbench surfaces are white with one-pixel neutral structural dividers,
+compact radii, and bundled Roboto typography. Screens and extensions consume
+these semantic tokens instead of declaring local signal colors.
 
 ## Registry organization
 
@@ -106,6 +114,13 @@ Workspace contains Atlas, Sketch, AI prompts, and installed screen extensions.
 Atoms lists only non-empty typed lanes; Components retains its file tree;
 Showcases lists compositions.
 
+The planned Registry Spine shell keeps this live navigation visible while the
+center moves between Atlas inspection and real-Dart construction. A compact
+Sessions frame may occupy the bottom of the spine, but it is session history,
+not a second registry or full-height navigation model. The right rail owns the
+current resumable agent conversation and structured activity. One shell-owned
+annotation service spans all routed surfaces.
+
 ## Extensions
 
 Optional packages live under `packages/extensions/` to keep the core boundary
@@ -122,17 +137,13 @@ navigation system.
   authentication, and external integrations.
 - `desy_screenshot_builder` is an experimental workspace extension proving the
   screen-extension boundary; it is not a persistence format.
-- `desy_surface_browser` is a contained beta workspace extension that selects a
-  local folder, recursively lists `*.desy.json` files, watches desktop changes,
-  and renders valid files through `DesySurfacePreview`. It is read-only and
-  owns no component inventory.
-- `desy_widget_workshop` is an experimental workspace extension for reviewing
-  successive rounds of real Flutter widget prototypes as continuous local
-  journeys. Its standalone screen owns a chat-style sidebar containing only
-  code-defined Homepage, Checkout, and Project dashboard sessions. The beta
-  proves selection, comments, clipboard agent handoff, hot-reloadable round
-  builders, and active consumer-theme wrapping before an embedded agent is
-  introduced.
+- `desy_widget_workshop` is the isolated live design workspace. A repository
+  supplies ordinary Dart candidate builders and the source file a local coding
+  agent may edit. The standalone screen keeps session navigation separate from
+  Atlas, renders every candidate through the active consumer theme, carries
+  selected directions into Codex, supports render-object inspection, and asks
+  the resident Flutter tool to hot reload after edits. Its process boundary is
+  platform-specific; previewing remains cross-platform.
 
 Extensions must not import hidden workbench state, mutate routing, introduce a
 second registry, or import Forui directly.
@@ -150,12 +161,11 @@ task check
 ```
 
 `task check` runs workspace analysis, the Forui dependency-boundary check, all
-seven package/application test suites, and a production dogfood web build.
+six package/application test suites, and a production dogfood web build.
 Focused tests are available as `task bench:test`, `task design_system:test`,
 `task dogfood:test`, `task agent_annotations:test`, and
-`task screenshot_builder:test`. Use `task surface_browser:test` for the beta
-JSON prototype browser and `task widget_workshop:test` for the experimental
-workshop journey.
+`task screenshot_builder:test`. Use `task widget_workshop:test` for the live
+Workshop surface.
 
 For debug-only widget inspection, run the dogfood app and use
 `task simdeck:describe:flutter`. SimDeck is a development companion, not a

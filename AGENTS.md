@@ -84,4 +84,4 @@ task check
 the workspace's package-by-package test coverage. For focused work, use
 `task design_system:test`, `task dogfood:test`, `task bench:test`,
 `task agent_annotations:test`, `task screenshot_builder:test`, or
-`task surface_browser:test`.
+`task widget_workshop:test`.

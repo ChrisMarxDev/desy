@@ -1520,7 +1520,10 @@ class _CanvasStage extends StatelessWidget {
                   context.theme.colors.background,
               border: candidates.isEmpty
                   ? null
-                  : Border.all(color: context.theme.colors.primary, width: 2),
+                  : Border.all(
+                      color: context.theme.colors.desy.signal,
+                      width: 2,
+                    ),
             ),
             child: CustomPaint(
               painter: _CanvasGridPainter(
@@ -1567,7 +1570,7 @@ class _CanvasStage extends StatelessWidget {
                             key: const ValueKey('sketch-snap-guides'),
                             painter: _CanvasSnapGuidePainter(
                               guides: guides,
-                              color: context.theme.colors.primary,
+                              color: context.theme.colors.desy.signal,
                             ),
                           ),
                         ),
@@ -1747,7 +1750,9 @@ class _CanvasNodeFrame extends StatelessWidget {
           decoration: selected
               ? BoxDecoration(
                   border: Border.all(
-                    color: context.theme.colors.primary.withValues(alpha: .48),
+                    color: context.theme.colors.desy.signal.withValues(
+                      alpha: .48,
+                    ),
                   ),
                 )
               : const BoxDecoration(),
@@ -1932,7 +1937,9 @@ class _ReactiveArtboardChild extends StatelessWidget {
           decoration: selected
               ? BoxDecoration(
                   border: Border.all(
-                    color: context.theme.colors.primary.withValues(alpha: .48),
+                    color: context.theme.colors.desy.signal.withValues(
+                      alpha: .48,
+                    ),
                   ),
                 )
               : const BoxDecoration(),
@@ -2269,7 +2276,9 @@ class _CanvasElement extends StatelessWidget {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: context.theme.colors.primary.withValues(alpha: .32),
+                  color: context.theme.colors.desy.signal.withValues(
+                    alpha: .32,
+                  ),
                   width: 1,
                 ),
               ),

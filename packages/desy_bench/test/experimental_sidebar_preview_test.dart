@@ -257,7 +257,9 @@ void main() {
             id: 'component.$index',
             name: 'Component $index',
             path: '/components',
-            instances: {'default': (_) => const SizedBox(width: 32, height: 32)},
+            instances: {
+              'default': (_) => const SizedBox(width: 32, height: 32),
+            },
           ),
       ],
     );
@@ -294,7 +296,7 @@ void main() {
     final restore = find.byKey(const ValueKey('desktop-sidebar-restore'));
     final restoreSize = tester.getSize(restore);
     expect(restoreSize, const Size.square(32));
-    expect(tester.getTopLeft(restore), const Offset(12, 8));
+    expect(tester.getTopLeft(restore), const Offset(16, 8));
     expect(find.text('Show sidebar'), findsNothing);
     expect(tester.widget<DesyButton>(restore).semanticsLabel, 'Show sidebar');
 

@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Desy live review overlay</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="shell">
+    <nav><a href="index.html">← Planned features</a><span>Impact 5 · Complexity 4 · Yield 1.25</span></nav>
+
+    <section class="hero">
+      <div class="eyebrow">Rank 9 · Developer integration</div>
+      <h1>Put the Desy feedback loop inside the app developers already run.</h1>
+      <p class="lede">Extend the Registry Spine’s annotation protocol into an existing Flutter app: inspect the real screen, attach design requests, send structured context to the same developer-machine agent, and see repository changes through normal hot reload.</p>
+      <div class="flow"><strong>Run existing app</strong><span>→</span><strong>Inspect widget</strong><span>→</span><strong>Annotate</strong><span>→</span><strong>Agent edits Dart</strong><span>→</span><strong>Hot reload</strong><span>→</span><strong>Review in place</strong></div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Reason and user value</h2>
+        <p>Isolated component previews are fast, but many design problems only become obvious in the real route, state, navigation shell, data density, and responsive layout. Developers should be able to review that exact running context without recreating it in a separate workshop harness.</p>
+        <p class="good">The value is continuity: feedback begins on the real widget in the real app and returns to that same state after the agent edits ordinary Dart.</p>
+      </article>
+
+      <article class="card accent">
+        <h2>Feasibility verdict</h2>
+        <p><strong>Feasible as a developer tool, with a required companion process.</strong> The in-app overlay and render-object selection are already proven. Structured annotations and a debug-service bridge are straightforward. Automatic hot reload is feasible only when a developer-machine process owns or attaches to the Flutter debug session; a running app package does not own its compiler or Flutter tool.</p>
+      </article>
+
+      <article class="card full">
+        <h2>One install surface, two execution boundaries</h2>
+        <table>
+          <thead><tr><th>Boundary</th><th>Runs where</th><th>Owns</th><th>Must not own</th></tr></thead>
+          <tbody>
+            <tr><td><code>desy_dev_overlay</code> runtime</td><td>Inside the consumer’s debug app</td><td>Overlay UI, widget picking, logical bounds, annotations, registry context, session events</td><td>Source writes, agent credentials, Flutter compiler, process spawning</td></tr>
+            <tr><td>Desy host executable</td><td>Developer machine</td><td>Flutter debug connection, agent process, repository permissions, prompt exchange, diagnostics, hot reload</td><td>Consumer widget rendering or a copied registry</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">The beta may ship both halves from one package and one command. Their protocol must remain explicit so the runtime can later connect to a Desy CLI, IDE extension, or MCP server without rewriting the overlay.</p>
+      </article>
+
+      <article class="card">
+        <h2>Consumer integration</h2>
+        <pre><code>MaterialApp(
+  builder: DesyDevOverlay.builder(
+    registry: appDesignSystem,
+    existingBuilder: existingBuilder,
+  ),
+)</code></pre>
+        <p>The app-builder seam keeps the overlay below inherited app context and above the Navigator while preserving the routing child. A root wrapper remains available for a separate <code>tool/desy_main.dart</code> development entrypoint. Importing the package from production <code>lib</code> requires a normal dependency even when constant debug guards remove the runtime code; a true <code>dev_dependency</code> therefore uses the alternate entrypoint.</p>
+      </article>
+
+      <article class="card">
+        <h2>Developer workflow</h2>
+        <pre><code>dart run desy_dev_overlay:host \
+  --target lib/main.dart \
+  --device macos</code></pre>
+        <ol>
+          <li>The host launches or attaches to the normal Flutter debug session.</li>
+          <li>The overlay registers a debug-only service bridge and publishes review events.</li>
+          <li>The host exposes those events to Codex, Claude, or another agent through a vendor-neutral adapter or MCP tools.</li>
+          <li>The agent edits the consumer repository under its normal permission model.</li>
+          <li>The host requests hot reload and returns compiler/runtime diagnostics to the overlay session.</li>
+        </ol>
+      </article>
+
+      <article class="card full">
+        <h2>Packaging decision</h2>
+        <p>Keep setup simple but keep authority separated internally:</p>
+        <ul>
+          <li><code>desy_overlay_protocol</code>: pure Dart, immutable versioned session and annotation values.</li>
+          <li><code>desy_overlay</code>: Flutter-only debug UI, inspector selection, and VM-service bridge; no file or process access.</li>
+          <li><code>desy_overlay_host</code>: opt-in workstation CLI, agent adapters, repository access, Flutter runner attachment, and reload policy.</li>
+        </ul>
+        <p class="muted">An umbrella setup command can add and configure these pieces. Package count is an implementation detail; the user-visible contract is one explicit development integration.</p>
+      </article>
+
+      <article class="card">
+        <h2>Scope</h2>
+        <ul>
+          <li>Debug-only root overlay with a small floating launcher and dismissible review panel.</li>
+          <li>App-wide render-object hit testing mapped to the nearest project-created widget.</li>
+          <li>Widget outline, source evidence when available, candidate ancestry, route, viewport, theme, and semantics summary.</li>
+          <li>Multiple direct design annotations grouped into one review turn.</li>
+          <li>Live references to the consumer’s existing <code>DesyRegistry</code>, including registered alternatives and source paths.</li>
+          <li>Vendor-neutral session protocol plus an initial Codex adapter.</li>
+          <li>Developer-hosted source editing, compile diagnostics, hot reload, and explicit restart fallback.</li>
+          <li>macOS dogfood first, then normal Android, iOS, web, Linux, and Windows debug targets through a desktop host.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Non-goals</h2>
+        <ul>
+          <li>No agent, shell, repository token, or source-writing capability inside a shipped app binary.</li>
+          <li>No production, profile, TestFlight, Play internal-testing, or customer-feedback SDK in the first version.</li>
+          <li>No replacement for Flutter DevTools, IDE debugging, or the normal Flutter toolchain.</li>
+          <li>No claim that every render object maps to a stable source-level widget after arbitrary edits.</li>
+          <li>No automatic design-system compliance score.</li>
+          <li>No copied component inventory; the active consumer registry remains authoritative.</li>
+          <li>No remote accounts, hosted agent execution, or multiplayer review in the local-first slice.</li>
+        </ul>
+      </article>
+
+      <article class="card full">
+        <h2>Feasibility by capability</h2>
+        <table>
+          <thead><tr><th>Capability</th><th>Feasibility</th><th>Evidence and constraint</th></tr></thead>
+          <tbody>
+            <tr><td>Overlay an existing app</td><td><span class="score">High</span></td><td>A root wrapper or app builder can place Desy chrome above the real widget tree without changing its routes.</td></tr>
+            <tr><td>Select and outline widgets</td><td><span class="score">High</span></td><td>The current Workshop proves custom hit testing, while Flutter’s debug <code>WidgetsApp</code> can inject its public <code>WidgetInspector</code> and expose selection through <code>WidgetInspectorService</code>.</td></tr>
+            <tr><td>Attach source-aware annotations</td><td><span class="score">Medium–high</span></td><td>Debug creation locations and ancestry provide strong evidence, but targets must be treated as best-effort across rebuilds and edits.</td></tr>
+            <tr><td>Send review context to an agent</td><td><span class="score">High</span></td><td>A local host can expose typed annotations and registry references through MCP or a direct process adapter.</td></tr>
+            <tr><td>Automatic hot reload</td><td><span class="score">High with host</span></td><td>The normal Flutter debug toolchain can reload edited Dart. The in-app package alone cannot compile or inject new code.</td></tr>
+            <tr><td>All Flutter debug targets</td><td><span class="score">Medium</span></td><td>The overlay is portable Flutter UI; host discovery, web debugging, platform views, multiple isolates, and device connectivity need dedicated validation.</td></tr>
+            <tr><td>Release-safe removal</td><td><span class="score">High</span></td><td>Debug guards and tree-shakable service registration can make the production path return the unmodified app.</td></tr>
+          </tbody>
+        </table>
+      </article>
+
+      <article class="card">
+        <h2>Implementation sketch</h2>
+        <ol>
+          <li>Use Flutter’s public root <code>WidgetInspector</code> and <code>WidgetInspectorService</code> first for app-wide select mode and outlines. Keep the Workshop’s scoped custom hit tester only as a fallback where Desy must exclude its own chrome or inspect an isolated subtree.</li>
+          <li>Create <code>DesyDevOverlayConfiguration</code> with the real registry, enabled capabilities, annotation sink, and explicit review-session policy.</li>
+          <li>Wrap the consumer app in a debug-only root stack while keeping the review chrome’s theme and semantics independent from consumer UI.</li>
+          <li>Define a versioned protocol for overlay state, widget targets, annotations, diagnostics, and reload receipts.</li>
+          <li>Register the protocol as debug-only VM service extensions/events; never bind a public network server inside the app.</li>
+          <li>Build a small host executable that launches or attaches to Flutter, runs the agent, exchanges protocol messages, and requests reload.</li>
+          <li>Reuse Agent Brief and registry query services for context instead of serializing a second catalogue.</li>
+          <li>Move agent-vendor commands behind adapters and keep the user’s repository permissions visible.</li>
+        </ol>
+      </article>
+
+      <article class="card">
+        <h2>Smallest useful slice</h2>
+        <ol>
+          <li>Integrate the package into a second, non-Desy Flutter app.</li>
+          <li>Open the overlay and select any project widget on a real route.</li>
+          <li>Add one annotation and copy a structured prompt containing widget type, source evidence, route, bounds, and comment.</li>
+          <li>Let an externally running Codex session edit that widget.</li>
+          <li>Use the host command to request hot reload.</li>
+          <li>Keep the route and compatible widget state, then show whether the annotation target reattached.</li>
+        </ol>
+        <p class="muted">Do not start by embedding a terminal, supporting every agent, or shipping a custom DevTools frontend. First prove that app-wide selection plus one annotated reload is better than the current manual loop.</p>
+      </article>
+
+      <article class="card full">
+        <h2>Rollout phases</h2>
+        <table>
+          <thead><tr><th>Phase</th><th>Deliverable</th><th>Question answered</th></tr></thead>
+          <tbody>
+            <tr><td>0 · Package seam</td><td>Debug overlay, widget selection, annotations, and copyable structured prompt in a second app</td><td>Is integration genuinely small, release-safe, and useful without automation?</td></tr>
+            <tr><td>1 · Live host</td><td>Local service bridge, Codex adapter, compiler diagnostics, hot reload, and restart fallback</td><td>Can one annotated edit return to the same running state reliably?</td></tr>
+            <tr><td>2 · Desy context</td><td>Registry attachments, component suggestions, Agent Briefs, and conformance findings</td><td>Does the overlay improve design-system reuse rather than become a generic inspector?</td></tr>
+            <tr><td>3 · Portability</td><td>Android, iOS, web, Windows, Linux, multiple views, and IDE-launched session coverage</td><td>Is the host protocol stable enough to publish and support?</td></tr>
+          </tbody>
+        </table>
+      </article>
+
+      <article class="card">
+        <h2>Risks</h2>
+        <ul>
+          <li><strong>Debug API maintenance:</strong> <code>debugCreator</code>, creation locations, and inspector internals may change across Flutter versions.</li>
+          <li><strong>Target drift:</strong> widget identities are ephemeral; low-confidence annotations must detach rather than silently point elsewhere.</li>
+          <li><strong>Input conflict:</strong> inspect mode temporarily intercepts app gestures and must be unmistakable and keyboard-accessible.</li>
+          <li><strong>App fidelity:</strong> platform views, multiple windows, overlays, and nested navigators need explicit coverage.</li>
+          <li><strong>Security expectations:</strong> the coding agent has ordinary repository permissions; the overlay is not a sandbox.</li>
+          <li><strong>Integration weight:</strong> requiring the full Desy workbench UI in every app would be excessive; package dependencies and release tree shaking must be measured.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Open questions</h2>
+        <ul>
+          <li>Should the beta require an existing <code>DesyRegistry</code>, or permit generic annotations with reduced design-system context?</li>
+          <li>Is a root wrapper reliable enough, or should <code>MaterialApp.builder</code> be the primary integration?</li>
+          <li>Should the initial host own <code>flutter run</code>, or attach to IDE-launched sessions through the tooling daemon?</li>
+          <li>Can Flutter’s official MCP and tooling services supply reload and diagnostics so Desy avoids a private daemon protocol?</li>
+          <li>How should annotations behave across route changes and state restoration?</li>
+          <li>What is the measurable release-size impact when the debug wrapper is disabled?</li>
+          <li>Does this remain a Desy package, or become the default integration path once it works in two unrelated apps?</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Acceptance criteria</h2>
+        <ul>
+          <li>Adding the overlay requires no copied component list and no alternate theme declaration.</li>
+          <li>With review mode disabled, all app interaction and rendering remain unchanged.</li>
+          <li>A selected project widget produces a visible outline and structured target record.</li>
+          <li>One annotation reaches an external agent and returns a compiler or reload receipt.</li>
+          <li>A successful edit hot reloads without losing the current route or compatible app state.</li>
+          <li>Release builds contain no active service bridge, agent process, file access, or review UI.</li>
+          <li>The package works in Desy dogfood and one unrelated consumer app before publication.</li>
+        </ul>
+      </article>
+
+      <article class="card full accent">
+        <h2>Do or don’t?</h2>
+        <p><strong>Do as a narrow package spike, not yet as a promised universal SDK.</strong> Impact 5/5, complexity 4/5, risk 3/5, yield 1.25. Desy already proves the difficult interaction primitives and same-process hot-reload workflow. The remaining uncertainty is reliable host attachment and a low-friction, release-safe consumer integration. Build the overlay plus one external-host reload in a second app; publish only if that integration stays small and the review loop is materially faster.</p>
+        <p class="muted">Primary-source feasibility evidence: <a href="../../docs/research/desy_overlay_package_feasibility.md">Desy overlay package feasibility</a>.</p>
+      </article>
+    </section>
+
+    <footer>Decision: one developer install experience, two explicit runtime boundaries. Keep the app overlay read-only toward source; keep compilation, agents, and hot reload on the developer machine.</footer>
+  </main>
+</body>
+</html>

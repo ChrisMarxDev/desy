@@ -10,7 +10,8 @@ workspace:
   - packages/desy_ide
   - packages/desy_design_system
   - packages/desy_design_system/example
+  - packages/desy_overlay
+  - packages/desy_overlay/example
   - packages/extensions/desy_agent_annotations
   - packages/extensions/desy_screenshot_builder
-  - packages/extensions/desy_surface_browser
   - packages/extensions/desy_widget_workshop

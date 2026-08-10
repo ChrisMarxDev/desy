@@ -97,87 +97,167 @@ class _AgentAnnotationComposerState extends State<_AgentAnnotationComposer> {
   }
 
   @override
-  Widget build(BuildContext context) => CallbackShortcuts(
-    bindings: <ShortcutActivator, VoidCallback>{
-      const SingleActivator(LogicalKeyboardKey.enter, meta: true): _submit,
-      const SingleActivator(LogicalKeyboardKey.enter, control: true): _submit,
-    },
-    child: Column(
-      key: const ValueKey('agent-annotation-composer'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget build(BuildContext context) {
+    final state = _submitting
+        ? 'Sending'
+        : _failed
+        ? 'Failed'
+        : _receipt != null
+        ? 'Sent'
+        : _draft.trim().isNotEmpty
+        ? 'Draft'
+        : 'Ready';
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.enter, meta: true): _submit,
+        const SingleActivator(LogicalKeyboardKey.enter, control: true): _submit,
+      },
+      child: DesyAccordion(
+        key: const ValueKey('agent-annotation-composer'),
+        children: [
+          DesyAccordionItem(
+            key: const ValueKey('agent-annotation-ledger-item'),
+            initiallyExpanded: true,
+            title: _AnnotationLedgerSummary(
+              entryName: widget.extensionContext.entry.name,
+              source:
+                  widget.extensionContext.component?.source ??
+                  widget.extensionContext.entry.id,
+              state: state,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  DesyTextField(
+                    key: const ValueKey('agent-annotation-comment'),
+                    label: 'Comment for agent',
+                    hintText: 'Describe the change.',
+                    value: _draft,
+                    enabled: !_submitting,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    minLines: 3,
+                    maxLines: 8,
+                    onChanged: _onChanged,
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: DesyButton(
+                      key: const ValueKey('agent-annotation-submit'),
+                      semanticsLabel: _submitting
+                          ? 'Submitting agent annotation'
+                          : 'Send annotation to agent',
+                      size: DesyButtonSize.sm,
+                      mainAxisSize: MainAxisSize.min,
+                      onPress: _canSubmit ? _submit : null,
+                      child: Text(_submitting ? 'Sending…' : 'Send'),
+                    ),
+                  ),
+                  if (_submitting) ...[
+                    const SizedBox(height: 12),
+                    Semantics(
+                      key: const ValueKey('agent-annotation-busy'),
+                      container: true,
+                      liveRegion: true,
+                      label: 'Submitting agent annotation',
+                      child: Text('Submitting annotation…'),
+                    ),
+                  ],
+                  if (_failed) ...[
+                    const SizedBox(height: 12),
+                    Semantics(
+                      key: const ValueKey('agent-annotation-error'),
+                      container: true,
+                      liveRegion: true,
+                      label:
+                          'Annotation failed. The comment was preserved for retry.',
+                      child: Text(
+                        'Could not send the annotation. Check the destination and try again.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (_receipt case final receipt?) ...[
+                    const SizedBox(height: 12),
+                    Semantics(
+                      key: const ValueKey('agent-annotation-receipt'),
+                      container: true,
+                      liveRegion: true,
+                      label: 'Annotation sent. ${receipt.message}',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(receipt.message),
+                          if (receipt.location case final location?)
+                            SelectableText(location.toString()),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnnotationLedgerSummary extends StatelessWidget {
+  const _AnnotationLedgerSummary({
+    required this.entryName,
+    required this.source,
+    required this.state,
+  });
+
+  final String entryName;
+  final String source;
+  final String state;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.theme.colors;
+    final typography = context.theme.typography;
+    return Row(
       children: [
+        Expanded(
+          flex: 2,
+          child: Text(
+            entryName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: typography.body.sm.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 3,
+          child: Text(
+            source,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: typography.body.xs.copyWith(
+              color: colors.mutedForeground,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
         Text(
-          'Comment for agent',
-          style: Theme.of(context).textTheme.labelLarge,
-        ),
-        const SizedBox(height: 8),
-        DesyTextField(
-          key: const ValueKey('agent-annotation-comment'),
-          label: 'Comment for agent',
-          hintText: 'Describe the change.',
-          value: _draft,
-          enabled: !_submitting,
-          keyboardType: TextInputType.multiline,
-          textInputAction: TextInputAction.newline,
-          minLines: 3,
-          maxLines: 8,
-          onChanged: _onChanged,
-        ),
-        const SizedBox(height: 12),
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: DesyButton(
-            key: const ValueKey('agent-annotation-submit'),
-            semanticsLabel: _submitting
-                ? 'Submitting agent annotation'
-                : 'Send annotation to agent',
-            size: DesyButtonSize.sm,
-            mainAxisSize: MainAxisSize.min,
-            onPress: _canSubmit ? _submit : null,
-            child: Text(_submitting ? 'Sending…' : 'Send'),
+          state,
+          style: typography.body.xs.copyWith(
+            color: state == 'Failed'
+                ? Theme.of(context).colorScheme.error
+                : colors.mutedForeground,
           ),
         ),
-        if (_submitting) ...[
-          const SizedBox(height: 12),
-          Semantics(
-            key: ValueKey('agent-annotation-busy'),
-            container: true,
-            liveRegion: true,
-            label: 'Submitting agent annotation',
-            child: Text('Submitting annotation…'),
-          ),
-        ],
-        if (_failed) ...[
-          const SizedBox(height: 12),
-          Semantics(
-            key: const ValueKey('agent-annotation-error'),
-            container: true,
-            liveRegion: true,
-            label: 'Annotation failed. The comment was preserved for retry.',
-            child: Text(
-              'Could not send the annotation. Check the destination and try again.',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ),
-        ],
-        if (_receipt case final receipt?) ...[
-          const SizedBox(height: 12),
-          Semantics(
-            key: const ValueKey('agent-annotation-receipt'),
-            container: true,
-            liveRegion: true,
-            label: 'Annotation sent. ${receipt.message}',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(receipt.message),
-                if (receipt.location case final location?)
-                  SelectableText(location.toString()),
-              ],
-            ),
-          ),
-        ],
       ],
-    ),
-  );
+    );
+  }
 }

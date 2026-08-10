@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
 
+import 'desy_visual_tokens.dart';
+
 /// The two Desy-owned workbench theme variants.
 enum DesyDesignSystemTheme {
   /// High-clarity neutral workbench chrome.
@@ -13,7 +15,7 @@ enum DesyDesignSystemTheme {
 /// Desy-owned foundation values shared by the package and its catalogue.
 abstract final class DesyDesignSystemTokens {
   /// Primary typeface used throughout Desy-owned workbench surfaces.
-  static const String fontFamily = 'packages/desy_design_system/Space Grotesk';
+  static const String fontFamily = 'packages/desy_design_system/Roboto';
 
   /// Compact separation between related inline elements.
   static const double spaceXs = 4;
@@ -24,14 +26,44 @@ abstract final class DesyDesignSystemTokens {
   /// Default panel-internal separation.
   static const double spaceMd = 12;
 
+  /// Default content and toolbar separation.
+  static const double spaceBase = 16;
+
   /// Default panel padding.
   static const double spaceLg = 20;
+
+  /// Separation between major regions inside a workspace.
+  static const double spaceXl = 24;
+
+  /// Large empty-state and page-section separation.
+  static const double space2xl = 32;
 
   /// Radius for compact controls and keycaps.
   static const double radiusSm = 4;
 
   /// Radius for cards and contained panels.
   static const double radiusMd = 8;
+
+  /// Radius for prominent overlays and floating docks.
+  static const double radiusLg = 12;
+
+  /// The structural divider used between persistent workspace regions.
+  static const double hairline = 1;
+
+  /// Compact desktop controls and icon buttons.
+  static const double controlSm = 28;
+
+  /// Default desktop controls.
+  static const double controlMd = 36;
+
+  /// The persistent Registry Spine width in the committed desktop shell.
+  static const double registrySpineWidth = 280;
+
+  /// The default agent conversation rail width.
+  static const double agentRailWidth = 320;
+
+  /// The stable global workbench toolbar height.
+  static const double toolbarHeight = 60;
 
   /// Desy's standard navigation reveal duration.
   static const Duration navigationMotion = Duration(milliseconds: 180);
@@ -51,18 +83,80 @@ abstract final class DesyDesignSystemFoundation {
       DesyDesignSystemTheme.light => FTheme.neutral.light.desktop,
       DesyDesignSystemTheme.dark => FTheme.neutral.dark.desktop,
     };
+    final visualColors = switch (theme) {
+      DesyDesignSystemTheme.light => DesyVisualColors.light,
+      DesyDesignSystemTheme.dark => DesyVisualColors.dark,
+    };
+    final colors = foundation.colors.copyWith(
+      background: visualColors.canvas,
+      foreground: theme == DesyDesignSystemTheme.light
+          ? const Color(0xFF171717)
+          : const Color(0xFFFAFAFA),
+      primary: theme == DesyDesignSystemTheme.light
+          ? const Color(0xFF171717)
+          : const Color(0xFFFAFAFA),
+      primaryForeground: theme == DesyDesignSystemTheme.light
+          ? const Color(0xFFFFFFFF)
+          : const Color(0xFF171717),
+      secondary: visualColors.panelSubtle,
+      muted: visualColors.panelSubtle,
+      mutedForeground: theme == DesyDesignSystemTheme.light
+          ? const Color(0xFF71717A)
+          : const Color(0xFFA1A1AA),
+      card: visualColors.panel,
+      border: visualColors.divider,
+      extensions: [visualColors],
+    );
     final typeface = FTypeface.inherit(
-      colors: foundation.colors,
+      colors: colors,
       touch: false,
       fontFamily: DesyDesignSystemTokens.fontFamily,
       fontFamilyFallback: const [FTypeface.defaultFontFamily],
     );
+    final typography = FTypography(display: typeface, body: typeface);
+    final style =
+        FStyle.inherit(
+          colors: colors,
+          typography: typography,
+          touch: false,
+        ).copyWith(
+          borderRadius: const FBorderRadius(
+            xs2: BorderRadius.all(Radius.circular(2)),
+            xs: BorderRadius.all(Radius.circular(3)),
+            sm: BorderRadius.all(Radius.circular(4)),
+            md: BorderRadius.all(Radius.circular(6)),
+            lg: BorderRadius.all(Radius.circular(8)),
+            xl: BorderRadius.all(Radius.circular(10)),
+            xl2: BorderRadius.all(Radius.circular(12)),
+            xl3: BorderRadius.all(Radius.circular(14)),
+          ),
+          focusedOutlineStyle: FFocusedOutlineStyleDelta.delta(
+            color: visualColors.signal,
+            borderRadius: const BorderRadius.all(Radius.circular(6)),
+            width: 1.5,
+            spacing: 2,
+          ),
+          pagePadding: const EdgeInsetsDelta.value(
+            EdgeInsets.symmetric(
+              horizontal: DesyDesignSystemTokens.spaceBase,
+              vertical: DesyDesignSystemTokens.spaceMd,
+            ),
+          ),
+          shadow: const [
+            BoxShadow(
+              color: Color(0x12000000),
+              offset: Offset(0, 1),
+              blurRadius: 3,
+            ),
+          ],
+        );
     final data = FThemeData(
-      colors: foundation.colors,
+      colors: colors,
       touch: false,
-      debugLabel: foundation.debugLabel,
+      debugLabel: 'Desy Registry Spine ${theme.name}',
       breakpoints: foundation.breakpoints,
-      typography: FTypography(display: typeface, body: typeface),
+      typography: typography,
+      style: style,
       icons: foundation.icons,
       hapticFeedback: foundation.hapticFeedback,
     );
@@ -79,10 +173,15 @@ abstract final class DesyDesignSystemFoundation {
   static ThemeData materialTheme(DesyDesignSystemTheme theme) {
     final data = themeData(theme);
     return data.toApproximateMaterialTheme().copyWith(
+      scaffoldBackgroundColor: data.colors.desy.canvas,
+      dividerColor: data.colors.desy.divider,
+      cardColor: data.colors.desy.panel,
+      focusColor: data.colors.desy.signalSurface,
+      hoverColor: data.colors.desy.panelSubtle,
       textSelectionTheme: TextSelectionThemeData(
-        cursorColor: data.colors.primary,
-        selectionColor: data.colors.primary.withValues(alpha: .28),
-        selectionHandleColor: data.colors.primary,
+        cursorColor: data.colors.desy.signal,
+        selectionColor: data.colors.desy.signal.withValues(alpha: .22),
+        selectionHandleColor: data.colors.desy.signal,
       ),
     );
   }

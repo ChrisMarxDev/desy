@@ -8,9 +8,9 @@ void main() {
   test('dogfood registry is valid and complete', () {
     expect(desyDesignSystemRegistry.validate(), isEmpty);
     expect(desyDesignSystemRegistry.themes, hasLength(2));
-    expect(desyDesignSystemRegistry.allColors, hasLength(6));
+    expect(desyDesignSystemRegistry.allColors, hasLength(9));
     expect(desyDesignSystemRegistry.allFonts, hasLength(4));
-    expect(desyDesignSystemRegistry.allMeasurements, hasLength(7));
+    expect(desyDesignSystemRegistry.allMeasurements, hasLength(9));
     expect(desyDesignSystemRegistry.allMotion, hasLength(2));
     expect(desyDesignSystemRegistry.allEffects, hasLength(1));
     expect(desyDesignSystemRegistry.allIcons, hasLength(26));
@@ -30,6 +30,7 @@ void main() {
         'desy.component.card',
         'desy.component.catalogue-card',
         'desy.component.dialog',
+        'desy.component.progress-trail',
         'desy.component.scaffold',
         'desy.component.select',
         'desy.component.shortcut-label',
@@ -48,7 +49,11 @@ void main() {
     );
     for (final component in desyDesignSystemRegistry.allComponents) {
       expect(component.instanceIds, isNotEmpty, reason: component.id);
-      expect(component.knobDefinitions.isNotEmpty, isTrue, reason: component.id);
+      expect(
+        component.knobDefinitions.isNotEmpty,
+        isTrue,
+        reason: component.id,
+      );
     }
   });
 
@@ -124,11 +129,11 @@ void main() {
     );
 
     expect(suffixKnob.kind, DesyKnobKind.widgetInstance);
-    expect((suffixKnob.initial as DesyInstanceId).value, 'desy.component.badge.default');
-    expect(tile.instanceIds, [
-      'with-badge',
-      'with-shortcut',
-    ]);
+    expect(
+      (suffixKnob.initial as DesyInstanceId).value,
+      'desy.component.badge.default',
+    );
+    expect(tile.instanceIds, ['with-badge', 'with-shortcut']);
 
     await tester.pumpWidget(
       MaterialApp(

@@ -59,9 +59,28 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
     ),
     DesyColorEntry.swatch(
       id: 'desy.color.primary',
-      name: 'Primary',
+      name: 'Primary action',
       color: _lightTheme.colors.primary,
-      description: 'Selected controls and primary workbench actions.',
+      description: 'Black, high-emphasis workbench actions.',
+    ),
+    DesyColorEntry.swatch(
+      id: 'desy.color.signal',
+      name: 'Signal pink',
+      color: _lightTheme.colors.desy.signal,
+      description:
+          'Reserved for inspection, selection, annotations, and focus.',
+    ),
+    DesyColorEntry.swatch(
+      id: 'desy.color.signal-surface',
+      name: 'Signal surface',
+      color: _lightTheme.colors.desy.signalSurface,
+      description: 'Quiet selected-row and annotation-context fill.',
+    ),
+    DesyColorEntry.swatch(
+      id: 'desy.color.positive',
+      name: 'Runtime positive',
+      color: _lightTheme.colors.desy.positive,
+      description: 'Hot reload, connected, and successful runtime state.',
     ),
     DesyColorEntry.swatch(
       id: 'desy.color.card',
@@ -141,10 +160,22 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
       description: 'Default compact panel rhythm.',
     ),
     DesyNumericEntry.spacing(
+      id: 'desy.space.base',
+      name: 'Base spacing',
+      value: DesyDesignSystemTokens.spaceBase,
+      description: 'Default content and toolbar separation.',
+    ),
+    DesyNumericEntry.spacing(
       id: 'desy.space.lg',
       name: 'Large spacing',
       value: DesyDesignSystemTokens.spaceLg,
       description: 'Panel padding and major section separation.',
+    ),
+    DesyNumericEntry.spacing(
+      id: 'desy.space.xl',
+      name: 'Extra-large spacing',
+      value: DesyDesignSystemTokens.spaceXl,
+      description: 'Separates major workspace regions.',
     ),
     DesyNumericEntry.radius(
       id: 'desy.radius.sm',
@@ -213,6 +244,7 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
     _sidebarItemComponent,
     _cardComponent,
     _catalogueCardComponent,
+    _progressTrailComponent,
     _scaffoldComponent,
     _shortcutComponent,
   ],
@@ -324,10 +356,7 @@ Widget _buildCard(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text(title, style: Theme.of(context).textTheme.titleMedium),
         if (showBody) ...[
           const SizedBox(height: DesyDesignSystemTokens.spaceSm),
           Text(body),
@@ -352,7 +381,11 @@ final _catalogueCardComponent = _component(
       name: 'Identifier',
       initial: 'desy.component.button',
     ),
-    actionLabel: k.string('actionLabel', name: 'Preview label', initial: 'Inspect'),
+    actionLabel: k.string(
+      'actionLabel',
+      name: 'Preview label',
+      initial: 'Inspect',
+    ),
     showAction: k.boolean(
       'showAction',
       name: 'Show preview action',
@@ -373,6 +406,61 @@ final _catalogueCardComponent = _component(
       knobs.actionLabel('Inspect'),
       knobs.showAction(true),
     ],
+  },
+);
+
+final _progressTrailComponent = _component(
+  id: 'desy.component.progress-trail',
+  name: 'Progress trail',
+  path: '/feedback',
+  description:
+      'Connects completed work to the current task in a quiet, scannable list.',
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/desy_progress_trail.dart',
+  knobs: (k) => (
+    current: k.boolean('current', name: 'Show current work', initial: true),
+    metadata: k.boolean('metadata', name: 'Show metadata', initial: true),
+  ),
+  build: (context, knobs) => SizedBox(
+    width: 360,
+    child: DesyProgressTrail(
+      items: [
+        DesyProgressTrailItem(
+          title: 'Mapped the Workshop surface',
+          detail:
+              'Located the candidate builder and production activity panel.',
+          metadata: knobs.metadata.value ? '12s' : null,
+          state: DesyProgressTrailItemState.complete,
+          icon: Icons.search_rounded,
+        ),
+        DesyProgressTrailItem(
+          title: 'Built the progress trail',
+          detail: 'Reused Desy tokens, theme, and typed component state.',
+          metadata: knobs.metadata.value ? '1 file' : null,
+          state: DesyProgressTrailItemState.complete,
+          icon: Icons.edit_rounded,
+        ),
+        DesyProgressTrailItem(
+          title: knobs.current.value
+              ? 'Running focused checks'
+              : 'Checks passed',
+          detail: 'Formatting and focused component tests.',
+          metadata: knobs.metadata.value
+              ? knobs.current.value
+                    ? 'Running'
+                    : 'Passed'
+              : null,
+          state: knobs.current.value
+              ? DesyProgressTrailItemState.current
+              : DesyProgressTrailItemState.complete,
+          icon: Icons.check_rounded,
+        ),
+      ],
+    ),
+  ),
+  instances: (knobs) => {
+    'active': [knobs.current(true), knobs.metadata(true)],
+    'complete': [knobs.current(false), knobs.metadata(true)],
   },
 );
 
@@ -551,7 +639,8 @@ final _textFieldComponent = DesyComponent(
   path: '/inputs',
   icon: DesyIcons.component,
   description: 'Native Flutter text editing styled by the Desy theme bridge.',
-  accessibility: 'Preserve native selection, caret, keyboard, and context menus.',
+  accessibility:
+      'Preserve native selection, caret, keyboard, and context menus.',
   source: 'package:desy_design_system/src/desy_text_field.dart',
   knobs: (k) => (
     label: k.string('label', name: 'Label', initial: 'Search'),
@@ -572,7 +661,11 @@ final _textFieldComponent = DesyComponent(
   ),
   instances: (knobs) => {
     'empty': [knobs.label('Search'), knobs.value('')],
-    'disabled': [knobs.label('Search'), knobs.value('Atlas'), knobs.enabled(false)],
+    'disabled': [
+      knobs.label('Search'),
+      knobs.value('Atlas'),
+      knobs.enabled(false),
+    ],
     'multiline': [
       knobs.label('Notes'),
       knobs.hint('Add usage guidance'),
@@ -681,7 +774,11 @@ final _sidebarSectionComponent = _component(
       name: 'Preview grid mode',
       initial: false,
     ),
-    opensAtlas: k.boolean('opensAtlas', name: 'Label opens Atlas', initial: true),
+    opensAtlas: k.boolean(
+      'opensAtlas',
+      name: 'Label opens Atlas',
+      initial: true,
+    ),
   ),
   build: (context, knobs) => _buildSidebarSection(
     context,
@@ -746,7 +843,11 @@ final _sidebarItemComponent = _component(
   source: 'package:desy_design_system/src/desy_sidebar.dart',
   knobs: (k) => (
     label: k.string('label', name: 'Label', initial: 'Atlas'),
-    opensScreen: k.boolean('opensScreen', name: 'Opens a screen', initial: true),
+    opensScreen: k.boolean(
+      'opensScreen',
+      name: 'Opens a screen',
+      initial: true,
+    ),
     selected: k.boolean('selected', name: 'Selected', initial: false),
     enabled: k.boolean('enabled', name: 'Enabled', initial: true),
   ),
@@ -810,8 +911,16 @@ final _tabsComponent = _component(
   source: 'package:desy_design_system/src/control_aliases.dart',
   knobs: (k) => (
     firstLabel: k.string('firstLabel', name: 'First label', initial: 'Assets'),
-    secondLabel: k.string('secondLabel', name: 'Second label', initial: 'Layers'),
-    scrollable: k.boolean('scrollable', name: 'Scrollable tabs', initial: false),
+    secondLabel: k.string(
+      'secondLabel',
+      name: 'Second label',
+      initial: 'Layers',
+    ),
+    scrollable: k.boolean(
+      'scrollable',
+      name: 'Scrollable tabs',
+      initial: false,
+    ),
     expandContent: k.boolean(
       'expandContent',
       name: 'Expand content',
@@ -873,16 +982,11 @@ final _tileComponent = DesyComponent(
       'suffix',
       name: 'Suffix instance',
       initial: _badgeDefaultInstanceId,
-      options: const [
-        _badgeDefaultInstanceId,
-        _shortcutSingleKeyInstanceId,
-      ],
+      options: const [_badgeDefaultInstanceId, _shortcutSingleKeyInstanceId],
     ),
   ),
-  build: (context, knobs) => _buildTileField(
-    title: knobs.title.value,
-    suffix: knobs.suffix.widget,
-  ),
+  build: (context, knobs) =>
+      _buildTileField(title: knobs.title.value, suffix: knobs.suffix.widget),
   instances: (knobs) => {
     'with-badge': [
       knobs.title('Release channel'),
@@ -1037,17 +1141,17 @@ final _shortcutComponent = DesyComponent(
   name: 'Keyboard shortcut label',
   path: '/utilities',
   icon: DesyIcons.component,
-  description: 'A compact semantic keycap treatment for discoverable shortcuts.',
-  accessibility: 'Announce the complete chord rather than individual decoration.',
+  description:
+      'A compact semantic keycap treatment for discoverable shortcuts.',
+  accessibility:
+      'Announce the complete chord rather than individual decoration.',
   source: 'package:desy_design_system/src/keyboard_shortcut_label.dart',
   knobs: (k) => (
     key: k.string('key', name: 'Key', initial: 'K'),
     chord: k.boolean('chord', name: 'Include modifier', initial: true),
   ),
   build: (context, knobs) => DesyKeyboardShortcutLabel(
-    keys: knobs.chord.value
-        ? ['⌘', knobs.key.value]
-        : [knobs.key.value],
+    keys: knobs.chord.value ? ['⌘', knobs.key.value] : [knobs.key.value],
   ),
   instances: (knobs) => {
     'single-key': [knobs.key('Esc'), knobs.chord(false)],
@@ -1177,19 +1281,7 @@ class _TextFieldFrame extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 300,
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: context.theme.colors.border),
-        borderRadius: BorderRadius.circular(DesyDesignSystemTokens.radiusMd),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceMd),
-        child: child,
-      ),
-    ),
-  );
+  Widget build(BuildContext context) => SizedBox(width: 300, child: child);
 }
 
 class _MotionSpecimen extends StatelessWidget {

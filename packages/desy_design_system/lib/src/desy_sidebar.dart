@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 
 import 'desy_icons.dart';
+import 'desy_visual_tokens.dart';
 
 /// A named group of related sidebar items.
 ///
@@ -189,26 +190,47 @@ class DesySidebarItem extends StatelessWidget {
   final bool opensScreen;
 
   @override
-  Widget build(BuildContext context) => FSidebarItem(
-    style: style,
-    icon: icon,
-    label: opensScreen && label != null
-        ? Row(
-            children: [
-              Expanded(child: label!),
-              const SizedBox(width: 8),
-              const ExcludeSemantics(
-                child: Icon(DesyIcons.chevronRight, size: 14),
+  Widget build(BuildContext context) => Stack(
+    children: [
+      FSidebarItem(
+        style: style,
+        icon: icon,
+        label: opensScreen && label != null
+            ? Row(
+                children: [
+                  Expanded(child: label!),
+                  const SizedBox(width: 8),
+                  const ExcludeSemantics(
+                    child: Icon(DesyIcons.chevronRight, size: 14),
+                  ),
+                ],
+              )
+            : label,
+        selected: selected,
+        initiallyExpanded: initiallyExpanded,
+        autofocus: autofocus,
+        focusNode: focusNode,
+        onPress: onPress,
+        onLongPress: onLongPress,
+        children: children,
+      ),
+      if (selected)
+        Positioned.directional(
+          textDirection: Directionality.of(context),
+          start: 0,
+          top: 4,
+          bottom: 4,
+          child: ExcludeSemantics(
+            child: DecoratedBox(
+              key: const ValueKey('desy-sidebar-selection-indicator'),
+              decoration: BoxDecoration(
+                color: context.theme.colors.desy.signal,
+                borderRadius: BorderRadius.circular(2),
               ),
-            ],
-          )
-        : label,
-    selected: selected,
-    initiallyExpanded: initiallyExpanded,
-    autofocus: autofocus,
-    focusNode: focusNode,
-    onPress: onPress,
-    onLongPress: onLongPress,
-    children: children,
+              child: const SizedBox(width: 2),
+            ),
+          ),
+        ),
+    ],
   );
 }

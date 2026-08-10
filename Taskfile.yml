@@ -7,6 +7,9 @@ includes:
   ide:
     taskfile: ./packages/desy_ide/Taskfile.yml
     dir: ./packages/desy_ide
+  overlay:
+    taskfile: ./packages/desy_overlay/Taskfile.yml
+    dir: ./packages/desy_overlay
   agent_annotations:
     taskfile: ./packages/extensions/desy_agent_annotations/Taskfile.yml
     dir: ./packages/extensions/desy_agent_annotations
@@ -19,9 +22,6 @@ includes:
   screenshot_builder:
     taskfile: ./packages/extensions/desy_screenshot_builder/Taskfile.yml
     dir: ./packages/extensions/desy_screenshot_builder
-  surface_browser:
-    taskfile: ./packages/extensions/desy_surface_browser/Taskfile.yml
-    dir: ./packages/extensions/desy_surface_browser
   widget_workshop:
     taskfile: ./packages/extensions/desy_widget_workshop/Taskfile.yml
     dir: ./packages/extensions/desy_widget_workshop
@@ -50,8 +50,8 @@ tasks:
       - task: agent_annotations:test
       - task: design_system:test
       - task: dogfood:test
+      - task: overlay:test
       - task: screenshot_builder:test
-      - task: surface_browser:test
       - task: widget_workshop:test
 
   check:
@@ -61,6 +61,7 @@ tasks:
       - task: design_system:forui-boundary
       - task: test
       - task: dogfood:build:web
+      - task: overlay:build:example:web
 
   format:
     desc: Format maintained Dart sources.

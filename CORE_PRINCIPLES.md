@@ -78,6 +78,14 @@ control surface rather than importing Forui directly. Its colocated executable
 declares those real widgets in one dogfood `DesyRegistry`; that registry is the
 catalogue inventory, not a second component list maintained by the package.
 
+Desy's visual language is a deliberate desktop-tooling translation rather than
+Forui's defaults used unchanged. The Desy-owned theme keeps structural surfaces
+white in the light theme, uses neutral one-pixel dividers and compact radii,
+keeps primary actions black, and reserves one signal pink for focus, selection,
+inspection, and annotation. Positive green communicates runtime health and hot
+reload success. These meanings belong to semantic Desy tokens so workbench
+screens and extensions do not create local color vocabularies.
+
 ### Native text-entry exception
 
 All Desy-owned editable fields use the centralized `DesyTextField`, which is
@@ -99,8 +107,8 @@ preview instead has an immutable logical screen, device pixel ratio, platform,
 and safe-area geometry. Desy draws the screen and bezel at that real geometry,
 clips content to the screen, and scales the completed device down as one unit;
 it never scales up, inserts `SafeArea`, or adds scrolling for the consumer.
-This contract is shared by component details, Sketch artboards, and local JSON
-prototypes.
+This contract is shared by component details, Sketch artboards, and Workshop
+candidate previews.
 
 ## 9. Atoms are optional typed registry lanes
 
@@ -213,9 +221,29 @@ difficult to construct. Internal implementation convenience must not push
 stringly typed maps, mutable proxy state, repeated boilerplate, or lifecycle
 concerns onto consumers.
 
+## 20. The Registry Spine is the stable product shell
+
+Desy's primary desktop experience keeps the live registry visible on the left,
+uses the center for Atlas inspection and real-Dart construction, and gives the
+current resumable coding-agent session a right-side conversation and activity
+rail. A compact Sessions frame may share the bottom of the registry spine, but
+it remains subordinate to registry navigation and never becomes a second
+inventory.
+
+The shell owns one global annotation mode and source-aware feedback dock so the
+same workflow can target Desy chrome, registry entries, consumer previews, and
+generated candidates. Center modes may change, resize, or collapse secondary
+panels, but they do not replace the registry, agent, or annotation ownership
+model. Accepted prototypes become ordinary consumer-owned Flutter source
+through an explicit reviewable promotion step; hot reload alone never implies
+acceptance.
+
 ## Non-goals for the first release
 
 - Figma replacement or general no-code application builder.
+- General-purpose IDE, source browser, or embedded terminal product.
+- JSON widget language, Flutter subset, or surface DSL as the core authoring
+  medium.
 - Hosted design-system source of truth.
 - Production Dart-code generation from canvas edits.
 - Application business-logic authoring.

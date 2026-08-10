@@ -14,7 +14,12 @@ void main() {
     );
   });
 
-  test('Desy themes use the Space Grotesk type family', () {
+  test('Desy themes use the bundled Roboto type family', () {
+    expect(
+      DesyDesignSystemTokens.fontFamily,
+      'packages/desy_design_system/Roboto',
+    );
+
     for (final variant in DesyDesignSystemTheme.values) {
       final theme = DesyDesignSystemFoundation.themeData(variant);
 
@@ -29,6 +34,26 @@ void main() {
         DesyDesignSystemTokens.fontFamily,
       );
     }
+  });
+
+  test('Registry Spine themes separate action and inspection semantics', () {
+    final light = DesyDesignSystemFoundation.themeData(
+      DesyDesignSystemTheme.light,
+    );
+    final dark = DesyDesignSystemFoundation.themeData(
+      DesyDesignSystemTheme.dark,
+    );
+
+    expect(light.colors.background, DesyVisualColors.light.canvas);
+    expect(light.colors.card, DesyVisualColors.light.panel);
+    expect(light.colors.border, DesyVisualColors.light.divider);
+    expect(light.colors.desy.signal, DesyVisualColors.light.signal);
+    expect(light.colors.primary, isNot(light.colors.desy.signal));
+    expect(dark.colors.desy.signal, DesyVisualColors.dark.signal);
+    expect(
+      light.style.borderRadius.lg,
+      const BorderRadius.all(Radius.circular(8)),
+    );
   });
 
   testWidgets('scope supplies Desy and Material theme bridges', (tester) async {
@@ -79,6 +104,26 @@ void main() {
     expect(find.text('Atlas'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'Components');
     expect(value, 'Components');
+  });
+
+  testWidgets('native text field owns the shared bordered field chrome', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: DesyTextField(hintText: 'Message Desy'),
+        ),
+      ),
+    );
+
+    final container = tester.widget<AnimatedContainer>(
+      find.byType(AnimatedContainer),
+    );
+    final decoration = container.decoration! as BoxDecoration;
+    expect(decoration.color, DesyVisualColors.light.panel);
+    expect(decoration.border, isNotNull);
   });
 
   testWidgets('shortcut label exposes one semantic chord', (tester) async {
@@ -136,6 +181,46 @@ void main() {
     },
   );
 
+  testWidgets('progress trail exposes completion and current-step semantics', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: SizedBox(
+            width: 360,
+            child: DesyProgressTrail(
+              items: [
+                DesyProgressTrailItem(
+                  title: 'Read the activity source',
+                  state: DesyProgressTrailItemState.complete,
+                ),
+                DesyProgressTrailItem(
+                  title: 'Implement the progress trail',
+                  detail: 'Rendering the selected Workshop direction.',
+                  metadata: 'Running',
+                  state: DesyProgressTrailItemState.current,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.bySemanticsLabel('1 of 2 steps complete'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Complete: Read the activity source'),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel('Current: Implement the progress trail'),
+      findsOneWidget,
+    );
+    expect(find.text('Running'), findsOneWidget);
+  });
+
   testWidgets('sidebar screen items add an arrow without becoming tree nodes', (
     tester,
   ) async {
@@ -147,7 +232,7 @@ void main() {
             width: 248,
             height: 120,
             child: DesySidebar(
-              children: [
+              children: const [
                 DesySidebarSection(
                   label: 'Workspace',
                   children: [
@@ -170,6 +255,43 @@ void main() {
     expect(
       tester.widget<DesySidebarItem>(find.byType(DesySidebarItem)).children,
       isEmpty,
+    );
+  });
+
+  testWidgets('selected sidebar item uses the shared signal marker', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: SizedBox(
+            width: 248,
+            height: 120,
+            child: DesySidebar(
+              children: const [
+                DesySidebarSection(
+                  label: 'Registry',
+                  children: [
+                    DesySidebarItem(
+                      selected: true,
+                      label: Text('Primary button'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final marker = tester.widget<DecoratedBox>(
+      find.byKey(const ValueKey('desy-sidebar-selection-indicator')),
+    );
+    expect(
+      (marker.decoration as BoxDecoration).color,
+      DesyVisualColors.light.signal,
     );
   });
 }

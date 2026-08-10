@@ -2,7 +2,8 @@ import 'package:flutter/foundation.dart';
 
 import 'workshop_candidate.dart';
 import 'workshop_runtime_stub.dart'
-    if (dart.library.io) 'workshop_runtime_io.dart' as platform;
+    if (dart.library.io) 'workshop_runtime_io.dart'
+    as platform;
 
 /// Creates the platform implementation without making the UI platform-specific.
 DesyWorkshopRuntime createDesyWorkshopRuntime(
@@ -29,6 +30,9 @@ abstract class DesyWorkshopRuntime extends ChangeNotifier {
   /// Human-readable activity for the current session.
   List<String> get logs;
 
+  /// Persisted Codex thread continued by subsequent Workshop turns.
+  String? get sessionId;
+
   /// Whether the current request may be submitted.
   bool get canRun => supported && !running && prompt.trim().isNotEmpty;
 
@@ -39,6 +43,7 @@ abstract class DesyWorkshopRuntime extends ChangeNotifier {
   Future<void> run({
     required List<DesyWorkshopCandidate> candidates,
     required Set<String> selectedCandidateIds,
+    required List<DesyWorkshopAnnotation> annotations,
   });
 
   /// Signals the resident Flutter tool to hot reload.

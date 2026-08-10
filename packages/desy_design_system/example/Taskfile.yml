@@ -1,5 +1,9 @@
 version: '3'
 
+vars:
+  REPOSITORY_ROOT:
+    sh: cd "{{.TASKFILE_DIR}}/../../.." && pwd -P
+
 tasks:
   run:
     desc: Launch Desy's own design-system catalogue on a selected device.
@@ -7,10 +11,14 @@ tasks:
       - flutter run {{.CLI_ARGS}}
 
   run_mac:
-    desc: Launch the dogfood catalogue on macOS.
+    desc: Launch the dogfood catalogue and its live Workshop on macOS.
     platforms: [darwin]
     cmds:
-      - flutter run -d macos {{.CLI_ARGS}}
+      - >-
+        flutter run -d macos
+        --pid-file={{.REPOSITORY_ROOT}}/packages/desy_design_system/example/build/desy_workshop_hot_reload.pid
+        --dart-define=DESY_WORKSHOP_PROJECT_DIR={{.REPOSITORY_ROOT}}
+        {{.CLI_ARGS}}
 
   web:
     desc: Launch the dogfood catalogue in Chrome.
