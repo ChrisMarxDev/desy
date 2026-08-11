@@ -36,7 +36,7 @@ void main() {
       find.byKey(const ValueKey('workbench-configuration-error')),
       findsNothing,
     );
-    expect(find.text('DESY BENCH'), findsOneWidget);
+    expect(find.text('REGISTRY'), findsOneWidget);
   });
 
   testWidgets(
@@ -70,6 +70,37 @@ void main() {
       );
     },
   );
+
+  testWidgets('workbench validates prototype session and direction IDs', (
+    tester,
+  ) async {
+    final registry = DesyRegistry(
+      name: 'Invalid prototypes',
+      themes: const [DesyTheme(id: 'shared', name: 'Light', wrap: _wrap)],
+      prototypes: [
+        DesyPrototypeSession(
+          id: 'shared',
+          name: 'Conflicting session',
+          prototypes: const [
+            DesyPrototype(
+              id: 'prototype.direction',
+              name: 'Direction',
+              builder: _prototype,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(DesyBenchApp(registry: registry));
+
+    final error = tester.takeException();
+    expect(error, isA<FlutterError>());
+    expect(
+      error.toString(),
+      contains('Duplicate registry ID "shared" (prototype session).'),
+    );
+  });
 
   testWidgets(
     'workbench shares IDs across registry, workspace, and detail extensions',
@@ -195,6 +226,57 @@ void main() {
       contains('Duplicate registry ID "light" (extension).'),
     );
   });
+
+  testWidgets('disposes only workspace extensions removed from the workbench', (
+    tester,
+  ) async {
+    final registry = DesyRegistry(
+      name: 'Extension lifecycle',
+      themes: [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+    );
+    final first = _TrackingExtension('first');
+    final second = _TrackingExtension('second');
+    var extensions = <DesyWorkspaceExtension>[first];
+    late StateSetter rebuild;
+
+    await tester.pumpWidget(
+      StatefulBuilder(
+        builder: (context, setState) {
+          rebuild = setState;
+          return DesyBenchApp(registry: registry, extensions: extensions);
+        },
+      ),
+    );
+
+    rebuild(() => extensions = [second]);
+    await tester.pump();
+    expect(first.disposeCalls, 1);
+    expect(second.disposeCalls, 0);
+
+    await tester.pumpWidget(const SizedBox());
+    expect(second.disposeCalls, 1);
+  });
 }
 
 Widget _wrap(BuildContext context, Widget child) => child;
+
+Widget _prototype(BuildContext context) => const SizedBox();
+
+class _TrackingExtension extends DesyWorkspaceExtension {
+  _TrackingExtension(this.id);
+
+  @override
+  final String id;
+
+  @override
+  String get name => id;
+
+  var disposeCalls = 0;
+
+  @override
+  Widget build(BuildContext context, DesyWorkspaceExtensionContext extension) =>
+      const SizedBox();
+
+  @override
+  void dispose() => disposeCalls++;
+}

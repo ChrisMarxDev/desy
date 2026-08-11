@@ -1,9 +1,9 @@
 # Desy Bench
 
-Desy Bench is a local Flutter workbench for a design system already owned by
-your repository. Declare real themes, primitives, and production widgets once
-in a `DesyRegistry`; Desy presents that registry without creating a parallel
-catalogue.
+Desy Bench is a local Flutter workbench for the design system already owned by
+your repository. Declare your real theme, widgets, and optional visual
+explorations once in a `DesyRegistry`; Desy presents and compares them without
+creating a parallel catalogue.
 
 ## Run the maintained app
 
@@ -25,10 +25,17 @@ Desy is currently consumed as a workspace package:
 ```yaml
 dependencies:
   desy_bench:
-    path: ../path-to-desy/packages/desy_bench
+    git:
+      url: https://github.com/ChrisMarxDev/desy.git
+      path: packages/desy_bench
+      ref: main
 ```
 
-Create one registry next to the Flutter theme and widgets it describes:
+This is intentionally pinned to `main` while Desy is still moving quickly.
+Release tags will replace it once the package API settles.
+
+Create one registry next to the Flutter theme and widgets it describes. The
+smallest useful registry has a theme and one real component:
 
 ```dart
 import 'package:desy_bench/desy_bench.dart';
@@ -46,24 +53,13 @@ final designSystem = DesyRegistry(
       ),
     ),
   ],
-  colors: [
-    DesyColorEntry.swatch(
-      id: 'color.brand',
-      name: 'Brand',
-      color: acmeBrand,
-    ),
-  ],
   components: [
-    DesyComponent(
+    DesyStaticComponent(
       id: 'button',
       name: 'Button',
       path: '/actions/buttons',
-      knobs: (knobs) => (
-        label: knobs.string('label', initial: 'Continue'),
-      ),
-      build: (context, knobs) => AcmeButton(label: knobs.label.value),
-      instances: (knobs) => {
-        'primary': [knobs.label('Continue')],
+      instances: {
+        'default': (_) => const AcmeButton(label: 'Continue'),
       },
     ),
   ],
@@ -72,53 +68,89 @@ final designSystem = DesyRegistry(
 void main() => runApp(DesyBenchApp(registry: designSystem));
 ```
 
-The theme, color, and button above remain consumer-owned. Use stable, unique
-IDs across themes, artifacts, showcases, and extensions. Previews must
-build the real widget at its intended logical size under its real theme.
+The theme and button remain consumer-owned. Use stable, unique IDs across the
+registry. Previews build the real widget at its intended logical size under its
+real theme.
 
-## Prototype a screen with the Desy DSL
+## Compare real Flutter prototype directions
 
-The local surface DSL composes registered components without defining new UI
-elements. A top-level list is a column shorthand; `row`, `column`, `stack`,
-`padding`, `scroll`, and `spacer` are structural layout primitives only:
+Prototype sessions are ordinary Flutter widget builders. They are for exploring
+directions before a team decides what belongs in the durable component system:
 
 ```dart
-const source = '''
-[
-  {"id": "title.headerbar", "knobs": {"title": "Testing Screen"}},
-  {
-    "layout": "row",
-    "gap": "space.content",
-    "children": [
-      {"component": "status.badge", "instance": "ready"},
-      {"component": "button", "instance": "primary"}
-    ]
-  }
-]
-''';
-
-final surface = DesySurfaceDocument.parse(source);
-
-DesySurfacePreview(
-  registry: designSystem,
-  surface: surface,
+final homepageExploration = DesyPrototypeSession(
+  id: 'homepage.exploration',
+  name: 'Homepage exploration',
+  prototypes: [
+    DesyPrototype(
+      id: 'homepage.editorial',
+      name: 'Editorial direction',
+      builder: (_) => const AcmeHomepage(direction: HomepageDirection.editorial),
+    ),
+    DesyPrototype(
+      id: 'homepage.utility',
+      name: 'Utility direction',
+      builder: (_) => const AcmeHomepage(direction: HomepageDirection.utility),
+    ),
+  ],
 );
 ```
 
-Component IDs, instances, knobs, and named spacing measurements are validated
-against the same `DesyRegistry` used by the catalogue. The format has no text,
-button, image, callback, navigation, or arbitrary-widget nodes: visible UI can
-only come from registered consumer components. Scroll behavior is explicit in
-the document, including its axis and optional visible scrollbar; the preview
-never makes overflowing content scroll on its own.
+Add it to the same registry with `prototypes: [homepageExploration]`. Desy
+renders each direction under the selected consumer theme and exposes its live
+widget anatomy for comparison. It does not require a widget DSL or a second
+component catalogue.
+
+## Register a custom atom
+
+For a foundational visual that does not fit Desy's typed Color, Typography,
+Measurement, Motion, Effect, or Icon lanes, use a knobless custom atom. It is
+made only from named real-widget instances and appears under `Atoms / Custom`:
+
+```dart
+DesyCustomAtom(
+  id: 'acme.atom.hero-gradient',
+  name: 'Hero gradient',
+  instances: {
+    'default': (_) => const AcmeHeroGradient(),
+    'quiet': (_) => const AcmeHeroGradient(quiet: true),
+  },
+)
+```
+
+Add it with `customAtoms: [...]` on the same `DesyRegistry`. Use a static
+component instead when the widget is intended to be composed into application
+screens rather than serve as a foundation artifact.
+
+## Review annotations in place
+
+Desy can select explicitly scoped consumer widgets, attach source-aware notes,
+and keep a local review list without embedding a coding agent. Configure an
+optional store and any destinations your repository needs:
+
+```dart
+DesyBenchApp(
+  registry: designSystem,
+  annotations: DesyAnnotationWorkspace(
+    store: myAnnotationStore,
+    exporters: [myReviewFileExporter, myGitHubExporter],
+  ),
+)
+```
+
+`DesyAnnotationStore` owns local persistence. `DesyAnnotationExporter` receives
+one immutable `DesyAnnotationBatch`, with both source-aware Markdown and JSON
+representations. The core package supplies an in-memory default and remains
+web-safe; filesystem, GitHub, Slack, and agent-specific delivery adapters stay
+consumer-owned or optional packages.
 
 ## Repository
 
 - `packages/desy_bench/` — registry contracts and reusable workbench.
 - `packages/desy_design_system/` — Desy's Forui-based workbench UI and dogfood
   executable.
-- `packages/extensions/` — optional annotation, screenshot-builder, and
-  hot-reload Workshop packages; these are not part of the core.
+- `packages/extensions/` — optional experimental packages; these are not part
+  of the core workbench path.
 - [`dev.md`](dev.md) — the single contributor guide.
 - [`CORE_PRINCIPLES.md`](CORE_PRINCIPLES.md) — product and architecture
   decision gate.

@@ -20,20 +20,25 @@ class DesyMotionPlaybackController extends ChangeNotifier {
   /// Default duration used when no motion-specific or global value is present.
   static const defaultDuration = Duration(milliseconds: 300);
 
-  /// Creates an autoplaying preview timeline.
+  /// Creates a preview timeline, optionally beginning in a paused state.
   DesyMotionPlaybackController({
     required TickerProvider vsync,
     required Duration duration,
     Curve curve = Curves.linear,
     this.loopMode = DesyMotionLoopMode.pingPong,
+    this.autoplay = true,
   }) : assert(duration > Duration.zero),
        _duration = duration,
        _timeline = AnimationController(vsync: vsync, duration: duration) {
     _progress = CurvedAnimation(parent: _timeline, curve: curve);
     _timeline
       ..addListener(notifyListeners)
-      ..addStatusListener(_handleStatus)
-      ..forward();
+      ..addStatusListener(_handleStatus);
+    if (autoplay) {
+      _timeline.forward();
+    } else {
+      _isPlaying = false;
+    }
   }
 
   /// The uncurved zero-to-one clock used by synchronized galleries.
@@ -47,6 +52,9 @@ class DesyMotionPlaybackController extends ChangeNotifier {
 
   /// The current repeat behavior.
   DesyMotionLoopMode loopMode;
+
+  /// Whether the preview begins playing immediately.
+  final bool autoplay;
 
   /// Whether the timeline is currently advancing.
   bool get isPlaying => _isPlaying;

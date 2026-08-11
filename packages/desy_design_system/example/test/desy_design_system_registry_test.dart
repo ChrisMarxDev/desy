@@ -13,9 +13,9 @@ void main() {
     expect(desyDesignSystemRegistry.allMeasurements, hasLength(9));
     expect(desyDesignSystemRegistry.allMotion, hasLength(2));
     expect(desyDesignSystemRegistry.allEffects, hasLength(1));
-    expect(desyDesignSystemRegistry.allIcons, hasLength(26));
+    expect(desyDesignSystemRegistry.allIcons, hasLength(28));
     expect(desyDesignSystemRegistry.atomKinds, DesyAtomKind.values);
-    expect(desyDesignSystemRegistry.allShowcases, hasLength(1));
+    expect(desyDesignSystemRegistry.allPrototypes, isEmpty);
     expect(
       desyDesignSystemRegistry.resolve('desy.icon.shapes')?.path,
       'Atoms / Icons',
@@ -27,10 +27,15 @@ void main() {
         'desy.component.accordion',
         'desy.component.badge',
         'desy.component.button',
+        'desy.component.boolean-knob-row',
         'desy.component.card',
         'desy.component.catalogue-card',
         'desy.component.dialog',
+        'desy.component.instance-knob-row',
+        'desy.component.knob-sheet',
+        'desy.component.numeric-knob-row',
         'desy.component.progress-trail',
+        'desy.component.resize-divider',
         'desy.component.scaffold',
         'desy.component.select',
         'desy.component.shortcut-label',
@@ -39,13 +44,18 @@ void main() {
         'desy.component.sidebar-item',
         'desy.component.switch',
         'desy.component.tabs',
+        'desy.component.text-knob-row',
         'desy.component.text-field',
         'desy.component.tile',
       }),
     );
     expect(
       desyDesignSystemRegistry.resolve('desy.component.sidebar')?.path,
-      'Navigation / Sidebar',
+      'Molecules / Navigation / Sidebar',
+    );
+    expect(
+      desyDesignSystemRegistry.resolve('desy.component.knob-sheet')?.path,
+      'Molecules / Inputs / Knobs',
     );
     for (final component in desyDesignSystemRegistry.allComponents) {
       expect(component.instanceIds, isNotEmpty, reason: component.id);
@@ -56,6 +66,67 @@ void main() {
       );
     }
   });
+
+  test('knob sheet declares every precision-sheet control', () {
+    final knobSheet = desyDesignSystemRegistry.allComponents.singleWhere(
+      (component) => component.id == 'desy.component.knob-sheet',
+    );
+
+    expect(knobSheet.knobDefinitions.map((definition) => definition.id), [
+      'title',
+      'caption',
+      'width',
+      'cornerRadius',
+      'clipContent',
+      'showLabel',
+      'surfaceColor',
+      'instance',
+    ]);
+    expect(
+      knobSheet.knobDefinitions
+          .where((definition) => definition.kind == DesyKnobKind.number)
+          .map((definition) => definition.name),
+      ['Width', 'Corner radius'],
+    );
+    expect(
+      knobSheet.knobDefinitions.map((definition) => definition.kind).toSet(),
+      {
+        DesyKnobKind.string,
+        DesyKnobKind.number,
+        DesyKnobKind.boolean,
+        DesyKnobKind.color,
+        DesyKnobKind.widgetInstance,
+      },
+    );
+  });
+
+  test('color knob row declares a typed color control', () {
+    final colorKnobRow = desyDesignSystemRegistry.allComponents.singleWhere(
+      (component) => component.id == 'desy.component.color-knob-row',
+    );
+
+    expect(colorKnobRow.instanceIds, [
+      'signal-surface',
+      'positive',
+      'disabled',
+    ]);
+    expect(colorKnobRow.knobDefinitions.map((definition) => definition.kind), [
+      DesyKnobKind.string,
+      DesyKnobKind.color,
+      DesyKnobKind.boolean,
+    ]);
+  });
+
+  test(
+    'dogfood declares a knobless custom gradient atom as named instances',
+    () {
+      final atom = desyDesignSystemRegistry.allCustomAtoms.single;
+
+      expect(atom.id, 'desy.atom.gradient.ribbon');
+      expect(atom.instances.keys, ['default', 'quiet']);
+      expect(atom.description, isNotEmpty);
+    },
+  );
 
   testWidgets('every catalogued component renders its production preview', (
     tester,

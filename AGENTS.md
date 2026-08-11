@@ -30,15 +30,21 @@
   component IDs remain the durable identity and no parallel folder declaration
   belongs in the registry.
 - Every declaration collection is immutable after construction. Give every
-  theme, artifact, showcase, and extension a unique, stable ID; the
+  theme, artifact, prototype session, and extension a unique, stable ID; the
   workbench validates that shared ID space when it starts.
 - Previews must render the consumer's real Flutter widgets under its real theme.
-- Build all Desy-owned scaffold UI with Forui. This includes workbench chrome,
-  navigation, panels, controls, and studio surfaces; it does not constrain a
-  consumer preview's component library.
-- Desy-owned packages consume Forui through `desy_design_system`; do not add a
-  direct Forui import to `desy_bench` or a Desy-owned extension. The dogfood
-  app's `DesyRegistry` is the only runtime inventory of Desy's exported UI.
+- Build all Desy-owned scaffold UI through Desy-owned controls implemented by
+  Forui. This includes workbench chrome, navigation, panels, controls, and
+  studio surfaces; it does not constrain a consumer preview's component
+  library.
+- Use `DesyResizeDivider` for every resizable panel boundary. It owns the one
+  visible hairline, pointer hit target, cursor, keyboard control, and semantics;
+  never pair it with a separate `Border`, divider `Container`, or resize handle.
+- `desy_design_system` owns the Forui dependency and keeps it behind Desy-owned
+  widgets, variants, sizes, callbacks, and controllers. Do not add a direct
+  Forui import or expose an `F*` type from `desy_bench`, an extension, or a new
+  Desy public API. The dogfood app's `DesyRegistry` is the only runtime
+  inventory of Desy's exported UI.
 - Render consumer previews at their intended logical dimensions, then scale the
   result down within the Desy canvas. Do not make a widget look smaller by
   giving it artificial compact constraints. Responsive previews derive their

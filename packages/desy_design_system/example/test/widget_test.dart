@@ -1,4 +1,3 @@
-import 'package:desy_agent_annotations/desy_agent_annotations.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:desy_design_system_example/desy_design_system_example.dart';
 import 'package:flutter/widgets.dart';
@@ -11,12 +10,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      buildDesyDesignSystemDogfoodApp(
-        onSubmit: (_) async =>
-            const DesyAgentAnnotationReceipt(message: 'Saved.'),
-      ),
-    );
+    await tester.pumpWidget(buildDesyDesignSystemDogfoodApp());
     await tester.pumpAndSettle();
 
     tester
@@ -79,10 +73,10 @@ void main() {
     await tester.pumpWidget(buildDesyDesignSystemDogfoodApp());
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('DESY BENCH'), findsOneWidget);
-    expect(find.text('Atlas'), findsOneWidget);
-    expect(find.text('Sketch'), findsOneWidget);
-    expect(find.text('Workshop'), findsOneWidget);
+    expect(find.text('REGISTRY'), findsOneWidget);
+    expect(find.text('All components'), findsOneWidget);
+    expect(find.text('Sketch'), findsNothing);
+    expect(find.text('Prototypes'), findsNothing);
     expect(find.text('JSON prototypes'), findsNothing);
     expect(find.text('Components'), findsWidgets);
   });
@@ -104,101 +98,18 @@ void main() {
         .call();
     await tester.pumpAndSettle();
 
-    expect(tester.getSize(find.byType(DesySwitch)).width, 160);
-    final labelSize = tester.getSize(find.text('Show grid'));
+    final switchCard = find.byKey(
+      const ValueKey('atlas-card-desy.component.switch'),
+    );
+    final previewSwitch = find.descendant(
+      of: switchCard,
+      matching: find.byType(DesySwitch),
+    );
+    expect(tester.getSize(previewSwitch).width, 160);
+    final labelSize = tester.getSize(
+      find.descendant(of: switchCard, matching: find.text('Show grid')),
+    );
     expect(labelSize.width, greaterThan(labelSize.height));
-  });
-
-  testWidgets('dogfoods agent annotations in component details', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(1200, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    DesyAgentAnnotation? received;
-
-    await tester.pumpWidget(
-      buildDesyDesignSystemDogfoodApp(
-        onSubmit: (annotation) async {
-          received = annotation;
-          return const DesyAgentAnnotationReceipt(
-            message: 'Queued for the dogfood agent.',
-          );
-        },
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    tester
-        .widget<DesySidebarItem>(
-          find.byKey(const ValueKey('sidebar-folder-/actions')),
-        )
-        .onPress!
-        .call();
-    await tester.pumpAndSettle();
-    await _openAtlasEntry(tester, 'desy.component.button');
-
-    expect(find.text('Agent annotation'), findsOneWidget);
-    await tester.enterText(
-      find.byKey(const ValueKey('agent-annotation-comment')),
-      'Review the dogfood button focus treatment.',
-    );
-    await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('agent-annotation-submit')));
-    await tester.pumpAndSettle();
-
-    expect(received?.entryId, 'desy.component.button');
-    expect(received?.comment, 'Review the dogfood button focus treatment.');
-    expect(find.text('Queued for the dogfood agent.'), findsOneWidget);
-  });
-
-  testWidgets('dogfoods agent annotations in atom details', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1200, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    DesyAgentAnnotation? received;
-
-    await tester.pumpWidget(
-      buildDesyDesignSystemDogfoodApp(
-        onSubmit: (annotation) async {
-          received = annotation;
-          return const DesyAgentAnnotationReceipt(
-            message: 'Queued atom feedback for the dogfood agent.',
-          );
-        },
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey('sidebar-entry-desy.color.background')),
-      findsNothing,
-    );
-    tester
-        .widget<DesySidebarItem>(
-          find.byKey(const ValueKey('sidebar-folder-desy.atoms.colors')),
-        )
-        .onPress!
-        .call();
-    await tester.pumpAndSettle();
-    await _openAtlasEntry(tester, 'desy.color.background');
-
-    expect(find.text('Agent annotation'), findsOneWidget);
-    await tester.enterText(
-      find.byKey(const ValueKey('agent-annotation-comment')),
-      'Review the background atom contrast.',
-    );
-    await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('agent-annotation-submit')));
-    await tester.pumpAndSettle();
-
-    expect(received?.entryId, 'desy.color.background');
-    expect(received?.entryName, 'Background');
-    expect(received?.folderIds, ['desy.atoms', 'desy.atoms.colors']);
-    expect(received?.sourcePath, isNull);
-    expect(received?.comment, 'Review the background atom contrast.');
-    expect(
-      find.text('Queued atom feedback for the dogfood agent.'),
-      findsOneWidget,
-    );
   });
 
   testWidgets('dogfoods registry-backed swaps and missing-link diagnostics', (
@@ -212,7 +123,7 @@ void main() {
 
     tester
         .widget<DesySidebarItem>(
-          find.byKey(const ValueKey('sidebar-folder-/navigation')),
+          find.byKey(const ValueKey('sidebar-folder-/molecules/navigation')),
         )
         .onPress!
         .call();
@@ -246,13 +157,21 @@ void main() {
       findsOneWidget,
     );
 
-    final gallery = find.byKey(const ValueKey('detail-instance-gallery'));
-    await tester.drag(gallery, const Offset(0, -2400));
-    await tester.pumpAndSettle();
-
     final missingScenario = find.byKey(
       const ValueKey('detail-instance-viewer-scenario-missing-suffix-instance'),
     );
+    final verticalCanvasScroller = find
+        .ancestor(
+          of: find.byKey(const ValueKey('detail-instance-gallery')),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down,
+          ),
+        )
+        .first;
+    tester.state<ScrollableState>(verticalCanvasScroller).position.jumpTo(600);
+    await tester.pumpAndSettle();
     expect(missingScenario, findsOneWidget);
     final missingPlaceholder = find.descendant(
       of: missingScenario,

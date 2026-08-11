@@ -12,4 +12,8 @@ export 'src/registry.dart';
 export 'src/surface/surface_dsl.dart';
 export 'src/surface/surface_preview.dart';
 export 'src/workbench/widget_preview.dart';
+export 'src/workbench/workbench_annotation.dart';
+export 'src/workbench/annotation_workspace.dart';
 export 'src/workspace_extension.dart';
+export 'src/workspace_focus.dart';
+export 'src/window_controls.dart';

@@ -6,7 +6,7 @@ import 'registry_missing_widget.dart';
 
 /// A built-in, typed atom lane understood by Desy's specialized boards.
 enum DesyAtomKind {
-  /// Consumer color and visual-treatment entries.
+  /// Consumer solid-color entries.
   colors,
 
   /// Consumer typography entries.
@@ -22,7 +22,10 @@ enum DesyAtomKind {
   motion,
 
   /// Consumer visual-effect entries.
-  effects;
+  effects,
+
+  /// Consumer-defined foundational widget instances outside typed lanes.
+  custom;
 
   /// Stable ID used by registry-derived navigation.
   String get id => 'desy.atoms.$name';
@@ -35,6 +38,7 @@ enum DesyAtomKind {
     measurements => 'Measurements',
     motion => 'Motion',
     effects => 'Effects',
+    custom => 'Custom',
   };
 
   /// Stable ID of the built-in Atoms navigation section.
@@ -53,10 +57,11 @@ class DesyRegistry {
     List<DesyNumericEntry> measurements = const [],
     List<DesyMotionEntry> motion = const [],
     List<DesyEffectEntry> effects = const [],
+    List<DesyCustomAtom> customAtoms = const [],
     List<DesyIconEntry> icons = const [],
     List<DesyAssetEntry> assets = const [],
     List<DesyRegistryComponent> components = const [],
-    List<DesyShowcase> showcases = const [],
+    List<DesyPrototypeSession> prototypes = const [],
   }) : assert(themes.isNotEmpty, 'A Desy registry needs at least one theme.'),
        themes = List.unmodifiable(themes),
        tokens = List.unmodifiable(tokens),
@@ -65,10 +70,11 @@ class DesyRegistry {
        measurements = List.unmodifiable(measurements),
        motion = List.unmodifiable(motion),
        effects = List.unmodifiable(effects),
+       customAtoms = List.unmodifiable(customAtoms),
        icons = List.unmodifiable(icons),
        assets = List.unmodifiable(assets),
        components = List.unmodifiable(components),
-       showcases = List.unmodifiable(showcases),
+       prototypes = List.unmodifiable(prototypes),
        componentGroups = _buildComponentGroups(components);
 
   /// Human-readable system name.
@@ -80,10 +86,7 @@ class DesyRegistry {
   /// Semantic values used by the consumer system.
   final List<DesyToken> tokens;
 
-  /// Consumer-owned color and visual treatment entries for the color atlas.
-  ///
-  /// Unlike [tokens], entries may describe gradients or any other visual
-  /// treatment in addition to a single color value.
+  /// Consumer-owned semantic solid colors for the specialized Colors board.
   final List<DesyColorEntry> colors;
 
   /// Consumer-owned text styles for the specialized Fonts board.
@@ -98,6 +101,9 @@ class DesyRegistry {
   /// Widget decorators such as consumer-owned shadow recipes.
   final List<DesyEffectEntry> effects;
 
+  /// Knobless consumer-owned widget instances in Desy's Custom Atom lane.
+  final List<DesyCustomAtom> customAtoms;
+
   /// Consumer-owned icon glyphs.
   final List<DesyIconEntry> icons;
 
@@ -107,11 +113,12 @@ class DesyRegistry {
   /// Real consumer widgets available in the catalogue.
   final List<DesyRegistryComponent> components;
 
-  /// Complete consumer-defined examples rendered by the experimental showcase.
+  /// Consumer-owned visual explorations that remain ordinary Flutter code.
   ///
-  /// A showcase is optional and remains a normal widget builder: it does not
-  /// create a second screen model or ask consumers to duplicate their system.
-  final List<DesyShowcase> showcases;
+  /// Prototype sessions sit alongside the declared system rather than inside
+  /// its component tree. They let a team compare real widget directions before
+  /// deciding what belongs in the durable registry.
+  final List<DesyPrototypeSession> prototypes;
 
   /// Navigation groups derived from [components] and their normalized paths.
   final List<DesyComponentGroup> componentGroups;
@@ -134,6 +141,9 @@ class DesyRegistry {
   /// Every widget effect declared for the Effects lane.
   List<DesyEffectEntry> get allEffects => effects;
 
+  /// Every consumer-defined custom atom.
+  List<DesyCustomAtom> get allCustomAtoms => customAtoms;
+
   /// Every icon primitive declared for the Icons lane.
   List<DesyIconEntry> get allIcons => icons;
 
@@ -145,6 +155,7 @@ class DesyRegistry {
     if (measurements.isNotEmpty) DesyAtomKind.measurements,
     if (motion.isNotEmpty) DesyAtomKind.motion,
     if (effects.isNotEmpty) DesyAtomKind.effects,
+    if (customAtoms.isNotEmpty) DesyAtomKind.custom,
   ]);
 
   /// Whether the registry opts into at least one built-in atom lane.
@@ -160,6 +171,7 @@ class DesyRegistry {
           numbers: kind == DesyAtomKind.measurements ? measurements : const [],
           motion: kind == DesyAtomKind.motion ? motion : const [],
           effects: kind == DesyAtomKind.effects ? effects : const [],
+          customAtoms: kind == DesyAtomKind.custom ? customAtoms : const [],
           icons: kind == DesyAtomKind.icons ? icons : const [],
           assets: const [],
           components: const [],
@@ -183,8 +195,16 @@ class DesyRegistry {
   /// Every declared component.
   List<DesyRegistryComponent> get allComponents => components;
 
-  /// Every experimental showcase declared by this system.
-  List<DesyShowcase> get allShowcases => showcases;
+  /// Every consumer-declared visual exploration session.
+  List<DesyPrototypeSession> get allPrototypes => prototypes;
+
+  /// Finds one prototype session by its stable registry ID.
+  DesyPrototypeSession? prototypeSession(String id) {
+    for (final session in prototypes) {
+      if (session.id == id) return session;
+    }
+    return null;
+  }
 
   /// Every named component instance declared by this system.
   ///
@@ -246,6 +266,7 @@ class DesyRegistry {
     numbers: const [],
     motion: const [],
     effects: const [],
+    customAtoms: const [],
     icons: const [],
     assets: assets,
     components: const [],
@@ -465,6 +486,60 @@ class DesyToken {
   final String group;
 }
 
+/// A consumer-defined foundational visual built from named static instances.
+///
+/// Use this for atom-like artifacts that Desy cannot classify as color, type,
+/// measurement, motion, effect, or icon. A custom atom intentionally has no
+/// knobs: each visible form is an explicit, consumer-owned widget instance.
+class DesyCustomAtom {
+  /// Creates one knobless custom atom with one or more named widget instances.
+  DesyCustomAtom({
+    required this.id,
+    required this.name,
+    required Map<String, WidgetBuilder> instances,
+    this.description,
+  }) : instances = Map.unmodifiable(instances) {
+    if (instances.isEmpty) {
+      throw ArgumentError.value(
+        instances,
+        'instances',
+        'A custom atom needs at least one named widget instance.',
+      );
+    }
+  }
+
+  /// Stable registry identifier.
+  final String id;
+
+  /// Human-readable atom name.
+  final String name;
+
+  /// Named real widget instances supplied by the consumer.
+  final Map<String, WidgetBuilder> instances;
+
+  /// Optional guidance on the atom's semantic role.
+  final String? description;
+
+  /// The first declared instance, used as the compact Atom preview.
+  String get defaultInstanceId => instances.keys.first;
+
+  /// Builds the compact preview from the first declared real widget instance.
+  Widget preview(BuildContext context) => instances.values.first(context);
+
+  /// Builds a particular declared real widget instance.
+  Widget buildInstance(BuildContext context, String instanceId) {
+    final builder = instances[instanceId];
+    if (builder == null) {
+      throw ArgumentError.value(
+        instanceId,
+        'instanceId',
+        'Unknown custom atom instance for "$id".',
+      );
+    }
+    return builder(context);
+  }
+}
+
 /// A resolved registry artifact. It references consumer-owned declarations;
 /// it never stores a copied registry or recreates a consumer widget.
 class DesyRegistryEntry {
@@ -597,8 +672,11 @@ class DesyRegistryValidator {
     for (final instance in registry.allComponentInstances) {
       add(instance.id, 'component instance');
     }
-    for (final showcase in registry.allShowcases) {
-      add(showcase.id, 'showcase');
+    for (final prototypeSession in registry.allPrototypes) {
+      add(prototypeSession.id, 'prototype session');
+      for (final prototype in prototypeSession.prototypes) {
+        add(prototype.id, 'prototype');
+      }
     }
     for (final id in extensionIds) {
       add(id, 'extension');
@@ -657,6 +735,7 @@ List<DesyRegistryEntry> _entriesFor({
   required List<DesyNumericEntry> numbers,
   required List<DesyMotionEntry> motion,
   required List<DesyEffectEntry> effects,
+  required List<DesyCustomAtom> customAtoms,
   required List<DesyIconEntry> icons,
   required List<DesyAssetEntry> assets,
   required List<DesyRegistryComponent> components,
@@ -682,10 +761,10 @@ List<DesyRegistryEntry> _entriesFor({
       name: color.name,
       folderIds: folderIds,
       folderNames: folderNames,
-      builder: color.builder,
+      builder: color.build,
       source: color,
       description: color.description,
-      value: color.value,
+      value: color.displayValue,
       atomKind: atomKind,
     ),
   for (final type in typography)
@@ -736,6 +815,18 @@ List<DesyRegistryEntry> _entriesFor({
       source: effect,
       description: effect.description,
       value: effect.displayValue,
+      atomKind: atomKind,
+    ),
+  for (final atom in customAtoms)
+    DesyRegistryEntry(
+      id: atom.id,
+      name: atom.name,
+      folderIds: folderIds,
+      folderNames: folderNames,
+      builder: atom.preview,
+      source: atom,
+      description: atom.description,
+      value: atom.defaultInstanceId,
       atomKind: atomKind,
     ),
   for (final icon in icons)
@@ -1274,8 +1365,14 @@ enum DesyKnobKind {
   /// A free-form text value.
   string,
 
+  /// A finite numeric value with an explicit presentation range.
+  number,
+
   /// A true/false value.
   boolean,
+
+  /// A literal Flutter [Color].
+  color,
 
   /// A stable ID selecting another registered component instance.
   widgetInstance,
@@ -1302,7 +1399,20 @@ final class KnobDefinition<T extends Object> {
     required this.kind,
     required this.initial,
     List<String> options = const [],
-  }) : options = List.unmodifiable(options);
+    this.unit,
+    this.step,
+    this.minimum,
+    this.maximum,
+  }) : assert(
+         kind != DesyKnobKind.number ||
+             (unit != null &&
+                 step != null &&
+                 minimum != null &&
+                 maximum != null &&
+                 minimum <= maximum &&
+                 step > 0),
+       ),
+       options = List.unmodifiable(options);
 
   /// Stable knob identifier within a component.
   final String id;
@@ -1315,6 +1425,18 @@ final class KnobDefinition<T extends Object> {
 
   /// Initial value used by the default preview.
   final T initial;
+
+  /// Unit shown beside a numeric value, such as `px`.
+  final String? unit;
+
+  /// The amount applied by each numeric step control.
+  final double? step;
+
+  /// Inclusive lower bound for a numeric knob.
+  final double? minimum;
+
+  /// Inclusive upper bound for a numeric knob.
+  final double? maximum;
 
   /// Registry-scoped instance IDs legal in this composition slot.
   ///
@@ -1388,8 +1510,22 @@ abstract interface class KnobScope {
   /// Declares a text knob and returns its typed handle.
   Knob<String> string(String id, {String? name, required String initial});
 
+  /// Declares a numeric knob and returns its typed handle.
+  Knob<double> number(
+    String id, {
+    String? name,
+    required double initial,
+    required String unit,
+    required double step,
+    double minimum = 0,
+    double maximum = 999,
+  });
+
   /// Declares a boolean knob and returns its typed handle.
   Knob<bool> boolean(String id, {String? name, required bool initial});
+
+  /// Declares a literal [Color] knob.
+  Knob<Color> color(String id, {String? name, required Color initial});
 
   /// Declares a component-instance knob and returns its typed handle.
   WidgetInstanceKnob widgetInstance(
@@ -1416,12 +1552,45 @@ final class DeclarationKnobScope implements KnobScope {
       );
 
   @override
+  Knob<double> number(
+    String id, {
+    String? name,
+    required double initial,
+    required String unit,
+    required double step,
+    double minimum = 0,
+    double maximum = 999,
+  }) => _register(
+    KnobDefinition(
+      id: id,
+      name: name ?? _humanize(id),
+      kind: DesyKnobKind.number,
+      initial: initial,
+      unit: unit,
+      step: step,
+      minimum: minimum,
+      maximum: maximum,
+    ),
+  );
+
+  @override
   Knob<bool> boolean(String id, {String? name, required bool initial}) =>
       _register(
         KnobDefinition(
           id: id,
           name: name ?? _humanize(id),
           kind: DesyKnobKind.boolean,
+          initial: initial,
+        ),
+      );
+
+  @override
+  Knob<Color> color(String id, {String? name, required Color initial}) =>
+      _register(
+        KnobDefinition(
+          id: id,
+          name: name ?? _humanize(id),
+          kind: DesyKnobKind.color,
           initial: initial,
         ),
       );
@@ -1514,7 +1683,22 @@ final class ResolvedKnobScope implements KnobScope {
       _resolve(id);
 
   @override
+  Knob<double> number(
+    String id, {
+    String? name,
+    required double initial,
+    required String unit,
+    required double step,
+    double minimum = 0,
+    double maximum = 999,
+  }) => _resolve(id);
+
+  @override
   Knob<bool> boolean(String id, {String? name, required bool initial}) =>
+      _resolve(id);
+
+  @override
+  Knob<Color> color(String id, {String? name, required Color initial}) =>
       _resolve(id);
 
   @override
@@ -1630,73 +1814,19 @@ class DesyComponentScenario {
   final String? description;
 }
 
-/// Builds the visual treatment shown by a color atlas entry.
-typedef DesyColorBuilder = Widget Function(BuildContext context);
-
-/// A consumer-owned visual entry in the color atlas.
+/// A consumer-owned, semantic solid color in the color atlas.
 ///
-/// [builder] is deliberately widget-returning so a system can register a
-/// simple swatch, a gradient, or an entirely custom visual token without the
-/// Bench inventing a second token model.
+/// Colors are deliberately literal [Color] values. Gradients, shaders, and
+/// other paint recipes consume colors but are separate visual treatments; they
+/// do not belong in the Colors atom lane.
 class DesyColorEntry {
-  /// Creates a color atlas entry from a consumer-supplied widget builder.
+  /// Creates a solid color entry.
   const DesyColorEntry({
     required this.id,
     required this.name,
-    required this.builder,
-    this.value,
+    required this.color,
     this.description,
   });
-
-  /// Creates a standard, solid color entry.
-  factory DesyColorEntry.swatch({
-    required String id,
-    required String name,
-    required Color color,
-    String? value,
-    String? description,
-  }) => DesyColorEntry(
-    id: id,
-    name: name,
-    value:
-        value ??
-        '#${color.toARGB32().toRadixString(16).substring(2).toUpperCase()}',
-    description: description,
-    builder: (context) => SizedBox(
-      width: 240,
-      height: 140,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    ),
-  );
-
-  /// Creates a gradient entry while preserving the consumer's exact gradient.
-  factory DesyColorEntry.gradient({
-    required String id,
-    required String name,
-    required Gradient gradient,
-    String? value,
-    String? description,
-  }) => DesyColorEntry(
-    id: id,
-    name: name,
-    value: value,
-    description: description,
-    builder: (context) => SizedBox(
-      width: 240,
-      height: 140,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    ),
-  );
 
   /// Stable identifier for the entry.
   final String id;
@@ -1704,14 +1834,27 @@ class DesyColorEntry {
   /// Human-readable entry name.
   final String name;
 
-  /// A concise source value, where it is useful to show one.
-  final String? value;
+  /// The literal Flutter color this semantic entry resolves to.
+  final Color color;
 
   /// Guidance on the visual treatment's intended use.
   final String? description;
 
-  /// Renders the consumer's declared visual treatment.
-  final DesyColorBuilder builder;
+  /// A canonical ARGB representation suitable for display and copy actions.
+  String get displayValue =>
+      '#${color.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()}';
+
+  /// Renders this literal color for generic registry preview surfaces.
+  Widget build(BuildContext context) => SizedBox(
+    width: 240,
+    height: 140,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+    ),
+  );
 }
 
 /// Builds a real consumer typography specimen for the supplied text.
@@ -2218,30 +2361,63 @@ final class DesyWidgetResolver {
   );
 }
 
-/// An experimental, consumer-owned composition built from real widgets.
-///
-/// This is a small proving ground for larger system examples. It deliberately
-/// stores no screen manifest, callbacks, or app logic beyond the consumer's
-/// widget builder. The API may evolve while the extension boundary matures.
-class DesyShowcase {
-  /// Creates an experimental showcase screen.
-  const DesyShowcase({
+/// A repository-owned session for comparing visual directions before they are
+/// accepted as regular design-system components.
+class DesyPrototypeSession {
+  /// Creates an immutable collection of real Flutter prototype widgets.
+  factory DesyPrototypeSession({
+    required String id,
+    required String name,
+    required List<DesyPrototype> prototypes,
+    String? description,
+  }) => DesyPrototypeSession._(
+    id: id,
+    name: name,
+    prototypes: List.unmodifiable(prototypes),
+    description: description,
+  );
+
+  const DesyPrototypeSession._({
+    required this.id,
+    required this.name,
+    required this.prototypes,
+    this.description,
+  });
+
+  /// Stable registry identity for this exploration.
+  final String id;
+
+  /// Short name shown in the Prototypes sidebar section.
+  final String name;
+
+  /// The comparable directions in this session.
+  final List<DesyPrototype> prototypes;
+
+  /// Optional framing for the exploration.
+  final String? description;
+}
+
+/// One real Flutter direction inside a [DesyPrototypeSession].
+class DesyPrototype {
+  /// Creates one named prototype backed by a normal Flutter widget builder.
+  const DesyPrototype({
     required this.id,
     required this.name,
     required this.builder,
     this.description,
   });
 
-  /// Stable identifier for navigation and future derived exports.
+  /// Stable identity used by annotations and future review artifacts.
   final String id;
 
-  /// Human-readable showcase title.
+  /// Human-readable direction name.
   final String name;
 
-  /// Builds the actual consumer-owned composition.
+  /// Builds the actual repository-owned widget under the active consumer
+  /// theme; it is never a serializable widget DSL.
   final DesyPreviewBuilder builder;
 
-  /// Optional explanation of the pattern demonstrated.
+  /// Optional explanation of the visual decision being explored.
   final String? description;
 }
 
@@ -2297,8 +2473,18 @@ Object _toSettingValue(KnobDefinition<Object> definition, Object value) {
   switch (definition.kind) {
     case DesyKnobKind.string:
       if (value is String) return value;
+    case DesyKnobKind.number:
+      if (value is num) {
+        final number = value.toDouble();
+        if (number >= definition.minimum! && number <= definition.maximum!) {
+          return number;
+        }
+      }
     case DesyKnobKind.boolean:
       if (value is bool) return value;
+    case DesyKnobKind.color:
+      if (value is Color) return value;
+      if (value is int) return Color(value);
     case DesyKnobKind.widgetInstance:
       if (value is String) {
         final id = DesyInstanceId(value);

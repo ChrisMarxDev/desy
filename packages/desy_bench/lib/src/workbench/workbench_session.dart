@@ -2,12 +2,15 @@
 // ignore_for_file: public_member_api_docs
 
 import 'package:flutter/widgets.dart';
+import 'dart:async';
 import 'package:state_beacon/state_beacon.dart';
 
 import '../device_preview.dart';
 import '../detail_extension.dart';
 import '../registry.dart';
 import '../workspace_extension.dart';
+import 'workbench_annotation.dart';
+import 'annotation_workspace.dart';
 
 /// Ephemeral interaction state for one open Desy workbench.
 ///
@@ -18,12 +21,15 @@ class DesyWorkbenchSession {
     required this.registry,
     List<DesyWorkspaceExtension> extensions = const [],
     List<DesyDetailExtension> detailExtensions = const [],
+    DesyAnnotationWorkspace? annotations,
   }) : extensions = List.unmodifiable(extensions),
-       detailExtensions = List.unmodifiable(detailExtensions);
+       detailExtensions = List.unmodifiable(detailExtensions),
+       annotations = annotations ?? DesyAnnotationWorkspace();
 
   final DesyRegistry registry;
   final List<DesyWorkspaceExtension> extensions;
   final List<DesyDetailExtension> detailExtensions;
+  final DesyAnnotationWorkspace annotations;
 
   final activeThemeIndex = Beacon.writable(0);
   final selectedScenario = Beacon.writable<DesyComponentScenario?>(null);
@@ -36,6 +42,10 @@ class DesyWorkbenchSession {
     'The quick brown fox jumps over the lazy dog.',
   );
   final stage = Beacon.writable(const DesyPreviewStage());
+  final workbenchAnnotations = Beacon.writable<List<DesyWorkbenchAnnotation>>(
+    const [],
+  );
+  final pendingAgentRequest = Beacon.writable('');
 
   DesyTheme get activeTheme => registry.themes[activeThemeIndex.value];
 
@@ -43,6 +53,7 @@ class DesyWorkbenchSession {
       DesyWorkspaceExtensionContext(
         registry: registry,
         activeTheme: registry.themes[activeThemeIndex.value],
+        workbenchAnnotations: workbenchAnnotations.value,
       );
 
   DesyDetailExtensionContext detailExtensionContext(DesyRegistryEntry entry) {
@@ -107,6 +118,61 @@ class DesyWorkbenchSession {
 
   void updateStage(DesyPreviewStage next) => stage.value = next;
 
+  /// Commits one source-aware note without mutating consumer registry data.
+  void addWorkbenchAnnotation({
+    required DesyWorkbenchWidgetTarget target,
+    required String comment,
+  }) {
+    final text = comment.trim();
+    if (text.isEmpty) return;
+    workbenchAnnotations.value = List.unmodifiable([
+      ...workbenchAnnotations.value,
+      DesyWorkbenchAnnotation(
+        id: workbenchAnnotations.value.length + 1,
+        target: target,
+        comment: text,
+        createdAt: DateTime.now(),
+      ),
+    ]);
+    unawaited(annotations.store.save(workbenchAnnotations.value));
+  }
+
+  /// Restores persisted review notes without making persistence a core concern.
+  Future<void> hydrateAnnotations() async {
+    final restored = await annotations.store.load();
+    workbenchAnnotations.value = List.unmodifiable(restored);
+  }
+
+  /// Conservatively detaches visible targets after hot reload.
+  ///
+  /// Flutter may preserve an element, replace it, or relocate it after an
+  /// edit. Keeping source evidence is useful, but reusing the former bounds
+  /// would suggest certainty Desy does not have.
+  void detachWorkbenchAnnotationsAfterReload() {
+    if (workbenchAnnotations.value.isEmpty) return;
+    workbenchAnnotations.value = List.unmodifiable([
+      for (final annotation in workbenchAnnotations.value)
+        if (annotation.attachment == DesyWorkbenchAnnotationAttachment.detached)
+          annotation
+        else
+          annotation.copyWithAttachment(
+            DesyWorkbenchAnnotationAttachment.detached,
+          ),
+    ]);
+  }
+
+  /// Carries a home-screen request into the next local agent workspace.
+  ///
+  /// The value is intentionally ephemeral: it exists only to preserve the
+  /// user's first sentence while moving from the Registry Spine home state to
+  /// the resumable Workshop conversation.
+  void startAgentRequest(String value) {
+    pendingAgentRequest.value = value.trim();
+  }
+
+  /// Clears the request once its destination workspace has adopted it.
+  void consumePendingAgentRequest() => pendingAgentRequest.value = '';
+
   void dispose() {
     activeThemeIndex.dispose();
     selectedScenario.dispose();
@@ -116,6 +182,8 @@ class DesyWorkbenchSession {
     atlasQuery.dispose();
     fontSampleText.dispose();
     stage.dispose();
+    workbenchAnnotations.dispose();
+    pendingAgentRequest.dispose();
   }
 }
 

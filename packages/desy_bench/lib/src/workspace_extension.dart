@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 
 import 'registry.dart';
+import 'workbench/workbench_annotation.dart';
+import 'workspace_focus.dart';
 
 /// An optional, typed screen mounted below Workspace in Desy Bench.
 ///
@@ -47,12 +49,52 @@ abstract class DesyWorkspaceExtension {
   /// Optional concise explanation shown by extension-owned UI.
   String? get description => null;
 
+  /// A compact, repository-native conversation shown in the sidebar footer.
+  ///
+  /// This is deliberately descriptive rather than a persistence API. The
+  /// extension remains the owner of its session state while the workbench can
+  /// present the current conversation consistently beside the registry.
+  DesyWorkspaceSessionSummary? get currentSession => null;
+
   /// Whether this screen keeps or replaces the ordinary workbench navigation.
   DesyWorkspaceExtensionPresentation get presentation =>
       DesyWorkspaceExtensionPresentation.workbench;
 
   /// Builds this extension's workspace screen.
   Widget build(BuildContext context, DesyWorkspaceExtensionContext extension);
+
+  /// Releases extension-owned local resources when the workbench closes.
+  ///
+  /// Most declarative extensions have nothing to release. A local agent
+  /// runtime may override this rather than making a routed screen own a
+  /// process that must survive navigation.
+  void dispose() {}
+
+  /// Starts a fresh local agent conversation when feedback originates from a
+  /// declared registry artifact rather than the active Workshop.
+  ///
+  /// The default keeps non-agent extensions declarative. Agent extensions may
+  /// clear their own resumable process state without exposing it to the shell.
+  void startNewAgentSession() {}
+}
+
+/// The one active conversation associated with a workspace extension.
+///
+/// Past-session persistence is intentionally outside this small shell
+/// contract. A future repository-backed history can add entries without
+/// changing how the workbench identifies the live session.
+class DesyWorkspaceSessionSummary {
+  /// Creates a compact live-session description.
+  const DesyWorkspaceSessionSummary({
+    required this.title,
+    required this.subtitle,
+  });
+
+  /// Short, human-readable conversation title.
+  final String title;
+
+  /// Repository or workflow context beneath [title].
+  final String subtitle;
 }
 
 /// The screen builder used by [DesyWorkspaceExtension.builder].
@@ -112,6 +154,10 @@ class DesyWorkspaceExtensionContext {
   const DesyWorkspaceExtensionContext({
     required this.registry,
     required this.activeTheme,
+    this.focus,
+    this.workbenchAnnotations = const [],
+    this.pendingAgentRequest = '',
+    this.onPendingAgentRequestConsumed,
     this.onExit,
   });
 
@@ -120,6 +166,35 @@ class DesyWorkspaceExtensionContext {
 
   /// The consumer theme currently active in Desy Bench.
   final DesyTheme activeTheme;
+
+  /// Stable current workbench context resolved from the same live registry.
+  final DesyWorkspaceFocus? focus;
+
+  /// Global shell feedback committed during the current local workbench
+  /// session. Extensions receive immutable values, never mutable shell state.
+  final List<DesyWorkbenchAnnotation> workbenchAnnotations;
+
+  /// Ephemeral first request supplied by the Registry Spine home state.
+  final String pendingAgentRequest;
+
+  /// Clears [pendingAgentRequest] after an extension adopts it.
+  final VoidCallback? onPendingAgentRequestConsumed;
+
+  /// Shared structured hand-off for a local coding-agent runtime.
+  ///
+  /// Extensions receive a fallback focus only when they are rendered outside
+  /// the standard workbench shell, which keeps their minimal test harnesses
+  /// and custom hosts useful without introducing a second registry source.
+  DesyWorkspaceAgentBrief get agentBrief => DesyWorkspaceAgentBrief(
+    focus:
+        focus ??
+        DesyWorkspaceFocus.resolve(
+          registry: registry,
+          activeTheme: activeTheme,
+          route: 'extension',
+        ),
+    annotations: workbenchAnnotations,
+  );
 
   /// Returns from a standalone extension to the ordinary Desy workspace.
   final VoidCallback? onExit;

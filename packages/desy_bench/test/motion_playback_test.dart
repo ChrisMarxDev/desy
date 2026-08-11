@@ -144,6 +144,18 @@ void main() {
       const ValueKey('motion-global-playback-controls'),
     );
     expect(globalControls, findsOneWidget);
+    expect(find.text('TIMELINE'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('motion-playhead-thermometer')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('motion-playhead-thermometer')))
+          .width,
+      250,
+    );
+    expect(find.text('Once'), findsOneWidget);
     final durationField = find.byKey(const ValueKey('motion-global-duration'));
     expect(durationField, findsOneWidget);
     expect(
@@ -164,7 +176,38 @@ void main() {
         tester.getTopLeft(find.byKey(const ValueKey('atlas-search'))).dy,
       ),
     );
+    expect(
+      tester.getCenter(durationField).dx,
+      lessThan(
+        tester.getCenter(find.byKey(const ValueKey('motion-loop-mode'))).dx,
+      ),
+    );
+    expect(tester.getSize(durationField).height, 40);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('motion-loop-mode'))).height,
+      40,
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('motion-speed-1.0'))).height,
+      40,
+    );
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('motion-speed-1.0'))).dy,
+      greaterThan(
+        tester
+            .getBottomLeft(
+              find.byKey(const ValueKey('motion-playhead-thermometer')),
+            )
+            .dy,
+      ),
+    );
 
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(renderedProgress['motion.fast'], closeTo(0, 0.001));
+    expect(renderedProgress['motion.slow'], closeTo(0, 0.001));
+    expect(renderedProgress['motion.inherited'], closeTo(0, 0.001));
+
+    _press(tester, const ValueKey('motion-play-pause'));
     await tester.pump(const Duration(milliseconds: 50));
     expect(renderedProgress['motion.fast'], closeTo(0.5, 0.05));
     expect(renderedProgress['motion.slow'], closeTo(0.25, 0.05));

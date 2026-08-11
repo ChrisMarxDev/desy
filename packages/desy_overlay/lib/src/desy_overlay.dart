@@ -1,15 +1,14 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 
 import 'desy_annotation.dart';
-
-const _inspectionSignalColor = Color(0xFFFF2D8D);
-const _inspectionSignalForeground = Color(0xFF18000C);
+import 'overlay/overlay_layout.dart';
+import 'overlay/overlay_widgets.dart';
+import 'overlay/widget_target_inspector.dart';
 
 /// Controls which Flutter build modes may show [DesyOverlay].
 enum DesyOverlayMode {
@@ -26,7 +25,9 @@ enum DesyOverlayMode {
 
 /// Adds a compact widget review layer above an ordinary Flutter app.
 ///
-/// The easiest integration point is [builder], passed to [MaterialApp.builder].
+/// The easiest integration point is [builder], passed to the consumer app's
+/// builder. The overlay does not require a Material application or inspect
+/// Material-specific widget types.
 class DesyOverlay extends StatelessWidget {
   /// Creates a widget annotation overlay.
   const DesyOverlay({
@@ -55,7 +56,7 @@ class DesyOverlay extends StatelessWidget {
   /// Whether selection mode starts active.
   final bool initiallySelecting;
 
-  /// Creates a [MaterialApp.builder] integration while preserving an existing
+  /// Creates an application-builder integration while preserving an existing
   /// builder when one is supplied.
   static TransitionBuilder builder({
     required DesyAnnotationCallback onAnnotationSubmitted,
@@ -81,7 +82,7 @@ class DesyOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final available = enabled && (mode == DesyOverlayMode.always || kDebugMode);
     if (!available) return child;
-    return _DesyDebugOverlayHost(
+    return _DesyOverlayHost(
       onAnnotationSubmitted: onAnnotationSubmitted,
       initiallySelecting: initiallySelecting,
       child: child,
@@ -89,8 +90,8 @@ class DesyOverlay extends StatelessWidget {
   }
 }
 
-class _DesyDebugOverlayHost extends StatelessWidget {
-  const _DesyDebugOverlayHost({
+class _DesyOverlayHost extends StatelessWidget {
+  const _DesyOverlayHost({
     required this.child,
     required this.onAnnotationSubmitted,
     required this.initiallySelecting,
@@ -104,7 +105,7 @@ class _DesyDebugOverlayHost extends StatelessWidget {
   Widget build(BuildContext context) => Overlay(
     initialEntries: [
       OverlayEntry(
-        builder: (context) => _DesyDebugOverlay(
+        builder: (context) => _DesyOverlaySurface(
           onAnnotationSubmitted: onAnnotationSubmitted,
           initiallySelecting: initiallySelecting,
           child: child,
@@ -114,8 +115,8 @@ class _DesyDebugOverlayHost extends StatelessWidget {
   );
 }
 
-class _DesyDebugOverlay extends StatefulWidget {
-  const _DesyDebugOverlay({
+class _DesyOverlaySurface extends StatefulWidget {
+  const _DesyOverlaySurface({
     required this.child,
     required this.onAnnotationSubmitted,
     required this.initiallySelecting,
@@ -126,10 +127,12 @@ class _DesyDebugOverlay extends StatefulWidget {
   final bool initiallySelecting;
 
   @override
-  State<_DesyDebugOverlay> createState() => _DesyDebugOverlayState();
+  State<_DesyOverlaySurface> createState() => _DesyOverlaySurfaceState();
 }
 
-class _DesyDebugOverlayState extends State<_DesyDebugOverlay> {
+class _DesyOverlaySurfaceState extends State<_DesyOverlaySurface> {
+  static const _targetInspector = DesyWidgetTargetInspector();
+
   final _rootKey = GlobalKey();
   final _commentFocusNode = FocusNode();
   var _selecting = false;
@@ -193,57 +196,21 @@ class _DesyDebugOverlayState extends State<_DesyDebugOverlay> {
 
   void _selectAt(PointerDownEvent event) {
     final rootContext = _rootKey.currentContext;
-    final root = rootContext?.findRenderObject();
-    if (rootContext is! Element || root == null || !root.attached) return;
-    final rootPosition = root is RenderBox
-        ? root.globalToLocal(event.position)
-        : event.localPosition;
-
-    ({Element element, RenderObject renderObject, Rect bounds, int depth})?
-    bestHit;
-
-    void visit(Element element, int depth) {
-      final renderObject = element.findRenderObject();
-      if (renderObject != null &&
-          renderObject.attached &&
-          renderObject != root &&
-          !renderObject.semanticBounds.isEmpty) {
-        final bounds = MatrixUtils.transformRect(
-          renderObject.getTransformTo(root),
-          renderObject.semanticBounds,
-        );
-        if (bounds.isFinite && bounds.contains(rootPosition)) {
-          final projectElement = _nearestLocalElement(element, rootContext);
-          final current = bestHit;
-          final area = bounds.width * bounds.height;
-          final currentArea = current == null
-              ? double.infinity
-              : current.bounds.width * current.bounds.height;
-          if (area < currentArea ||
-              (area == currentArea && depth > (current?.depth ?? -1))) {
-            bestHit = (
-              element: projectElement,
-              renderObject: renderObject,
-              bounds: bounds,
-              depth: depth,
-            );
-          }
-        }
-      }
-      element.visitChildren((child) => visit(child, depth + 1));
+    final rootRenderObject = rootContext?.findRenderObject();
+    if (rootContext is! Element ||
+        rootRenderObject == null ||
+        !rootRenderObject.attached) {
+      return;
     }
-
-    rootContext.visitChildren((child) => visit(child, 0));
-    final hit = bestHit;
-    if (hit == null) return;
+    final target = _targetInspector.inspect(
+      root: rootContext,
+      rootRenderObject: rootRenderObject,
+      globalPosition: event.position,
+    );
+    if (target == null) return;
 
     setState(() {
-      _target = _createTarget(
-        element: hit.element,
-        renderObject: hit.renderObject,
-        bounds: hit.bounds,
-        root: rootContext,
-      );
+      _target = target;
       _cardOpen = true;
       _comment = '';
       _error = null;
@@ -251,224 +218,6 @@ class _DesyDebugOverlayState extends State<_DesyDebugOverlay> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _commentFocusNode.requestFocus();
     });
-  }
-
-  DesyWidgetTarget _createTarget({
-    required Element element,
-    required RenderObject renderObject,
-    required Rect bounds,
-    required Element root,
-  }) {
-    final ancestry = _ancestry(element, root);
-    final renderBox = renderObject is RenderBox ? renderObject : null;
-    return DesyWidgetTarget(
-      buildMode: _buildMode,
-      widgetType: element.widget.runtimeType.toString(),
-      description: _describeWidget(element.widget),
-      widgetPath: ancestry.reversed.join(' > '),
-      ancestorWidgetTypes: ancestry,
-      stateType: element is StatefulElement
-          ? element.state.runtimeType.toString()
-          : null,
-      renderObjectType: renderObject.runtimeType.toString(),
-      bounds: bounds,
-      paintBounds: renderObject.paintBounds,
-      semanticBounds: renderObject.semanticBounds,
-      renderSize: renderBox?.size,
-      layoutConstraints: renderBox?.constraints.toString(),
-      identitySignals: _identitySignals(element, root),
-      diagnostics: _diagnostics(element.widget),
-      sourceLocation: _sourceLocation(element),
-      widgetKey: _describeKey(element.widget.key),
-    );
-  }
-
-  DesyBuildMode get _buildMode {
-    if (kReleaseMode) return DesyBuildMode.release;
-    if (kProfileMode) return DesyBuildMode.profile;
-    return DesyBuildMode.debug;
-  }
-
-  Element _nearestLocalElement(Element element, Element root) {
-    if (kReleaseMode) return element;
-    if (debugIsWidgetLocalCreation(element.widget)) return element;
-    var result = element;
-    element.visitAncestorElements((ancestor) {
-      if (ancestor == root) return false;
-      if (debugIsWidgetLocalCreation(ancestor.widget)) {
-        result = ancestor;
-        return false;
-      }
-      return true;
-    });
-    return result;
-  }
-
-  DesySourceLocation? _sourceLocation(Element element) {
-    if (!kDebugMode) return null;
-    DesySourceLocation? result;
-    assert(() {
-      final service = WidgetInspectorService.instance;
-      service.selection.currentElement = element;
-      // Flutter exposes creationLocation through its inspector serialization.
-      // ignore: invalid_use_of_visible_for_testing_member
-      final delegate = InspectorSerializationDelegate(service: service);
-      final serialized = element.toDiagnosticsNode().toJsonMap(delegate);
-      final location = serialized['creationLocation'];
-      if (location is Map<Object?, Object?>) {
-        final file = location['file'];
-        final line = location['line'];
-        final column = location['column'];
-        if (file is String && line is int && column is int) {
-          result = DesySourceLocation(file: file, line: line, column: column);
-        }
-      }
-      return true;
-    }());
-    return result;
-  }
-
-  List<String> _ancestry(Element element, Element root) {
-    final types = <String>[element.widget.runtimeType.toString()];
-    var visited = 0;
-    element.visitAncestorElements((ancestor) {
-      if (ancestor == root || visited == 80) return false;
-      visited++;
-      final widget = ancestor.widget;
-      final useful =
-          kReleaseMode ||
-          debugIsWidgetLocalCreation(widget) ||
-          widget.key != null ||
-          widget is Semantics;
-      if (useful && types.length < 10) {
-        types.add(widget.runtimeType.toString());
-      }
-      return true;
-    });
-    return types;
-  }
-
-  List<DesyWidgetSignal> _identitySignals(Element element, Element root) {
-    final signals = <DesyWidgetSignal>[];
-    final seen = <String>{};
-
-    void add(DesyWidgetSignalKind kind, String? rawValue) {
-      final value = rawValue?.replaceAll(RegExp(r'\s+'), ' ').trim();
-      if (value == null || value.isEmpty) return;
-      final compact = value.length <= 160
-          ? value
-          : '${value.substring(0, 157)}…';
-      if (!seen.add('${kind.name}:$compact')) return;
-      signals.add(DesyWidgetSignal(kind: kind, value: compact));
-    }
-
-    void inspect(Widget widget) {
-      add(DesyWidgetSignalKind.key, _describeKey(widget.key));
-      switch (widget) {
-        case Text(data: final data?):
-          add(DesyWidgetSignalKind.visibleText, data);
-        case Text(textSpan: final span?):
-          add(DesyWidgetSignalKind.visibleText, span.toPlainText());
-        case SelectableText(data: final data?):
-          add(DesyWidgetSignalKind.visibleText, data);
-        case SelectableText(textSpan: final span?):
-          add(DesyWidgetSignalKind.visibleText, span.toPlainText());
-        case RichText(:final text):
-          add(DesyWidgetSignalKind.visibleText, text.toPlainText());
-        case Tooltip(:final message):
-          add(DesyWidgetSignalKind.visibleText, message);
-        case TextField(:final decoration):
-          add(
-            DesyWidgetSignalKind.visibleText,
-            decoration?.labelText ?? decoration?.hintText,
-          );
-        case Semantics(:final properties):
-          add(DesyWidgetSignalKind.semanticsIdentifier, properties.identifier);
-          add(DesyWidgetSignalKind.semanticLabel, properties.label);
-          add(DesyWidgetSignalKind.semanticValue, properties.value);
-          add(DesyWidgetSignalKind.semanticHint, properties.hint);
-        default:
-          break;
-      }
-    }
-
-    inspect(element.widget);
-    var visited = 0;
-    element.visitAncestorElements((ancestor) {
-      if (ancestor == root || visited == 80) return false;
-      inspect(ancestor.widget);
-      visited++;
-      return true;
-    });
-    return signals;
-  }
-
-  List<DesyWidgetDiagnostic> _diagnostics(Widget widget) {
-    const blockedNames = {
-      'controller',
-      'focusNode',
-      'onChanged',
-      'onPressed',
-      'onTap',
-      'builder',
-    };
-    final result = <DesyWidgetDiagnostic>[];
-    try {
-      for (final property in widget.toDiagnosticsNode().getProperties()) {
-        final name = property.name;
-        if (name == null ||
-            name.isEmpty ||
-            blockedNames.contains(name) ||
-            name.startsWith('on')) {
-          continue;
-        }
-        final rawValue = property.toDescription().trim();
-        if (rawValue.isEmpty || rawValue == 'null') continue;
-        final value = rawValue.length <= 160
-            ? rawValue
-            : '${rawValue.substring(0, 157)}…';
-        result.add(DesyWidgetDiagnostic(name: name, value: value));
-        if (result.length == 16) break;
-      }
-    } on Object {
-      return const [];
-    }
-    return result;
-  }
-
-  String? _describeKey(Key? key) {
-    if (key == null || key is UniqueKey) return null;
-    if (key is ValueKey<Object?>) return '${key.value}';
-    if (key is ObjectKey) return '${key.value}';
-    final description = key.toString();
-    return description.contains('#') ? null : description;
-  }
-
-  String _describeWidget(Widget widget) => switch (widget) {
-    Text(data: final data?) => 'Text("${_compact(data)}")',
-    Text(textSpan: final span?) => 'Text("${_compact(span.toPlainText())}")',
-    SelectableText(data: final data?) => 'SelectableText("${_compact(data)}")',
-    SelectableText(textSpan: final span?) =>
-      'SelectableText("${_compact(span.toPlainText())}")',
-    RichText(:final text) => 'RichText("${_compact(text.toPlainText())}")',
-    Semantics(:final properties) when properties.label != null =>
-      'Semantics("${_compact(properties.label!)}")',
-    Tooltip(:final message) when message != null =>
-      'Tooltip("${_compact(message)}")',
-    TextField(:final decoration)
-        when decoration?.labelText != null || decoration?.hintText != null =>
-      'TextField("${_compact(decoration?.labelText ?? decoration!.hintText!)}")',
-    Icon(:final icon) when icon != null =>
-      'Icon(U+${icon.codePoint.toRadixString(16).toUpperCase()})',
-    _ => widget.toStringShort(),
-  };
-
-  String _compact(String value) {
-    final escaped = value
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim()
-        .replaceAll('"', r'\"');
-    return escaped.length <= 64 ? escaped : '${escaped.substring(0, 61)}…';
   }
 
   Future<void> _submit() async {
@@ -491,6 +240,7 @@ class _DesyDebugOverlayState extends State<_DesyDebugOverlay> {
         _target = null;
         _comment = '';
         _cardOpen = false;
+        _selecting = false;
       });
     } catch (error) {
       if (!mounted) return;
@@ -500,29 +250,25 @@ class _DesyDebugOverlayState extends State<_DesyDebugOverlay> {
     }
   }
 
-  Offset _resolvedCardOffset(BoxConstraints constraints, double cardWidth) {
-    const cardHeight = 280.0;
-    final fallback = Offset(
-      math.max(12, constraints.maxWidth - cardWidth - 16),
-      math.max(12, constraints.maxHeight - cardHeight - 72),
-    );
-    final offset = _cardOffset ?? fallback;
-    return Offset(
-      offset.dx.clamp(8, math.max(8, constraints.maxWidth - cardWidth - 8)),
-      offset.dy.clamp(8, math.max(8, constraints.maxHeight - cardHeight - 8)),
+  void _moveCard(Offset delta, DesyOverlayLayout layout) {
+    setState(
+      () => _cardOffset = layout.clampCardOffset(layout.cardOffset + delta),
     );
   }
 
-  void _moveCard(Offset delta, BoxConstraints constraints, double cardWidth) {
-    final current = _resolvedCardOffset(constraints, cardWidth);
-    setState(() => _cardOffset = current + delta);
-  }
+  bool get _touchMode => switch (defaultTargetPlatform) {
+    TargetPlatform.android ||
+    TargetPlatform.fuchsia ||
+    TargetPlatform.iOS => true,
+    _ => false,
+  };
 
   @override
   Widget build(BuildContext context) {
     final target = _target;
+    final mediaQuery = MediaQuery.maybeOf(context);
     final desyTheme =
-        MediaQuery.platformBrightnessOf(context) == Brightness.dark
+        (mediaQuery?.platformBrightness ?? Brightness.light) == Brightness.dark
         ? DesyDesignSystemTheme.dark
         : DesyDesignSystemTheme.light;
 
@@ -539,11 +285,13 @@ class _DesyDebugOverlayState extends State<_DesyDebugOverlay> {
       },
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final cardWidth = math.min(
-            360.0,
-            math.max(0.0, constraints.maxWidth - 24),
+          final layout = DesyOverlayLayout.resolve(
+            viewport: constraints.biggest,
+            padding: mediaQuery?.padding ?? EdgeInsets.zero,
+            viewInsets: mediaQuery?.viewInsets ?? EdgeInsets.zero,
+            requestedCardOffset: _cardOffset,
+            touchMode: _touchMode,
           );
-          final cardOffset = _resolvedCardOffset(constraints, cardWidth);
           return Stack(
             fit: StackFit.expand,
             children: [
@@ -552,7 +300,10 @@ class _DesyDebugOverlayState extends State<_DesyDebugOverlay> {
                 Positioned.fill(
                   child: IgnorePointer(
                     child: CustomPaint(
-                      painter: _SelectionOutlinePainter(bounds: target.bounds),
+                      key: const ValueKey('desy-overlay-selection-outline'),
+                      painter: DesySelectionOutlinePainter(
+                        bounds: target.bounds,
+                      ),
                     ),
                   ),
                 ),
@@ -563,7 +314,7 @@ class _DesyDebugOverlayState extends State<_DesyDebugOverlay> {
                       ? target.bounds.top - 26
                       : target.bounds.top,
                   child: IgnorePointer(
-                    child: _SelectionLabel(label: target.widgetType),
+                    child: DesySelectionLabel(label: target.widgetType),
                   ),
                 ),
               if (_selecting)
@@ -583,42 +334,49 @@ class _DesyDebugOverlayState extends State<_DesyDebugOverlay> {
                 ),
               if (_selecting)
                 Positioned(
-                  right: 16,
-                  bottom: 62,
-                  child: DesyDesignSystemThemeScope(
+                  right: layout.chromeRight,
+                  bottom: layout.promptBottom,
+                  child: DesyOverlayChrome(
                     theme: desyTheme,
-                    child: const _SelectionPrompt(),
+                    child: const DesySelectionPrompt(),
                   ),
                 ),
               if (_cardOpen && target != null)
                 Positioned(
-                  left: cardOffset.dx,
-                  top: cardOffset.dy,
-                  width: cardWidth,
-                  child: DesyDesignSystemThemeScope(
-                    theme: desyTheme,
-                    child: _AnnotationCard(
-                      target: target,
-                      comment: _comment,
-                      error: _error,
-                      submitting: _submitting,
-                      commentFocusNode: _commentFocusNode,
-                      onClose: _closeCard,
-                      onDragDelta: (delta) =>
-                          _moveCard(delta, constraints, cardWidth),
-                      onCommentChanged: (value) =>
-                          setState(() => _comment = value),
-                      onSubmit: _submit,
+                  left: layout.cardOffset.dx,
+                  top: layout.cardOffset.dy,
+                  width: layout.cardWidth,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: layout.cardMaxHeight,
+                    ),
+                    child: DesyOverlayChrome(
+                      theme: desyTheme,
+                      child: DesyAnnotationCard(
+                        target: target,
+                        comment: _comment,
+                        error: _error,
+                        submitting: _submitting,
+                        touchMode: _touchMode,
+                        compact: layout.cardMaxHeight < 240,
+                        commentFocusNode: _commentFocusNode,
+                        onClose: _closeCard,
+                        onDragDelta: (delta) => _moveCard(delta, layout),
+                        onCommentChanged: (value) =>
+                            setState(() => _comment = value),
+                        onSubmit: _submit,
+                      ),
                     ),
                   ),
                 ),
               Positioned(
-                right: 16,
-                bottom: 16,
-                child: DesyDesignSystemThemeScope(
+                right: layout.chromeRight,
+                bottom: layout.launcherBottom,
+                child: DesyOverlayChrome(
                   theme: desyTheme,
-                  child: _OverlayControls(
+                  child: DesyOverlayControls(
                     selecting: _selecting,
+                    touchMode: _touchMode,
                     onToggleSelecting: _toggleSelecting,
                   ),
                 ),
@@ -629,273 +387,4 @@ class _DesyDebugOverlayState extends State<_DesyDebugOverlay> {
       ),
     );
   }
-}
-
-class _OverlayControls extends StatelessWidget {
-  const _OverlayControls({
-    required this.selecting,
-    required this.onToggleSelecting,
-  });
-
-  final bool selecting;
-  final VoidCallback onToggleSelecting;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    key: const ValueKey('desy-overlay-controls'),
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Semantics(
-        button: true,
-        label: selecting ? 'Cancel component selection' : 'Select a component',
-        child: DesyButton(
-          key: const ValueKey('desy-overlay-select'),
-          size: DesyButtonSize.sm,
-          variant: selecting
-              ? DesyButtonVariant.primary
-              : DesyButtonVariant.outline,
-          mainAxisSize: MainAxisSize.min,
-          onPress: onToggleSelecting,
-          child: const Icon(DesyIcons.crosshair, size: 17),
-        ),
-      ),
-    ],
-  );
-}
-
-class _SelectionPrompt extends StatelessWidget {
-  const _SelectionPrompt();
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-    key: const ValueKey('desy-overlay-selection-prompt'),
-    decoration: BoxDecoration(
-      color: context.theme.colors.background,
-      border: Border.all(color: _inspectionSignalColor),
-      borderRadius: BorderRadius.circular(999),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(DesyIcons.crosshair, size: 14),
-          const SizedBox(width: 6),
-          Text('Select a component', style: context.theme.typography.body.xs),
-        ],
-      ),
-    ),
-  );
-}
-
-class _AnnotationCard extends StatelessWidget {
-  const _AnnotationCard({
-    required this.target,
-    required this.comment,
-    required this.error,
-    required this.submitting,
-    required this.commentFocusNode,
-    required this.onClose,
-    required this.onDragDelta,
-    required this.onCommentChanged,
-    required this.onSubmit,
-  });
-
-  final DesyWidgetTarget target;
-  final String comment;
-  final String? error;
-  final bool submitting;
-  final FocusNode commentFocusNode;
-  final VoidCallback onClose;
-  final ValueChanged<Offset> onDragDelta;
-  final ValueChanged<String> onCommentChanged;
-  final VoidCallback onSubmit;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.theme.colors;
-    final typography = context.theme.typography;
-    final canSubmit = comment.trim().isNotEmpty && !submitting;
-    final location = target.sourceLocation?.toString() ?? target.widgetPath;
-    return DesyCard(
-      key: const ValueKey('desy-overlay-annotation-card'),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceMd),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.move,
-                      child: GestureDetector(
-                        key: const ValueKey('desy-overlay-drag-handle'),
-                        behavior: HitTestBehavior.opaque,
-                        onPanUpdate: (details) => onDragDelta(details.delta),
-                        child: Row(
-                          children: [
-                            const Icon(DesyIcons.messageSquare, size: 16),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                target.description,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: typography.body.sm,
-                              ),
-                            ),
-                            Text(
-                              '${target.identitySignals.length} signals',
-                              style: typography.body.xs.copyWith(
-                                color: colors.mutedForeground,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: DesyDesignSystemTokens.spaceSm),
-                  Semantics(
-                    button: true,
-                    label: 'Close annotation',
-                    child: DesyButton(
-                      key: const ValueKey('desy-overlay-close'),
-                      size: DesyButtonSize.sm,
-                      variant: DesyButtonVariant.ghost,
-                      mainAxisSize: MainAxisSize.min,
-                      onPress: onClose,
-                      child: const Icon(DesyIcons.x, size: 16),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              location,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: typography.body.xs.copyWith(
-                color: colors.mutedForeground,
-                fontFamily: 'monospace',
-              ),
-            ),
-            const SizedBox(height: DesyDesignSystemTokens.spaceSm),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: colors.background,
-                border: Border.all(color: colors.border),
-                borderRadius: BorderRadius.circular(
-                  DesyDesignSystemTokens.radiusMd,
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceSm),
-                child: DesyTextField(
-                  key: const ValueKey('desy-overlay-comment'),
-                  label: 'Design feedback',
-                  hintText: 'What should change?',
-                  value: comment,
-                  focusNode: commentFocusNode,
-                  minLines: 3,
-                  maxLines: 6,
-                  enabled: !submitting,
-                  onChanged: onCommentChanged,
-                ),
-              ),
-            ),
-            if (error != null) ...[
-              const SizedBox(height: DesyDesignSystemTokens.spaceSm),
-              Text(
-                error!,
-                style: typography.body.xs.copyWith(color: colors.destructive),
-              ),
-            ],
-            const SizedBox(height: DesyDesignSystemTokens.spaceSm),
-            Align(
-              alignment: Alignment.centerRight,
-              child: DesyButton(
-                key: const ValueKey('desy-overlay-submit'),
-                size: DesyButtonSize.sm,
-                mainAxisSize: MainAxisSize.min,
-                onPress: canSubmit ? onSubmit : null,
-                child: Text(submitting ? 'Sending…' : 'Send feedback'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SelectionLabel extends StatelessWidget {
-  const _SelectionLabel({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    label: 'Selected widget $label',
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        color: _inspectionSignalColor,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: _inspectionSignalForeground,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            height: 1,
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-class _SelectionOutlinePainter extends CustomPainter {
-  const _SelectionOutlinePainter({required this.bounds});
-
-  final Rect bounds;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(
-      bounds,
-      Paint()..color = _inspectionSignalColor.withValues(alpha: .03),
-    );
-    canvas.drawRect(
-      bounds.deflate(.5),
-      Paint()
-        ..color = _inspectionSignalColor.withValues(alpha: .45)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
-    final handles = Paint()
-      ..color = _inspectionSignalColor.withValues(alpha: .55);
-    for (final point in [
-      bounds.topLeft,
-      bounds.topRight,
-      bounds.bottomLeft,
-      bounds.bottomRight,
-    ]) {
-      canvas.drawCircle(point, 1.75, handles);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _SelectionOutlinePainter oldDelegate) =>
-      oldDelegate.bounds != bounds;
 }

@@ -1,3 +1,5 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:desy_bench/src/device_preview.dart';
 import 'package:desy_bench/src/registry.dart';
 import 'package:desy_bench/src/workbench/components_canvas/components_canvas_controller.dart';
@@ -155,6 +157,43 @@ void main() {
     expect(liveChanges, 0);
     expect(finalChanges, 1);
     expect(committed!.rect.topLeft, isNot(const Offset(60, 40)));
+  });
+
+  testWidgets('drag box does not move while a trackpad scroll starts on it', (
+    tester,
+  ) async {
+    const frameKey = ValueKey('trackpad-scroll-frame');
+    var changes = 0;
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 320,
+          height: 240,
+          child: DesyDragBox(
+            geometry: const DesyDragBoxGeometry(
+              rect: Rect.fromLTWH(60, 40, 120, 80),
+            ),
+            clampingRect: const Rect.fromLTWH(0, 0, 320, 240),
+            constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
+            frameKey: frameKey,
+            onChanged: (_) => changes++,
+            child: const ColoredBox(color: Colors.red),
+          ),
+        ),
+      ),
+    );
+
+    final before = tester.getRect(find.byKey(frameKey));
+    final trackpad = await tester.createGesture(
+      kind: PointerDeviceKind.trackpad,
+    );
+    await trackpad.panZoomStart(before.center);
+    await trackpad.panZoomUpdate(before.center, pan: const Offset(0, 80));
+    await trackpad.up();
+    await tester.pump();
+
+    expect(tester.getRect(find.byKey(frameKey)).topLeft, before.topLeft);
+    expect(changes, 0);
   });
 
   testWidgets('drag box coalesces resize updates to one per frame', (

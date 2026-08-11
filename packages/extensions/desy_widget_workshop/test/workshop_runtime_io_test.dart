@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:desy_bench/desy_bench.dart';
 import 'package:desy_widget_workshop/desy_widget_workshop.dart';
 import 'package:desy_widget_workshop/src/workshop_runtime.dart';
 import 'package:flutter/widgets.dart';
@@ -97,8 +98,30 @@ printf '%s\\n' \\
       runtime.setPrompt('First feedback');
       await runtime.run(
         candidates: candidates,
-        selectedCandidateIds: {'focused'},
-        annotations: const [],
+        agentBrief: _agentBrief([
+          DesyWorkbenchAnnotation(
+            id: 1,
+            target: const DesyWorkbenchWidgetTarget(
+              screenId: '/atlas',
+              widgetType: 'DesyButton',
+              description: 'Text("Continue")',
+              widgetPath: 'DesyAtlasScreen > DesyButton',
+              bounds: Rect.fromLTWH(0, 0, 120, 48),
+              sourceLocation: DesyWorkbenchSourceLocation(
+                sourcePath: 'lib/src/continue_button.dart',
+                line: 42,
+                column: 7,
+              ),
+              inspectionContext: DesyWorkbenchInspectionContext(
+                artifactId: 'homepage.focused',
+                kind: 'Workshop candidate',
+                label: 'Focused homepage',
+              ),
+            ),
+            comment: 'Make the label 10 percent larger.',
+            createdAt: DateTime.utc(2026, 8, 10),
+          ),
+        ]),
       );
 
       expect(runtime.prompt, isEmpty);
@@ -107,8 +130,7 @@ printf '%s\\n' \\
       runtime.setPrompt('Second feedback');
       await runtime.run(
         candidates: candidates,
-        selectedCandidateIds: {'focused'},
-        annotations: const [],
+        agentBrief: _agentBrief(const []),
       );
 
       expect(runtime.prompt, isEmpty);
@@ -123,24 +145,32 @@ printf '%s\\n' \\
       final submittedPrompts = await prompts.readAsString();
       expect(submittedPrompts, contains('First feedback'));
       expect(submittedPrompts, contains('Second feedback'));
+      expect(
+        submittedPrompts,
+        contains(
+          'Current proposals (refer to their number, id, or title in plain text):',
+        ),
+      );
+      expect(submittedPrompts, contains('1. focused — Focused'));
+      expect(submittedPrompts, contains('Desy workspace brief:'));
+      expect(submittedPrompts, contains('Registry: Dogfood system'));
+      expect(submittedPrompts, contains('Theme: Light (dogfood.light)'));
+      expect(
+        submittedPrompts,
+        contains('The user committed these global workbench annotations'),
+      );
+      expect(submittedPrompts, contains('Make the label 10 percent larger.'));
+      expect(submittedPrompts, contains('Attachment: attached'));
+      expect(submittedPrompts, contains('lib/src/continue_button.dart:42:7'));
+      expect(
+        submittedPrompts,
+        contains(
+          'Target context: Workshop candidate homepage.focused — Focused homepage',
+        ),
+      );
       expect(submittedPrompts, contains('it is not an edit boundary'));
       expect(submittedPrompts, contains("consumer's actual design system"));
-      expect(
-        submittedPrompts,
-        contains('Rejected candidate IDs to remove: rejected.'),
-      );
-      expect(
-        submittedPrompts,
-        contains('Do not merely hide rejected implementations.'),
-      );
-      expect(
-        submittedPrompts,
-        contains('DesyWorkshopCandidateComponent.prototype'),
-      );
-      expect(
-        submittedPrompts,
-        contains('DesyWorkshopCandidateComponent.registry'),
-      );
+      expect(submittedPrompts, contains('Do not infer a chosen direction'));
       expect(
         submittedPrompts,
         contains('Registry component instance: fixture.button.primary'),
@@ -159,3 +189,15 @@ printf '%s\\n' \\
 }
 
 Widget _candidate(BuildContext context) => const SizedBox.shrink();
+
+DesyWorkspaceAgentBrief _agentBrief(
+  List<DesyWorkbenchAnnotation> annotations,
+) => DesyWorkspaceAgentBrief(
+  focus: const DesyWorkspaceFocus(
+    route: '/workspace/widget-workshop',
+    registryName: 'Dogfood system',
+    themeId: 'dogfood.light',
+    themeName: 'Light',
+  ),
+  annotations: annotations,
+);

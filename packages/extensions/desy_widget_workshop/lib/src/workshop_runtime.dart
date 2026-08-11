@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:desy_bench/desy_bench.dart';
 
 import 'workshop_candidate.dart';
 import 'workshop_runtime_stub.dart'
@@ -39,11 +40,14 @@ abstract class DesyWorkshopRuntime extends ChangeNotifier {
   /// Updates the next request.
   void setPrompt(String value);
 
-  /// Runs the coding agent with selected candidate context.
+  /// Clears the resumable coding-agent conversation for a distinct registry
+  /// feedback thread. The active process, if any, is never interrupted.
+  void startNewSession();
+
+  /// Runs the coding agent with the numbered proposal context.
   Future<void> run({
     required List<DesyWorkshopCandidate> candidates,
-    required Set<String> selectedCandidateIds,
-    required List<DesyWorkshopAnnotation> annotations,
+    required DesyWorkspaceAgentBrief agentBrief,
   });
 
   /// Signals the resident Flutter tool to hot reload.

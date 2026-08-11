@@ -8,5 +8,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await prepareDesyPlatform();
 
-  runApp(buildDesyDesignSystemDogfoodApp());
+  runApp(
+    buildDesyDesignSystemDogfoodApp(windowControls: createDesyWindowControls()),
+  );
 }

@@ -5,28 +5,105 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('declares a focused standalone workspace', () {
+  test('declares a registry-backed workshop session', () {
     final extension = _extension();
 
     expect(extension.id, 'widget-workshop');
     expect(extension.name, 'Workshop');
     expect(
       extension.presentation,
-      DesyWorkspaceExtensionPresentation.standalone,
+      DesyWorkspaceExtensionPresentation.workbench,
+    );
+    expect(extension.currentSession.title, 'Live widget exploration');
+  });
+
+  testWidgets('starts a Workshop from the Atlas home request', (tester) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      DesyBenchApp(registry: _registry(), extensions: [_extension()]),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('atlas-home-start')), findsOneWidget);
+    expect(
+      tester
+          .widget<DesyButton>(
+            find.byKey(const ValueKey('atlas-home-start-workshop')),
+          )
+          .onPress,
+      isNull,
+    );
+
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('atlas-home-request')),
+        matching: find.byType(EditableText),
+      ),
+      'Explore a calmer billing summary.',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('atlas-home-start-workshop')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('widget-workshop-screen')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<DesyTextField>(
+            find.byKey(const ValueKey('widget-workshop-prompt')),
+          )
+          .value,
+      'Explore a calmer billing summary.',
     );
   });
 
-  test('source locations expose concise and complete Dart anchors', () {
-    final location = DesyWorkshopSourceLocation.fromInspectorJson({
-      'file': Uri.file('/repo/lib/workshop_candidates.dart').toString(),
-      'line': 104,
-      'column': 17,
-      'name': 'Text',
-    });
+  testWidgets('keeps the local Workshop draft while browsing the registry', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-    expect(location.displayLabel, 'workshop_candidates.dart:104:17');
-    expect(location.reference, '/repo/lib/workshop_candidates.dart:104:17');
-    expect(location.name, 'Text');
+    await tester.pumpWidget(
+      DesyBenchApp(registry: _registry(), extensions: [_extension()]),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('sidebar-session-widget-workshop')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('widget-workshop-prompt')),
+        matching: find.byType(EditableText),
+      ),
+      'Keep this conversation when I inspect the registry.',
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('registry-atlas-nav')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('sidebar-session-widget-workshop')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<DesyTextField>(
+            find.byKey(const ValueKey('widget-workshop-prompt')),
+          )
+          .value,
+      'Keep this conversation when I inspect the registry.',
+    );
   });
 
   testWidgets('renders repository candidates under the active registry theme', (
@@ -42,87 +119,66 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    tester
-        .widget<DesySidebarItem>(
-          find.byKey(const ValueKey('workspace-extension-widget-workshop')),
-        )
-        .onPress!();
+    expect(
+      find.byKey(const ValueKey('registry-spine-agent-rail')),
+      findsOneWidget,
+      reason: 'Atlas keeps the chosen desktop shell’s right-side orientation.',
+    );
+    expect(find.text('Context: Fixture system · Fixture light'), findsNothing);
+
+    await tester.tap(
+      find.byKey(const ValueKey('sidebar-session-widget-workshop')),
+    );
     await tester.pumpAndSettle();
 
     expect(
-      find.byKey(const ValueKey('widget-workshop-standalone-screen')),
+      find.byKey(const ValueKey('widget-workshop-screen')),
       findsOneWidget,
     );
     expect(find.byType(SelectionArea), findsOneWidget);
     expect(
       find.descendant(
         of: find.byType(SelectionArea),
-        matching: find.byKey(
-          const ValueKey('widget-workshop-standalone-screen'),
-        ),
+        matching: find.byKey(const ValueKey('widget-workshop-screen')),
       ),
       findsOneWidget,
     );
+    expect(find.byKey(const ValueKey('workbench-sidebar')), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('widget-workshop-sessions-sidebar')),
+      find.byKey(const ValueKey('registry-spine-top-bar')),
       findsOneWidget,
     );
     expect(
-      tester
-          .widget<AnimatedPositioned>(
-            find.byKey(const ValueKey('widget-workshop-floating-sessions')),
-          )
-          .left,
-      lessThan(0),
+      find.byKey(const ValueKey('sidebar-sessions-footer')),
+      findsOneWidget,
     );
     expect(
-      tester
-          .widget<AnimatedOpacity>(
-            find.byKey(
-              const ValueKey('widget-workshop-floating-sessions-opacity'),
-            ),
-          )
-          .opacity,
-      0,
+      find.byKey(const ValueKey('sidebar-session-widget-workshop')),
+      findsOneWidget,
     );
-    final drawerSurface = tester.widget<DecoratedBox>(
-      find.byKey(const ValueKey('widget-workshop-sessions-drawer-surface')),
+    expect(
+      find.byKey(const ValueKey('standalone-workspace-extension-shell')),
+      findsNothing,
     );
-    expect((drawerSurface.decoration as BoxDecoration).boxShadow, isNull);
-    expect(find.byKey(const ValueKey('widget-workshop-back')), findsOneWidget);
-    expect(find.text('Back'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('registry-spine-agent-rail')),
+      findsNothing,
+      reason: 'Workshop owns the richer live agent rail in the same location.',
+    );
     expect(
       tester
           .getTopLeft(
-            find.byKey(const ValueKey('widget-workshop-sessions-toggle')),
+            find.byKey(const ValueKey('widget-workshop-activity-panel')),
           )
-          .dy,
-      greaterThan(700),
+          .dx,
+      greaterThan(
+        tester
+            .getTopLeft(
+              find.byKey(const ValueKey('widget-workshop-candidates-panel')),
+            )
+            .dx,
+      ),
     );
-    await tester.tap(
-      find.byKey(const ValueKey('widget-workshop-sessions-toggle')),
-    );
-    await tester.pumpAndSettle();
-    expect(
-      tester
-          .widget<AnimatedPositioned>(
-            find.byKey(const ValueKey('widget-workshop-floating-sessions')),
-          )
-          .left,
-      12,
-    );
-    expect(
-      tester
-          .widget<AnimatedOpacity>(
-            find.byKey(
-              const ValueKey('widget-workshop-floating-sessions-opacity'),
-            ),
-          )
-          .opacity,
-      1,
-    );
-    expect(find.text('Past conversations'), findsOneWidget);
-    expect(find.text('No past conversations yet.'), findsOneWidget);
     expect(find.text('Focused'), findsOneWidget);
     expect(find.text('Exploratory'), findsOneWidget);
     expect(
@@ -171,30 +227,113 @@ void main() {
     expect(find.byType(DesyProgressTrail), findsOneWidget);
     expect(find.text('Ready for the next iteration'), findsOneWidget);
     expect(
+      find.text('Context: Fixture system · Fixture light'),
+      findsOneWidget,
+    );
+    expect(
       find.byKey(const ValueKey('widget-workshop-candidates-panel')),
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('widget-workshop-annotation-dock')),
+      find.byKey(const ValueKey('registry-spine-toggle-inspection')),
       findsOneWidget,
     );
     expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('widget-workshop-annotation-dock')),
-        matching: find.byKey(
-          const ValueKey('widget-workshop-inspection-toggle'),
-        ),
-      ),
-      findsOneWidget,
+      find.byKey(const ValueKey('widget-workshop-inspection-toggle')),
+      findsNothing,
     );
-    expect(find.byTooltip('Inspect widgets'), findsOneWidget);
-    expect(find.text('Inspect widgets'), findsNothing);
-    expect(find.text('No annotations yet.'), findsOneWidget);
-    expect(find.text('Ready'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('widget-workshop-annotation-dock')),
+      findsNothing,
+    );
+    expect(find.text('Ready'), findsWidgets);
     expect(
       find.byKey(const ValueKey('widget-workshop-candidate-components')),
       findsNothing,
       reason: 'Wide exploration must not expose component drill-down yet.',
+    );
+  });
+
+  testWidgets('collapses and restores the shell agent sidebar', (tester) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      DesyBenchApp(registry: _registry(), extensions: [_extension()]),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('registry-spine-toggle-agent-sidebar')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('registry-spine-agent-rail')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('registry-spine-toggle-agent-sidebar')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('registry-spine-toggle-agent-sidebar')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('registry-spine-agent-rail')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('registry feedback starts a fresh Workshop conversation', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      DesyBenchApp(registry: _registry(), extensions: [_extension()]),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('registry-spine-toggle-inspection')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const ValueKey('atlas-card-fixture.badge'))),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('workbench-annotation-input')),
+        matching: find.byType(EditableText),
+      ),
+      'Increase the visual hierarchy.',
+    );
+    await tester.pump();
+    tester
+        .widget<DesyButton>(
+          find.byKey(const ValueKey('workbench-commit-annotation')),
+        )
+        .onPress!();
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('widget-workshop-screen')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<DesyTextField>(
+            find.byKey(const ValueKey('widget-workshop-prompt')),
+          )
+          .value,
+      contains('Improve the registered component fixture.badge'),
     );
   });
 
@@ -228,14 +367,14 @@ void main() {
     final before = tester.getSize(panel).width;
     await tester.drag(
       find.byKey(const ValueKey('widget-workshop-activity-resizer-horizontal')),
-      const Offset(80, 0),
+      const Offset(-80, 0),
     );
     await tester.pumpAndSettle();
 
     expect(tester.getSize(panel).width, greaterThan(before));
   });
 
-  testWidgets('selects candidate context without leaving the Workshop', (
+  testWidgets('collapses and restores the Workshop activity sidebar', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1400, 1000);
@@ -261,122 +400,91 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('0 selected · 0 annotations'), findsOneWidget);
-    await tester.tap(find.text('Focused'));
-    await tester.pumpAndSettle();
-    expect(find.text('1 selected · 0 annotations'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('widget-workshop-candidate-components')),
-      findsOneWidget,
+    await tester.tap(
+      find.byKey(const ValueKey('widget-workshop-collapse-activity')),
     );
-    expect(find.text('Prototype label'), findsOneWidget);
-    expect(find.text('Prototype part'), findsOneWidget);
-    expect(find.text('Fixture badge · Default'), findsOneWidget);
-    expect(find.text('Registry part'), findsOneWidget);
-    expect(find.text('In registry'), findsOneWidget);
-
-    await tester.tap(find.text('Exploratory'));
     await tester.pumpAndSettle();
-
-    expect(find.text('2 selected · 0 annotations'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('widget-workshop-candidate-components')),
+      find.byKey(const ValueKey('widget-workshop-activity-panel')),
       findsNothing,
-      reason: 'Component drill-down requires one decided direction.',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('widget-workshop-restore-activity')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('widget-workshop-activity-panel')),
+      findsOneWidget,
     );
   });
 
-  testWidgets(
-    'selects a rendered widget and opens its canvas annotation dock',
-    (tester) async {
-      tester.view.physicalSize = const Size(1400, 1000);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('uses the shared workbench annotation loop for candidates', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: DesyDesignSystemScope(
-            theme: DesyDesignSystemTheme.light,
-            child: Builder(
-              builder: (context) => _extension().build(
-                context,
-                DesyWorkspaceExtensionContext(
-                  registry: _registry(),
-                  activeTheme: _registry().themes.first,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      DesyBenchApp(registry: _registry(), extensions: [_extension()]),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('sidebar-session-widget-workshop')),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(const ValueKey('widget-workshop-inspection-toggle')),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byTooltip('Stop inspecting'), findsOneWidget);
-      await tester.tapAt(tester.getCenter(find.text('Focused candidate')));
-      await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('registry-spine-toggle-inspection')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const ValueKey('focused-title'))),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text('Text("Focused candidate") selected'), findsOneWidget);
-      expect(find.text('1 selected · 0 annotations'), findsOneWidget);
-      expect(find.text('Annotate Text("Focused candidate")'), findsOneWidget);
-      expect(
-        find.textContaining('widget_workshop_extension_test.dart:'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('What should change about this widget?'),
-        findsOneWidget,
-      );
-      final selectionStatus = tester.widget<DecoratedBox>(
-        find.byKey(const ValueKey('widget-workshop-selection-status')),
-      );
-      final selectionLabel = tester.widget<DecoratedBox>(
-        find.byKey(const ValueKey('widget-workshop-selection-label')),
-      );
-      expect(
-        (selectionStatus.decoration as BoxDecoration).color,
-        DesyVisualColors.light.signal,
-      );
-      expect(
-        (selectionLabel.decoration as BoxDecoration).color,
-        DesyVisualColors.light.signal,
-      );
-      expect(
-        tester.testTextInput.isVisible,
-        isTrue,
-        reason: 'Selecting a preview widget should focus annotation entry.',
-      );
+    expect(
+      find.byKey(const ValueKey('workbench-annotation-dock')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('widget-workshop-annotation-dock')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('workbench-annotation-input')),
+      findsOneWidget,
+    );
 
-      await tester.tap(
-        find.byKey(const ValueKey('widget-workshop-inspection-toggle')),
-      );
-      await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('workbench-annotation-input')),
+        matching: find.byType(EditableText),
+      ),
+      'Make this text 10 percent larger.',
+    );
+    await tester.pump();
+    tester
+        .widget<DesyButton>(
+          find.byKey(const ValueKey('workbench-commit-annotation')),
+        )
+        .onPress!();
+    await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Inspect widgets'), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('widget-workshop-selection-status')),
-        findsNothing,
-      );
-      expect(
-        find.byKey(const ValueKey('widget-workshop-selection-label')),
-        findsNothing,
-      );
-      expect(
-        find.byKey(const ValueKey('widget-workshop-annotation-dock')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('widget-workshop-annotation-input')),
-        findsNothing,
-      );
-    },
-  );
+    expect(find.text('1 annotations'), findsOneWidget);
+    expect(
+      find.textContaining('Make this text 10 percent larger.'),
+      findsOneWidget,
+    );
+    expect(find.text('2 proposals · 1 annotations'), findsOneWidget);
 
-  testWidgets('commits annotations locally before a separate Codex message', (
+    await tester.tap(find.textContaining('Make this text 10 percent larger.'));
+    await tester.pumpAndSettle();
+    expect(find.text('Workshop candidate: Focused'), findsOneWidget);
+  });
+
+  testWidgets('keeps proposal choice in text rather than card controls', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1400, 1000);
@@ -402,63 +510,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byKey(const ValueKey('widget-workshop-inspection-toggle')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tapAt(tester.getCenter(find.text('Focused candidate')));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const ValueKey('widget-workshop-annotation-input')),
-      'Make this text 10 percent larger.',
-    );
-    await tester.pump();
-    await tester.tap(
-      find.byKey(const ValueKey('widget-workshop-commit-annotation')),
-    );
-    await tester.pumpAndSettle();
-
+    expect(find.text('2 proposals · 0 annotations'), findsOneWidget);
+    expect(find.byType(DesyCheckbox), findsNothing);
     expect(
-      find.text('Text: Make this text 10 percent larger.'),
-      findsOneWidget,
-    );
-    expect(find.text('Focused · 1 total'), findsOneWidget);
-    expect(find.text('1 selected · 1 annotations'), findsOneWidget);
-    expect(find.text('Key: focused-title').hitTestable(), findsNothing);
-
-    await tester.tap(find.text('Text: Make this text 10 percent larger.'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Key: focused-title').hitTestable(), findsOneWidget);
-    expect(find.text(r'$ codex exec …'), findsNothing);
-    expect(find.text('Continue with Codex'), findsOneWidget);
-
-    await tester.tap(
-      find.byKey(const ValueKey('widget-workshop-inspection-toggle')),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('Text: Make this text 10 percent larger.'),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('widget-workshop-annotation-input')),
+      find.byKey(const ValueKey('widget-workshop-candidate-components')),
       findsNothing,
-    );
-
-    await tester.tap(
-      find.byKey(const ValueKey('widget-workshop-annotation-collapse')),
-    );
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey('widget-workshop-annotation-input')),
-      findsNothing,
-    );
-    expect(
-      find.byKey(const ValueKey('widget-workshop-annotation-dock')),
-      findsOneWidget,
+      reason: 'Component drill-down starts once the agent leaves one proposal.',
     );
   });
 }

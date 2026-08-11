@@ -26,6 +26,59 @@ void main() {
     expect(() => registry.fonts.clear(), throwsUnsupportedError);
   });
 
+  test(
+    'color entries expose one literal color and derive their ARGB value',
+    () {
+      const color = DesyColorEntry(
+        id: 'color.brand',
+        name: 'Brand',
+        color: Color(0x80123456),
+      );
+
+      final registry = DesyRegistry(
+        name: 'Colors',
+        themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+        colors: const [color],
+      );
+
+      expect(registry.allColors, [color]);
+      expect(color.displayValue, '#80123456');
+      expect(registry.resolve(color.id)?.value, '#80123456');
+    },
+  );
+
+  test(
+    'custom atoms are immutable named widget instances in one atom lane',
+    () {
+      final atom = DesyCustomAtom(
+        id: 'brand.ribbon',
+        name: 'Brand ribbon',
+        instances: {
+          'default': (_) => const SizedBox(),
+          'quiet': (_) => const SizedBox(),
+        },
+      );
+      final registry = DesyRegistry(
+        name: 'Custom atom',
+        themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+        customAtoms: [atom],
+      );
+
+      expect(registry.atomKinds, [DesyAtomKind.custom]);
+      expect(registry.allCustomAtoms, [atom]);
+      expect(registry.entriesForAtom(DesyAtomKind.custom).single.id, atom.id);
+      expect(
+        registry.entriesForAtom(DesyAtomKind.custom).single.value,
+        'default',
+      );
+      expect(() => atom.instances.clear(), throwsUnsupportedError);
+      expect(
+        () => DesyCustomAtom(id: 'empty', name: 'Empty', instances: const {}),
+        throwsArgumentError,
+      );
+    },
+  );
+
   test('registry requires at least one consumer theme', () {
     expect(
       () => DesyRegistry(name: 'Empty', themes: const []),
@@ -165,7 +218,7 @@ void main() {
     expect(registry.allEffects.single.id, 'effect.status');
   });
 
-  test('registry exposes showcases and resolved token entries', () {
+  test('registry exposes resolved token entries', () {
     final registry = DesyRegistry(
       name: 'Nested',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
@@ -177,19 +230,11 @@ void main() {
           builder: (_) => const SizedBox(),
         ),
       ],
-      showcases: [
-        DesyShowcase(
-          id: 'status-overview',
-          name: 'Status overview',
-          builder: (_) => const SizedBox(),
-        ),
-      ],
     );
 
     expect(registry.resolve('brand')?.path, 'Root');
     expect(registry.resolve('brand')?.folderIds, isEmpty);
     expect(registry.resolve('brand')?.routePath, isEmpty);
-    expect(registry.allShowcases.single.id, 'status-overview');
   });
 
   test('component paths normalize equivalent slash syntax', () {
@@ -410,6 +455,21 @@ void main() {
       ),
       isEmpty,
     );
+  });
+
+  test('bound-record components retain typed literal color knobs', () {
+    final component = DesyComponent(
+      id: 'status.dot',
+      name: 'Status dot',
+      knobs: (k) => (color: k.color('color', initial: const Color(0xff118833))),
+      build: (context, knobs) => ColoredBox(color: knobs.color.value),
+      instances: (knobs) => {
+        'warning': [knobs.color(const Color(0xffffaa00))],
+      },
+    );
+
+    expect(component.knobDefinitions.single.kind, DesyKnobKind.color);
+    expect(component.valuesFor('warning')['color'], const Color(0xffffaa00));
   });
 
   test('knob definitions freeze caller-owned option lists', () {

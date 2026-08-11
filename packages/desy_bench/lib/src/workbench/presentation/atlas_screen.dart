@@ -9,6 +9,7 @@ import 'motion_playback_controls.dart';
 import '../../motion_playback.dart';
 import '../../registry.dart';
 import '../widget_preview.dart';
+import '../workbench_annotation.dart';
 import '../workbench_session.dart';
 
 /// The compact, browse-first view of a consumer registry.
@@ -75,6 +76,8 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     _motionPlayback = DesyMotionPlaybackController(
       vsync: this,
       duration: _cycleDuration(entries, globalDuration),
+      loopMode: DesyMotionLoopMode.once,
+      autoplay: false,
     );
   }
 
@@ -129,7 +132,8 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     }
 
     return Padding(
-      padding: const EdgeInsets.all(28),
+      key: const ValueKey('atlas-content-padding'),
+      padding: const EdgeInsets.fromLTRB(28, 28, 28, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -323,7 +327,14 @@ class _AtlasCard extends StatelessWidget {
                     // size. The full-card theme background must stay outside
                     // this fitted subtree or its empty canvas scales compact
                     // components down with it.
-                    child: Builder(builder: previewBuilder),
+                    child: DesyWorkbenchInspectionScope(
+                      context: DesyWorkbenchInspectionContext(
+                        artifactId: entry.id,
+                        kind: 'Registry entry',
+                        label: entry.name,
+                      ),
+                      child: Builder(builder: previewBuilder),
+                    ),
                   ),
                 ),
               ),
@@ -371,53 +382,243 @@ class _FontsAtlas extends StatelessWidget {
   final ValueChanged<String> onSampleTextChanged;
 
   @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(28),
+    children: [
+      _FontsAtlasHeader(
+        sampleText: sampleText,
+        onSampleTextChanged: onSampleTextChanged,
+      ),
+      const SizedBox(height: 32),
+      _FontLedger(entries: entries, theme: theme, sampleText: sampleText),
+    ],
+  );
+}
+
+/// Keeps the editable source copy visually separate from the typography
+/// specimens it controls.
+class _FontsAtlasHeader extends StatelessWidget {
+  const _FontsAtlasHeader({
+    required this.sampleText,
+    required this.onSampleTextChanged,
+  });
+
+  final String sampleText;
+  final ValueChanged<String> onSampleTextChanged;
+
+  @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(28),
-      itemCount: entries.length + 1,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'ATOMS / FONTS',
-                style: Theme.of(context).textTheme.labelSmall,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Type styles',
-                style: Theme.of(context).textTheme.displaySmall,
-              ),
-              const SizedBox(height: 16),
-              DesyTextField(
-                key: const ValueKey('font-preview-text'),
-                label: 'Preview text',
-                value: sampleText,
-                onChanged: onSampleTextChanged,
-              ),
-            ],
-          );
-        }
-        final entry = entries[index - 1];
-        return DesyCard(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(entry.name, style: Theme.of(context).textTheme.labelLarge),
-                const SizedBox(height: 16),
-                DesyWidgetPreview(
-                  theme: theme,
-                  builder: (context) => entry.builder(context, sampleText),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('ATOMS / FONTS', style: Theme.of(context).textTheme.labelSmall),
+        const SizedBox(height: 4),
+        Text('Type styles', style: Theme.of(context).textTheme.displaySmall),
+        const SizedBox(height: 20),
+        _FontSampleEditor(
+          sampleText: sampleText,
+          onSampleTextChanged: onSampleTextChanged,
+        ),
+      ],
     );
   }
+}
+
+class _FontSampleEditor extends StatelessWidget {
+  const _FontSampleEditor({
+    required this.sampleText,
+    required this.onSampleTextChanged,
+  });
+
+  final String sampleText;
+  final ValueChanged<String> onSampleTextChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.theme.colors;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.desy.panelSubtle,
+        border: Border(left: BorderSide(color: colors.desy.signal, width: 3)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final editor = DesyTextField(
+              key: const ValueKey('font-preview-text'),
+              label: 'Specimen copy',
+              hintText: 'Write a specimen',
+              value: sampleText,
+              onChanged: onSampleTextChanged,
+            );
+            final explanation = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'SPECIMEN COPY',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.mutedForeground,
+                    letterSpacing: .6,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Edit once to proof every declared type style.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.mutedForeground,
+                  ),
+                ),
+              ],
+            );
+            if (constraints.maxWidth < 720) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [explanation, const SizedBox(height: 12), editor],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: explanation),
+                const SizedBox(width: 24),
+                SizedBox(width: 360, child: editor),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// A divider-based type inventory: each row gives metadata a stable left
+/// column and lets the consumer's real specimen occupy the reading space.
+class _FontLedger extends StatelessWidget {
+  const _FontLedger({
+    required this.entries,
+    required this.theme,
+    required this.sampleText,
+  });
+
+  final List<DesyTypographyEntry> entries;
+  final DesyTheme theme;
+  final String sampleText;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    key: const ValueKey('font-ledger'),
+    decoration: BoxDecoration(
+      border: Border.symmetric(
+        horizontal: BorderSide(color: context.theme.colors.desy.divider),
+      ),
+    ),
+    child: Column(
+      children: [
+        for (var index = 0; index < entries.length; index++) ...[
+          _FontLedgerRow(
+            entry: entries[index],
+            theme: theme,
+            sampleText: sampleText,
+          ),
+          if (index < entries.length - 1)
+            Divider(height: 1, color: context.theme.colors.desy.divider),
+        ],
+      ],
+    ),
+  );
+}
+
+class _FontLedgerRow extends StatelessWidget {
+  const _FontLedgerRow({
+    required this.entry,
+    required this.theme,
+    required this.sampleText,
+  });
+
+  final DesyTypographyEntry entry;
+  final DesyTheme theme;
+  final String sampleText;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 24),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final metadata = _FontMetadata(entry: entry);
+        final specimen = _FontSpecimen(
+          entry: entry,
+          theme: theme,
+          sampleText: sampleText,
+        );
+        if (constraints.maxWidth < 720) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [metadata, const SizedBox(height: 20), specimen],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(flex: 1, child: metadata),
+            Container(
+              width: 1,
+              height: 68,
+              color: context.theme.colors.desy.divider,
+            ),
+            const SizedBox(width: 28),
+            Expanded(flex: 2, child: specimen),
+          ],
+        );
+      },
+    ),
+  );
+}
+
+class _FontMetadata extends StatelessWidget {
+  const _FontMetadata({required this.entry});
+
+  final DesyTypographyEntry entry;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(entry.name, style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 4),
+      Text(
+        entry.value ?? entry.id,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: context.theme.colors.mutedForeground,
+        ),
+      ),
+      if (entry.description case final description?) ...[
+        const SizedBox(height: 12),
+        Text(
+          description,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: context.theme.colors.mutedForeground,
+          ),
+        ),
+      ],
+    ],
+  );
+}
+
+class _FontSpecimen extends StatelessWidget {
+  const _FontSpecimen({
+    required this.entry,
+    required this.theme,
+    required this.sampleText,
+  });
+
+  final DesyTypographyEntry entry;
+  final DesyTheme theme;
+  final String sampleText;
+
+  @override
+  Widget build(BuildContext context) => DesyWidgetPreview(
+    theme: theme,
+    builder: (context) => entry.builder(context, sampleText),
+  );
 }

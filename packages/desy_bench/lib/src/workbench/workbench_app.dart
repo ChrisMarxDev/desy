@@ -7,9 +7,11 @@ import 'package:state_beacon/state_beacon.dart';
 
 import 'workbench_router.dart';
 import 'workbench_session.dart';
+import 'annotation_workspace.dart';
 import '../detail_extension.dart';
 import '../registry.dart';
 import '../workspace_extension.dart';
+import '../window_controls.dart';
 
 /// Desy's Forui workbench, driven directly by the consumer registry.
 class DesyWorkbenchApp extends StatefulWidget {
@@ -18,11 +20,15 @@ class DesyWorkbenchApp extends StatefulWidget {
     required this.registry,
     this.extensions = const [],
     this.detailExtensions = const [],
+    this.windowControls,
+    this.annotations,
   });
 
   final DesyRegistry registry;
   final List<DesyWorkspaceExtension> extensions;
   final List<DesyDetailExtension> detailExtensions;
+  final DesyWindowControls? windowControls;
+  final DesyAnnotationWorkspace? annotations;
 
   @override
   State<DesyWorkbenchApp> createState() => _DesyWorkbenchAppState();
@@ -35,6 +41,8 @@ class _DesyWorkbenchAppState extends State<DesyWorkbenchApp> {
   late DesyRegistry _declaredRegistry;
   late List<DesyWorkspaceExtension> _declaredExtensions;
   late List<DesyDetailExtension> _declaredDetailExtensions;
+  DesyWindowControls? _declaredWindowControls;
+  DesyAnnotationWorkspace? _declaredAnnotations;
 
   @override
   void initState() {
@@ -43,6 +51,8 @@ class _DesyWorkbenchAppState extends State<DesyWorkbenchApp> {
       registry: widget.registry,
       extensions: widget.extensions,
       detailExtensions: widget.detailExtensions,
+      windowControls: widget.windowControls,
+      annotations: widget.annotations,
     );
   }
 
@@ -51,6 +61,7 @@ class _DesyWorkbenchAppState extends State<DesyWorkbenchApp> {
     super.didUpdateWidget(oldWidget);
     if (!_declarationsChanged) return;
 
+    final previousExtensions = _declaredExtensions;
     final extensions = List<DesyWorkspaceExtension>.unmodifiable(
       widget.extensions,
     );
@@ -64,6 +75,8 @@ class _DesyWorkbenchAppState extends State<DesyWorkbenchApp> {
         registry: widget.registry,
         extensions: extensions,
         detailExtensions: detailExtensions,
+        windowControls: widget.windowControls,
+        annotations: widget.annotations,
         error: error,
       );
       if (shouldReport) {
@@ -78,6 +91,7 @@ class _DesyWorkbenchAppState extends State<DesyWorkbenchApp> {
           ),
         );
       }
+      _disposeRemovedExtensions(previousExtensions: previousExtensions);
       return;
     }
 
@@ -87,21 +101,28 @@ class _DesyWorkbenchAppState extends State<DesyWorkbenchApp> {
       registry: widget.registry,
       extensions: extensions,
       detailExtensions: detailExtensions,
+      windowControls: widget.windowControls,
+      annotations: widget.annotations,
       validate: false,
     );
     previousRouter?.dispose();
     previousSession?.dispose();
+    _disposeRemovedExtensions(previousExtensions: previousExtensions);
   }
 
   bool get _declarationsChanged =>
       !identical(widget.registry, _declaredRegistry) ||
       !_sameIdentityList(widget.extensions, _declaredExtensions) ||
-      !_sameIdentityList(widget.detailExtensions, _declaredDetailExtensions);
+      !_sameIdentityList(widget.detailExtensions, _declaredDetailExtensions) ||
+      !identical(widget.windowControls, _declaredWindowControls) ||
+      !identical(widget.annotations, _declaredAnnotations);
 
   void _installRuntime({
     required DesyRegistry registry,
     required List<DesyWorkspaceExtension> extensions,
     required List<DesyDetailExtension> detailExtensions,
+    required DesyWindowControls? windowControls,
+    required DesyAnnotationWorkspace? annotations,
     bool validate = true,
   }) {
     final extensionSnapshot = List<DesyWorkspaceExtension>.unmodifiable(
@@ -121,13 +142,20 @@ class _DesyWorkbenchAppState extends State<DesyWorkbenchApp> {
       registry: registry,
       extensions: extensionSnapshot,
       detailExtensions: detailExtensionSnapshot,
+      annotations: annotations,
     );
+    session.hydrateAnnotations();
 
     _declaredRegistry = registry;
     _declaredExtensions = extensionSnapshot;
     _declaredDetailExtensions = detailExtensionSnapshot;
+    _declaredWindowControls = windowControls;
+    _declaredAnnotations = annotations;
     _session = session;
-    _router = createDesyWorkbenchRouter(session);
+    _router = createDesyWorkbenchRouter(
+      session,
+      windowControls: windowControls,
+    );
     _configurationError = null;
   }
 
@@ -135,6 +163,8 @@ class _DesyWorkbenchAppState extends State<DesyWorkbenchApp> {
     required DesyRegistry registry,
     required List<DesyWorkspaceExtension> extensions,
     required List<DesyDetailExtension> detailExtensions,
+    required DesyWindowControls? windowControls,
+    required DesyAnnotationWorkspace? annotations,
     required FlutterError error,
   }) {
     final shouldReport = _configurationError?.toString() != error.toString();
@@ -143,6 +173,8 @@ class _DesyWorkbenchAppState extends State<DesyWorkbenchApp> {
     _declaredRegistry = registry;
     _declaredExtensions = List.unmodifiable(extensions);
     _declaredDetailExtensions = List.unmodifiable(detailExtensions);
+    _declaredWindowControls = windowControls;
+    _declaredAnnotations = annotations;
     _session = null;
     _router = null;
     _configurationError = error;
@@ -177,10 +209,25 @@ class _DesyWorkbenchAppState extends State<DesyWorkbenchApp> {
     }
   }
 
+  void _disposeRemovedExtensions({
+    required List<DesyWorkspaceExtension> previousExtensions,
+  }) {
+    for (final extension in previousExtensions) {
+      if (!widget.extensions.any(
+        (candidate) => identical(candidate, extension),
+      )) {
+        extension.dispose();
+      }
+    }
+  }
+
   @override
   void dispose() {
     _router?.dispose();
     _session?.dispose();
+    for (final extension in _declaredExtensions) {
+      extension.dispose();
+    }
     super.dispose();
   }
 
@@ -205,12 +252,72 @@ class _DesyWorkbenchAppState extends State<DesyWorkbenchApp> {
       routerConfig: router,
       supportedLocales: DesyDesignSystemFoundation.supportedLocales,
       localizationsDelegates: DesyDesignSystemFoundation.localizationsDelegates,
-      builder: (context, child) => DesyDesignSystemScope(
-        theme: designSystemTheme,
-        child: child ?? const SizedBox.shrink(),
+      builder: (context, child) => _DesyWindowBackgroundSync(
+        color: themeData.colors.background,
+        onSetBackgroundColor: widget.windowControls?.onSetBackgroundColor,
+        child: DesyDesignSystemScope(
+          theme: designSystemTheme,
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
     );
   }
+}
+
+/// Synchronizes a host-managed bezel with Desy's active workbench theme.
+class _DesyWindowBackgroundSync extends StatefulWidget {
+  const _DesyWindowBackgroundSync({
+    required this.color,
+    required this.onSetBackgroundColor,
+    required this.child,
+  });
+
+  final Color color;
+  final ValueChanged<Color>? onSetBackgroundColor;
+  final Widget child;
+
+  @override
+  State<_DesyWindowBackgroundSync> createState() =>
+      _DesyWindowBackgroundSyncState();
+}
+
+class _DesyWindowBackgroundSyncState extends State<_DesyWindowBackgroundSync> {
+  Color? _appliedColor;
+  ValueChanged<Color>? _appliedCallback;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleSync();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DesyWindowBackgroundSync oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _scheduleSync();
+  }
+
+  void _scheduleSync() {
+    final callback = widget.onSetBackgroundColor;
+    final color = widget.color;
+    if (callback == null ||
+        (_appliedColor == color && identical(_appliedCallback, callback))) {
+      return;
+    }
+    _appliedColor = color;
+    _appliedCallback = callback;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          widget.color != color ||
+          !identical(widget.onSetBackgroundColor, callback)) {
+        return;
+      }
+      callback(color);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _FailedWorkbenchConfiguration extends StatelessWidget {

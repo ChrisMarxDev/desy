@@ -132,7 +132,12 @@ class _ProgressTrailItem extends StatelessWidget {
                   padding: EdgeInsets.only(
                     bottom: isLast ? 0 : DesyDesignSystemTokens.spaceMd,
                   ),
-                  child: DecoratedBox(
+                  child: AnimatedContainer(
+                    duration: DesyDesignSystemTokens.feedbackMotion,
+                    curve: Curves.easeOutCubic,
+                    padding: const EdgeInsets.all(
+                      DesyDesignSystemTokens.spaceSm,
+                    ),
                     decoration: BoxDecoration(
                       color: background,
                       border: Border.all(color: border),
@@ -140,55 +145,48 @@ class _ProgressTrailItem extends StatelessWidget {
                         DesyDesignSystemTokens.radiusSm,
                       ),
                     ),
-                    child: Padding(
-                      padding: EdgeInsets.all(
-                        emphasized || failed
-                            ? DesyDesignSystemTokens.spaceSm
-                            : 0,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  item.title,
-                                  style: typography.body.sm.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.title,
+                                style: typography.body.sm.copyWith(
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
-                              if (item.metadata case final metadata?) ...[
-                                const SizedBox(
-                                  width: DesyDesignSystemTokens.spaceSm,
+                            ),
+                            if (item.metadata case final metadata?) ...[
+                              const SizedBox(
+                                width: DesyDesignSystemTokens.spaceSm,
+                              ),
+                              Text(
+                                metadata,
+                                style: typography.body.xs.copyWith(
+                                  color: emphasized || failed
+                                      ? signal
+                                      : colors.mutedForeground,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                                Text(
-                                  metadata,
-                                  style: typography.body.xs.copyWith(
-                                    color: emphasized || failed
-                                        ? signal
-                                        : colors.mutedForeground,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ],
-                          ),
-                          if (item.detail case final detail?) ...[
-                            const SizedBox(
-                              height: DesyDesignSystemTokens.spaceXs,
-                            ),
-                            Text(
-                              detail,
-                              style: typography.body.xs.copyWith(
-                                color: colors.mutedForeground,
-                              ),
-                            ),
                           ],
+                        ),
+                        if (item.detail case final detail?) ...[
+                          const SizedBox(
+                            height: DesyDesignSystemTokens.spaceXs,
+                          ),
+                          Text(
+                            detail,
+                            style: typography.body.xs.copyWith(
+                              color: colors.mutedForeground,
+                            ),
+                          ),
                         ],
-                      ),
+                      ],
                     ),
                   ),
                 ),

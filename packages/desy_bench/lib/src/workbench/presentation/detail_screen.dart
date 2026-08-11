@@ -16,6 +16,7 @@ import '../../device_preview.dart';
 import '../../motion_playback.dart';
 import '../../registry.dart';
 import '../widget_preview.dart';
+import '../workbench_annotation.dart';
 import '../workbench_session.dart';
 
 const _minimumBoxExtent = 8.0;
@@ -28,6 +29,13 @@ const _selectionLabelReservedHeight = 28.0;
 const _selectionMinimumTop =
     _detailToolbarTop + _detailToolbarReservedHeight + _toolbarSelectionGap;
 
+// The detail canvas deliberately has no user-facing edge or maximum artboard
+// size. A large finite coordinate space keeps the underlying transform package
+// numerically stable while allowing artboards to extend beyond the viewport.
+const _unboundedCanvasExtent = 100000.0;
+const _detailCanvasItemGap = 16.0;
+const _detailCanvasTrailingSpace = 40.0;
+
 double _boundedBoxExtent(double value) =>
     value < _minimumBoxExtent ? _minimumBoxExtent : value;
 
@@ -37,11 +45,13 @@ class DesyDetailScreen extends StatefulWidget {
     super.key,
     required this.session,
     required this.entry,
+    this.inspectionContext,
     this.onOpenFolder,
   });
 
   final DesyWorkbenchSession session;
   final DesyRegistryEntry entry;
+  final DesyWorkbenchInspectionContext? inspectionContext;
   final ValueChanged<String>? onOpenFolder;
 
   @override
@@ -123,7 +133,14 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
                 widgets: session.registry.widgetBuilder,
               ),
       ),
-      for (final instanceId in component?.instanceIds ?? const [])
+      // The base preview already represents the component's default form.
+      // Components commonly declare a `default` preset for registry lookup,
+      // but rendering it here would create two visually identical Defaults.
+      for (final instanceId
+          in component?.instanceIds.where(
+                (instanceId) => instanceId != 'default',
+              ) ??
+              const <String>[])
         _DetailVariant(
           id: 'instance-$instanceId',
           name: component!.instanceLabel(instanceId),
@@ -165,6 +182,7 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
           onOpenFolder: widget.onOpenFolder,
         ),
         variants: variants,
+        inspectionContext: widget.inspectionContext,
       ),
       inspector: _DetailInspector(
         session: session,
@@ -229,13 +247,14 @@ class _DetailVariant {
   final DesyPreviewBuilder builder;
 }
 
-class _DetailInstanceGallery extends StatelessWidget {
+class _DetailInstanceGallery extends StatefulWidget {
   const _DetailInstanceGallery({
     required this.session,
     required this.theme,
     required this.device,
     required this.toolbar,
     required this.variants,
+    this.inspectionContext,
   });
 
   final DesyWorkbenchSession session;
@@ -243,80 +262,240 @@ class _DetailInstanceGallery extends StatelessWidget {
   final DesyDevicePreset? device;
   final Widget toolbar;
   final List<_DetailVariant> variants;
+  final DesyWorkbenchInspectionContext? inspectionContext;
+
+  @override
+  State<_DetailInstanceGallery> createState() => _DetailInstanceGalleryState();
+}
+
+class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
+  final Map<String, DesyDragBoxGeometry> _geometries = {};
+  final List<String> _paintOrder = [];
+
+  void _synchronizeItems(DesyPreviewStage stage, DesyDevicePreset? device) {
+    final activeIds = widget.variants.map((variant) => variant.id).toSet();
+    _geometries.removeWhere((id, _) => !activeIds.contains(id));
+    _paintOrder.removeWhere((id) => !activeIds.contains(id));
+    for (var index = 0; index < widget.variants.length; index++) {
+      final variant = widget.variants[index];
+      _geometries.putIfAbsent(
+        variant.id,
+        () => DesyDragBoxGeometry(
+          rect: Rect.fromLTWH(
+            stage.offset.dx,
+            math.max(stage.offset.dy, _selectionMinimumTop) +
+                index *
+                    ((device?.frameSize.height ?? stage.size.height) +
+                        _selectionLabelGap +
+                        _selectionLabelReservedHeight +
+                        _detailCanvasItemGap),
+            device?.frameSize.width ?? stage.size.width,
+            device?.frameSize.height ?? stage.size.height,
+          ),
+        ),
+      );
+      if (!_paintOrder.contains(variant.id)) _paintOrder.add(variant.id);
+    }
+  }
+
+  void _select(_DetailVariant variant) {
+    setState(() {
+      _paintOrder
+        ..remove(variant.id)
+        ..add(variant.id);
+    });
+    variant.onSelect?.call();
+  }
+
+  void _updateGeometry(String id, DesyDragBoxGeometry geometry) {
+    setState(() => _geometries[id] = geometry);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final stage = session.stage.watch(context);
-    final viewerHeight = device == null
-        ? (stage.size.height + 72).clamp(280, 640).toDouble()
-        : 540.0;
+    final stage = widget.session.stage.watch(context);
+    _synchronizeItems(stage, widget.device);
     final background =
-        theme.previewBackgroundColor ?? context.theme.colors.background;
-    return ColoredBox(
-      color: background,
-      child: ListView.separated(
-        key: const ValueKey('detail-instance-gallery'),
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-        itemCount: variants.length + 1,
-        separatorBuilder: (context, index) => const SizedBox(height: 16),
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return Align(alignment: Alignment.centerLeft, child: toolbar);
-          }
-          final variant = variants[index - 1];
-          final isDefault = variant.id == 'default';
-          return FocusableActionDetector(
-            key: ValueKey('detail-instance-focus-${variant.id}'),
-            enabled: variant.onSelect != null,
-            shortcuts: const {
-              SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
-              SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
-            },
-            actions: {
-              ActivateIntent: CallbackAction<ActivateIntent>(
-                onInvoke: (_) {
-                  variant.onSelect?.call();
-                  return null;
-                },
-              ),
-            },
-            child: Semantics(
-              key: ValueKey('detail-instance-selector-${variant.id}'),
-              button: variant.onSelect != null,
-              selected: variant.selected,
-              onTap: variant.onSelect,
-              label: variant.onSelect == null
-                  ? '${variant.name} preview'
-                  : '${variant.name} instance preview',
-              child: SizedBox(
-                key: ValueKey('detail-instance-viewer-${variant.id}'),
-                height: viewerHeight,
-                child: DesyPreviewCanvas(
-                  session: session,
-                  theme: theme,
-                  device: device,
-                  toolbar: null,
-                  instanceLabel: variant.name,
-                  selected: variant.selected,
-                  onSelect: variant.onSelect,
-                  canvasKey: isDefault
-                      ? const ValueKey('detail-preview-canvas')
-                      : ValueKey('detail-instance-canvas-${variant.id}'),
-                  artboardKey: isDefault
-                      ? const ValueKey('detail-artboard')
-                      : ValueKey('detail-instance-artboard-${variant.id}'),
-                  selectionLabelKey: isDefault
-                      ? const ValueKey('detail-selection-size')
-                      : ValueKey('detail-instance-label-${variant.id}'),
-                  child: DesyWidgetPreview(
-                    theme: theme,
-                    builder: variant.builder,
+        widget.theme.previewBackgroundColor ?? context.theme.colors.background;
+    final variants = {
+      for (final variant in widget.variants) variant.id: variant,
+    };
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final canvasSize = _canvasSize(constraints);
+        return ColoredBox(
+          color: background,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: canvasSize.width,
+              child: SingleChildScrollView(
+                child: SizedBox(
+                  width: canvasSize.width,
+                  height: canvasSize.height,
+                  child: CustomPaint(
+                    painter: _DottedPreviewPainter(background: background),
+                    child: Stack(
+                      key: const ValueKey('detail-instance-gallery'),
+                      fit: StackFit.expand,
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned(
+                          top: _detailToolbarTop,
+                          left: 12,
+                          child: widget.toolbar,
+                        ),
+                        for (final id in _paintOrder)
+                          if (variants[id] case final variant?)
+                            _DetailCanvasItem(
+                              key: ValueKey(
+                                'detail-instance-viewer-${variant.id}',
+                              ),
+                              variant: variant,
+                              geometry: _geometries[variant.id]!,
+                              theme: widget.theme,
+                              device: widget.device,
+                              inspectionContext: widget.inspectionContext,
+                              onSelect: () => _select(variant),
+                              onChanged: (geometry) =>
+                                  _updateGeometry(variant.id, geometry),
+                            ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
+          ),
+        );
+      },
+    );
+  }
+
+  Size _canvasSize(BoxConstraints constraints) {
+    var width = constraints.maxWidth;
+    var height = constraints.maxHeight;
+    for (final geometry in _geometries.values) {
+      width = math.max(width, geometry.rect.right + _detailCanvasTrailingSpace);
+      height = math.max(
+        height,
+        geometry.rect.bottom +
+            _selectionLabelGap +
+            _selectionLabelReservedHeight +
+            _detailCanvasTrailingSpace,
+      );
+    }
+    return Size(width, height);
+  }
+}
+
+class _DetailCanvasItem extends StatelessWidget {
+  const _DetailCanvasItem({
+    super.key,
+    required this.variant,
+    required this.geometry,
+    required this.theme,
+    required this.device,
+    required this.inspectionContext,
+    required this.onSelect,
+    required this.onChanged,
+  });
+
+  final _DetailVariant variant;
+  final DesyDragBoxGeometry geometry;
+  final DesyTheme theme;
+  final DesyDevicePreset? device;
+  final DesyWorkbenchInspectionContext? inspectionContext;
+  final VoidCallback onSelect;
+  final ValueChanged<DesyDragBoxGeometry> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDefault = variant.id == 'default';
+    final child = inspectionContext == null
+        ? DesyWidgetPreview(theme: theme, builder: variant.builder)
+        : DesyWorkbenchInspectionScope(
+            context: inspectionContext!,
+            child: DesyWidgetPreview(theme: theme, builder: variant.builder),
           );
+    return DesyDragBox(
+      geometry: geometry,
+      clampingRect: const Rect.fromLTRB(
+        -_unboundedCanvasExtent,
+        -_unboundedCanvasExtent,
+        _unboundedCanvasExtent,
+        _unboundedCanvasExtent,
+      ),
+      constraints: const BoxConstraints(
+        minWidth: _minimumBoxExtent,
+        minHeight: _minimumBoxExtent,
+      ),
+      frameKey: isDefault
+          ? const ValueKey('detail-artboard')
+          : ValueKey('detail-instance-artboard-${variant.id}'),
+      resizeHandleKeyPrefix: 'detail-resize-${variant.id}',
+      selected: variant.selected,
+      ignoreChildPointer: false,
+      onSelect: onSelect,
+      onChanged: onChanged,
+      geometryResolver: device == null
+          ? null
+          : (geometry, interaction) => DesyDragBoxGeometry(
+              rect: DesyDeviceGeometry.lockFrameAspect(
+                preset: device!,
+                current: interaction.initialRect,
+                proposed: geometry.rect,
+              ),
+              flip: geometry.flip,
+            ),
+      label: DesyDragBoxLabel(
+        key: isDefault
+            ? const ValueKey('detail-selection-size')
+            : ValueKey('detail-instance-label-${variant.id}'),
+        size: device?.screenSize ?? geometry.rect.size,
+        identifier: variant.name,
+      ),
+      child: FocusableActionDetector(
+        key: ValueKey('detail-instance-focus-${variant.id}'),
+        enabled: variant.onSelect != null,
+        shortcuts: const {
+          SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+          SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
         },
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              onSelect();
+              return null;
+            },
+          ),
+        },
+        child: Semantics(
+          key: ValueKey('detail-instance-selector-${variant.id}'),
+          button: variant.onSelect != null,
+          selected: variant.selected,
+          onTap: variant.onSelect == null ? null : onSelect,
+          label: variant.onSelect == null
+              ? '${variant.name} preview'
+              : '${variant.name} instance preview',
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: context.theme.colors.desy.signal.withValues(alpha: .48),
+              ),
+            ),
+            child: ClipRect(
+              child: Center(
+                child: device == null
+                    ? child
+                    : DesyDevicePreview(
+                        device: device!,
+                        child: Align(alignment: Alignment.center, child: child),
+                      ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -324,35 +503,102 @@ class _DetailInstanceGallery extends StatelessWidget {
 
 /// The detail route's only content split.
 ///
-/// ShellRoute owns the global sidebar. This row owns just the component
-/// preview and its local controls, avoiding a second nested resizing system.
-class _DetailBody extends StatelessWidget {
+/// ShellRoute owns the global sidebar. This surface owns the local split
+/// between the preview and the component controls.
+class _DetailBody extends StatefulWidget {
   const _DetailBody({required this.preview, required this.inspector});
 
   final Widget preview;
   final Widget inspector;
 
   @override
+  State<_DetailBody> createState() => _DetailBodyState();
+}
+
+class _DetailBodyState extends State<_DetailBody> {
+  static const _minimumPreviewWidth = 360.0;
+  static const _minimumInspectorWidth = 240.0;
+  static const _maximumInspectorWidth = 520.0;
+  static const _minimumPreviewHeight = 240.0;
+  static const _minimumInspectorHeight = 180.0;
+  static const _maximumInspectorHeight = 520.0;
+
+  var _inspectorWidth = 320.0;
+  var _inspectorHeight = 260.0;
+  var _resizingInspector = false;
+
+  @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final divider = ColoredBox(
-        color: context.theme.colors.border,
-        child: const SizedBox.expand(),
-      );
+      final dividerSize = DesyDesignSystemTokens.resizeDividerHitSize;
       if (constraints.maxWidth < 720) {
+        final maximumInspectorHeight =
+            (constraints.maxHeight - _minimumPreviewHeight - dividerSize)
+                .clamp(_minimumInspectorHeight, _maximumInspectorHeight)
+                .toDouble();
+        final inspectorHeight = _inspectorHeight
+            .clamp(_minimumInspectorHeight, maximumInspectorHeight)
+            .toDouble();
         return Column(
           children: [
-            Expanded(child: preview),
-            SizedBox(height: 1, child: divider),
-            SizedBox(height: 260, child: inspector),
+            Expanded(child: widget.preview),
+            DesyResizeDivider(
+              key: const ValueKey('detail-controls-resize-handle'),
+              axis: Axis.horizontal,
+              value: inspectorHeight,
+              semanticsLabel: 'Resize controls panel',
+              onResizeStart: () => setState(() => _resizingInspector = true),
+              onResize: (delta) => setState(
+                () => _inspectorHeight = (inspectorHeight - delta)
+                    .clamp(_minimumInspectorHeight, maximumInspectorHeight)
+                    .toDouble(),
+              ),
+              onResizeEnd: () => setState(() => _resizingInspector = false),
+            ),
+            AnimatedContainer(
+              key: const ValueKey('detail-controls-panel'),
+              duration: _resizingInspector
+                  ? Duration.zero
+                  : const Duration(milliseconds: 140),
+              curve: Curves.easeOutCubic,
+              height: inspectorHeight,
+              child: widget.inspector,
+            ),
           ],
         );
       }
+      final maximumInspectorWidth =
+          (constraints.maxWidth - _minimumPreviewWidth - dividerSize)
+              .clamp(_minimumInspectorWidth, _maximumInspectorWidth)
+              .toDouble();
+      final inspectorWidth = _inspectorWidth
+          .clamp(_minimumInspectorWidth, maximumInspectorWidth)
+          .toDouble();
       return Row(
         children: [
-          Expanded(child: preview),
-          SizedBox(width: 1, child: divider),
-          SizedBox(width: 320, child: inspector),
+          Expanded(child: widget.preview),
+          DesyResizeDivider(
+            key: const ValueKey('detail-controls-resize-handle'),
+            axis: Axis.vertical,
+            value: inspectorWidth,
+            semanticsLabel: 'Resize controls panel',
+            onResizeStart: () => setState(() => _resizingInspector = true),
+            onResize: (delta) => setState(
+              () => _inspectorWidth = (inspectorWidth - delta)
+                  .clamp(_minimumInspectorWidth, maximumInspectorWidth)
+                  .toDouble(),
+            ),
+            onResizeEnd: () => setState(() => _resizingInspector = false),
+          ),
+          AnimatedContainer(
+            key: const ValueKey('detail-controls-panel'),
+            duration: _resizingInspector
+                ? Duration.zero
+                : const Duration(milliseconds: 140),
+            curve: Curves.easeOutCubic,
+            width: inspectorWidth,
+            child: widget.inspector,
+          ),
         ],
       );
     },
@@ -512,41 +758,29 @@ class _DetailInspector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ColoredBox(
-    color: context.theme.colors.muted,
+    color: context.theme.colors.background,
     child: ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceLg),
       children: [
-        Text('Controls', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 4),
-        Text(
-          'Editing $selectedVariantName',
-          key: const ValueKey('detail-selected-instance'),
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        if (motionControls case final controls?) ...[
-          const SizedBox(height: 20),
-          controls,
-        ],
+        if (motionControls case final controls?) ...[controls],
         if (component != null && component!.knobDefinitions.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          Text('Knobs', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 12),
+          if (motionControls != null)
+            const SizedBox(height: DesyDesignSystemTokens.spaceLg),
           DesyComponentKnobPanel(
             registry: session.registry,
             knobs: component!.knobDefinitions,
             values: values,
             onChanged: session.setKnob,
+            title: 'Controls',
+            subtitle: 'Editing $selectedVariantName',
           ),
         ],
         if (motionControls == null &&
-            (component == null ||
-                (component!.knobDefinitions.isEmpty &&
-                    component!.scenarios.isEmpty &&
-                    component!.instanceIds.isEmpty))) ...[
-          const SizedBox(height: 12),
-          Text(
-            'No controls declared.',
-            style: Theme.of(context).textTheme.bodySmall,
+            (component == null || component!.knobDefinitions.isEmpty)) ...[
+          DesyKnobSheet(
+            title: 'Controls',
+            subtitle: 'Editing $selectedVariantName',
+            sections: const [],
           ),
         ],
         DesyDetailExtensionsRegion(session: session, entry: entry),

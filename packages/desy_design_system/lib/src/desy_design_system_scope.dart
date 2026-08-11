@@ -50,6 +50,9 @@ abstract final class DesyDesignSystemTokens {
   /// The structural divider used between persistent workspace regions.
   static const double hairline = 1;
 
+  /// Pointer hit target centered around an interactive resize divider.
+  static const double resizeDividerHitSize = 8;
+
   /// Compact desktop controls and icon buttons.
   static const double controlSm = 28;
 
@@ -63,7 +66,7 @@ abstract final class DesyDesignSystemTokens {
   static const double agentRailWidth = 320;
 
   /// The stable global workbench toolbar height.
-  static const double toolbarHeight = 60;
+  static const double toolbarHeight = 32;
 
   /// Desy's standard navigation reveal duration.
   static const Duration navigationMotion = Duration(milliseconds: 180);

@@ -22,6 +22,25 @@ void main() {
     expect(find.text('root.component'), findsWidgets);
   });
 
+  testWidgets('Atlas grid reaches the bottom of the content viewport', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      DesyBenchApp(
+        registry: DesyRegistry(
+          name: 'Viewport edge',
+          themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+          components: [_component('viewport.component')],
+        ),
+      ),
+    );
+
+    final contentPadding = tester.widget<Padding>(
+      find.byKey(const ValueKey('atlas-content-padding')),
+    );
+    expect(contentPadding.padding, const EdgeInsets.fromLTRB(28, 28, 28, 0));
+  });
+
   testWidgets('fonts use the typed Fonts board', (tester) async {
     await tester.pumpWidget(
       DesyBenchApp(
@@ -46,6 +65,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Mixed type'), findsWidgets);
+    final ledger = find.byKey(const ValueKey('font-ledger'));
+    expect(ledger, findsOneWidget);
+    expect(
+      find.descendant(of: ledger, matching: find.byType(DesyCard)),
+      findsNothing,
+    );
   });
 
   testWidgets('nested component folders remain navigable in the Atlas', (

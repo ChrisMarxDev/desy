@@ -42,7 +42,7 @@ class DesyCatalogueExport {
           _entry(
             id: color.id,
             name: color.name,
-            value: color.value,
+            value: color.displayValue,
             description: color.description,
           ),
       ],
@@ -117,14 +117,6 @@ class DesyCatalogueExport {
     'components': [
       for (final component in registry.allComponents) _component(component),
     ],
-    'showcases': [
-      for (final showcase in registry.allShowcases)
-        _entry(
-          id: showcase.id,
-          name: showcase.name,
-          description: showcase.description,
-        ),
-    ],
   };
 
   Map<String, Object?> _component(DesyRegistryComponent component) => {
@@ -139,7 +131,9 @@ class DesyCatalogueExport {
           'accessibility': accessibility,
       },
     ),
-    'knobs': [for (final definition in component.knobDefinitions) _knob(definition)],
+    'knobs': [
+      for (final definition in component.knobDefinitions) _knob(definition),
+    ],
     'instances': [
       for (final instanceId in component.instanceIds)
         _entry(
@@ -180,6 +174,8 @@ class DesyCatalogueExport {
     'kind': switch (knob.kind) {
       DesyKnobKind.boolean => 'boolean',
       DesyKnobKind.string => 'string',
+      DesyKnobKind.number => 'number',
+      DesyKnobKind.color => 'color',
       DesyKnobKind.widgetInstance => 'component-instance',
     },
   };

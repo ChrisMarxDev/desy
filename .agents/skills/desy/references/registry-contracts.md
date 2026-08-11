@@ -10,6 +10,7 @@
 | Typography | Registry `fonts` + `DesyTypographyEntry` | Resolve a real consumer text style and specimen. |
 | Measurements | Registry `measurements` + `DesyNumericEntry` | Use `kind`, `unit`, and `axis`; do not infer semantics from strings. |
 | Motion and effects | Registry `motion`/`effects` + typed entries | Keep the consumer-owned live specimen. |
+| Custom atoms | Registry `customAtoms` + `DesyCustomAtom` | Declare only named static widget instances; Desy previews the first declared instance. |
 | Components | `DesyComponent` | Build the production widget and declare optional contracts, states, and knobs. |
 | Reusable variants | `DesyComponentInstance` | Store stable preset values; resolve through the owning component. |
 | Component slots | `DesyComponentKnob` | Store legal registered instance IDs, never widget callbacks. |

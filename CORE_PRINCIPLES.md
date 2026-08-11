@@ -21,7 +21,8 @@ a parallel implementation.
 ## 4. Opinionated structure, open implementation
 
 Desy prescribes a small, typed design-system structure so it can provide
-purpose-built tools for Colors, Fonts, Icons, Measurements, Motion, and Effects.
+purpose-built tools for Colors, Fonts, Icons, Measurements, Motion, Effects,
+and knobless Custom atoms.
 Each lane is an optional, separate `DesyRegistry` parameter. A consumer opts in
 by supplying entries and an empty lane is absent from the workbench.
 
@@ -65,7 +66,7 @@ The first release runs in a Flutter repository without a hosted service. The
 dogfood executable proves the public integration before adding a CLI, code
 generation, cloud collaboration, or a visual editor.
 
-## 7. Forui is the Desy scaffold foundation
+## 7. Forui is Desy's private scaffold engine
 
 All Desy-owned scaffold components—the workbench shell, navigation, panels,
 controls, and future studio surfaces—use Forui. This rule applies to Desy Bench
@@ -73,10 +74,14 @@ chrome, not to consumer previews: consumers continue to render their actual
 production widgets under their own theme and component library.
 
 `packages/desy_design_system` is the single Desy-owned home of that dependency.
-The workbench and Desy-owned extensions consume its public theme, icon, and
-control surface rather than importing Forui directly. Its colocated executable
-declares those real widgets in one dogfood `DesyRegistry`; that registry is the
-catalogue inventory, not a second component list maintained by the package.
+The workbench and Desy-owned extensions consume Desy-owned themes, icons,
+controls, variants, sizes, callbacks, and controllers rather than importing or
+exposing Forui types. Forui may implement those controls internally, but it is
+not Desy's public component model. New Desy APIs must not leak an `F*` type, and
+existing compatibility aliases are migrated behind owned wrappers before the
+Registry Spine shell expands. Its colocated executable declares those real
+widgets in one dogfood `DesyRegistry`; that registry is the catalogue inventory,
+not a second component list maintained by the package.
 
 Desy's visual language is a deliberate desktop-tooling translation rather than
 Forui's defaults used unchanged. The Desy-owned theme keeps structural surfaces
@@ -107,19 +112,23 @@ preview instead has an immutable logical screen, device pixel ratio, platform,
 and safe-area geometry. Desy draws the screen and bezel at that real geometry,
 clips content to the screen, and scales the completed device down as one unit;
 it never scales up, inserts `SafeArea`, or adds scrolling for the consumer.
-This contract is shared by component details, Sketch artboards, and Workshop
-candidate previews.
+This contract is shared by component details, Sketch artboards, and Prototype
+previews.
 
 ## 9. Atoms are optional typed registry lanes
 
 Atoms is a built-in workbench section derived from typed `DesyRegistry`
 parameters, not a consumer-declared folder. Its known lanes are Colors, Fonts,
-Icons, Measurements, Motion, and Effects. Desy may give each lane specialized
-treatment because its type is explicit; it never infers semantics from folder
-names or contents.
+Icons, Measurements, Motion, Effects, and Custom. Custom atoms are named,
+knobless real-widget instances for foundational visuals that do not fit a
+specialized lane; they remain one built-in lane rather than consumer-declared
+sidebar branches. Desy may give each typed lane specialized treatment; it never
+infers semantics from folder names or contents.
 
-Solid swatches, gradients, and consumer-supplied treatments are
-`DesyColorEntry` values; text specimens are `DesyTypographyEntry` values;
+Semantic solid colors are `DesyColorEntry` values backed by Flutter `Color`
+objects. Gradients and other paint recipes consume those colors and belong to
+their appropriate typed treatment contract rather than the Colors lane; text
+specimens are `DesyTypographyEntry` values;
 numeric foundations are `DesyNumericEntry` values; motion uses
 `DesyMotionEntry`; effects use `DesyEffectEntry`; and glyphs use
 `DesyIconEntry`. Every entry may still render a consumer-owned widget. Empty
@@ -223,20 +232,20 @@ concerns onto consumers.
 
 ## 20. The Registry Spine is the stable product shell
 
-Desy's primary desktop experience keeps the live registry visible on the left,
-uses the center for Atlas inspection and real-Dart construction, and gives the
-current resumable coding-agent session a right-side conversation and activity
-rail. A compact Sessions frame may share the bottom of the registry spine, but
-it remains subordinate to registry navigation and never becomes a second
-inventory.
+Desy's primary desktop experience keeps the live registry visible on the left
+and uses the center for Atlas inspection, component details, and real-Dart
+prototype sessions declared by the consumer registry. Prototypes are a
+separate registry lane for comparing possible visual directions before a team
+decides what belongs in the durable component system; they are not a second
+component catalogue or a serialized widget language.
 
-The shell owns one global annotation mode and source-aware feedback dock so the
-same workflow can target Desy chrome, registry entries, consumer previews, and
-generated candidates. Center modes may change, resize, or collapse secondary
-panels, but they do not replace the registry, agent, or annotation ownership
-model. Accepted prototypes become ordinary consumer-owned Flutter source
-through an explicit reviewable promotion step; hot reload alone never implies
-acceptance.
+The shell owns one global annotation mode and source-aware feedback dock. It
+targets only explicitly scoped consumer content—real registry widgets and
+generated prototypes—never Desy scaffold chrome, navigation, or editing
+controls. Center modes may change, resize, or collapse secondary panels, but
+they do not replace registry or annotation ownership. Desy records source-aware
+feedback; users choose the developer, IDE, or coding agent that acts on it.
+Every consumer-source edit remains reviewable in the normal repository diff.
 
 ## Non-goals for the first release
 

@@ -52,7 +52,7 @@ class _DesyMissingRegistryWidget extends StatelessWidget {
   Future<void> _showDetails(BuildContext context) => showDesyDialog<void>(
     context: context,
     barrierLabel: 'Dismiss missing component instance details',
-    builder: (dialogContext, _, animation) => DesyDialog(
+    builder: (dialogContext, animation) => DesyDialog(
       animation: animation,
       semanticsLabel: 'Missing component instance details',
       constraints: const BoxConstraints(maxWidth: 480),

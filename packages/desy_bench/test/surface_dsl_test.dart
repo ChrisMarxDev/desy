@@ -225,6 +225,14 @@ void main() {
       expect(DesySurfaceValidator(_registry).validate(surface), isEmpty);
     });
 
+    test('accepts serializable ARGB values for literal color knobs', () {
+      final surface = DesySurfaceDocument.parse('''
+{"component":"color.box","knobs":{"color":2151961958}}
+''');
+
+      expect(DesySurfaceValidator(_registry).validate(surface), isEmpty);
+    });
+
     test('same-axis nested scrolling is a non-blocking warning', () {
       final surface = DesySurfaceDocument.parse('''
 {
@@ -416,6 +424,14 @@ final _registry = DesyRegistry(
       instances: (knobs) => {
         'ready': [knobs.label('Ready')],
       },
+    ),
+    DesyComponent(
+      id: 'color.box',
+      name: 'Color box',
+      knobs: (knobs) =>
+          (color: knobs.color('color', initial: const Color(0xff112233))),
+      build: (context, knobs) => ColoredBox(color: knobs.color.value),
+      instances: (knobs) => const {},
     ),
     DesyComponent(
       id: 'card',

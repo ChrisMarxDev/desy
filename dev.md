@@ -11,8 +11,9 @@ its inventory into a second catalogue. Components form one flat list; their
 validated slash paths provide navigation structure and registry accessors
 provide derived views.
 
-Every registered theme, artifact, showcase, workspace extension, and
-detail extension needs a stable ID unique in the shared registry namespace.
+Every registered theme, artifact, prototype session, prototype,
+workspace extension, and detail extension needs a stable ID unique in the
+shared registry namespace.
 Startup validation reports collisions and invalid declarations early.
 
 Consumer previews build the real Flutter widget under the selected consumer
@@ -20,7 +21,7 @@ theme. Render at the intended logical dimensions, then scale the completed
 preview inside the canvas. Do not force compact constraints onto the widget.
 
 Preview vocabulary and behavior are shared across component details, Sketch,
-and Workshop candidates:
+and registry-declared Prototypes:
 
 - **Canvas** is Desy's workspace around previews; it is not part of the app.
 - **Drag box** is the workbench interaction boundary.
@@ -36,8 +37,12 @@ workbench never injects either behavior.
 
 `packages/desy_design_system` is the only Desy-owned package that imports Forui
 directly. `desy_bench` and packages under `packages/extensions/` consume its
-public controls and theme surface. Editable text uses the centralized native
-`DesyTextField` exception described in `CORE_PRINCIPLES.md`.
+public controls and theme surface. Those public APIs use Flutter and Desy types;
+Forui widgets, variants, styles, and controllers remain private implementation
+details. Compatibility aliases are migrated incrementally, and new workbench
+surfaces must not add another alias or expose an `F*` type. Editable text uses
+the centralized native `DesyTextField` exception described in
+`CORE_PRINCIPLES.md`.
 
 The Desy theme translates the committed Registry Spine visual language onto
 Forui rather than mixing in another Flutter UI package. Primary actions remain
@@ -109,17 +114,15 @@ The public sidebar building blocks live in
 - Ordinary items have no trailing affordance. Their optional `children` retain
   the expandable file-browser tree used by Components.
 
-The workbench sections are Workspace, Atoms, Components, and Showcases.
-Workspace contains Atlas, Sketch, AI prompts, and installed screen extensions.
-Atoms lists only non-empty typed lanes; Components retains its file tree;
-Showcases lists compositions.
+The workbench sections are Registry, Prototypes, Atoms, and Components.
+Prototypes lists consumer-declared sessions containing real Flutter directions.
+Atoms lists only non-empty typed lanes; Components retains its file tree.
 
 The planned Registry Spine shell keeps this live navigation visible while the
-center moves between Atlas inspection and real-Dart construction. A compact
-Sessions frame may occupy the bottom of the spine, but it is session history,
-not a second registry or full-height navigation model. The right rail owns the
-current resumable agent conversation and structured activity. One shell-owned
-annotation service spans all routed surfaces.
+center moves between Atlas inspection, component details, and prototype
+comparison. The shell-owned annotation service targets only explicitly scoped
+registry previews and prototype widgets: scaffold chrome and editing controls
+are never targets. Annotation handoff remains agent-neutral.
 
 ## Extensions
 
@@ -132,18 +135,8 @@ for the duration of its route and receives a typed exit callback. This is for a
 workflow that needs its own focused shell, not for adding another global
 navigation system.
 
-- `desy_agent_annotations` collects an entry-scoped comment and sends one typed
-  submission to a consumer callback. The consumer owns persistence,
-  authentication, and external integrations.
 - `desy_screenshot_builder` is an experimental workspace extension proving the
   screen-extension boundary; it is not a persistence format.
-- `desy_widget_workshop` is the isolated live design workspace. A repository
-  supplies ordinary Dart candidate builders and the source file a local coding
-  agent may edit. The standalone screen keeps session navigation separate from
-  Atlas, renders every candidate through the active consumer theme, carries
-  selected directions into Codex, supports render-object inspection, and asks
-  the resident Flutter tool to hot reload after edits. Its process boundary is
-  platform-specific; previewing remains cross-platform.
 
 Extensions must not import hidden workbench state, mutate routing, introduce a
 second registry, or import Forui directly.
@@ -163,9 +156,7 @@ task check
 `task check` runs workspace analysis, the Forui dependency-boundary check, all
 six package/application test suites, and a production dogfood web build.
 Focused tests are available as `task bench:test`, `task design_system:test`,
-`task dogfood:test`, `task agent_annotations:test`, and
-`task screenshot_builder:test`. Use `task widget_workshop:test` for the live
-Workshop surface.
+`task dogfood:test`, and `task screenshot_builder:test`.
 
 For debug-only widget inspection, run the dogfood app and use
 `task simdeck:describe:flutter`. SimDeck is a development companion, not a

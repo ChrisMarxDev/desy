@@ -23,13 +23,11 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     required this.session,
     this.location,
     this.onNavigate,
-    this.onCollapse,
   });
 
   final DesyWorkbenchSession session;
   final Uri? location;
   final ValueChanged<String>? onNavigate;
-  final VoidCallback? onCollapse;
 
   @override
   Widget build(BuildContext context) {
@@ -43,39 +41,19 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     );
     final componentSections = _componentPreviewSections(componentRoots);
     final componentCount = session.registry.allComponents.length;
+    final extensions = session.extensions;
 
     return DesySidebar(
-      style: const DesySidebarStyleDelta.delta(
-        constraints: BoxConstraints(minWidth: double.infinity),
-        headerPadding: EdgeInsetsGeometryDelta.value(EdgeInsets.zero),
-        contentPadding: EdgeInsetsGeometryDelta.value(
-          EdgeInsets.symmetric(horizontal: 8),
-        ),
-        footerPadding: EdgeInsetsGeometryDelta.value(EdgeInsets.zero),
-      ),
+      constraints: const BoxConstraints(minWidth: double.infinity),
+      headerPadding: EdgeInsets.zero,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+      footerPadding: EdgeInsets.zero,
       header: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Expanded(child: Text('DESY BENCH')),
-                if (onCollapse case final collapse?)
-                  Semantics(
-                    container: true,
-                    button: true,
-                    label: 'Collapse sidebar',
-                    child: DesyButton(
-                      key: const ValueKey('desktop-sidebar-collapse'),
-                      variant: DesyButtonVariant.outline,
-                      size: DesyButtonSize.sm,
-                      onPress: collapse,
-                      child: const Icon(DesyIcons.panelLeftClose, size: 16),
-                    ),
-                  ),
-              ],
-            ),
+            const Text('REGISTRY'),
             const SizedBox(height: 10),
             DesySelect<int>.rich(
               key: const ValueKey('sidebar-theme-select'),
@@ -99,48 +77,64 @@ class DesyWorkbenchSidebar extends StatelessWidget {
           ],
         ),
       ),
+      footer: null,
       children: [
         DesySidebarSection(
-          key: const ValueKey('sidebar-section-workspace'),
-          label: 'Workspace',
+          key: const ValueKey('sidebar-section-registry'),
+          label: 'Registry',
           children: [
-            DesySidebarItem.screen(
-              key: const ValueKey('workspace-atlas-nav'),
+            DesySidebarItem(
+              key: const ValueKey('registry-atlas-nav'),
               icon: const Icon(DesyIcons.layoutGrid, size: 18),
-              label: const Text('Atlas'),
+              label: const Text('All components'),
               selected:
                   currentLocation.path == DesyWorkbenchRoutes.atlasPath &&
                   currentLocation.queryParameters['folder'] == null,
               onPress: () => _go(context, DesyWorkbenchRoutes.atlasPath),
             ),
-            DesySidebarItem.screen(
-              key: const ValueKey('workspace-components-nav'),
-              icon: const Icon(DesyIcons.boxes, size: 18),
-              label: const Text('Sketch'),
-              selected:
-                  currentLocation.path == DesyWorkbenchRoutes.componentsPath,
-              onPress: () => _go(context, DesyWorkbenchRoutes.componentsPath),
-            ),
-            const DesySidebarItem.screen(
-              key: ValueKey('workspace-ai-prompts-nav'),
-              icon: Icon(DesyIcons.sparkles, size: 18),
-              label: Text('AI prompts'),
-            ),
-            for (final extension in session.extensions)
-              DesySidebarItem.screen(
-                key: ValueKey('workspace-extension-${extension.id}'),
-                icon: Icon(extension.icon ?? DesyIcons.boxes, size: 18),
-                label: Text(extension.name),
-                selected:
-                    currentLocation.path ==
-                    DesyWorkbenchRoutes.workspaceExtension(extension.id),
-                onPress: () => _go(
-                  context,
-                  DesyWorkbenchRoutes.workspaceExtension(extension.id),
-                ),
-              ),
           ],
         ),
+        if (session.registry.allPrototypes.isNotEmpty)
+          DesySidebarSection(
+            key: const ValueKey('sidebar-section-prototypes'),
+            label: 'Prototypes',
+            count: session.registry.allPrototypes.length,
+            children: [
+              for (final prototypeSession in session.registry.allPrototypes)
+                DesySidebarItem(
+                  key: ValueKey('prototype-session-${prototypeSession.id}'),
+                  icon: const Icon(DesyIcons.sparkles, size: 18),
+                  label: Text(prototypeSession.name),
+                  selected:
+                      currentLocation.path ==
+                      DesyWorkbenchRoutes.prototype(prototypeSession.id),
+                  onPress: () => _go(
+                    context,
+                    DesyWorkbenchRoutes.prototype(prototypeSession.id),
+                  ),
+                ),
+            ],
+          ),
+        if (extensions.isNotEmpty)
+          DesySidebarSection(
+            key: const ValueKey('sidebar-section-tools'),
+            label: 'Tools',
+            children: [
+              for (final extension in extensions)
+                DesySidebarItem(
+                  key: ValueKey('tool-extension-${extension.id}'),
+                  icon: Icon(extension.icon ?? DesyIcons.boxes, size: 18),
+                  label: Text(extension.name),
+                  selected:
+                      currentLocation.path ==
+                      DesyWorkbenchRoutes.workspaceExtension(extension.id),
+                  onPress: () => _go(
+                    context,
+                    DesyWorkbenchRoutes.workspaceExtension(extension.id),
+                  ),
+                ),
+            ],
+          ),
         if (session.registry.hasAtoms)
           DesySidebarSection(
             key: const ValueKey('sidebar-section-atoms'),
@@ -164,21 +158,6 @@ class DesyWorkbenchSidebar extends StatelessWidget {
             },
             treeChildren: componentTree,
           ),
-        DesySidebarSection(
-          key: const ValueKey('sidebar-section-showcases'),
-          label: 'Showcases',
-          count: session.registry.allShowcases.length,
-          children: [
-            DesySidebarItem(
-              key: const ValueKey('showcases-nav'),
-              icon: const Icon(DesyIcons.layers, size: 18),
-              label: const Text('Overview'),
-              selected:
-                  currentLocation.path == DesyWorkbenchRoutes.showcasesPath,
-              onPress: () => _go(context, DesyWorkbenchRoutes.showcasesPath),
-            ),
-          ],
-        ),
       ],
     );
   }

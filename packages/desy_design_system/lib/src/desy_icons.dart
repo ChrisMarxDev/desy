@@ -42,11 +42,14 @@ abstract final class DesyIcons {
   /// An image or visual asset.
   static const IconData image = FLucideIcons.image;
 
-  /// Layered content or showcases.
+  /// Layered content.
   static const IconData layers = FLucideIcons.layers;
 
   /// A compact feedback or annotation action.
   static const IconData messageSquare = FLucideIcons.messageSquare;
+
+  /// Decrease a numeric value.
+  static const IconData minus = FLucideIcons.minus;
 
   /// The catalogue Atlas.
   static const IconData layoutGrid = FLucideIcons.layoutGrid;
@@ -63,8 +66,17 @@ abstract final class DesyIcons {
   /// Show the desktop navigation panel.
   static const IconData panelLeftOpen = FLucideIcons.panelLeftOpen;
 
+  /// Hide the desktop agent panel.
+  static const IconData panelRightClose = FLucideIcons.panelRightClose;
+
+  /// Show the desktop agent panel.
+  static const IconData panelRightOpen = FLucideIcons.panelRightOpen;
+
   /// Start or resume a preview timeline.
   static const IconData play = FLucideIcons.play;
+
+  /// Increase a numeric value.
+  static const IconData plus = FLucideIcons.plus;
 
   /// Numeric measurements.
   static const IconData ruler = FLucideIcons.ruler;

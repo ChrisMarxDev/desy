@@ -36,6 +36,13 @@ typedef DesyDragBoxGeometryResolver =
       DesyDragBoxInteraction interaction,
     );
 
+const _editingPointerDevices = <PointerDeviceKind>{
+  PointerDeviceKind.mouse,
+  PointerDeviceKind.touch,
+  PointerDeviceKind.stylus,
+  PointerDeviceKind.invertedStylus,
+};
+
 /// The shared move-and-resize frame used by Desy's editing surfaces.
 ///
 /// Callers own coordinate state and label content. This widget owns the
@@ -163,6 +170,11 @@ class _DesyDragBoxState extends State<DesyDragBox> {
             handleTapSize: 12,
             draggable: widget.draggable,
             resizable: widget.selected && widget.resizable,
+            // Trackpad two-finger pan events must reach the canvas scroll
+            // view. Treating them as an item drag makes the frame jump while
+            // the user is merely navigating the canvas.
+            supportedDragDevices: _editingPointerDevices,
+            supportedResizeDevices: _editingPointerDevices,
             visibleHandles: handles,
             enabledHandles: handles,
             onTap: widget.onSelect,

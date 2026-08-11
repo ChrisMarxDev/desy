@@ -45,56 +45,56 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
     ),
   ],
   colors: [
-    DesyColorEntry.swatch(
+    DesyColorEntry(
       id: 'desy.color.background',
       name: 'Background',
       color: _lightTheme.colors.background,
       description: 'The workbench document and canvas foundation.',
     ),
-    DesyColorEntry.swatch(
+    DesyColorEntry(
       id: 'desy.color.foreground',
       name: 'Foreground',
       color: _lightTheme.colors.foreground,
       description: 'Primary readable content and icon color.',
     ),
-    DesyColorEntry.swatch(
+    DesyColorEntry(
       id: 'desy.color.primary',
       name: 'Primary action',
       color: _lightTheme.colors.primary,
       description: 'Black, high-emphasis workbench actions.',
     ),
-    DesyColorEntry.swatch(
+    DesyColorEntry(
       id: 'desy.color.signal',
       name: 'Signal pink',
       color: _lightTheme.colors.desy.signal,
       description:
           'Reserved for inspection, selection, annotations, and focus.',
     ),
-    DesyColorEntry.swatch(
+    DesyColorEntry(
       id: 'desy.color.signal-surface',
       name: 'Signal surface',
       color: _lightTheme.colors.desy.signalSurface,
       description: 'Quiet selected-row and annotation-context fill.',
     ),
-    DesyColorEntry.swatch(
+    DesyColorEntry(
       id: 'desy.color.positive',
       name: 'Runtime positive',
       color: _lightTheme.colors.desy.positive,
       description: 'Hot reload, connected, and successful runtime state.',
     ),
-    DesyColorEntry.swatch(
+    DesyColorEntry(
       id: 'desy.color.card',
       name: 'Card',
       color: _lightTheme.colors.card,
       description: 'Contained workbench panels and specimens.',
     ),
-    DesyColorEntry.swatch(
+    DesyColorEntry(
       id: 'desy.color.border',
       name: 'Border',
       color: _lightTheme.colors.border,
       description: 'Quiet separation between adjacent surfaces.',
     ),
-    DesyColorEntry.swatch(
+    DesyColorEntry(
       id: 'desy.color.muted-foreground',
       name: 'Muted foreground',
       color: _lightTheme.colors.mutedForeground,
@@ -229,34 +229,76 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
       ],
     ),
   ],
+  customAtoms: [
+    DesyCustomAtom(
+      id: 'desy.atom.gradient.ribbon',
+      name: 'Signal ribbon',
+      description:
+          'A branded directional gradient used to introduce live workbench moments.',
+      instances: {
+        'default': (_) => const _SignalRibbon(),
+        'quiet': (_) => const _SignalRibbon(quiet: true),
+      },
+    ),
+  ],
   components: [
     _buttonComponent,
     _badgeComponent,
     _dialogComponent,
     _selectComponent,
     _switchComponent,
+    _numericKnobComponent,
+    _booleanKnobComponent,
+    _textKnobComponent,
+    _colorKnobComponent,
+    _instanceKnobComponent,
     _textFieldComponent,
     _accordionComponent,
     _tabsComponent,
+    _resizeDividerComponent,
     _tileComponent,
     _sidebarComponent,
     _sidebarSectionComponent,
     _sidebarItemComponent,
     _cardComponent,
+    _knobSheetComponent,
     _catalogueCardComponent,
     _progressTrailComponent,
     _scaffoldComponent,
     _shortcutComponent,
   ],
-  showcases: [
-    DesyShowcase(
-      id: 'desy.showcase.control-stack',
-      name: 'Workbench control stack',
-      description: 'A small real composition of Desy-owned controls.',
-      builder: (context) => const _ControlStackShowcase(),
-    ),
-  ],
 );
+
+class _SignalRibbon extends StatelessWidget {
+  const _SignalRibbon({this.quiet = false});
+
+  final bool quiet;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 280,
+    height: 112,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(DesyDesignSystemTokens.radiusMd),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: quiet
+              ? const [Color(0xFFFFE7F0), Color(0xFFF8F5FF)]
+              : const [Color(0xFFFF2871), Color(0xFF8133F1)],
+        ),
+      ),
+      child: const Align(
+        alignment: Alignment.bottomLeft,
+        child: Padding(
+          padding: EdgeInsets.all(DesyDesignSystemTokens.spaceMd),
+          child: Text('Signal ribbon'),
+        ),
+      ),
+    ),
+  );
+}
 
 final _buttonComponent = DesyComponent(
   id: 'desy.component.button',
@@ -265,7 +307,7 @@ final _buttonComponent = DesyComponent(
   icon: DesyIcons.component,
   description: 'Triggers a workbench action with a clear semantic priority.',
   accessibility: 'Use a visible outcome label and preserve disabled semantics.',
-  source: 'package:desy_design_system/src/control_aliases.dart',
+  source: 'package:desy_design_system/src/desy_button.dart',
   knobs: (k) => (
     label: k.string('label', name: 'Label', initial: 'Inspect component'),
     outline: k.boolean('outline', name: 'Outline', initial: false),
@@ -292,7 +334,7 @@ final _badgeComponent = _component(
   path: '/feedback',
   description: 'A compact non-interactive label for concise metadata.',
   icon: DesyIcons.component,
-  source: 'package:desy_design_system/src/control_aliases.dart',
+  source: 'package:desy_design_system/src/desy_badge.dart',
   knobs: (k) => (
     label: k.string('label', name: 'Label', initial: 'EXPERIMENTAL'),
     outline: k.boolean('outline', name: 'Outline', initial: false),
@@ -323,7 +365,7 @@ final _cardComponent = _component(
   path: '/surfaces',
   description: 'Contains a related workbench specimen or inspector section.',
   icon: DesyIcons.component,
-  source: 'package:desy_design_system/src/control_aliases.dart',
+  source: 'package:desy_design_system/src/desy_card.dart',
   knobs: (k) => (
     title: k.string('title', name: 'Title', initial: 'Registry source'),
     body: k.string(
@@ -369,7 +411,7 @@ Widget _buildCard(
 final _catalogueCardComponent = _component(
   id: 'desy.component.catalogue-card',
   name: 'Catalogue card',
-  path: '/surfaces',
+  path: '/molecules/surfaces',
   description:
       'Separates a real component specimen from its durable registry identity.',
   icon: DesyIcons.component,
@@ -412,7 +454,7 @@ final _catalogueCardComponent = _component(
 final _progressTrailComponent = _component(
   id: 'desy.component.progress-trail',
   name: 'Progress trail',
-  path: '/feedback',
+  path: '/molecules/feedback',
   description:
       'Connects completed work to the current task in a quiet, scannable list.',
   icon: DesyIcons.component,
@@ -426,9 +468,9 @@ final _progressTrailComponent = _component(
     child: DesyProgressTrail(
       items: [
         DesyProgressTrailItem(
-          title: 'Mapped the Workshop surface',
+          title: 'Mapped the prototype surface',
           detail:
-              'Located the candidate builder and production activity panel.',
+              'Located the prototype builder and production component panel.',
           metadata: knobs.metadata.value ? '12s' : null,
           state: DesyProgressTrailItemState.complete,
           icon: Icons.search_rounded,
@@ -492,7 +534,7 @@ Widget _buildCatalogueCard(
 final _dialogComponent = _component(
   id: 'desy.component.dialog',
   name: 'Dialog',
-  path: '/feedback',
+  path: '/molecules/feedback',
   description: 'A focused modal decision or bounded selection surface.',
   icon: DesyIcons.component,
   source: 'package:desy_design_system/src/control_aliases.dart',
@@ -633,6 +675,286 @@ Widget _switchSpecimen({
   ),
 );
 
+final _numericKnobComponent = _component(
+  id: 'desy.component.numeric-knob-row',
+  name: 'Numeric knob row',
+  path: '/inputs/knobs',
+  description:
+      'Edits a bounded numeric property through compact accessible step actions.',
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/desy_knob_sheet.dart',
+  knobs: (k) => (
+    label: k.string('label', name: 'Label', initial: 'Width'),
+    enabled: k.boolean('enabled', name: 'Enabled', initial: true),
+  ),
+  build: (context, knobs) => SizedBox(
+    width: 320,
+    child: DesyNumericKnobRow(
+      label: knobs.label.value,
+      value: 320,
+      unit: 'px',
+      step: 8,
+      onChanged: knobs.enabled.value ? (_) {} : null,
+    ),
+  ),
+  instances: (knobs) => {
+    'default': [knobs.label('Width'), knobs.enabled(true)],
+    'disabled': [knobs.label('Width'), knobs.enabled(false)],
+  },
+);
+
+final _booleanKnobComponent = _component(
+  id: 'desy.component.boolean-knob-row',
+  name: 'Boolean knob row',
+  path: '/inputs/knobs',
+  description:
+      'Aligns a boolean property with the real Desy switch without duplicating switch behavior.',
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/desy_knob_sheet.dart',
+  knobs: (k) => (
+    label: k.string('label', name: 'Label', initial: 'Clip content'),
+    value: k.boolean('value', name: 'Value', initial: true),
+    enabled: k.boolean('enabled', name: 'Enabled', initial: true),
+  ),
+  build: (context, knobs) => SizedBox(
+    width: 320,
+    child: DesyBooleanKnobRow(
+      label: knobs.label.value,
+      value: knobs.value.value,
+      onChanged: knobs.enabled.value ? (_) {} : null,
+    ),
+  ),
+  instances: (knobs) => {
+    'on': [knobs.value(true), knobs.enabled(true)],
+    'off': [knobs.value(false), knobs.enabled(true)],
+    'disabled': [knobs.enabled(false)],
+  },
+);
+
+final _textKnobComponent = _component(
+  id: 'desy.component.text-knob-row',
+  name: 'Text knob row',
+  path: '/inputs/knobs',
+  description:
+      'Aligns a named string property with Desy’s native editable field.',
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/desy_knob_sheet.dart',
+  knobs: (k) => (
+    label: k.string('label', name: 'Label', initial: 'Title'),
+    value: k.string('value', name: 'Value', initial: 'Precision sheet'),
+    enabled: k.boolean('enabled', name: 'Enabled', initial: true),
+  ),
+  build: (context, knobs) => SizedBox(
+    width: 360,
+    child: DesyTextKnobRow(
+      label: knobs.label.value,
+      value: knobs.value.value,
+      enabled: knobs.enabled.value,
+      onChanged: (_) {},
+    ),
+  ),
+  instances: (knobs) => {
+    'default': [knobs.value('Precision sheet'), knobs.enabled(true)],
+    'disabled': [knobs.enabled(false)],
+  },
+);
+
+final _colorKnobComponent = _component(
+  id: 'desy.component.color-knob-row',
+  name: 'Color knob row',
+  path: '/inputs/knobs',
+  description:
+      'Edits a literal ARGB color while preserving the typed Flutter Color value.',
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/desy_knob_sheet.dart',
+  knobs: (k) => (
+    label: k.string('label', name: 'Label', initial: 'Surface color'),
+    color: k.color('color', name: 'Color', initial: const Color(0xFFFFF0F6)),
+    enabled: k.boolean('enabled', name: 'Enabled', initial: true),
+  ),
+  build: (context, knobs) => SizedBox(
+    width: 320,
+    child: DesyColorKnobRow(
+      label: knobs.label.value,
+      value: knobs.color.value,
+      onChanged: knobs.enabled.value ? (_) {} : null,
+    ),
+  ),
+  instances: (knobs) => {
+    'signal-surface': [
+      knobs.label('Surface color'),
+      knobs.color(const Color(0xFFFFF0F6)),
+    ],
+    'positive': [
+      knobs.label('Status color'),
+      knobs.color(const Color(0xFF16A34A)),
+    ],
+    'disabled': [knobs.enabled(false)],
+  },
+);
+
+final _instanceKnobComponent = _component(
+  id: 'desy.component.instance-knob-row',
+  name: 'Instance knob row',
+  path: '/inputs/knobs',
+  description:
+      'Shows the selected registered component instance and delegates picker ownership to the caller.',
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/desy_knob_sheet.dart',
+  knobs: (k) => (
+    label: k.string('label', name: 'Label', initial: 'Suffix'),
+    instance: k.widgetInstance(
+      'instance',
+      name: 'Instance',
+      initial: _badgeDefaultInstanceId,
+      options: const [
+        _badgeDefaultInstanceId,
+        'desy.component.badge.outline',
+        _shortcutSingleKeyInstanceId,
+      ],
+    ),
+    enabled: k.boolean('enabled', name: 'Enabled', initial: true),
+  ),
+  build: (context, knobs) => SizedBox(
+    width: 380,
+    child: DesyInstanceKnobRow(
+      label: knobs.label.value,
+      instanceName: _knobSheetInstanceLabel(knobs.instance.value),
+      prefix: const Icon(DesyIcons.component),
+      onPress: knobs.enabled.value ? () {} : null,
+    ),
+  ),
+  instances: (knobs) => {
+    'badge': [knobs.instance(_badgeDefaultInstanceId), knobs.enabled(true)],
+    'shortcut': [knobs.instance(_shortcutSingleKeyInstanceId)],
+    'disabled': [knobs.enabled(false)],
+  },
+);
+
+final _knobSheetComponent = _component(
+  id: 'desy.component.knob-sheet',
+  name: 'Knob sheet',
+  path: '/molecules/inputs/knobs',
+  description:
+      'Groups related property controls and derives its visible count from the real rows.',
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/desy_knob_sheet.dart',
+  knobs: (k) => (
+    title: k.string('title', name: 'Title', initial: 'Knobs'),
+    caption: k.string('caption', name: 'Caption', initial: 'Precision sheet'),
+    width: k.number(
+      'width',
+      name: 'Width',
+      initial: 320,
+      unit: 'px',
+      step: 8,
+      minimum: 160,
+      maximum: 640,
+    ),
+    cornerRadius: k.number(
+      'cornerRadius',
+      name: 'Corner radius',
+      initial: 8,
+      unit: 'px',
+      step: 1,
+      minimum: 0,
+      maximum: 48,
+    ),
+    clipContent: k.boolean('clipContent', name: 'Clip content', initial: true),
+    showLabel: k.boolean('showLabel', name: 'Show label', initial: false),
+    surfaceColor: k.color(
+      'surfaceColor',
+      name: 'Surface color',
+      initial: const Color(0xFFFFF0F6),
+    ),
+    instance: k.widgetInstance(
+      'instance',
+      name: 'Instance',
+      initial: 'desy.component.badge.default',
+      options: const [
+        'desy.component.badge.default',
+        'desy.component.badge.outline',
+      ],
+    ),
+  ),
+  build: (context, knobs) => SizedBox(
+    width: knobs.width.value,
+    child: DesyKnobSheet(
+      title: knobs.title.value,
+      sections: [
+        DesyKnobSection(
+          label: 'LAYOUT',
+          children: [
+            DesyNumericKnobRow(
+              label: 'Width',
+              value: knobs.width.value,
+              unit: 'px',
+              step: 8,
+              onChanged: (_) {},
+            ),
+            DesyNumericKnobRow(
+              label: 'Corner radius',
+              value: knobs.cornerRadius.value,
+              unit: 'px',
+              step: 1,
+              onChanged: (_) {},
+            ),
+          ],
+        ),
+        DesyKnobSection(
+          label: 'BEHAVIOR',
+          children: [
+            DesyBooleanKnobRow(
+              label: 'Clip content',
+              value: knobs.clipContent.value,
+              onChanged: (_) {},
+            ),
+            DesyBooleanKnobRow(
+              label: 'Show label',
+              value: knobs.showLabel.value,
+              onChanged: (_) {},
+            ),
+          ],
+        ),
+        DesyKnobSection(
+          label: 'CONTENT',
+          children: [
+            DesyTextKnobRow(
+              label: 'Caption',
+              value: knobs.caption.value,
+              onChanged: (_) {},
+            ),
+            DesyColorKnobRow(
+              label: 'Surface color',
+              value: knobs.surfaceColor.value,
+              onChanged: (_) {},
+            ),
+            DesyInstanceKnobRow(
+              label: 'Instance',
+              instanceName: _knobSheetInstanceLabel(knobs.instance.value),
+              prefix: const Icon(DesyIcons.component),
+              onPress: () {},
+            ),
+          ],
+        ),
+      ],
+    ),
+  ),
+  instances: (knobs) => {
+    'default': [knobs.title('Knobs')],
+    'roomy': [knobs.width(400), knobs.cornerRadius(12)],
+    'labels': [knobs.caption('Live controls'), knobs.showLabel(true)],
+    'signal-surface': [knobs.surfaceColor(const Color(0xFFFFF0F6))],
+    'outline-instance': [knobs.instance('desy.component.badge.outline')],
+  },
+);
+
+String _knobSheetInstanceLabel(DesyInstanceId id) => id.value
+    .replaceFirst('desy.component.', '')
+    .split('.')
+    .map((segment) => '${segment[0].toUpperCase()}${segment.substring(1)}')
+    .join(' · ');
+
 final _textFieldComponent = DesyComponent(
   id: 'desy.component.text-field',
   name: 'Text field',
@@ -677,7 +999,7 @@ final _textFieldComponent = DesyComponent(
 final _accordionComponent = _component(
   id: 'desy.component.accordion',
   name: 'Accordion',
-  path: '/navigation',
+  path: '/molecules/navigation',
   description: 'Progressively discloses nested registry structure.',
   icon: DesyIcons.component,
   source: 'package:desy_design_system/src/control_aliases.dart',
@@ -726,7 +1048,7 @@ Widget _buildAccordion(
 final _sidebarComponent = _component(
   id: 'desy.component.sidebar',
   name: 'Sidebar',
-  path: '/navigation/sidebar',
+  path: '/molecules/navigation/sidebar',
   description: 'The complete section-and-item workbench navigation pattern.',
   icon: DesyIcons.component,
   source: 'package:desy_design_system/src/desy_sidebar.dart',
@@ -756,7 +1078,7 @@ final _sidebarComponent = _component(
 final _sidebarSectionComponent = _component(
   id: 'desy.component.sidebar-section',
   name: 'Sidebar section',
-  path: '/navigation/sidebar',
+  path: '/molecules/navigation/sidebar',
   description:
       'A navigation heading with an optional root destination and local setting.',
   icon: DesyIcons.component,
@@ -905,7 +1227,7 @@ Widget _buildSidebarItem(
 final _tabsComponent = _component(
   id: 'desy.component.tabs',
   name: 'Tabs',
-  path: '/navigation',
+  path: '/molecules/navigation',
   description: 'Switches between peer views without changing route ownership.',
   icon: DesyIcons.component,
   source: 'package:desy_design_system/src/control_aliases.dart',
@@ -972,7 +1294,7 @@ Widget _buildTabs(
 final _tileComponent = DesyComponent(
   id: 'desy.component.tile',
   name: 'Tile',
-  path: '/navigation',
+  path: '/molecules/navigation',
   icon: DesyIcons.component,
   description: 'A compact interactive row for navigation and selection.',
   source: 'package:desy_design_system/src/control_aliases.dart',
@@ -1046,7 +1368,7 @@ Widget _buildTileField({required String title, required Widget suffix}) =>
 final _scaffoldComponent = _component(
   id: 'desy.component.scaffold',
   name: 'Scaffold',
-  path: '/surfaces',
+  path: '/molecules/surfaces',
   description: 'The neutral structural surface around one workbench route.',
   icon: DesyIcons.component,
   source: 'package:desy_design_system/src/control_aliases.dart',
@@ -1073,6 +1395,28 @@ final _scaffoldComponent = _component(
       knobs.showFooter(false),
       knobs.padContent(true),
     ],
+  },
+);
+
+final _resizeDividerComponent = _component(
+  id: 'desy.component.resize-divider',
+  name: 'Resize divider',
+  path: '/layout',
+  description:
+      'Owns one structural hairline and its complete pointer, keyboard, and semantic resize interaction.',
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/desy_resize_divider.dart',
+  knobs: (k) => (
+    vertical: k.boolean('vertical', name: 'Vertical', initial: true),
+    label: k.string('label', name: 'Accessible label', initial: 'Resize panel'),
+  ),
+  build: (context, knobs) => _ResizeDividerSpecimen(
+    axis: knobs.vertical.value ? Axis.vertical : Axis.horizontal,
+    semanticsLabel: knobs.label.value,
+  ),
+  instances: (knobs) => {
+    'vertical': [knobs.vertical(true), knobs.label('Resize sidebar')],
+    'horizontal': [knobs.vertical(false), knobs.label('Resize lower panel')],
   },
 );
 
@@ -1129,6 +1473,8 @@ final _desyIcons = [
   _desyIcon('chevrons-up-down', 'Chevrons up down', DesyIcons.chevronsUpDown),
   _desyIcon('check', 'Check', DesyIcons.check),
   _desyIcon('arrow-left', 'Arrow left', DesyIcons.arrowLeft),
+  _desyIcon('minus', 'Minus', DesyIcons.minus),
+  _desyIcon('plus', 'Plus', DesyIcons.plus),
   _desyIcon('play', 'Play', DesyIcons.play),
   _desyIcon('pause', 'Pause', DesyIcons.pause),
 ];
@@ -1180,6 +1526,70 @@ DesyComponent<K> _component<K>({
   build: build,
   instances: instances,
 );
+
+class _ResizeDividerSpecimen extends StatefulWidget {
+  const _ResizeDividerSpecimen({
+    required this.axis,
+    required this.semanticsLabel,
+  });
+
+  final Axis axis;
+  final String semanticsLabel;
+
+  @override
+  State<_ResizeDividerSpecimen> createState() => _ResizeDividerSpecimenState();
+}
+
+class _ResizeDividerSpecimenState extends State<_ResizeDividerSpecimen> {
+  var _leadingSize = 112.0;
+
+  void _resize(double delta) {
+    final maximum = widget.axis == Axis.vertical ? 240.0 : 120.0;
+    setState(() {
+      _leadingSize = (_leadingSize + delta).clamp(64.0, maximum);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final leading = ColoredBox(
+      color: context.theme.colors.desy.panelSubtle,
+      child: const Center(child: Text('Resizable region')),
+    );
+    final trailing = ColoredBox(
+      color: context.theme.colors.background,
+      child: const Center(child: Text('Content')),
+    );
+    final divider = DesyResizeDivider(
+      axis: widget.axis,
+      value: _leadingSize,
+      semanticsLabel: widget.semanticsLabel,
+      onResize: _resize,
+    );
+
+    return SizedBox(
+      width: 320,
+      height: 180,
+      child: widget.axis == Axis.vertical
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(width: _leadingSize, child: leading),
+                divider,
+                Expanded(child: trailing),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(height: _leadingSize, child: leading),
+                divider,
+                Expanded(child: trailing),
+              ],
+            ),
+    );
+  }
+}
 
 class _SidebarSpecimen extends StatelessWidget {
   const _SidebarSpecimen({
@@ -1260,16 +1670,6 @@ class _SidebarSpecimen extends StatelessWidget {
             ),
           ],
         ),
-        const DesySidebarSection(
-          label: 'Showcases',
-          count: 1,
-          children: [
-            DesySidebarItem(
-              icon: Icon(DesyIcons.layers),
-              label: Text('Overview'),
-            ),
-          ],
-        ),
       ],
     ),
   );
@@ -1311,54 +1711,4 @@ class _MotionSpecimen extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ControlStackShowcase extends StatelessWidget {
-  const _ControlStackShowcase();
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 520,
-    child: DesyCard(
-      child: Padding(
-        padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceLg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  'Preview settings',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const Spacer(),
-                DesyBadge(child: const Text('LOCAL')),
-              ],
-            ),
-            const SizedBox(height: DesyDesignSystemTokens.spaceLg),
-            DesyTile(
-              prefix: const Icon(DesyIcons.smartphone),
-              title: const Text('iPhone 15 Pro'),
-              subtitle: const Text('393 × 852 logical pixels'),
-              suffix: const Icon(DesyIcons.chevronRight),
-              onPress: () {},
-            ),
-            const SizedBox(height: DesyDesignSystemTokens.spaceMd),
-            DesySwitch(
-              label: const Text('Show grid'),
-              value: true,
-              onChange: (_) {},
-            ),
-            const SizedBox(height: DesyDesignSystemTokens.spaceLg),
-            DesyButton(
-              mainAxisSize: MainAxisSize.min,
-              onPress: () {},
-              child: const Text('Apply preview'),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }

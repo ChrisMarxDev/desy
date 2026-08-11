@@ -35,27 +35,42 @@ class DesyWorkbenchNavigationTree {
 
     return DesyWorkbenchNavigationTree([
       DesyWorkbenchNavigationNode(
-        id: 'workspace',
-        label: 'Workspace',
+        id: 'registry',
+        label: 'Registry',
         children: [
           const DesyWorkbenchNavigationNode(
             id: 'atlas',
-            label: 'Atlas',
+            label: 'All components',
             location: DesyWorkbenchRoutes.atlasPath,
           ),
-          const DesyWorkbenchNavigationNode(
-            id: 'components',
-            label: 'Sketch',
-            location: DesyWorkbenchRoutes.componentsPath,
-          ),
-          for (final extension in extensions)
-            DesyWorkbenchNavigationNode(
-              id: 'workspace.${extension.id}',
-              label: extension.name,
-              location: DesyWorkbenchRoutes.workspaceExtension(extension.id),
-            ),
         ],
       ),
+      if (registry.allPrototypes.isNotEmpty)
+        DesyWorkbenchNavigationNode(
+          id: 'prototypes',
+          label: 'Prototypes',
+          children: [
+            for (final prototypeSession in registry.allPrototypes)
+              DesyWorkbenchNavigationNode(
+                id: 'prototype.${prototypeSession.id}',
+                label: prototypeSession.name,
+                location: DesyWorkbenchRoutes.prototype(prototypeSession.id),
+              ),
+          ],
+        ),
+      if (extensions.isNotEmpty)
+        DesyWorkbenchNavigationNode(
+          id: 'tools',
+          label: 'Tools',
+          children: [
+            for (final extension in extensions)
+              DesyWorkbenchNavigationNode(
+                id: 'tool.${extension.id}',
+                label: extension.name,
+                location: DesyWorkbenchRoutes.workspaceExtension(extension.id),
+              ),
+          ],
+        ),
       if (registry.hasAtoms)
         DesyWorkbenchNavigationNode(
           id: DesyAtomKind.rootId,
@@ -77,11 +92,6 @@ class DesyWorkbenchNavigationTree {
             label: component.name,
             location: DesyWorkbenchRoutes.entry(component.id),
           ),
-      const DesyWorkbenchNavigationNode(
-        id: 'showcases',
-        label: 'Showcases',
-        location: DesyWorkbenchRoutes.showcasesPath,
-      ),
     ]);
   }
 

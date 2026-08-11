@@ -50,10 +50,6 @@ class DesyWorkbenchShortcuts extends StatelessWidget {
           const DesyWorkbenchOpenIntent(DesyWorkbenchRoutes.componentsPath),
       const SingleActivator(LogicalKeyboardKey.digit2, control: true):
           const DesyWorkbenchOpenIntent(DesyWorkbenchRoutes.componentsPath),
-      const SingleActivator(LogicalKeyboardKey.digit3, meta: true):
-          const DesyWorkbenchOpenIntent(DesyWorkbenchRoutes.showcasesPath),
-      const SingleActivator(LogicalKeyboardKey.digit3, control: true):
-          const DesyWorkbenchOpenIntent(DesyWorkbenchRoutes.showcasesPath),
       const SingleActivator(LogicalKeyboardKey.arrowDown, alt: true):
           const DesyWorkbenchTraverseIntent(DesyWorkbenchTraversal.next),
       const SingleActivator(LogicalKeyboardKey.arrowUp, alt: true):

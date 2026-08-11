@@ -632,12 +632,40 @@ final class DesySurfaceValidator {
               ),
             );
           }
+        case DesyKnobKind.number:
+          if (value is! num) {
+            issues.add(
+              DesySurfaceValidationIssue(
+                path: knobPath,
+                message: 'Expected a numeric value.',
+              ),
+            );
+          } else if (value < definition.minimum! ||
+              value > definition.maximum!) {
+            issues.add(
+              DesySurfaceValidationIssue(
+                path: knobPath,
+                message:
+                    'Expected a value from ${definition.minimum} to ${definition.maximum}.',
+              ),
+            );
+          }
         case DesyKnobKind.boolean:
           if (value is! bool) {
             issues.add(
               DesySurfaceValidationIssue(
                 path: knobPath,
                 message: 'Expected a boolean value.',
+              ),
+            );
+          }
+        case DesyKnobKind.color:
+          if (value is! int) {
+            issues.add(
+              DesySurfaceValidationIssue(
+                path: knobPath,
+                message:
+                    'Expected an ARGB integer for color knob "${definition.id}".',
               ),
             );
           }

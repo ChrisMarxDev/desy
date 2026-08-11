@@ -129,7 +129,7 @@ There is no stringly-typed value map and no parallel instance/list representatio
 
 `DesyRegistry.validate()` reports problems without mutating the registry:
 duplicate IDs across the shared namespace (themes, atoms, artifacts, instances,
-showcases, extensions) and widget-instance references to instances that do not
+extensions) and widget-instance references to instances that do not
 exist. Unknown references are warnings so the workbench can still load and
 expose the diagnostic.
 

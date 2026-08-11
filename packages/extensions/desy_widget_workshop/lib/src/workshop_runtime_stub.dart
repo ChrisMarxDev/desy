@@ -1,3 +1,5 @@
+import 'package:desy_bench/desy_bench.dart';
+
 import 'workshop_candidate.dart';
 import 'workshop_runtime.dart';
 
@@ -10,7 +12,7 @@ class _UnsupportedWorkshopRuntime extends DesyWorkshopRuntime {
   _UnsupportedWorkshopRuntime(super.configuration)
     : _prompt = configuration.initialPrompt;
 
-  final List<String> _logs = const [
+  final List<String> _logs = [
     'The live coding runtime is available in the Desy macOS development app.',
     'Registry previews remain available on this platform.',
   ];
@@ -38,10 +40,17 @@ class _UnsupportedWorkshopRuntime extends DesyWorkshopRuntime {
   }
 
   @override
+  void startNewSession() {
+    _logs
+      ..clear()
+      ..add('Started a new Workshop conversation from registry feedback.');
+    notifyListeners();
+  }
+
+  @override
   Future<void> run({
     required List<DesyWorkshopCandidate> candidates,
-    required Set<String> selectedCandidateIds,
-    required List<DesyWorkshopAnnotation> annotations,
+    required DesyWorkspaceAgentBrief agentBrief,
   }) async {}
 
   @override

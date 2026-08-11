@@ -94,10 +94,23 @@ void main() {
           DesyColorEntry(
             id: 'atoms.color.primary',
             name: 'Primary color',
-            builder: (_) => const SizedBox(),
+            color: const Color(0xff0055aa),
           ),
         ],
         components: [_component('components.button', path: '/buttons')],
+        prototypes: [
+          DesyPrototypeSession(
+            id: 'prototype.homepage',
+            name: 'Homepage exploration',
+            prototypes: const [
+              DesyPrototype(
+                id: 'prototype.homepage.dense',
+                name: 'Dense',
+                builder: _prototype,
+              ),
+            ],
+          ),
+        ],
       ),
     );
     addTearDown(session.dispose);
@@ -117,7 +130,7 @@ void main() {
     );
 
     expect(
-      find.byKey(const ValueKey('sidebar-section-workspace')),
+      find.byKey(const ValueKey('sidebar-section-registry')),
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('sidebar-section-atoms')), findsOneWidget);
@@ -126,7 +139,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('sidebar-section-showcases')),
+      find.byKey(const ValueKey('sidebar-section-prototypes')),
       findsOneWidget,
     );
     expect(
@@ -145,10 +158,7 @@ void main() {
       find.byKey(const ValueKey('sidebar-entry-components.button')),
       findsOneWidget,
     );
-    expect(
-      find.byKey(const ValueKey('workspace-ai-prompts-nav')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('sidebar-section-tools')), findsNothing);
     expect(
       find.byKey(const ValueKey('sidebar-folder-divider-atoms')),
       findsNothing,
@@ -157,18 +167,19 @@ void main() {
       find.byKey(const ValueKey('sidebar-folder-divider-components')),
       findsNothing,
     );
-    expect(find.text('Workspace'), findsOneWidget);
+    expect(find.text('Registry'), findsWidgets);
+    expect(find.text('Prototypes'), findsOneWidget);
     expect(find.text('Atoms'), findsOneWidget);
     expect(find.text('Components'), findsOneWidget);
-    expect(find.text('Showcases'), findsOneWidget);
+    expect(find.text('Showcases'), findsNothing);
 
     expect(
       tester
           .widget<DesySidebarItem>(
-            find.byKey(const ValueKey('workspace-atlas-nav')),
+            find.byKey(const ValueKey('registry-atlas-nav')),
           )
           .opensScreen,
-      isTrue,
+      isFalse,
     );
     expect(
       tester
@@ -187,6 +198,15 @@ void main() {
         .call();
     await tester.pump();
     expect(destination, '/atlas?folder=${DesyAtomKind.colors.id}');
+
+    tester
+        .widget<DesySidebarItem>(
+          find.byKey(const ValueKey('prototype-session-prototype.homepage')),
+        )
+        .onPress!
+        .call();
+    await tester.pump();
+    expect(destination, '/prototypes/prototype.homepage');
   });
 
   testWidgets('Components section label opens the Atlas root', (tester) async {
@@ -271,3 +291,5 @@ DesyRegistryComponent _component(
 );
 
 Widget _wrap(BuildContext context, Widget child) => child;
+
+Widget _prototype(BuildContext context) => const SizedBox();

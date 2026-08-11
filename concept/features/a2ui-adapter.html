@@ -1,17 +1,625 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Desy A2UI adapter</title><link rel="stylesheet" href="../styles.css"></head>
-<body><main class="shell">
-  <nav><a href="index.html">← Product direction</a><span>Parked research · outside the ranked plan</span></nav>
-  <section class="hero"><div class="eyebrow">Archived interoperability research</div><h1>A2UI is not part of the chosen real-Dart Workshop.</h1><p class="lede">This page preserves protocol research only. The Registry Spine works on ordinary Flutter source and does not require a generated UI catalog or manifest renderer.</p></section>
-  <section class="grid">
-    <article class="card"><h2>Reason and user value</h2><p>A2UI’s catalog model closely matches Desy: trusted client-owned components, declarative agent output, schema validation, and native rendering. Desy can remove the duplicate work of manually authoring an A2UI catalog beside a Flutter design-system registry.</p></article>
-    <article class="card"><h2>Scope</h2><ul><li>Optional <code>desy_a2ui</code> package, never a core dependency.</li><li>Export a freestanding A2UI catalog JSON Schema from eligible registry components.</li><li>Map serializable knobs to component properties and legal references.</li><li>Translate supported A2UI component updates into <code>DesySurfaceManifest</code>.</li><li>Render with real registered widgets under the host theme.</li><li>Pin supported A2UI versions and ship conformance fixtures.</li></ul></article>
-    <article class="card full"><h2>Boundary</h2><div class="flow"><strong>DesyRegistry</strong><span>→</span><strong>A2UI catalog adapter</strong><span>→</span><strong>Agent-generated A2UI</strong><span>→</span><strong>Protocol validator</strong><span>→</span><strong>DesySurfaceManifest</strong><span>→</span><strong>Real widgets</strong></div></article>
-    <article class="card"><h2>Non-goals</h2><ul><li>No replacement of A2UI’s protocol, data model, or version negotiation.</li><li>No arbitrary server-supplied component implementation.</li><li>No automatic exposure of every registered component.</li><li>No functions/actions in the first interoperability slice.</li><li>No promise that Desy-specific surfaces are portable to non-Flutter catalogs.</li></ul></article>
-    <article class="card"><h2>Implementation sketch</h2><ol><li>Define eligibility: only components whose knobs are fully serializable.</li><li>Create explicit mapping for IDs, properties, defaults, descriptions, and theme capabilities.</li><li>Bundle a standalone catalog with a stable catalog ID and registry fingerprint.</li><li>Implement static create/update component messages before streaming and data binding.</li><li>Translate supported layout/components into the canonical manifest.</li><li>Test against official A2UI examples and evolving v0.8/v0.9 fixtures.</li></ol></article>
-    <article class="card"><h2>Open questions</h2><ul><li>Should Desy export custom components directly or wrap the A2UI Basic Catalog?</li><li>How are component-slot references represented in A2UI schemas?</li><li>What happens when a registry changes without a new catalog ID?</li><li>Which functions and events can the host safely expose?</li><li>Should a surface retain its original A2UI payload for debugging?</li></ul></article>
-    <article class="card accent"><h2>Do or don’t?</h2><p><strong>Don’t plan this now.</strong> It depends on the surface-manifest direction Desy has explicitly left behind. Revisit only if a concrete external interoperability request justifies a separate adapter package without changing the Registry Spine workflow.</p></article>
-  </section>
-  <footer>Decision: archived research. No A2UI adapter belongs in the current Registry Spine plan.</footer>
-</main></body></html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Desy registry-derived GenUI catalog</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="shell">
+    <nav><a href="index.html">← Planned features</a><span>Impact 4 · Complexity 3 · Yield 1.33</span></nav>
+
+    <section class="hero">
+      <div class="eyebrow">Rank 10 · Optional interoperability</div>
+      <h1>Declare the design system once. Generate the agent catalog from it.</h1>
+      <p class="lede">Let a Desy consumer opt into a narrow GenUI/A2UI catalog generated from the same registry, typed knobs, named instances, and real widget builders already used by the workbench. Desy supplies component capability; the consuming app and backend continue to own agents, authentication, actions, and business logic.</p>
+      <span class="pill">Impact 4/5</span>
+      <span class="pill">Complexity 3/5</span>
+      <span class="pill">Risk 3/5</span>
+      <span class="pill">Yield 1.33</span>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Reason and user value</h2>
+        <p>A Flutter team that already describes its real components in <code>DesyRegistry</code> should not maintain a second hand-authored catalog for a generative UI agent. A derived catalog makes the design system consumable by the Flutter renderer and a separate agent backend while preserving Desy’s single-registry ownership.</p>
+        <p>The immediate value is interoperability: teams can test Dartantic, ADK, Flue, Go, or another backend against one stable component vocabulary without placing model keys or provider logic in the Flutter app.</p>
+      </article>
+
+      <article class="card">
+        <h2>Product boundary</h2>
+        <p>This is an optional compiler capability, not a new Desy runtime or hosted service. The registry remains ordinary consumer-owned Dart. GenUI remains responsible for A2UI surfaces and data. The consuming application remains responsible for transport and event dispatch. The backend remains responsible for models, tools, policy, authorization, and business operations.</p>
+      </article>
+
+      <article class="card full accent">
+        <h2>Concept in one line</h2>
+        <div class="flow">
+          <strong>DesyRegistry</strong><span>→</span>
+          <strong>Optional CatalogConfig</strong><span>→</span>
+          <strong>Derived schemas + real builders</strong><span>→</span>
+          <strong>Flutter GenUI Catalog</strong><span>+</span>
+          <strong>Backend catalog.json</strong>
+        </div>
+      </article>
+    </section>
+
+    <h2>Smallest useful scope</h2>
+    <section class="grid">
+      <article class="card third">
+        <h2>1. Catalog identity</h2>
+        <p>Add an optional registry-level <code>DesyCatalogConfig</code> containing a stable catalog ID, version, and optional description. Without it, Desy behaves exactly as it does today and exposes no catalog-generation surface.</p>
+      </article>
+      <article class="card third">
+        <h2>2. Derived components</h2>
+        <p>Include every representable registered component by default. Add optional component-level <code>DesyComponentCatalogConfig</code> only for exclusion, model-facing guidance, or future event overrides. Do not require repeated opt-in boilerplate.</p>
+      </article>
+      <article class="card third">
+        <h2>3. Existing knobs</h2>
+        <p>Generate scalar schemas from string, number, and boolean knobs. Generate component references from instance-swap knobs. Add an optional knob description and show it in both Desy’s component controls and exported catalog.</p>
+      </article>
+      <article class="card third">
+        <h2>4. Multiple children</h2>
+        <p>Add one plural <code>widgetInstances</code> knob. It resolves a list of real widgets in Desy and maps to an explicit A2UI child list in the generated catalog. It is not a new slot system.</p>
+      </article>
+      <article class="card third">
+        <h2>5. Events</h2>
+        <p>Add an event knob whose value is an emitter used by the real widget builder. <code>emit()</code> covers the common no-payload case; <code>emit({...})</code> may forward an optional JSON object without declaring its schema in Desy. Desy preview supplies a harmless host and the GenUI adapter supplies an A2UI action dispatcher.</p>
+      </article>
+      <article class="card third">
+        <h2>6. Generated examples</h2>
+        <p>Emit one catalog item per component. Do not add an examples API or export named instances as separate catalog items. Named instances already contain serializable knob values and become optional model examples and conformance fixtures. Callback-only visual scenarios remain workbench-only.</p>
+      </article>
+    </section>
+
+    <section class="card full">
+      <h2>Settled v0 decisions</h2>
+      <table>
+        <thead><tr><th>Decision</th><th>Chosen model</th><th>Consequence</th></tr></thead>
+        <tbody>
+          <tr><td>Catalog identity</td><td>One catalog item per <code>DesyComponent</code></td><td>The agent supplies knob values to the existing component builder.</td></tr>
+          <tr><td>Named instances</td><td>Examples, not runtime catalog types</td><td>No instance-default/runtime-override merge is required in the catalog MVP.</td></tr>
+          <tr><td>Event payload</td><td>Optional untyped JSON object</td><td>The common event is payload-free; complex consumers may emit JSON that their backend defines and validates.</td></tr>
+          <tr><td>Binding</td><td>Deferred</td><td>Scalar values are literal in the first compiler.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="grid">
+      <article class="card full">
+        <h2>Potential authoring shape</h2>
+        <pre><code>final registry = DesyRegistry(
+  name: 'Acme Design System',
+  catalogConfig: const DesyCatalogConfig(
+    id: 'https://design.acme.dev/a2ui/catalogs/acme/v1',
+    version: '1.0.0',
+    description: 'Trusted components available to Acme UI agents.',
+  ),
+  themes: [...],
+  components: [
+    DesyComponent(
+      id: 'acme.card',
+      name: 'Card',
+      description: 'Groups related content and actions.',
+      catalogConfig: const DesyComponentCatalogConfig(),
+      knobs: (knobs) =&gt; (
+        title: knobs.string(
+          'title',
+          initial: 'Card title',
+          description: 'Short heading for the grouped content.',
+        ),
+        children: knobs.widgetInstances(
+          'children',
+          initial: const [],
+          description: 'Content rendered inside the card.',
+        ),
+        pressed: knobs.event(
+          'pressed',
+          description: 'Emitted when the primary card action is activated.',
+        ),
+      ),
+      build: (context, knobs) =&gt; AcmeCard(
+        title: knobs.title.value,
+        children: knobs.children.widgets,
+        onPressed: knobs.pressed.emit,
+      ),
+      instances: (knobs) =&gt; {...},
+    ),
+  ],
+);</code></pre>
+        <p class="muted">Names are conceptual. The implementation should preserve the existing typed bound-record authoring style and make descriptions optional.</p>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Registry-level config</h2>
+        <pre><code>final class DesyCatalogConfig {
+  const DesyCatalogConfig({
+    required this.id,
+    required this.version,
+    this.description,
+  });
+
+  final String id;
+  final String version;
+  final String? description;
+}</code></pre>
+        <p>The protocol adapter may add a pinned A2UI version and fingerprint to its generated lock artifact. Those are export concerns and do not need to widen the base registry config initially.</p>
+      </article>
+
+      <article class="card">
+        <h2>Component-level config</h2>
+        <pre><code>final class DesyComponentCatalogConfig {
+  const DesyComponentCatalogConfig({
+    this.include = true,
+    this.description,
+  });
+
+  final bool include;
+  final String? description;
+}</code></pre>
+        <p>Normal component description remains the default. The component config exists for the exceptions Desy cannot derive and should stay smaller than the component declaration it qualifies.</p>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Why instance swapping remains the slot model</h2>
+        <p>A component child is already represented by <code>widgetInstance</code>. The compiler only needs to interpret that knob as a structural component reference rather than a string. The plural form covers explicit lists.</p>
+        <table>
+          <thead><tr><th>Desy declaration</th><th>Generated meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>widgetInstance</code></td><td>One component reference</td></tr>
+            <tr><td><code>widgetInstances</code></td><td>Explicit list of component references</td></tr>
+            <tr><td>Allowed registry instances</td><td>Derive allowed owning component types where validation supports it</td></tr>
+          </tbody>
+        </table>
+        <p>The adapter must generalize widget resolution: Desy resolves registry instance IDs, while GenUI resolves surface-local component IDs. This is a resolver boundary, not a second composition API.</p>
+      </article>
+
+      <article class="card">
+        <h2>What the event knob owns</h2>
+        <table>
+          <thead><tr><th>Desy owns</th><th>Application/backend owns</th></tr></thead>
+          <tbody>
+            <tr><td>Event knob ID and description</td><td>Action name and application meaning</td></tr>
+            <tr><td><code>emit()</code> and optional JSON payload forwarding</td><td>Payload definition and validation</td></tr>
+            <tr><td>Callback bridge used by the real widget</td><td>User, tenant, and object authorization</td></tr>
+            <tr><td>Safe preview emitter</td><td>Side effects, tools, persistence, and retries</td></tr>
+            <tr><td>Generic catalog action schema mapping</td><td>Transport-specific action/context encoding</td></tr>
+          </tbody>
+        </table>
+        <p>An event knob is necessary because a config-only event cannot reach a real widget’s <code>onPressed</code> or equivalent callback without wrapping or approximating that widget. Desy does not interpret a payload: it carries an optional JSON-safe object in a protocol-neutral event invocation, and the adapter/backend owns its contract.</p>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card full">
+        <h2>Potential event shape</h2>
+        <pre><code>final submitted = knobs.event(
+  'submitted',
+  description: 'Emitted when the current value is submitted.',
+);
+
+// Common case: the A2UI action already contains all required context.
+onPressed: () =&gt; submitted.emit(),
+
+// Escape hatch: the widget collected a value locally.
+onSubmitted: (text) =&gt; submitted.emit({'text': text});</code></pre>
+        <p>The event definition remains generic in the generated catalog. Desy does not add a payload schema, codec, or business event registry. The host receives a <code>DesyEventInvocation</code> containing the event definition, protocol-owned action value, and optional JSON payload. A GenUI adapter maps that invocation to its outgoing action format; the backend rejects payloads that do not match the selected action’s own contract.</p>
+      </article>
+    </section>
+
+    <section class="card full accent">
+      <h2>Follow-on possibility: compose a complete chat app from Desy instances</h2>
+      <p>The catalog compiler can become the foundation of a small optional chat host without making Desy an agent framework. A consumer creates ordinary Desy components and named instances for the chat shell, user message, assistant message, composer, pending state, and error state. A validated chat recipe assigns those existing instances to runtime roles. The host supplies conversation state and mounts GenUI surfaces into the declared instance graph.</p>
+      <div class="flow">
+        <strong>DesyRegistry</strong><span>+</span>
+        <strong>Desy chat recipe</strong><span>+</span>
+        <strong>Agent target</strong><span>+</span>
+        <strong>Authenticated transport</strong><span>→</span>
+        <strong>Composable GenUI chat app</strong>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Three replaceable contracts</h2>
+        <ol>
+          <li><strong>Catalog:</strong> which trusted components the agent may compose, derived from the registry.</li>
+          <li><strong>Chat recipe:</strong> which named instances render stable application chrome and where runtime values enter them.</li>
+          <li><strong>Transport:</strong> where user text and UI events go, and where text/A2UI responses arrive.</li>
+        </ol>
+        <p>A design-system package can supply the registry and one or more chat recipes. An application can reuse them while replacing only the transport or agent backend.</p>
+      </article>
+
+      <article class="card">
+        <h2>Why a recipe is not a second registry</h2>
+        <p>The recipe defines no components and contains no widget callbacks. It only assigns stable registry instance and knob IDs to a small set of chat roles. Desy validates every reference against the same registry before the host starts. This is a composition manifest over the registry, not another catalog.</p>
+        <p>The recipe belongs in an optional GenUI/chat package or consumer app. It should not add chat-specific roles to <code>desy_bench</code> core.</p>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card full">
+        <h2>Potential chat authoring shape</h2>
+        <pre><code>final supportChat = DesyGenUiChat(
+  registry: registry,
+  recipe: const DesyGenUiChatRecipe(
+    root: DesyChatShellRole(
+      instanceId: 'acme.chat.shell.default',
+      messagesKnobId: 'messages',
+    ),
+    userMessage: DesyChatMessageRole(
+      instanceId: 'acme.chat.message.user',
+      contentKnobId: 'content',
+    ),
+    assistantMessage: DesyChatMessageRole(
+      instanceId: 'acme.chat.message.assistant',
+      contentKnobId: 'content',
+    ),
+    composer: DesyChatComposerRole(
+      instanceId: 'acme.chat.composer.default',
+      submitEventId: 'submitted',
+    ),
+    pendingInstanceId: 'acme.chat.pending.default',
+    errorInstanceId: 'acme.chat.error.default',
+  ),
+  transport: supportAgentTransport,
+);</code></pre>
+        <p class="muted">The recipe uses rich validated role objects rather than a loose map. Each role points back to existing instances and knob definitions; it does not reproduce their component schema.</p>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>How one turn composes</h2>
+        <ol>
+          <li>The host builds the root shell instance and overrides its plural messages knob with runtime message children.</li>
+          <li>The composer’s event knob emits submitted text to the host transport.</li>
+          <li>The backend streams text and validated A2UI messages using the generated catalog.</li>
+          <li>The host resolves the returned surface as the content child of the assistant-message instance.</li>
+          <li>An event knob inside generated UI sends its A2UI action back through the same conversation.</li>
+          <li>The next backend response updates or replaces the surface, advancing the flow.</li>
+        </ol>
+      </article>
+
+      <article class="card">
+        <h2>Instance roles</h2>
+        <table>
+          <thead><tr><th>Instance</th><th>Runtime override</th></tr></thead>
+          <tbody>
+            <tr><td>Chat shell</td><td>Plural message children</td></tr>
+            <tr><td>User message</td><td>Submitted text</td></tr>
+            <tr><td>Assistant message</td><td>Text, generated surface, or both</td></tr>
+            <tr><td>Composer</td><td>Submit event host</td></tr>
+            <tr><td>Pending</td><td>Usually no override</td></tr>
+            <tr><td>Error</td><td>Error text and retry event</td></tr>
+          </tbody>
+        </table>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>How far the no-binding version can go</h2>
+        <ul>
+          <li>Streaming text plus generated assistant cards and layouts.</li>
+          <li>Buttons, choices, confirmations, retry, cancel, and follow-up actions.</li>
+          <li>Guided support, onboarding, discovery, recommendation, and approval flows.</li>
+          <li>Explicit short lists built from multiple child references.</li>
+          <li>Different chat apps using the same design-system registry and different recipes/backends.</li>
+          <li>Domain-level interactive widgets that keep their own temporary state and emit a final event payload.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Where the boundary appears</h2>
+        <ul>
+          <li>Several independently generated inputs sharing one editable form model.</li>
+          <li>Two-way synchronization between a widget and agent-owned data.</li>
+          <li>Repeated/template children driven by a changing data list.</li>
+          <li>Client functions and cross-component validation.</li>
+          <li>Offline persistence and restoration of a generated surface.</li>
+        </ul>
+        <p>Those needs justify revisiting binding later. They are not required to prove a useful event-driven chat product.</p>
+      </article>
+    </section>
+
+    <section class="card full">
+      <h2>Composable product ladder</h2>
+      <div class="layout-rules">
+        <div class="layout-rule"><strong>1 · Catalog</strong><span>Generate trusted components and builders from the registry.</span></div>
+        <div class="layout-rule"><strong>2 · One chat</strong><span>Use a fixed consumer shell and render GenUI inside assistant turns.</span></div>
+        <div class="layout-rule"><strong>3 · Recipes</strong><span>Swap named-instance compositions without changing the runtime.</span></div>
+        <div class="layout-rule"><strong>4 · App family</strong><span>Reuse one registry across support, onboarding, sales, or operations agents.</span></div>
+      </div>
+      <p>The first proof should stop at level 2. Level 3 is the dream worth preserving in the API: no assumption in the catalog compiler should prevent the host from resolving named instances with runtime knob overrides.</p>
+    </section>
+
+    <section class="card full accent">
+      <h2>Agent plug-in boundary: one shell, many jobs</h2>
+      <p>A GenUI experience combines one validated Desy shell recipe with one non-secret agent target. The target identifies a job such as support, sales, onboarding, or account operations. The Flutter app always talks to one authenticated application gateway; server-side profiles decide which model, tools, data connectors, and specialist agents perform that job.</p>
+      <div class="flow">
+        <strong>Shell instance</strong><span>+</span>
+        <strong>Agent ID</strong><span>+</span>
+        <strong>Catalog ID</strong><span>→</span>
+        <strong>GenUI experience</strong>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Flutter owns safe experience selection</h2>
+        <ul>
+          <li>Stable experience ID and visible name.</li>
+          <li>Root shell/chat recipe.</li>
+          <li>Non-secret gateway agent ID.</li>
+          <li>Expected catalog ID and fingerprint.</li>
+          <li>Application session token provider.</li>
+          <li>Conversation lifecycle, cancellation, and local presentation state.</li>
+        </ul>
+        <p>The Flutter configuration never contains provider keys, tool credentials, database connections, or model prompts that must remain private.</p>
+      </article>
+
+      <article class="card">
+        <h2>Backend owns the agent profile</h2>
+        <ul>
+          <li>Model/provider selection and fallback policy.</li>
+          <li>System instructions and job-specific behavior.</li>
+          <li>Tools, MCP servers, APIs, databases, and remote A2A agents.</li>
+          <li>User, tenant, and object authorization.</li>
+          <li>Conversation storage and handoff policy.</li>
+          <li>Catalog loading, prompt assembly, output validation, retries, and audit.</li>
+        </ul>
+        <p>Several backend implementations may serve the same agent ID during evaluation, provided they emit the same validated text/A2UI contract.</p>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card full">
+        <h2>Potential experience declaration</h2>
+        <pre><code>final supportExperience = DesyGenUiExperience(
+  id: 'support',
+  name: 'Support assistant',
+  recipe: supportChatRecipe,
+  agent: GenUiAgentTarget(
+    gateway: Uri.parse('https://api.acme.dev/agents'),
+    agentId: 'support',
+    expectedCatalogId: registry.catalogConfig!.id,
+  ),
+);
+
+final app = DesyGenUiApp(
+  registry: registry,
+  experience: supportExperience,
+  authTokenProvider: appSession.token,
+);</code></pre>
+        <p class="muted">The experience belongs to the consuming application or optional GenUI package, not the design-system registry. It joins presentation and behavior without making either side own the other.</p>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>One gateway, many agent profiles</h2>
+        <pre><code>support
+  model: provider A
+  tools: knowledge base, ticketing
+
+sales
+  model: provider B
+  tools: product search, pricing, cart
+
+account
+  model: provider A
+  tools: customer profile, billing
+
+onboarding
+  runtime: Flue or ADK
+  tools: product setup, documentation</code></pre>
+        <p>The app sends <code>agentId</code>, conversation context, supported catalog IDs, and user text/action. The gateway authenticates the user, loads the server-owned profile, and returns an ordered text/A2UI stream.</p>
+      </article>
+
+      <article class="card">
+        <h2>Framework-neutral transport</h2>
+        <pre><code>abstract interface class GenUiAgentTransport {
+  Stream&lt;GenUiAgentEvent&gt; send(
+    GenUiAgentRequest request,
+  );
+
+  Future&lt;void&gt; cancel(String requestId);
+}</code></pre>
+        <p>An A2A connector, custom authenticated SSE connection, WebSocket, or test fixture can implement the same boundary. The chat shell and registry compiler never depend on Dartantic, ADK, Flue, Go, or a particular provider SDK.</p>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Backend pattern A: direct UI agents</h2>
+        <p>Each job-specific agent receives the catalog and emits A2UI directly. This is the shortest path for independent agents and makes it easy to compare frameworks.</p>
+        <ul>
+          <li>Simple ownership and deployment.</li>
+          <li>Each agent needs catalog prompting and validation.</li>
+          <li>Handoffs must preserve conversation and surface identity.</li>
+          <li>UI quality may vary between agent implementations.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Backend pattern B: specialists plus UI composer</h2>
+        <p>A router or primary agent calls domain specialists that return structured results. One presentation agent translates those results into the selected catalog and passes them through a single validator.</p>
+        <ul>
+          <li>Specialists do not need to understand A2UI.</li>
+          <li>One place owns catalog compatibility and UI quality.</li>
+          <li>Remote systems remain tools or A2A agents behind the gateway.</li>
+          <li>More orchestration, but cleaner multi-agent growth.</li>
+        </ul>
+        <p><strong>Recommendation:</strong> use direct UI agents for the first comparison, then converge on a UI composer when several specialists share one product surface.</p>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card full">
+        <h2>Recommended backend topology</h2>
+        <div class="flow">
+          <strong>Flutter experience</strong><span>→</span>
+          <strong>Auth + agent gateway</strong><span>→</span>
+          <strong>Agent router/profile</strong><span>→</span>
+          <strong>Specialists + connectors</strong><span>→</span>
+          <strong>UI composer</strong><span>→</span>
+          <strong>Catalog validator</strong><span>→</span>
+          <strong>A2UI stream</strong>
+        </div>
+        <p>The gateway is the security and compatibility choke point. It negotiates a known catalog, scopes every connector to the authenticated actor, namespaces surface IDs across handoffs, validates output, and prevents the client from following arbitrary agent-supplied endpoints.</p>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Agent discovery and handoff</h2>
+        <p>The first release should use application-declared agent IDs. Dynamic agent cards or A2A discovery may exist behind the gateway, but the client should not discover and connect to arbitrary remote agents directly.</p>
+        <p>A handoff keeps the same gateway conversation while the server changes the active profile or delegates work. The app may display the new agent identity, but authentication, credentials, and routing stay server-owned.</p>
+      </article>
+
+      <article class="card">
+        <h2>Catalog compatibility</h2>
+        <p>Every request advertises the client’s supported catalog ID and fingerprint. The selected agent profile names the server-known catalog it was prompted and validated against. A mismatch fails before a model call or falls back to plain text; the backend never trusts an arbitrary inline catalog uploaded by the client.</p>
+        <p>Different agents can share one full design-system catalog initially. App-specific catalog projections can follow only if prompt size or capability control proves it necessary.</p>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Generated outputs</h2>
+        <ul>
+          <li>A Flutter <code>Catalog</code> whose items build real registry widgets.</li>
+          <li>A standalone <code>catalog.json</code> containing the matching component schemas.</li>
+          <li>A <code>catalog.lock.json</code> with catalog ID, version, protocol version, and deterministic fingerprint.</li>
+          <li>Optional prompt examples derived from named component instances.</li>
+        </ul>
+        <p>The app may compile the Flutter catalog directly from its live registry. For production, the matching backend JSON should be generated and promoted by the repository build rather than trusted as an arbitrary runtime upload.</p>
+      </article>
+
+      <article class="card">
+        <h2>Validation and acceptance</h2>
+        <ul>
+          <li>A registry without catalog config has no behavior or declaration changes.</li>
+          <li>Equivalent registries produce byte-stable catalog JSON and fingerprints.</li>
+          <li>Every emitted component schema has a matching real-widget builder.</li>
+          <li>Single and multi-instance knobs render the same component graph in Desy and GenUI fixtures.</li>
+          <li>Event knobs dispatch through a fake host in tests without embedding business logic.</li>
+          <li>Payload-free and JSON-payload event invocations remain observable in Desy without interpreting their business meaning.</li>
+          <li>Named-instance examples validate against the generated catalog.</li>
+          <li>Unsupported declarations produce an explicit compiler issue rather than a partial silent export.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="card full accent">
+      <h2>Workability decision</h2>
+      <p><strong>Yes: the settled v0 registry contract is sufficient to generate and render a useful interactive catalog.</strong> It can describe literal string, number, and boolean properties; explicit single and multiple component children; generic actions with optional opaque JSON payloads; real Flutter builders; themes; and instance-derived examples. That is enough for generated text, cards, layouts, choices, confirmation actions, and event-driven chat turns.</p>
+      <p>It is intentionally not complete A2UI feature coverage. Data binding, repeated/template children, client functions, and shared editable form state remain deferred without making the catalog invalid or unusable.</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>What changes in <code>desy_bench</code></h2>
+        <ul>
+          <li>Optional registry and component catalog config.</li>
+          <li>Optional descriptions on knob definitions.</li>
+          <li>Plural widget-instance knob and resolved widget list.</li>
+          <li>Event knob and protocol-neutral event host/invocation.</li>
+          <li>A pluggable child resolver so the same component builder can resolve registry instances in Desy or surface-local component IDs in GenUI.</li>
+          <li>Validation for the new knob kinds and deterministic export data.</li>
+        </ul>
+        <p>These are protocol-neutral registry/build contracts. <code>desy_bench</code> does not import GenUI or A2UI types.</p>
+      </article>
+
+      <article class="card">
+        <h2>What belongs in the optional adapter</h2>
+        <ul>
+          <li>Translate knob definitions into A2UI JSON Schema.</li>
+          <li>Create one Flutter GenUI <code>CatalogItem</code> per eligible component.</li>
+          <li>Call the existing real-widget <code>buildWithValues</code> path.</li>
+          <li>Resolve A2UI child IDs through the GenUI item context.</li>
+          <li>Map event invocations to A2UI actions.</li>
+          <li>Generate <code>catalog.json</code>, instance-derived examples, and a deterministic lock/fingerprint.</li>
+          <li>Validate generated messages and fixtures against the pinned protocol version.</li>
+        </ul>
+        <p>This likely belongs in an optional package such as <code>desy_genui</code> so the reusable registry remains independent of a changing protocol.</p>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card full">
+        <h2>Desy Surface stays separate</h2>
+        <div class="flow">
+          <strong>DesySurfaceDocument</strong><span>→</span><strong>local prototype preview</strong>
+          <span>·</span>
+          <strong>A2UI messages</strong><span>→</span><strong>GenUI SurfaceController</strong>
+        </div>
+        <p>Do not translate A2UI through <code>DesySurfaceDocument</code> and do not turn <code>DesySurfacePreview</code> into the production GenUI renderer. The formats have different responsibilities: Desy Surface is a nested, local composition prototype; A2UI is an adjacency-list protocol with surface lifecycle, data, and actions. Using Desy Surface as an intermediary would be lossy and would create a second runtime.</p>
+      </article>
+      <article class="card">
+        <h2>Surface model changes</h2>
+        <p><strong>No format or version change is required.</strong> Existing component nodes and JSON-compatible knob overrides remain sufficient for local prototypes. Callbacks and protocol actions must not be serialized into a Desy surface.</p>
+      </article>
+      <article class="card">
+        <h2>Surface compatibility work</h2>
+        <p>The validator and preview build environment must understand the new declarations so exhaustive knob switches continue to work:</p>
+        <ul>
+          <li>Validate plural instance values as lists of registered instance IDs when used in a local Desy surface.</li>
+          <li>Supply a preview/no-op event host; reject serialized event overrides rather than persisting callbacks or protocol actions.</li>
+          <li>Continue resolving local instance swaps through the registry resolver.</li>
+        </ul>
+        <p>This is compatibility plumbing around the existing surface, not a new surface capability.</p>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Non-goals</h2>
+        <ul>
+          <li>No data-binding declaration or two-way input synchronization in the first slice.</li>
+          <li>No restricted-string/enum knob expansion solely for GenUI.</li>
+          <li>No object, arbitrary list, nullable, or general JSON-schema knob system.</li>
+          <li>No repeated/template child lists; only explicit component references.</li>
+          <li>No client-function catalog.</li>
+          <li>No Desy-owned schema, codec, or validation language for optional event payloads.</li>
+          <li>No business logic, agent framework, provider keys, or backend in Desy.</li>
+          <li>No agent endpoints, tool credentials, model prompts, or connector configuration in <code>DesyRegistry</code>.</li>
+          <li>No second component inventory, surface DSL, or generated production Dart widgets.</li>
+          <li>No required handwritten model examples.</li>
+          <li>No general chat framework in the catalog-compiler MVP; the composable chat host is a dependent optional experiment.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Open questions</h2>
+        <ul>
+          <li>Should all representable components be included by default, or should a component-level config be an explicit opt-in? The recommendation is default inclusion to avoid boilerplate.</li>
+          <li>Under the component-first decision, should a static component with several fixed instances be excluded, emit only its default, or use a narrowly documented exception?</li>
+          <li>How should a protocol adapter combine its action-defined context with an optional widget-emitted payload without making that merge policy part of Desy?</li>
+          <li>Should knob descriptions appear inline in the control panel, through help affordances, or both?</li>
+          <li>Does the first adapter belong in an optional package such as <code>desy_genui</code>, or can the protocol-neutral compiler live beside the experimental export?</li>
+          <li>When should one-way scalar binding be added automatically, without expanding registry declarations?</li>
+          <li>Can a chat recipe identify runtime knob ports ergonomically without code generation or fragile string conventions?</li>
+          <li>Should recipes live in consumer Dart code only, or eventually become validated serializable manifests containing registry IDs and values?</li>
+          <li>Does the first backend contract use the bundled A2A connector or an application-owned authenticated SSE transport?</li>
+          <li>Should an experience permit direct selection among several agent IDs, or should routing remain entirely server-side?</li>
+          <li>What minimal metadata may describe an agent to the user without exposing server configuration?</li>
+          <li>When several specialists contribute to one turn, does the primary agent or a dedicated UI composer own the final A2UI surface?</li>
+        </ul>
+      </article>
+
+      <article class="card full accent">
+        <h2>Do or don’t?</h2>
+        <p><strong>Do as a narrow optional compiler proof, after the registry contracts are stable enough to absorb descriptions, plural instance resolution, and an event bridge.</strong> Impact 4/5, complexity 3/5, risk 3/5, yield 1.33. The reward is real—one consumer-owned declaration can serve the workbench, Flutter renderer, and multiple agent backends. The main risk is allowing protocol completeness to turn knobs into a general schema language. Hold the first slice to one catalog item per component, literal scalar values, explicit component references, generic actions, and opaque optional JSON payload forwarding; refuse bindings, functions, payload-schema authoring, and application logic until usage proves they belong.</p>
+      </article>
+    </section>
+
+    <footer>Potential concept, not committed implementation. Offline artifact with no remote assets or runtime dependencies.</footer>
+  </main>
+</body>
+</html>

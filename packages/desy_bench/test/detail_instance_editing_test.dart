@@ -22,6 +22,7 @@ void main() {
       build: (context, knobs) =>
           Text('${knobs.label.value} · ${knobs.enabled.value}'),
       instances: (knobs) => {
+        'default': [knobs.label('Default')],
         'alpha': [knobs.label('Alpha')],
         'bravo': [knobs.label('Bravo')],
       },
@@ -52,20 +53,18 @@ void main() {
     expect(find.text('Default · true'), findsOneWidget);
     expect(find.text('Alpha · true'), findsOneWidget);
     expect(find.text('Bravo · true'), findsOneWidget);
+    final defaultRect = tester.getRect(
+      find.byKey(const ValueKey('detail-artboard')),
+    );
+    final alphaRect = tester.getRect(
+      find.byKey(const ValueKey('detail-instance-artboard-instance-alpha')),
+    );
+    final bravoRect = tester.getRect(
+      find.byKey(const ValueKey('detail-instance-artboard-instance-bravo')),
+    );
+    expect(alphaRect.top, greaterThan(defaultRect.bottom));
+    expect(bravoRect.top, greaterThan(alphaRect.bottom));
 
-    final bravoViewer = find.byKey(
-      const ValueKey('detail-instance-viewer-instance-bravo'),
-    );
-    await tester.scrollUntilVisible(
-      bravoViewer,
-      300,
-      scrollable: find
-          .descendant(
-            of: find.byKey(const ValueKey('detail-instance-gallery')),
-            matching: find.byType(Scrollable),
-          )
-          .first,
-    );
     await tester.tap(
       find.byKey(const ValueKey('detail-instance-artboard-instance-bravo')),
     );
@@ -88,19 +87,6 @@ void main() {
     expect(find.text('Alpha · true'), findsOneWidget);
     expect(session.selectedComponentInstance.value?.instanceId, 'bravo');
 
-    final alphaViewer = find.byKey(
-      const ValueKey('detail-instance-viewer-instance-alpha'),
-    );
-    await tester.scrollUntilVisible(
-      alphaViewer,
-      -300,
-      scrollable: find
-          .descendant(
-            of: find.byKey(const ValueKey('detail-instance-gallery')),
-            matching: find.byType(Scrollable),
-          )
-          .first,
-    );
     await tester.tap(
       find.byKey(const ValueKey('detail-instance-artboard-instance-alpha')),
     );
@@ -112,6 +98,23 @@ void main() {
     expect(find.text('Alpha · true'), findsOneWidget);
     expect(find.text('Bravo · true'), findsOneWidget);
     expect(find.text('Bravo · false'), findsNothing);
+
+    final controlsPanel = find.byKey(const ValueKey('detail-controls-panel'));
+    final controlsResizeHandle = find.byKey(
+      const ValueKey('detail-controls-resize-handle'),
+    );
+    final initialControlsWidth = tester.getSize(controlsPanel).width;
+    await tester.drag(controlsResizeHandle, const Offset(-120, 0));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getSize(controlsPanel).width,
+      greaterThan(initialControlsWidth),
+    );
+    expect(
+      tester.widget<DesyResizeDivider>(controlsResizeHandle).semanticsLabel,
+      'Resize controls panel',
+    );
   });
 }
 

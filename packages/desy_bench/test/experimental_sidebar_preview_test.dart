@@ -95,18 +95,11 @@ void main() {
         find.byKey(const ValueKey('sidebar-components-preview-grid')),
         findsOneWidget,
       );
-      expect(find.byKey(const ValueKey('workspace-atlas-nav')), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('workspace-components-nav')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('workspace-ai-prompts-nav')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const ValueKey('registry-atlas-nav')), findsOneWidget);
+      expect(find.byKey(const ValueKey('sidebar-section-tools')), findsNothing);
       expect(
         find.byKey(const ValueKey('sidebar-section-showcases')),
-        findsOneWidget,
+        findsNothing,
       );
       expect(
         (await SharedPreferences.getInstance()).getBool(
@@ -203,7 +196,7 @@ void main() {
           DesyColorEntry(
             id: 'saved.color',
             name: 'Saved color',
-            builder: (_) => const SizedBox(width: 32, height: 32),
+            color: const Color(0xff0055aa),
           ),
         ],
       ),
@@ -248,6 +241,9 @@ void main() {
   testWidgets('desktop sidebar resizes by drag', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    var closeCount = 0;
+    var minimizeCount = 0;
+    var maximizeCount = 0;
     final registry = DesyRegistry(
       name: 'Resizable sidebar',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
@@ -264,43 +260,116 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(DesyBenchApp(registry: registry));
+    await tester.pumpWidget(
+      DesyBenchApp(
+        registry: registry,
+        windowControls: DesyWindowControls(
+          onClose: () => closeCount++,
+          onMinimize: () => minimizeCount++,
+          onToggleMaximize: () => maximizeCount++,
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
+    for (final id in ['close', 'minimize', 'maximize']) {
+      final indicator = tester.widget<DecoratedBox>(
+        find.byKey(ValueKey('window-control-$id-indicator')),
+      );
+      final decoration = indicator.decoration as BoxDecoration;
+      expect(decoration.shape, BoxShape.circle);
+      expect(decoration.border, isNull);
+    }
+    await tester.tap(find.byKey(const ValueKey('window-control-close')));
+    await tester.tap(find.byKey(const ValueKey('window-control-minimize')));
+    await tester.tap(find.byKey(const ValueKey('window-control-maximize')));
+    expect((closeCount, minimizeCount, maximizeCount), (1, 1, 1));
+
     final sidebar = find.byKey(const ValueKey('workbench-sidebar'));
+    final sidebarRegion = find.byKey(
+      const ValueKey('workbench-sidebar-region'),
+    );
+    final contentRegion = find.byKey(
+      const ValueKey('workbench-content-region'),
+    );
+    final contentTopDivider = find.byKey(
+      const ValueKey('workbench-content-top-divider'),
+    );
     final handle = find.byKey(const ValueKey('desktop-sidebar-resize-handle'));
     expect(tester.getSize(sidebar).width, 248);
+    expect(tester.getSize(sidebarRegion).width, 248);
     expect(handle, findsOneWidget);
+    expect(tester.getSize(handle).width, 8);
+    expect(tester.getCenter(handle).dx, 248);
+    expect(
+      tester
+          .getSize(find.descendant(of: handle, matching: find.byType(FDivider)))
+          .width,
+      1,
+    );
+    expect(tester.getTopLeft(contentRegion).dx, 248);
+    expect(tester.getTopLeft(contentTopDivider), const Offset(248, 32));
     expect(
       tester.getTopLeft(find.byType(DesyScaffold)).dx,
       248,
-      reason:
-          'the resize target overlays the workspace instead of reserving a gap',
+      reason: 'the resize divider overlays the row boundary without a gap',
     );
-    expect(
-      tester
-          .widget<AnimatedContainer>(
-            find.byKey(const ValueKey('desktop-sidebar-resize-indicator')),
-          )
-          .constraints
-          ?.maxWidth,
-      0,
-    );
-
     await tester.drag(handle, const Offset(144, 0));
     await tester.pumpAndSettle();
     expect(tester.getSize(sidebar).width, greaterThan(360));
+    expect(
+      tester.getCenter(handle).dx,
+      tester.getTopRight(sidebarRegion).dx,
+      reason: 'the single resize divider tracks the resizable sidebar edge',
+    );
+    expect(
+      tester.getTopLeft(contentRegion).dx,
+      tester.getTopRight(sidebarRegion).dx,
+      reason: 'content starts immediately after the sidebar',
+    );
+    expect(
+      tester.getTopLeft(contentTopDivider).dx,
+      tester.getTopLeft(contentRegion).dx,
+      reason: 'the content column owns its horizontal top divider',
+    );
+    expect(
+      find.byKey(const ValueKey('registry-spine-top-bar-left-segment')),
+      findsNothing,
+      reason: 'the floating top controls do not paint a second panel edge',
+    );
 
-    await tester.tap(find.byKey(const ValueKey('desktop-sidebar-collapse')));
+    final toggle = find.byKey(const ValueKey('registry-spine-toggle-sidebar'));
+    expect(
+      tester.getTopLeft(toggle).dx,
+      112,
+      reason: 'the Flutter window controls precede the panel control',
+    );
+    expect(
+      tester.getCenter(toggle).dy,
+      16,
+      reason: 'the panel control shares the native traffic-light centerline',
+    );
+    expect(
+      tester.widget<DesyButton>(toggle).semanticsLabel,
+      'Hide registry sidebar',
+    );
+    await tester.tap(toggle);
     await tester.pumpAndSettle();
-    final restore = find.byKey(const ValueKey('desktop-sidebar-restore'));
-    final restoreSize = tester.getSize(restore);
-    expect(restoreSize, const Size.square(32));
-    expect(tester.getTopLeft(restore), const Offset(16, 8));
-    expect(find.text('Show sidebar'), findsNothing);
-    expect(tester.widget<DesyButton>(restore).semanticsLabel, 'Show sidebar');
+    expect(toggle, findsOneWidget);
+    expect(
+      tester.widget<DesyButton>(toggle).semanticsLabel,
+      'Show registry sidebar',
+    );
+    expect(tester.getSize(sidebarRegion).width, 0);
+    expect(handle, findsNothing);
+    expect(tester.getTopLeft(contentRegion).dx, 0);
+    expect(
+      find.byKey(const ValueKey('desktop-sidebar-restore')),
+      findsNothing,
+      reason: 'the persistent top-frame control restores the sidebar',
+    );
 
-    await tester.tap(restore);
+    await tester.tap(toggle);
     await tester.pumpAndSettle();
 
     await tester.tap(
@@ -317,6 +386,29 @@ void main() {
                 .gridDelegate
             as SliverGridDelegateWithFixedCrossAxisCount;
     expect(delegate.crossAxisCount, greaterThan(2));
+  });
+
+  testWidgets('desktop top frame has no agent sidebar controls', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final registry = DesyRegistry(
+      name: 'Registry frame',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+    );
+
+    await tester.pumpWidget(DesyBenchApp(registry: registry));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('registry-spine-toggle-agent-sidebar')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('registry-spine-agent-rail')),
+      findsNothing,
+    );
   });
 }
 

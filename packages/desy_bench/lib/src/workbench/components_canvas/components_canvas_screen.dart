@@ -682,8 +682,11 @@ class _SketchWorkspaceState extends State<_SketchWorkspace> {
                       outline: widget.outline,
                     ),
                   ),
-                  _SketchSidebarResizeHandle(
-                    width: sidebarWidth,
+                  DesyResizeDivider(
+                    key: const ValueKey('sketch-sidebar-resize-handle'),
+                    axis: Axis.vertical,
+                    value: sidebarWidth,
+                    semanticsLabel: 'Resize component palette',
                     onResizeStart: () =>
                         setState(() => _resizingSidebar = true),
                     onResize: (delta) => setState(
@@ -719,8 +722,11 @@ class _SketchWorkspaceState extends State<_SketchWorkspace> {
               outline: widget.outline,
             ),
           ),
-          _SketchSidebarResizeHandle(
-            width: sidebarWidth,
+          DesyResizeDivider(
+            key: const ValueKey('sketch-sidebar-resize-handle'),
+            axis: Axis.vertical,
+            value: sidebarWidth,
+            semanticsLabel: 'Resize component palette',
             onResizeStart: () => setState(() => _resizingSidebar = true),
             onResize: (delta) => setState(
               () => _sidebarWidth = (sidebarWidth + delta).clamp(
@@ -739,99 +745,6 @@ class _SketchWorkspaceState extends State<_SketchWorkspace> {
         ],
       );
     },
-  );
-}
-
-class _SketchSidebarResizeHandle extends StatefulWidget {
-  const _SketchSidebarResizeHandle({
-    required this.width,
-    required this.onResizeStart,
-    required this.onResize,
-    required this.onResizeEnd,
-  });
-
-  final double width;
-  final VoidCallback onResizeStart;
-  final ValueChanged<double> onResize;
-  final VoidCallback onResizeEnd;
-
-  @override
-  State<_SketchSidebarResizeHandle> createState() =>
-      _SketchSidebarResizeHandleState();
-}
-
-class _SketchSidebarResizeHandleState
-    extends State<_SketchSidebarResizeHandle> {
-  static const _keyboardStep = 24.0;
-
-  final _focusNode = FocusNode(debugLabel: 'Sketch palette resize handle');
-  var _active = false;
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  void _resize(double delta) => widget.onResize(delta);
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    container: true,
-    label: 'Resize component palette',
-    value: '${widget.width.round()} pixels',
-    increasedValue: '${(widget.width + _keyboardStep).round()} pixels',
-    decreasedValue: '${(widget.width - _keyboardStep).round()} pixels',
-    onIncrease: () => _resize(_keyboardStep),
-    onDecrease: () => _resize(-_keyboardStep),
-    child: Focus(
-      focusNode: _focusNode,
-      onKeyEvent: (_, event) {
-        if (event is! KeyDownEvent) return KeyEventResult.ignored;
-        if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-          _resize(-_keyboardStep);
-          return KeyEventResult.handled;
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-          _resize(_keyboardStep);
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      },
-      child: MouseRegion(
-        cursor: SystemMouseCursors.resizeColumn,
-        onEnter: (_) => setState(() => _active = true),
-        onExit: (_) => setState(() => _active = _focusNode.hasFocus),
-        child: GestureDetector(
-          key: const ValueKey('sketch-sidebar-resize-handle'),
-          behavior: HitTestBehavior.opaque,
-          onHorizontalDragStart: (_) {
-            _focusNode.requestFocus();
-            widget.onResizeStart();
-            setState(() => _active = true);
-          },
-          onHorizontalDragUpdate: (details) => _resize(details.delta.dx),
-          onHorizontalDragEnd: (_) {
-            widget.onResizeEnd();
-            setState(() => _active = _focusNode.hasFocus);
-          },
-          onHorizontalDragCancel: () {
-            widget.onResizeEnd();
-            setState(() => _active = _focusNode.hasFocus);
-          },
-          child: SizedBox(
-            width: 8,
-            child: Center(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 100),
-                width: _active ? 2 : 1,
-                color: context.theme.colors.border,
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
   );
 }
 

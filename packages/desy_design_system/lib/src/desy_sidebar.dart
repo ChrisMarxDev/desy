@@ -4,6 +4,80 @@ import 'package:forui/forui.dart';
 import 'desy_icons.dart';
 import 'desy_visual_tokens.dart';
 
+/// Desy's persistent registry navigation surface.
+///
+/// Callers configure layout with Flutter primitives only. Forui remains the
+/// internal focus and scrolling implementation, so Desy's public workbench
+/// surface does not expose an `F*` style contract.
+class DesySidebar extends StatelessWidget {
+  /// Creates a registry navigation surface with optional sticky regions.
+  const DesySidebar({
+    super.key,
+    required this.children,
+    this.header,
+    this.footer,
+    this.constraints,
+    this.headerPadding,
+    this.contentPadding,
+    this.footerPadding,
+    this.autofocus = false,
+    this.focusNode,
+    this.traversalEdgeBehavior,
+  });
+
+  /// The optional sticky header above the registry tree.
+  final Widget? header;
+
+  /// The scrollable registry content.
+  final List<Widget> children;
+
+  /// The optional sticky footer, typically live sessions.
+  final Widget? footer;
+
+  /// Optional surface dimensions supplied by the surrounding shell.
+  final BoxConstraints? constraints;
+
+  /// Padding around [header].
+  final EdgeInsetsGeometry? headerPadding;
+
+  /// Padding around [children].
+  final EdgeInsetsGeometry? contentPadding;
+
+  /// Padding around [footer].
+  final EdgeInsetsGeometry? footerPadding;
+
+  /// Whether this sidebar receives focus when mounted.
+  final bool autofocus;
+
+  /// Optional focus ownership for keyboard traversal.
+  final FocusScopeNode? focusNode;
+
+  /// Controls keyboard traversal at the first and final registry items.
+  final TraversalEdgeBehavior? traversalEdgeBehavior;
+
+  @override
+  Widget build(BuildContext context) => FSidebar(
+    header: header,
+    footer: footer,
+    autofocus: autofocus,
+    focusNode: focusNode,
+    traversalEdgeBehavior: traversalEdgeBehavior,
+    style: FSidebarStyleDelta.delta(
+      constraints: constraints,
+      headerPadding: headerPadding == null
+          ? null
+          : EdgeInsetsGeometryDelta.value(headerPadding!),
+      contentPadding: contentPadding == null
+          ? null
+          : EdgeInsetsGeometryDelta.value(contentPadding!),
+      footerPadding: footerPadding == null
+          ? null
+          : EdgeInsetsGeometryDelta.value(footerPadding!),
+    ),
+    children: children,
+  );
+}
+
 /// A named group of related sidebar items.
 ///
 /// A section may expose one small section-level action, such as switching a

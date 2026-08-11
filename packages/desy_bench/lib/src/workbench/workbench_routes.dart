@@ -10,9 +10,9 @@ abstract final class DesyWorkbenchRoutes {
   static const sketchSegment = 'sketch';
   static const sketchPath = '$atlasPath/$sketchSegment';
   static const themesPath = '/themes';
-  static const showcasesPath = '/showcases';
   static const componentsPath = sketchPath;
   static const entriesPath = '/entries';
+  static const prototypesPath = '/prototypes';
   static const workspacePath = '/workspace';
 
   static String atlas({String? folderId}) {
@@ -25,6 +25,9 @@ abstract final class DesyWorkbenchRoutes {
 
   static String entry(String entryId) =>
       '$entriesPath/${Uri.encodeComponent(entryId)}';
+
+  static String prototype(String sessionId) =>
+      '$prototypesPath/${Uri.encodeComponent(sessionId)}';
 
   static String workspaceExtension(String extensionId) =>
       '$workspacePath/${Uri.encodeComponent(extensionId)}';

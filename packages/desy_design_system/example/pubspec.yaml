@@ -10,14 +10,10 @@ environment:
 resolution: workspace
 
 dependencies:
-  desy_agent_annotations:
-    path: ../../extensions/desy_agent_annotations
   desy_bench:
     path: ../../desy_bench
   desy_design_system:
     path: ..
-  desy_widget_workshop:
-    path: ../../extensions/desy_widget_workshop
   file_selector: ^1.1.0
   flutter:
     sdk: flutter

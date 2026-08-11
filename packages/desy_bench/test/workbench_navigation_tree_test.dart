@@ -21,10 +21,10 @@ void main() {
       extensions: const [],
     );
     final locations = _destinations(tree.roots);
-    final workspace = tree.roots.firstWhere((node) => node.id == 'workspace');
+    final registryRoot = tree.roots.firstWhere((node) => node.id == 'registry');
     expect(
-      workspace.children.firstWhere((node) => node.id == 'components').label,
-      'Sketch',
+      registryRoot.children.firstWhere((node) => node.id == 'atlas').label,
+      'All components',
     );
 
     expect(
@@ -65,7 +65,7 @@ void main() {
         DesyColorEntry(
           id: 'color.primary',
           name: 'Primary',
-          builder: (_) => const SizedBox(),
+          color: const Color(0xff0055aa),
         ),
       ],
       components: [_component('button.primary', path: '/buttons')],
@@ -87,6 +87,60 @@ void main() {
     );
     expect(tree.roots.any((node) => node.id == DesyAtomKind.rootId), isTrue);
     expect(locations, contains(DesyWorkbenchRoutes.entry('button.primary')));
+  });
+
+  test('custom atoms use the single built-in Custom lane', () {
+    final registry = DesyRegistry(
+      name: 'Custom atoms',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      customAtoms: [
+        DesyCustomAtom(
+          id: 'brand.ribbon',
+          name: 'Brand ribbon',
+          instances: {'default': (_) => const SizedBox()},
+        ),
+      ],
+    );
+
+    final tree = DesyWorkbenchNavigationTree.fromRegistry(
+      registry,
+      extensions: const [],
+    );
+
+    expect(
+      _destinations(tree.roots),
+      contains(DesyWorkbenchRoutes.atlas(folderId: DesyAtomKind.custom.id)),
+    );
+  });
+
+  test('prototype sessions have their own registry-derived destinations', () {
+    final registry = DesyRegistry(
+      name: 'Prototype navigation',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      prototypes: [
+        DesyPrototypeSession(
+          id: 'prototype.homepage',
+          name: 'Homepage exploration',
+          prototypes: const [
+            DesyPrototype(
+              id: 'prototype.homepage.dense',
+              name: 'Dense',
+              builder: _prototype,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final tree = DesyWorkbenchNavigationTree.fromRegistry(
+      registry,
+      extensions: const [],
+    );
+
+    expect(
+      _destinations(tree.roots),
+      contains(DesyWorkbenchRoutes.prototype('prototype.homepage')),
+    );
   });
 }
 
@@ -113,3 +167,5 @@ List<String> _destinations(Iterable<DesyWorkbenchNavigationNode> nodes) {
 }
 
 Widget _wrap(BuildContext context, Widget child) => child;
+
+Widget _prototype(BuildContext context) => const SizedBox();

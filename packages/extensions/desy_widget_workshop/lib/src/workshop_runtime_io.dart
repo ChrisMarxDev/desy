@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:desy_bench/desy_bench.dart';
+
 import 'workshop_candidate.dart';
 import 'workshop_runtime.dart';
 
@@ -13,7 +15,7 @@ DesyWorkshopRuntime createDesyWorkshopRuntime(
 class _IoWorkshopRuntime extends DesyWorkshopRuntime {
   _IoWorkshopRuntime(super.configuration)
     : _prompt = configuration.initialPrompt {
-    _append('Ready. Select implementations and describe the next iteration.');
+    _append('Ready. Describe the next iteration in plain language.');
   }
 
   final _logs = <String>[];
@@ -46,36 +48,32 @@ class _IoWorkshopRuntime extends DesyWorkshopRuntime {
   }
 
   @override
+  void startNewSession() {
+    if (_running || _disposed) return;
+    _sessionId = null;
+    _logs
+      ..clear()
+      ..add('Started a new Workshop conversation from registry feedback.');
+    _notify();
+  }
+
+  @override
   Future<void> run({
     required List<DesyWorkshopCandidate> candidates,
-    required Set<String> selectedCandidateIds,
-    required List<DesyWorkshopAnnotation> annotations,
+    required DesyWorkspaceAgentBrief agentBrief,
   }) async {
     if (!canRun) return;
-
     final request = _prompt.trim();
-    final selected = candidates
-        .where((candidate) => selectedCandidateIds.contains(candidate.id))
-        .toList(growable: false);
-    final rejected = selected.isEmpty
-        ? const <DesyWorkshopCandidate>[]
-        : candidates
-              .where(
-                (candidate) => !selectedCandidateIds.contains(candidate.id),
-              )
-              .toList(growable: false);
     final continuingSession = _sessionId != null;
     _running = true;
     _stderrTail.clear();
     _append(continuingSession ? r'$ codex exec resume …' : r'$ codex exec …');
-    _append(
-      selected.isEmpty
-          ? 'Selected context: none'
-          : 'Selected context: ${selected.map((item) => item.title).join(', ')}',
-    );
+    _append('Current proposal context: ${candidates.length} proposals.');
     _append('Request: $request');
-    if (annotations.isNotEmpty) {
-      _append('${annotations.length} committed widget annotations attached.');
+    if (agentBrief.annotations.isNotEmpty) {
+      _append(
+        '${agentBrief.annotations.length} global workbench annotations attached.',
+      );
     }
 
     try {
@@ -95,9 +93,8 @@ class _IoWorkshopRuntime extends DesyWorkshopRuntime {
       process.stdin.write(
         _agentPrompt(
           request: request,
-          selected: selected,
-          rejected: rejected,
-          annotations: annotations,
+          candidates: candidates,
+          agentBrief: agentBrief,
         ),
       );
       await process.stdin.close();
@@ -199,44 +196,44 @@ class _IoWorkshopRuntime extends DesyWorkshopRuntime {
 
   String _agentPrompt({
     required String request,
-    required List<DesyWorkshopCandidate> selected,
-    required List<DesyWorkshopCandidate> rejected,
-    required List<DesyWorkshopAnnotation> annotations,
+    required List<DesyWorkshopCandidate> candidates,
+    required DesyWorkspaceAgentBrief agentBrief,
   }) {
-    final selectedContext = selected.isEmpty
-        ? '''No implementation was selected. This is the wide exploration phase. Keep or create distinct top-level candidates and do not add constituent `components` yet.'''
-        : [
-            'The user selected these implementations as context:',
-            for (final candidate in selected) ...[
-              '- ${candidate.id} — ${candidate.title}: ${candidate.description}',
-              for (final component in candidate.components)
-                _componentContextLine(component),
-            ],
-            'Preserve a stable ID when a direction remains conceptually the same.',
-            if (rejected.isNotEmpty)
-              'Rejected candidate IDs to remove: ${rejected.map((candidate) => candidate.id).join(', ')}.',
-            'Delete every `DesyWorkshopCandidate` that is not selected, together with proposal-only widgets, helpers, and imports that are no longer reachable. Do not merely hide rejected implementations. Never delete registry components or unrelated production code.',
-            if (selected.length == 1)
-              '''This is now the deep component phase. Work only on the selected candidate and its constituent `components`. New parts use `DesyWorkshopCandidateComponent.prototype(..., prototypeBuilder: builder)`; parts that already exist in the live registry must use `DesyWorkshopCandidateComponent.registry(instanceId: '<component-id>.<instance-id>')` so Desy resolves the real widget through `registry.widgetBuilder`. Never copy or rebuild an existing registry component inside the candidate file.'''
-            else
-              '''More than one implementation remains selected, so the direction is not final. Prune unselected candidates but do not add or expand constituent `components` until exactly one candidate is selected.''',
-          ].join('\n');
+    final candidateContext = [
+      'Current proposals (refer to their number, id, or title in plain text):',
+      for (final (index, candidate) in candidates.indexed) ...[
+        '${index + 1}. ${candidate.id} — ${candidate.title}: ${candidate.description}',
+        for (final component in candidate.components)
+          _componentContextLine(component),
+      ],
+      'Interpret the user request as the sole decision about which proposals to '
+          'keep, compare, alter, or remove. Do not infer a chosen direction '
+          'from the workbench UI. Retain multiple requested directions so the '
+          'user can compare them. When the user clearly chooses one direction, '
+          'remove obsolete proposal-only code and then deepen that remaining '
+          'candidate through its `components`. Never delete registry components '
+          'or unrelated production code.',
+    ].join('\n');
     final source = configuration.candidateSourcePath;
-    final annotationContext = annotations.isEmpty
-        ? 'The user did not commit any widget-specific annotations.'
+    final workbenchAnnotationContext = agentBrief.annotations.isEmpty
+        ? 'The user did not commit any global workbench annotations.'
         : [
-            'The user committed these widget-specific annotations:',
-            for (final annotation in annotations)
-              ..._annotationContextLines(annotation),
-            'Apply every annotation to its exact widget target. Preserve unrelated production widgets and selected candidates.',
+            'The user committed these global workbench annotations:',
+            for (final annotation in agentBrief.annotations)
+              ..._workbenchAnnotationContextLines(annotation),
+            'Apply every relevant annotation. Treat source evidence as a strong target and do not silently reinterpret an ambiguous target.',
           ].join('\n');
     return '''You are working in a Flutter repository that consumes Desy. Use the Workshop to iterate on proposals and, when requested, move the selected direction into the consumer's actual design system.
 
-The hot-reloadable proposal entry point is $source, but it is not an edit boundary. Inspect and edit any project files needed to implement the request. Follow the repository's guidance and existing architecture. Reuse the consumer's real tokens, components, theme, and registry; do not create a parallel design-system catalogue. When promoting a selected proposal, integrate it into the existing design-system source, update its real registry declaration and focused tests when appropriate, and keep the Workshop proposals useful for the next iteration. Preserve unrelated work. Do not edit generated or vendored files, add dependencies without a clear need, or run long-lived commands. Treat the selections and complete annotation list in this turn as the authoritative current Workshop state.
+The hot-reloadable proposal entry point is $source, but it is not an edit boundary. Inspect and edit any project files needed to implement the request. Follow the repository's guidance and existing architecture. Reuse the consumer's real tokens, components, theme, and registry; do not create a parallel design-system catalogue. If the user asks to evolve a real component, update its ordinary source, registry declaration, and focused tests when appropriate. Preserve unrelated work. Do not edit generated or vendored files, add dependencies without a clear need, or run long-lived commands. Treat the current proposals, complete annotation list, and the user's text as the authoritative Workshop state.
 
-$selectedContext
+Hot-reload discipline: prefer changing build methods and literals. During a normal Workshop turn, preserve every existing widget class's fields and constructor shape. When a structural change is needed, introduce a new helper or versioned widget, point the active builder at it, and leave the old type in the source until a planned restart cleanup. Do not remove fields from an existing const widget class or change an existing widget's constructor shape during a normal Workshop turn; those edits require a hot restart. If a true restructure is necessary, say so clearly in your summary rather than pretending reload succeeded.
 
-$annotationContext
+${agentBrief.toMarkdown()}
+
+$candidateContext
+
+$workbenchAnnotationContext
 
 Implement this main Workshop request together with the annotations above:
 $request
@@ -252,51 +249,24 @@ Then briefly summarize the proposals and actual design-system files that changed
         : '  - Registry component instance: $registryId';
   }
 
-  List<String> _annotationContextLines(DesyWorkshopAnnotation annotation) {
+  List<String> _workbenchAnnotationContextLines(
+    DesyWorkbenchAnnotation annotation,
+  ) {
     final target = annotation.target;
-    final location = target.sourceLocation;
-    final sourceReference = location == null
-        ? null
-        : _sourceReference(location);
-    final sourceLine = location == null ? null : _sourceLine(location);
     return [
       '${annotation.id}. ${annotation.comment}',
-      '   Candidate ID: ${target.candidateId}',
+      '   Screen: ${target.screenId}',
+      if (target.inspectionContext case final context?)
+        '   Target context: ${context.kind} ${context.artifactId}${context.label == null ? '' : ' — ${context.label}'}',
       '   Widget: ${target.displayLabel}',
-      if (sourceReference != null) '   Source: $sourceReference',
+      if (target.sourceLocation case final location?)
+        '   Source: ${location.reference}',
       if (target.widgetKey case final key?) '   Flutter key: $key',
-      if (sourceLine != null) '   Source line: $sourceLine',
+      '   Attachment: ${annotation.attachment.name}',
       '   Widget type: ${target.widgetType}',
       '   Fallback ancestry: ${target.widgetPath}',
       '   Fallback local bounds: left ${target.bounds.left.toStringAsFixed(1)}, top ${target.bounds.top.toStringAsFixed(1)}, width ${target.bounds.width.toStringAsFixed(1)}, height ${target.bounds.height.toStringAsFixed(1)}',
     ];
-  }
-
-  String _sourceReference(DesyWorkshopSourceLocation location) {
-    final relative = _projectRelativeSourcePath(location);
-    return '${relative ?? location.sourcePath}:${location.line}:${location.column}';
-  }
-
-  String? _sourceLine(DesyWorkshopSourceLocation location) {
-    if (_projectRelativeSourcePath(location) == null) return null;
-    try {
-      final lines = File(location.sourcePath).readAsLinesSync();
-      if (location.line > lines.length) return null;
-      final line = lines[location.line - 1].trimRight();
-      if (line.isEmpty) return null;
-      return line.length <= 180 ? line : '${line.substring(0, 177)}…';
-    } on FileSystemException {
-      return null;
-    }
-  }
-
-  String? _projectRelativeSourcePath(DesyWorkshopSourceLocation location) {
-    if (location.uri.scheme != 'file') return null;
-    final projectRoot = Directory(configuration.projectDirectory).absolute.path;
-    final sourcePath = File(location.sourcePath).absolute.path;
-    final prefix = '$projectRoot${Platform.pathSeparator}';
-    if (!sourcePath.startsWith(prefix)) return null;
-    return sourcePath.substring(prefix.length);
   }
 
   void _handleCodexEvent(String line) {
