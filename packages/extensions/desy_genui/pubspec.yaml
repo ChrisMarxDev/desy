@@ -1,0 +1,25 @@
+name: desy_genui
+description: GenUI catalog compiler for consumer-owned Desy registries.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.10.0
+  flutter: '>=3.35.7'
+
+resolution: workspace
+
+dependencies:
+  crypto: ^3.0.7
+  desy_bench:
+    path: ../../desy_bench
+  flutter:
+    sdk: flutter
+  genui: ^0.10.1
+  json_schema_builder: ^0.1.3
+
+dev_dependencies:
+  a2ui_core: ^0.1.0
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

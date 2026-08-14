@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  analyze:
+    desc: Analyze the Desy GenUI adapter.
+    cmds:
+      - flutter analyze
+
+  test:
+    desc: Run Desy GenUI adapter tests.
+    cmds:
+      - flutter test
+
+  format:
+    desc: Format the adapter source and tests.
+    cmds:
+      - dart format lib test

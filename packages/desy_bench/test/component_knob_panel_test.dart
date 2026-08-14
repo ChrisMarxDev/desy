@@ -29,6 +29,7 @@ void main() {
       KnobDefinition(
         id: 'label',
         name: 'Label',
+        description: 'Visible copy.',
         kind: DesyKnobKind.string,
         initial: 'Atlas',
       ),
@@ -53,6 +54,18 @@ void main() {
         name: 'Status',
         kind: DesyKnobKind.widgetInstance,
         initial: const DesyInstanceId('status.clear'),
+      ),
+      KnobDefinition(
+        id: 'children',
+        name: 'Children',
+        kind: DesyKnobKind.widgetInstances,
+        initial: DesyInstanceIds(const [DesyInstanceId('status.clear')]),
+      ),
+      KnobDefinition(
+        id: 'submit',
+        name: 'Submit',
+        kind: DesyKnobKind.event,
+        initial: const DesyEventBinding(),
       ),
     ];
 
@@ -80,9 +93,11 @@ void main() {
     expect(find.byType(DesyTextKnobRow), findsOneWidget);
     expect(find.byType(DesyNumericKnobRow), findsOneWidget);
     expect(find.byType(DesyColorKnobRow), findsOneWidget);
-    expect(find.byType(DesyInstanceKnobRow), findsOneWidget);
+    expect(find.byType(DesyInstanceKnobRow), findsNWidgets(2));
     expect(find.byType(DesyKnobSheet), findsOneWidget);
     expect(find.byType(DesySwitch), findsOneWidget);
+    expect(find.text('Visible copy.'), findsOneWidget);
+    expect(find.text('Event'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -237,6 +252,64 @@ void main() {
       find.byKey(const ValueKey('instance-swap-option-status.delayed')),
       findsNothing,
     );
+  });
+
+  testWidgets('multi-instance knobs select an ordered list of children', (
+    tester,
+  ) async {
+    final registry = DesyRegistry(
+      name: 'Multi instance swaps',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [
+        DesyStaticComponent(
+          id: 'status',
+          name: 'Status',
+          instances: {
+            'clear': (_) => const SizedBox(),
+            'delayed': (_) => const SizedBox(),
+          },
+        ),
+      ],
+    );
+    final knob = KnobDefinition(
+      id: 'children',
+      name: 'Children',
+      kind: DesyKnobKind.widgetInstances,
+      initial: DesyInstanceIds(const [DesyInstanceId('status.clear')]),
+      options: const ['status.clear', 'status.delayed'],
+    );
+    List<String>? changed;
+
+    await tester.pumpWidget(
+      FTheme(
+        data: FTheme.neutral.light.desktop,
+        child: MaterialApp(
+          home: Scaffold(
+            body: DesyComponentKnobPanel(
+              registry: registry,
+              knobs: [knob],
+              values: const {
+                'children': ['status.clear'],
+              },
+              onChanged: (_, value) => changed = value as List<String>,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('instance-multi-current-children')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('instance-multi-option-status.delayed')),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Use 2 instances'));
+    await tester.pumpAndSettle();
+
+    expect(changed, ['status.clear', 'status.delayed']);
   });
 }
 

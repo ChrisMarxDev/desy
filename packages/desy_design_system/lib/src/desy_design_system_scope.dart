@@ -66,7 +66,10 @@ abstract final class DesyDesignSystemTokens {
   static const double agentRailWidth = 320;
 
   /// The stable global workbench toolbar height.
-  static const double toolbarHeight = 32;
+  ///
+  /// This deliberately leaves enough room for desktop window actions and
+  /// labelled global controls to read as a persistent workbench frame.
+  static const double toolbarHeight = 48;
 
   /// Desy's standard navigation reveal duration.
   static const Duration navigationMotion = Duration(milliseconds: 180);

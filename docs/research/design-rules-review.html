@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flutter UI design rules review</title>
+  <style>
+    :root {
+      --paper: #f5f5f3;
+      --surface: #ffffff;
+      --ink: #202022;
+      --muted: #6f7077;
+      --rule: #dddde1;
+      --pink: #e83173;
+      --pink-wash: #fff0f6;
+      --green: #0a7850;
+      --green-wash: #ebf8f1;
+      --red: #b72f42;
+      --red-wash: #fff0f1;
+      --amber: #9a6200;
+      --amber-wash: #fff7e6;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 16px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, a { font: inherit; }
+
+    a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+
+    :focus-visible {
+      outline: 3px solid var(--pink);
+      outline-offset: 3px;
+    }
+
+    .page { max-width: 1480px; margin: 0 auto; padding: 24px; }
+
+    .masthead {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: end;
+      padding: 16px 0 28px;
+      border-bottom: 1px solid var(--ink);
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--pink);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 850px;
+      margin-bottom: 10px;
+      font-size: clamp(38px, 6vw, 72px);
+      line-height: .96;
+      letter-spacing: -.065em;
+    }
+
+    .lede { max-width: 680px; margin-bottom: 0; color: var(--muted); font-size: 19px; }
+
+    .counter {
+      min-width: 168px;
+      padding: 14px 16px;
+      background: var(--ink);
+      color: #fff;
+      border-radius: var(--radius);
+      font-size: 13px;
+    }
+
+    .counter strong { display: block; font-size: 32px; line-height: 1; letter-spacing: -.05em; }
+
+    .guide {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 24px;
+      align-items: center;
+      margin: 24px 0 40px;
+      padding: 20px;
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+    }
+
+    .guide h2 { margin-bottom: 4px; font-size: 17px; }
+    .guide p { margin-bottom: 0; color: var(--muted); }
+
+    .filters, .decisions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .filter, .choice, .clear, .export {
+      min-height: 36px;
+      padding: 7px 10px;
+      border: 1px solid var(--rule);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .filter[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: #fff; }
+    .choice[data-value="keep"][aria-pressed="true"] { border-color: var(--green); background: var(--green-wash); color: var(--green); }
+    .choice[data-value="reject"][aria-pressed="true"] { border-color: var(--red); background: var(--red-wash); color: var(--red); }
+    .choice[data-value="revisit"][aria-pressed="true"] { border-color: var(--amber); background: var(--amber-wash); color: var(--amber); }
+    .clear { color: var(--muted); }
+    .export { border-color: var(--ink); background: var(--ink); color: #fff; }
+
+    .layout { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 32px; }
+
+    .rail { align-self: start; position: sticky; top: 18px; }
+    .rail h2 { margin-bottom: 12px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+    .rail a { display: block; padding: 8px 0; color: var(--muted); font-size: 14px; text-decoration: none; }
+    .rail a:hover { color: var(--pink); }
+    .legend { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 13px; }
+    .legend span { display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; }
+
+    section { scroll-margin-top: 24px; }
+    .section-heading { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; margin: 0 0 14px; align-items: baseline; }
+    .section-heading .index { color: var(--pink); font-weight: 800; }
+    .section-heading h2 { margin: 0; font-size: 24px; letter-spacing: -.035em; }
+    .section-heading p { grid-column: 2; margin: -6px 0 0; color: var(--muted); font-size: 14px; }
+
+    .rule-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 42px; }
+
+    .rule-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 278px;
+      padding: 18px;
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+    }
+
+    .rule-card:hover { border-color: #bbbcc2; box-shadow: 0 10px 28px rgb(32 32 34 / 7%); transform: translateY(-1px); }
+    .rule-card[data-state="keep"] { border-color: var(--green); }
+    .rule-card[data-state="reject"] { border-color: var(--red); opacity: .7; }
+    .rule-card[data-state="revisit"] { border-color: var(--amber); }
+    .rule-card[hidden] { display: none; }
+
+    .rule-meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .rule-number { color: var(--pink); letter-spacing: .05em; }
+    .source { white-space: nowrap; }
+    .source a { text-decoration: none; }
+    .source a:hover { text-decoration: underline; }
+    .rule-card h3 { margin: 12px 0 7px; font-size: 20px; letter-spacing: -.03em; line-height: 1.08; }
+    .rule-card > p { margin-bottom: 12px; color: #505158; }
+    .translation { margin: auto 0 14px; padding: 10px; background: #f3f3f4; border-radius: 6px; }
+    .translation strong { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+    code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 12px; line-height: 1.45; white-space: pre-wrap; }
+    .decisions { margin-top: auto; }
+
+    .sources {
+      margin-top: 12px;
+      padding: 24px;
+      background: var(--ink);
+      border-radius: var(--radius);
+      color: #fff;
+    }
+    .sources h2 { margin-bottom: 10px; font-size: 21px; }
+    .sources p { max-width: 780px; color: #d7d7db; }
+    .sources ul { margin: 0; padding-left: 18px; columns: 2; }
+    .sources li { margin: 7px 0; }
+    .sources a { color: #fff; }
+    footer { padding: 24px 0 8px; color: var(--muted); font-size: 12px; }
+
+    @media (max-width: 820px) {
+      .masthead, .guide, .layout { grid-template-columns: 1fr; }
+      .counter { width: fit-content; }
+      .rail { position: static; display: flex; flex-wrap: wrap; gap: 0 14px; }
+      .rail h2, .legend { width: 100%; }
+      .rail a { padding: 5px 0; }
+    }
+
+    @media (max-width: 620px) {
+      .page { padding: 16px; }
+      .rule-grid { grid-template-columns: 1fr; }
+      .sources ul { columns: 1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .rule-card { transition: none; }
+      .rule-card:hover { transform: none; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .page { max-width: none; padding: 0; }
+      .rail, .guide, .decisions, .counter { display: none; }
+      .layout { display: block; }
+      .rule-card { min-height: 0; break-inside: avoid; }
+      .rule-grid { gap: 8px; }
+      .sources { color: var(--ink); background: #fff; border: 1px solid var(--ink); }
+      .sources p, .sources a { color: var(--ink); }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">Flutter foundation / working document</p>
+        <h1>Rules worth keeping are rules worth testing.</h1>
+        <p class="lede">A deliberately small set of evergreen Flutter UI rules, gathered from platform guidance and design references. Mark the ones that fit the kind of interfaces you want to make; the rest stay ideas, not policy.</p>
+      </div>
+      <div class="counter" aria-live="polite"><strong id="reviewed-count">0 / 28</strong>rules reviewed</div>
+    </header>
+
+    <section class="guide" aria-labelledby="how-to-title">
+      <div>
+        <h2 id="how-to-title">One decision per rule</h2>
+        <p><strong>Keep</strong> means candidate for a future reusable Flutter design skill. <strong>Reject</strong> means it conflicts with the product. <strong>Revisit</strong> means useful, but not yet a shared rule. Choices stay in this browser until you download and attach them.</p>
+      </div>
+      <div class="filters" aria-label="Filter rules">
+        <button class="filter" type="button" data-filter="all" aria-pressed="true">All rules</button>
+        <button class="filter" type="button" data-filter="keep" aria-pressed="false">Keep</button>
+        <button class="filter" type="button" data-filter="revisit" aria-pressed="false">Revisit</button>
+        <button class="filter" type="button" data-filter="reject" aria-pressed="false">Reject</button>
+        <button class="clear" type="button" id="clear-decisions">Clear choices</button>
+        <button class="export" type="button" id="export-decisions">Download choices</button>
+        <span id="export-status" class="sr-only" aria-live="polite"></span>
+      </div>
+    </section>
+
+    <div class="layout">
+      <nav class="rail" aria-label="Rule categories">
+        <h2>Categories</h2>
+        <a href="#spacing">01 / Spacing &amp; grouping</a>
+        <a href="#hierarchy">02 / Hierarchy &amp; layout</a>
+        <a href="#type">03 / Type &amp; language</a>
+        <a href="#colour">04 / Colour &amp; states</a>
+        <a href="#controls">05 / Controls &amp; access</a>
+        <a href="#responsive">06 / Responsive Flutter</a>
+        <a href="#flutter-practice">07 / Shared Flutter practice</a>
+        <div class="legend">
+          <p><span style="background:var(--green)"></span>Keep</p>
+          <p><span style="background:var(--amber)"></span>Revisit</p>
+          <p><span style="background:var(--red)"></span>Reject</p>
+        </div>
+      </nav>
+
+      <div>
+        <section id="spacing">
+          <div class="section-heading"><span class="index">01</span><h2>Spacing &amp; grouping</h2><p>Space is structure. Repetition makes a system feel intentional; a larger jump tells people a relationship has changed.</p></div>
+          <div class="rule-grid">
+            <article class="rule-card" data-rule="spacing-scale"><div class="rule-meta"><span class="rule-number">S01</span><span class="source">Evergreen</span></div><h3>Use a small spacing scale</h3><p>Choose a handful of distances and reuse them. The consistency is more valuable than finding a perfect number each time.</p><div class="translation"><strong>CSS → Flutter</strong><code>gap: 8px  →  const SizedBox(height: 8)
+padding: 16px →  EdgeInsets.all(16)</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="spacing-separation"><div class="rule-meta"><span class="rule-number">S02</span><span class="source">Evergreen</span></div><h3>Make separation visibly larger</h3><p>Use the next step or two inside a related group; use a bigger jump between sections, tasks, or decisions. A divider supports that distinction—it does not replace it.</p><div class="translation"><strong>Flutter</strong><code>Column(children: [
+  relatedRows, const SizedBox(height: 24),
+  nextSection,
+])</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="spacing-air"><div class="rule-meta"><span class="rule-number">S03</span><span class="source">Apple layout</span></div><h3>Give important things air</h3><p>Do not pack a control against its explanation, a title against the next section, or the shell against the content. Empty space is a grouping and reading tool.</p><div class="translation"><strong>Flutter</strong><code>Padding(
+  padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+  child: content,
+)</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="spacing-proximity"><div class="rule-meta"><span class="rule-number">S04</span><span class="source">Evergreen</span></div><h3>Put related things closer</h3><p>A label belongs near the value it describes. A title belongs closer to its subtitle than to the next card. Proximity should explain the structure without relying on boxes.</p><div class="translation"><strong>Flutter</strong><code>Column(crossAxisAlignment: CrossAxisAlignment.start,
+  children: [title, const SizedBox(height: 4), description])</code></div><div class="decisions"></div></article>
+          </div>
+        </section>
+
+        <section id="hierarchy">
+          <div class="section-heading"><span class="index">02</span><h2>Hierarchy &amp; layout</h2><p>Make the screen’s main job obvious before anyone reads the details.</p></div>
+          <div class="rule-grid">
+            <article class="rule-card" data-rule="hierarchy-primary"><div class="rule-meta"><span class="rule-number">H01</span><span class="source">Frontend design</span></div><h3>Give each screen one primary job</h3><p>Lead with the thing people need to understand or do. Supporting information should reinforce it, not compete for equal attention.</p><div class="translation"><strong>Flutter</strong><code>Scaffold(
+  appBar: appBar,
+  body: primaryTask,
+)</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="hierarchy-title"><div class="rule-meta"><span class="rule-number">H02</span><span class="source">Evergreen</span></div><h3>Separate title from configuration</h3><p>The title says what this is; the controls say what can change. Make the title a stable header, then group the editable properties below it.</p><div class="translation"><strong>Flutter</strong><code>Column(children: [
+  SheetHeader(title: title, subtitle: summary),
+  const Divider(), propertyControls,
+])</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="hierarchy-align"><div class="rule-meta"><span class="rule-number">H03</span><span class="source">Apple layout</span></div><h3>Align to a shared edge</h3><p>Repeated left edges and baselines reduce visual noise. Break alignment only when it communicates a genuinely different level or behavior.</p><div class="translation"><strong>Flutter</strong><code>Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: children,
+)</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="hierarchy-nesting"><div class="rule-meta"><span class="rule-number">H04</span><span class="source">Evergreen</span></div><h3>Do not box every group</h3><p>Use cards when they establish a meaningful container, selection, or independent action. Prefer spacing, headings, and a quiet divider for ordinary grouping.</p><div class="translation"><strong>Flutter</strong><code>// Prefer this for a simple group:
+Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: rows)</code></div><div class="decisions"></div></article>
+          </div>
+        </section>
+
+        <section id="type">
+          <div class="section-heading"><span class="index">03</span><h2>Type &amp; language</h2><p>Text has jobs: orient, explain, label, and guide an action. Do not make a reader decode your structure.</p></div>
+          <div class="rule-grid">
+            <article class="rule-card" data-rule="type-roles"><div class="rule-meta"><span class="rule-number">T01</span><span class="source">Frontend design</span></div><h3>Use type roles, not arbitrary sizes</h3><p>Establish a compact title, body, label, and data style. Change size, weight, or colour only when it expresses a real change in role.</p><div class="translation"><strong>Flutter</strong><code>final type = Theme.of(context).textTheme;
+Text(title, style: type.titleMedium)
+Text(detail, style: type.bodyMedium)</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="type-readable"><div class="rule-meta"><span class="rule-number">T02</span><span class="source">Apple accessibility</span></div><h3>Descriptions must be readable</h3><p>Supporting copy should clarify a decision, not become tiny grey decoration. Use a body size and contrast that still work at a glance and under text scaling.</p><div class="translation"><strong>Flutter</strong><code>Text(
+  description,
+  style: Theme.of(context).textTheme.bodyMedium,
+)</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="type-plain"><div class="rule-meta"><span class="rule-number">T03</span><span class="source">Frontend design</span></div><h3>Name the thing people control</h3><p>Use familiar, direct language: “Text scale,” not “Typographic scalar”; “Show labels,” not “Semantic mode.” A label names, an example demonstrates, and a button acts.</p><div class="translation"><strong>Flutter</strong><code>Text('Reduce motion')
+Text('Limit non-essential animation')
+Button(child: Text('Reset preview'))</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="type-scan"><div class="rule-meta"><span class="rule-number">T04</span><span class="source">Evergreen</span></div><h3>Design for scanning first</h3><p>Put the important words early, use short labels, and make key values easy to compare. People scan a settings panel before they read it.</p><div class="translation"><strong>Flutter</strong><code>Row(children: [
+  Expanded(child: Text('Text direction')),
+  DirectionControl(),
+])</code></div><div class="decisions"></div></article>
+          </div>
+        </section>
+
+        <section id="colour">
+          <div class="section-heading"><span class="index">04</span><h2>Colour &amp; states</h2><p>Colour should carry stable meaning, and the interface should remain usable when it does not.</p></div>
+          <div class="rule-grid">
+            <article class="rule-card" data-rule="colour-semantic"><div class="rule-meta"><span class="rule-number">C01</span><span class="source">Evergreen</span></div><h3>Give signal colours one meaning</h3><p>Use the same colour for the same kind of information. For example, if pink marks selection and focus, do not also use it as a spare decorative accent.</p><div class="translation"><strong>Flutter</strong><code>final color = selected
+  ? tokens.focusPink
+  : tokens.neutralForeground;</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="colour-not-alone"><div class="rule-meta"><span class="rule-number">C02</span><span class="source">WCAG</span></div><h3>Never communicate state by colour alone</h3><p>Pair colour with a label, icon, shape, position, or text. “Off” beside a switch still explains the state in monochrome.</p><div class="translation"><strong>Flutter</strong><code>Row(children: [
+  Text(enabled ? 'On' : 'Off'),
+  const SizedBox(width: 12), Switch(...),
+])</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="colour-contrast"><div class="rule-meta"><span class="rule-number">C03</span><span class="source">WCAG</span></div><h3>Protect contrast in every state</h3><p>Check regular text, disabled-looking content, selected surfaces, focus outlines, and errors—not just the default screen. Muted does not mean illegible.</p><div class="translation"><strong>Flutter</strong><code>// Put contrast-tested roles in theme tokens;
+// do not tune greys locally in each panel.</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="colour-surfaces"><div class="rule-meta"><span class="rule-number">C04</span><span class="source">Evergreen</span></div><h3>Use quiet surfaces for structure</h3><p>Let surface, border, and elevation establish containment. Reserve saturated colour for an intentional signal, not every card, chip, and icon.</p><div class="translation"><strong>Flutter</strong><code>Container(
+  decoration: BoxDecoration(
+    color: tokens.surface,
+    border: Border.all(color: tokens.divider),
+  ),
+)</code></div><div class="decisions"></div></article>
+          </div>
+        </section>
+
+        <section id="controls">
+          <div class="section-heading"><span class="index">05</span><h2>Controls &amp; accessibility</h2><p>A control is usable only when it can be reached, understood, operated, and given feedback.</p></div>
+          <div class="rule-grid">
+            <article class="rule-card" data-rule="control-target"><div class="rule-meta"><span class="rule-number">A01</span><span class="source">Apple / WCAG</span></div><h3>Make hit targets generous</h3><p>Use 44×44 logical pixels as a practical target for primary touch controls. WCAG 2.2 AA defines a 24×24 CSS-pixel minimum with exceptions; bigger is usually kinder.</p><div class="translation"><strong>Flutter</strong><code>SizedBox(
+  width: 44, height: 44,
+  child: IconButton(icon: icon, onPressed: onPressed),
+)</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="control-visible-focus"><div class="rule-meta"><span class="rule-number">A02</span><span class="source">Apple / WCAG</span></div><h3>Keep keyboard focus visible</h3><p>Keyboard users need to see where they are, even within dense desktop tooling. The focus treatment must not be hidden behind adjacent content or convey selection ambiguously.</p><div class="translation"><strong>Flutter</strong><code>FocusableActionDetector(
+  onShowFocusHighlight: setFocused,
+  child: control,
+)</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="control-label"><div class="rule-meta"><span class="rule-number">A03</span><span class="source">Apple accessibility</span></div><h3>Label the control, not its mechanics</h3><p>Say what changes and what the current state is. Avoid making people infer an icon’s meaning, a switch’s target, or a knob’s unit.</p><div class="translation"><strong>Flutter</strong><code>Semantics(
+  label: 'Bold text', value: enabled ? 'On' : 'Off',
+  child: Switch(value: enabled, onChanged: setEnabled),
+)</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="control-feedback"><div class="rule-meta"><span class="rule-number">A04</span><span class="source">Evergreen</span></div><h3>Make the result of an action clear</h3><p>A change should look changed; an error should say what is wrong and how to recover. Do not rely on a silent tiny animation as confirmation.</p><div class="translation"><strong>Flutter</strong><code>ScaffoldMessenger.of(context).showSnackBar(
+  const SnackBar(content: Text('Preview reset')),
+);</code></div><div class="decisions"></div></article>
+          </div>
+        </section>
+
+        <section id="responsive">
+          <div class="section-heading"><span class="index">06</span><h2>Responsive Flutter translation</h2><p>Adapt the arrangement to the available space; do not give the user a shrunken version of a layout that no longer fits.</p></div>
+          <div class="rule-grid">
+            <article class="rule-card" data-rule="responsive-constraints"><div class="rule-meta"><span class="rule-number">F01</span><span class="source">Flutter practice</span></div><h3>Respond to constraints, not device names</h3><p>Choose a layout because the content has room, not because the screen is called “tablet.” Test the narrow and wide states with real text.</p><div class="translation"><strong>CSS → Flutter</strong><code>@media (min-width: 720px) →
+LayoutBuilder(builder: (_, box) {
+  final wide = box.maxWidth >= 720;
+  return wide ? Row(...) : Column(...);
+})</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="responsive-flex"><div class="rule-meta"><span class="rule-number">F02</span><span class="source">Flutter practice</span></div><h3>Let content take the flexible space</h3><p>Give labels room to wrap before squeezing controls. Avoid fixed widths for a text column when the component can naturally flex.</p><div class="translation"><strong>CSS → Flutter</strong><code>flex: 1 → Expanded(child: label)
+gap: 12px → Row(children: [label, SizedBox(width: 12), control])</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="responsive-readable"><div class="rule-meta"><span class="rule-number">F03</span><span class="source">Apple layout</span></div><h3>Constrain long reading lines</h3><p>A fluid canvas still needs readable text measure. Let content grow, but place explanatory text in a sensible maximum width.</p><div class="translation"><strong>CSS → Flutter</strong><code>max-width: 65ch →
+const ConstrainedBox(
+  constraints: BoxConstraints(maxWidth: 680),
+  child: Text(description),
+)</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="responsive-scale"><div class="rule-meta"><span class="rule-number">F04</span><span class="source">Flutter practice</span></div><h3>Preserve intended constraints in demos</h3><p>A demo or gallery should show a widget under the constraints it is designed for. Do not make a component appear compact by quietly passing unrealistic constraints.</p><div class="translation"><strong>Flutter</strong><code>// Demonstrate the actual intended size.
+SizedBox(width: logicalWidth, child: component)</code></div><div class="decisions"></div></article>
+          </div>
+        </section>
+
+        <section id="flutter-practice">
+          <div class="section-heading"><span class="index">07</span><h2>Shared Flutter practice</h2><p>These are reusable habits for a Flutter design skill. They should stay practical and composable, not become a heavyweight process.</p></div>
+          <div class="rule-grid">
+            <article class="rule-card" data-rule="desy-real"><div class="rule-meta"><span class="rule-number">P01</span><span class="source">Flutter practice</span></div><h3>Review the real widget in its real theme</h3><p>Design feedback should apply to the actual Flutter widget with its app theme, typography, and layout conditions. A surrogate gallery can hide the exact thing being judged.</p><div class="translation"><strong>Flutter</strong><code>MaterialApp(
+  theme: appTheme,
+  home: RealWidget(),
+)</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="desy-one-system"><div class="rule-meta"><span class="rule-number">P02</span><span class="source">Flutter practice</span></div><h3>Keep one source for shared design decisions</h3><p>Centralise a shared colour role, type role, or spacing value instead of reproducing a near-match in each widget. One change should update every intended use.</p><div class="translation"><strong>Flutter</strong><code>final theme = ThemeData(
+  colorScheme: colorScheme,
+  textTheme: textTheme,
+);</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="desy-progressive"><div class="rule-meta"><span class="rule-number">P03</span><span class="source">Evergreen</span></div><h3>Expose complexity progressively</h3><p>Show the default action and the information needed to use it. Put unusual options nearby but out of the main path until they are relevant.</p><div class="translation"><strong>Flutter</strong><code>ExpansionTile(
+  title: const Text('Advanced options'),
+  children: advancedControls,
+)</code></div><div class="decisions"></div></article>
+            <article class="rule-card" data-rule="desy-prototype"><div class="rule-meta"><span class="rule-number">P04</span><span class="source">Prototype skill</span></div><h3>Prototype before promoting a shared API</h3><p>Compare a few focused widget directions before fixing an interface into a reusable component. Keep the winning intent; do not harden every visual experiment into an API.</p><div class="translation"><strong>Flutter</strong><code>Widget buildPrototype(BuildContext context) {
+  return Column(children: [directionA, directionB]);
+}</code></div><div class="decisions"></div></article>
+          </div>
+        </section>
+
+        <section class="sources" aria-labelledby="sources-title">
+          <h2 id="sources-title">Where these rules came from</h2>
+          <p>This board translates rather than copies the sources. The shared Flutter-practice rules are intentionally portable: no Desy registry, workbench, or product contract is required. Nothing here is a commitment until you keep it.</p>
+          <ul>
+            <li><a href="https://developer.apple.com/design/human-interface-guidelines/design-principles">Apple Human Interface Guidelines — design principles</a></li>
+            <li><a href="https://developer.apple.com/design/human-interface-guidelines/layout">Apple Human Interface Guidelines — layout</a></li>
+            <li><a href="https://developer.apple.com/design/human-interface-guidelines/accessibility">Apple Human Interface Guidelines — accessibility</a></li>
+            <li><a href="https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum">WCAG 2.2 — target size minimum</a></li>
+            <li><a href="https://www.w3.org/TR/WCAG22/">WCAG 2.2</a></li>
+            <li><a href="https://www.skills.sh/leonxlnx/taste-skill/design-taste-frontend">design-taste-frontend — context before aesthetic defaults</a></li>
+            <li>Local references: <code>frontend-design</code> and <code>prototype</code>.</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+    <footer>Offline review board. No network requests, dependencies, or saved project state.</footer>
+  </main>
+  <script>
+    (() => {
+      const storageKey = 'desy-design-rules-review-v1';
+      const cards = [...document.querySelectorAll('.rule-card')];
+      const filters = [...document.querySelectorAll('.filter')];
+      const count = document.querySelector('#reviewed-count');
+      let decisions = {};
+      const exportStatus = document.querySelector('#export-status');
+      try { decisions = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch (_) { decisions = {}; }
+
+      const buttonMarkup = () => `
+        <button class="choice" type="button" data-value="keep" aria-pressed="false">Keep</button>
+        <button class="choice" type="button" data-value="revisit" aria-pressed="false">Revisit</button>
+        <button class="choice" type="button" data-value="reject" aria-pressed="false">Reject</button>`;
+
+      cards.forEach((card) => {
+        card.querySelector('.decisions').innerHTML = buttonMarkup();
+        card.querySelectorAll('.choice').forEach((button) => {
+          button.addEventListener('click', () => {
+            const key = card.dataset.rule;
+            const value = button.dataset.value;
+            decisions[key] = decisions[key] === value ? undefined : value;
+            if (!decisions[key]) delete decisions[key];
+            localStorage.setItem(storageKey, JSON.stringify(decisions));
+            render();
+          });
+        });
+      });
+
+      function render() {
+        const active = filters.find((filter) => filter.getAttribute('aria-pressed') === 'true').dataset.filter;
+        const reviewed = Object.keys(decisions).length;
+        count.textContent = `${reviewed} / ${cards.length}`;
+        cards.forEach((card) => {
+          const state = decisions[card.dataset.rule] || '';
+          card.dataset.state = state;
+          card.hidden = active !== 'all' && state !== active;
+          card.querySelectorAll('.choice').forEach((button) => {
+            button.setAttribute('aria-pressed', String(button.dataset.value === state));
+          });
+        });
+      }
+
+      filters.forEach((filter) => filter.addEventListener('click', () => {
+        filters.forEach((item) => item.setAttribute('aria-pressed', String(item === filter)));
+        render();
+      }));
+
+      document.querySelector('#clear-decisions').addEventListener('click', () => {
+        decisions = {};
+        localStorage.removeItem(storageKey);
+        render();
+      });
+
+      document.querySelector('#export-decisions').addEventListener('click', () => {
+        const payload = {
+          schemaVersion: 1,
+          exportedAt: new Date().toISOString(),
+          board: 'Flutter UI design rules review',
+          decisions,
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2) + '\n'], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'flutter-ui-design-rules-review.json';
+        link.click();
+        URL.revokeObjectURL(url);
+        exportStatus.textContent = 'Choices downloaded. Attach flutter-ui-design-rules-review.json in the chat.';
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>

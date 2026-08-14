@@ -1,0 +1,32 @@
+version: '3'
+
+tasks:
+  run:
+    desc: Run the GenUI sample explicitly in Chrome.
+    cmds:
+      - flutter run -d chrome --dart-define=GENUI_SERVER_URL=http://localhost:8787
+
+  server:
+    desc: Run the local OpenAI-backed GenUI server using .env.
+    cmds:
+      - dart run bin/openai_genui_server.dart
+
+  analyze:
+    desc: Analyze the GenUI sample and local server.
+    cmds:
+      - flutter analyze
+
+  test:
+    desc: Run the GenUI sample tests.
+    cmds:
+      - flutter test
+
+  build:web:
+    desc: Build the GenUI sample for web.
+    cmds:
+      - flutter build web
+
+  format:
+    desc: Format the sample source and tests.
+    cmds:
+      - dart format bin lib test

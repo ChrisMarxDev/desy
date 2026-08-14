@@ -43,6 +43,11 @@ class DesyWorkbenchNavigationTree {
             label: 'All components',
             location: DesyWorkbenchRoutes.atlasPath,
           ),
+          const DesyWorkbenchNavigationNode(
+            id: 'canvas',
+            label: 'Canvas',
+            location: DesyWorkbenchRoutes.canvasPath,
+          ),
         ],
       ),
       if (registry.allPrototypes.isNotEmpty)

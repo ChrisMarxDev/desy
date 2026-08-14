@@ -1,3 +1,4 @@
+import 'package:desy_bench/desy_bench.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:desy_design_system_example/desy_design_system_example.dart';
 import 'package:flutter/widgets.dart';
@@ -10,7 +11,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(buildDesyDesignSystemDogfoodApp());
+    await tester.pumpWidget(DesyBenchApp(registry: desyDesignSystemRegistry));
     await tester.pumpAndSettle();
 
     tester
@@ -70,15 +71,41 @@ void main() {
   testWidgets('launches the dogfood registry through the real workbench', (
     tester,
   ) async {
-    await tester.pumpWidget(buildDesyDesignSystemDogfoodApp());
+    await tester.pumpWidget(DesyBenchApp(registry: desyDesignSystemRegistry));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('REGISTRY'), findsOneWidget);
     expect(find.text('All components'), findsOneWidget);
     expect(find.text('Sketch'), findsNothing);
-    expect(find.text('Prototypes'), findsNothing);
+    expect(find.text('Prototypes'), findsOneWidget);
     expect(find.text('JSON prototypes'), findsNothing);
     expect(find.text('Components'), findsWidgets);
+  });
+
+  testWidgets('opens the annotation inbox prototype session', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(DesyBenchApp(registry: desyDesignSystemRegistry));
+    await tester.pumpAndSettle();
+
+    tester
+        .widget<DesySidebarItem>(
+          find.byKey(
+            const ValueKey(
+              'prototype-session-desy.prototype-session.annotation-inbox',
+            ),
+          ),
+        )
+        .onPress!
+        .call();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Annotation inbox'), findsWidgets);
+    expect(find.text('Review sheet'), findsOneWidget);
+    expect(find.text('Annotation ledger'), findsOneWidget);
+    expect(find.text('Focused queue'), findsOneWidget);
+    expect(find.byKey(const ValueKey('prototype-widget-tree')), findsOneWidget);
   });
 
   testWidgets('switch Atlas preview keeps its label horizontal', (
@@ -87,7 +114,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(buildDesyDesignSystemDogfoodApp());
+    await tester.pumpWidget(DesyBenchApp(registry: desyDesignSystemRegistry));
     await tester.pumpAndSettle();
 
     tester
@@ -118,7 +145,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(buildDesyDesignSystemDogfoodApp());
+    await tester.pumpWidget(DesyBenchApp(registry: desyDesignSystemRegistry));
     await tester.pumpAndSettle();
 
     tester

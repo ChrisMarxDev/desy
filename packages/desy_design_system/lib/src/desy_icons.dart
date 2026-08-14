@@ -81,6 +81,12 @@ abstract final class DesyIcons {
   /// Numeric measurements.
   static const IconData ruler = FLucideIcons.ruler;
 
+  /// Search a registry or selection surface.
+  static const IconData search = FLucideIcons.search;
+
+  /// Submit a message or agent request.
+  static const IconData send = FLucideIcons.send;
+
   /// Icon and glyph foundations.
   static const IconData shapes = FLucideIcons.shapes;
 

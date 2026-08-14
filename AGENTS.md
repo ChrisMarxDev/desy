@@ -12,6 +12,18 @@
   boundaries. They are not part of the core package surface.
 - `dev.md` contains the maintained contributor guide.
 
+## Documentation ownership
+
+- `concept/features/index.html` is the single roadmap and product-idea index.
+  Every non-trivial planned feature belongs there and receives one linked,
+  offline-safe concept page before implementation begins.
+- `docs/concepts/` explains implemented contracts and decisions. Move shipped
+  base behavior out of the planned-feature index and document its final contract
+  there when explanation is still useful.
+- `docs/research/` holds evidence and investigations, not commitments.
+- Keep `AGENTS.md`, skills, `CORE_PRINCIPLES.md`, and `dev.md` operational:
+  they may point to the planning index but must never become a feature backlog.
+
 ## Design rules
 
 - The consumer registry is the single declared source of truth.

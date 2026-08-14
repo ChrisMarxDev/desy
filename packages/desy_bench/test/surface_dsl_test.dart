@@ -233,6 +233,50 @@ void main() {
       expect(DesySurfaceValidator(_registry).validate(surface), isEmpty);
     });
 
+    test(
+      'accepts ordered multi-instance values and rejects event bindings',
+      () {
+        final component = DesyComponent(
+          id: 'feed',
+          name: 'Feed',
+          knobs: (knobs) => (
+            children: knobs.widgetInstances(
+              'children',
+              options: const ['status.badge.ready', 'status.extra.waiting'],
+            ),
+            select: knobs.event('select'),
+          ),
+          build: (context, knobs) => Column(children: knobs.children.widgets),
+          instances: (knobs) => const {},
+        );
+        final registry = DesyRegistry(
+          name: 'Surface events',
+          themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+          components: [
+            ..._registry.components,
+            DesyStaticComponent(
+              id: 'status.extra',
+              name: 'Extra status',
+              instances: {'waiting': (_) => const Text('Waiting')},
+            ),
+            component,
+          ],
+        );
+        final legal = DesySurfaceDocument.parse('''
+{"component":"feed","knobs":{"children":["status.badge.ready","status.extra.waiting"]}}
+''');
+        final illegal = DesySurfaceDocument.parse('''
+{"component":"feed","knobs":{"select":{"action":"open"}}}
+''');
+
+        expect(DesySurfaceValidator(registry).validate(legal), isEmpty);
+        expect(
+          DesySurfaceValidator(registry).validate(illegal).single.message,
+          contains('runtime adapter'),
+        );
+      },
+    );
+
     test('same-axis nested scrolling is a non-blocking warning', () {
       final surface = DesySurfaceDocument.parse('''
 {

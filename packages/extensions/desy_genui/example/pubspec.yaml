@@ -1,0 +1,33 @@
+name: desy_genui_example
+description: Flutter sample consuming a Desy-generated GenUI catalog.
+version: 0.1.0+1
+publish_to: none
+
+environment:
+  sdk: ^3.10.0
+  flutter: '>=3.35.7'
+
+resolution: workspace
+
+dependencies:
+  a2ui_core: ^0.1.0
+  desy_bench:
+    path: ../../../desy_bench
+  desy_design_system:
+    path: ../../../desy_design_system
+  desy_design_system_example:
+    path: ../../../desy_design_system/example
+  desy_genui:
+    path: ..
+  flutter:
+    sdk: flutter
+  genui: ^0.10.1
+  http: ^1.6.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

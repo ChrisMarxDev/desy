@@ -1,0 +1,4 @@
+interface:
+  display_name: "Desy Prototyping"
+  short_description: "Registry-native Desy UI explorations"
+  default_prompt: "Use $desy-prototyping to explore three registry-native Flutter directions before committing Desy UI."

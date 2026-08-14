@@ -203,8 +203,15 @@ burden for every consumer.
 The root README is the practical front door for users. `dev.md` is the single
 maintained contributor guide. Examples must reflect the real registry contracts
 and reinforce the single declared system rather than introduce a parallel
-configuration path. Do not retain speculative roadmaps or generated context as
-documentation.
+configuration path.
+
+`concept/features/index.html` is the sole planning exception: it is the
+project's ranked index of unimplemented product work, and every non-trivial
+planned feature links to one complete, offline-safe concept artifact there.
+Implemented contracts move to `docs/concepts/`; evidence and investigations
+belong in `docs/research/`. Do not duplicate roadmap items in agent
+instructions, skills, contributor documentation, implementation concepts, or
+generated context.
 
 ## 18. Dogfood is the maintained product surface
 

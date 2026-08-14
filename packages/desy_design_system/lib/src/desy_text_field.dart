@@ -152,6 +152,7 @@ class _DesyTextFieldState extends State<DesyTextField> {
               textInputAction: widget.textInputAction,
               maxLines: widget.maxLines,
               minLines: widget.minLines,
+              textAlignVertical: TextAlignVertical.center,
               enableInteractiveSelection: true,
               style: context.theme.typography.body.sm.copyWith(
                 color: colors.foreground,

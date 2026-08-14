@@ -2,8 +2,8 @@ import 'package:flutter/widgets.dart';
 
 /// Optional host-window actions rendered by Desy's Flutter top frame.
 ///
-/// Desktop hosts can connect these callbacks to their window-management
-/// package without making the reusable workbench depend on a platform plugin.
+/// Standalone Bench catalogues receive the default platform controls. Embedder
+/// apps can supply their own window-management callbacks when needed.
 @immutable
 class DesyWindowControls {
   /// Creates the three standard desktop window actions.

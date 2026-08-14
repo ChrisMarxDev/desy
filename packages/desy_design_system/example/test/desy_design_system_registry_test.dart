@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:desy_bench/desy_bench.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:desy_design_system_example/desy_design_system_example.dart';
@@ -13,9 +15,31 @@ void main() {
     expect(desyDesignSystemRegistry.allMeasurements, hasLength(9));
     expect(desyDesignSystemRegistry.allMotion, hasLength(2));
     expect(desyDesignSystemRegistry.allEffects, hasLength(1));
-    expect(desyDesignSystemRegistry.allIcons, hasLength(28));
+    expect(desyDesignSystemRegistry.allIcons, hasLength(29));
     expect(desyDesignSystemRegistry.atomKinds, DesyAtomKind.values);
-    expect(desyDesignSystemRegistry.allPrototypes, isEmpty);
+    expect(desyDesignSystemRegistry.allPrototypes, hasLength(2));
+    expect(
+      desyDesignSystemRegistry
+          .prototypeSession('desy.prototype-session.annotation-inbox')
+          ?.prototypes
+          .map((prototype) => prototype.id),
+      [
+        'desy.prototype.annotation-inbox.review-sheet',
+        'desy.prototype.annotation-inbox.ledger',
+        'desy.prototype.annotation-inbox.focused',
+      ],
+    );
+    expect(
+      desyDesignSystemRegistry
+          .prototypeSession('desy.prototype-session.knob-controls')
+          ?.prototypes
+          .map((prototype) => prototype.id),
+      [
+        'desy.prototype.knob-controls.context-sheet',
+        'desy.prototype.knob-controls.property-sheet',
+        'desy.prototype.knob-controls.section-sheet',
+      ],
+    );
     expect(
       desyDesignSystemRegistry.resolve('desy.icon.shapes')?.path,
       'Atoms / Icons',
@@ -30,6 +54,10 @@ void main() {
         'desy.component.boolean-knob-row',
         'desy.component.card',
         'desy.component.catalogue-card',
+        'desy.component.chat-composer',
+        'desy.component.chat-message',
+        'desy.component.chat-thread',
+        'desy.component.color-knob-row',
         'desy.component.dialog',
         'desy.component.instance-knob-row',
         'desy.component.knob-sheet',
@@ -38,6 +66,7 @@ void main() {
         'desy.component.resize-divider',
         'desy.component.scaffold',
         'desy.component.select',
+        'desy.component.sample',
         'desy.component.shortcut-label',
         'desy.component.sidebar',
         'desy.component.sidebar-section',
@@ -57,7 +86,11 @@ void main() {
       desyDesignSystemRegistry.resolve('desy.component.knob-sheet')?.path,
       'Molecules / Inputs / Knobs',
     );
-    for (final component in desyDesignSystemRegistry.allComponents) {
+    final sample = desyDesignSystemRegistry.resolve('desy.component.sample')!;
+    expect(sample.component!.instanceIds, isEmpty);
+    for (final component in desyDesignSystemRegistry.allComponents.where(
+      (component) => component.id != sample.id,
+    )) {
       expect(component.instanceIds, isNotEmpty, reason: component.id);
       expect(
         component.knobDefinitions.isNotEmpty,
@@ -65,6 +98,18 @@ void main() {
         reason: component.id,
       );
     }
+  });
+
+  test('dogfood registry exposes a JSON-ready agent catalogue', () {
+    expect(desyDesignSystemRegistry.catalogConfig?.id, 'desy.design-system');
+    expect(
+      desyDesignSystemRegistry.catalogComponents,
+      desyDesignSystemRegistry.allComponents,
+    );
+    expect(
+      () => jsonEncode(DesyCatalogueExport(desyDesignSystemRegistry).toJson()),
+      returnsNormally,
+    );
   });
 
   test('knob sheet declares every precision-sheet control', () {
@@ -75,7 +120,6 @@ void main() {
     expect(knobSheet.knobDefinitions.map((definition) => definition.id), [
       'title',
       'caption',
-      'width',
       'cornerRadius',
       'clipContent',
       'showLabel',
@@ -86,7 +130,7 @@ void main() {
       knobSheet.knobDefinitions
           .where((definition) => definition.kind == DesyKnobKind.number)
           .map((definition) => definition.name),
-      ['Width', 'Corner radius'],
+      ['Corner radius'],
     );
     expect(
       knobSheet.knobDefinitions.map((definition) => definition.kind).toSet(),
@@ -115,6 +159,44 @@ void main() {
       DesyKnobKind.color,
       DesyKnobKind.boolean,
     ]);
+  });
+
+  test('chat components declare composable slots and event knobs', () {
+    final message = desyDesignSystemRegistry.allComponents.singleWhere(
+      (component) => component.id == 'desy.component.chat-message',
+    );
+    final composer = desyDesignSystemRegistry.allComponents.singleWhere(
+      (component) => component.id == 'desy.component.chat-composer',
+    );
+    final thread = desyDesignSystemRegistry.allComponents.singleWhere(
+      (component) => component.id == 'desy.component.chat-thread',
+    );
+    final button = desyDesignSystemRegistry.allComponents.singleWhere(
+      (component) => component.id == 'desy.component.button',
+    );
+
+    expect(
+      message.knobDefinitions.singleWhere((knob) => knob.id == 'body').kind,
+      DesyKnobKind.widgetInstance,
+    );
+    expect(
+      composer.knobDefinitions
+          .singleWhere((knob) => knob.id == 'onSubmit')
+          .kind,
+      DesyKnobKind.event,
+    );
+    expect(
+      thread.knobDefinitions.singleWhere((knob) => knob.id == 'messages').kind,
+      DesyKnobKind.widgetInstances,
+    );
+    expect(
+      thread.knobDefinitions.singleWhere((knob) => knob.id == 'composer').kind,
+      DesyKnobKind.widgetInstance,
+    );
+    expect(
+      button.knobDefinitions.singleWhere((knob) => knob.id == 'onPress').kind,
+      DesyKnobKind.event,
+    );
   });
 
   test(

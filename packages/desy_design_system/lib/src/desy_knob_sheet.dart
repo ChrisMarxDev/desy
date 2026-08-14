@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
 
-import 'desy_badge.dart';
 import 'desy_button.dart';
 import 'desy_card.dart';
 import 'desy_design_system_scope.dart';
@@ -10,10 +9,7 @@ import 'desy_switch.dart';
 import 'desy_text_field.dart';
 import 'desy_tile.dart';
 
-/// A compact sheet containing related workbench property controls.
-///
-/// The visible count is derived from the supplied sections so callers do not
-/// maintain parallel metadata for the same controls.
+/// A clear sheet containing related workbench property controls.
 class DesyKnobSheet extends StatelessWidget {
   /// Creates a grouped knob sheet.
   const DesyKnobSheet({
@@ -26,52 +22,56 @@ class DesyKnobSheet extends StatelessWidget {
   /// The sheet heading.
   final String title;
 
-  /// Optional context shown directly below the sheet heading.
+  /// Optional context that explains the scope of the controls below.
   final String? subtitle;
 
   /// Typed groups of property controls shown in the sheet.
   final List<DesyKnobSection> sections;
 
   @override
-  Widget build(BuildContext context) {
-    final count = sections.fold<int>(
-      0,
-      (total, section) => total + section.children.length,
-    );
-    return DesyCard(
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceLg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Text(title, style: context.theme.typography.display.xs),
-                const SizedBox(width: DesyDesignSystemTokens.spaceSm),
-                DesyBadge(
-                  variant: DesyBadgeVariant.secondary,
-                  child: Text('$count'),
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final isNarrow = constraints.maxWidth < 280;
+      return DesyCard(
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: isNarrow
+                ? DesyDesignSystemTokens.spaceMd
+                : DesyDesignSystemTokens.spaceLg,
+            vertical: DesyDesignSystemTokens.spaceLg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Semantics(
+                header: true,
+                child: Text(title, style: context.theme.typography.display.sm),
+              ),
+              if (subtitle case final subtitle?) ...[
+                const SizedBox(height: DesyDesignSystemTokens.spaceSm),
+                Text(
+                  subtitle,
+                  style: context.theme.typography.body.md.copyWith(
+                    color: context.theme.colors.mutedForeground,
+                    height: 1.4,
+                  ),
                 ),
               ],
-            ),
-            if (subtitle case final subtitle?) ...[
-              const SizedBox(height: DesyDesignSystemTokens.spaceXs),
-              Text(
-                subtitle,
-                style: context.theme.typography.body.xs.copyWith(
-                  color: context.theme.colors.mutedForeground,
-                ),
+              const SizedBox(height: DesyDesignSystemTokens.spaceBase),
+              SizedBox(
+                height: DesyDesignSystemTokens.hairline,
+                child: ColoredBox(color: context.theme.colors.border),
               ),
+              const SizedBox(height: DesyDesignSystemTokens.spaceSm),
+              for (final section in sections) section,
             ],
-            const SizedBox(height: DesyDesignSystemTokens.spaceBase),
-            for (final section in sections) section,
-          ],
+          ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
 }
 
 /// A labelled group inside a [DesyKnobSheet].
@@ -104,12 +104,12 @@ class DesyKnobSection extends StatelessWidget {
           style: context.theme.typography.body.xs.copyWith(
             color: context.theme.colors.mutedForeground,
             fontWeight: FontWeight.w800,
-            letterSpacing: .9,
+            letterSpacing: 1.1,
           ),
         ),
       ),
       ...children,
-      const SizedBox(height: DesyDesignSystemTokens.spaceMd),
+      const SizedBox(height: DesyDesignSystemTokens.spaceBase),
     ],
   );
 }
@@ -117,42 +117,98 @@ class DesyKnobSection extends StatelessWidget {
 /// The shared aligned row used by Desy's knob controls.
 class DesyKnobRow extends StatelessWidget {
   /// Creates an aligned label and control row.
-  const DesyKnobRow({super.key, required this.label, required this.control});
+  const DesyKnobRow({
+    super.key,
+    required this.label,
+    required this.control,
+    this.description,
+    this.expandControl = false,
+  });
 
   /// The property name shown at the leading edge.
   final String label;
+
+  /// Optional usage guidance shown below the property name.
+  final String? description;
+
+  /// Lets complex controls take advantage of a resized property panel.
+  final bool expandControl;
 
   /// The interactive control aligned to the trailing edge.
   final Widget control;
 
   @override
-  Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(minHeight: 48),
-    decoration: BoxDecoration(
-      border: Border(
-        bottom: BorderSide(
-          color: context.theme.colors.border,
-          width: DesyDesignSystemTokens.hairline,
-        ),
-      ),
-    ),
-    child: Row(
+  Widget build(BuildContext context) {
+    Widget buildLabel({required bool isNarrow}) => Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Text(
-            label,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: context.theme.typography.body.sm,
+        Text(
+          label,
+          style:
+              (isNarrow
+                      ? context.theme.typography.body.lg
+                      : context.theme.typography.body.md)
+                  .copyWith(fontWeight: FontWeight.w600),
+        ),
+        if (description case final description?) ...[
+          const SizedBox(height: DesyDesignSystemTokens.spaceXs),
+          Text(
+            description,
+            style: context.theme.typography.body.sm.copyWith(
+              color: context.theme.colors.mutedForeground,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ],
+    );
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 64),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: context.theme.colors.border,
+            width: DesyDesignSystemTokens.hairline,
           ),
         ),
-        const SizedBox(width: DesyDesignSystemTokens.spaceMd),
-        Flexible(
-          child: Align(alignment: Alignment.centerRight, child: control),
-        ),
-      ],
-    ),
-  );
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 280) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: DesyDesignSystemTokens.spaceMd,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  buildLabel(isNarrow: true),
+                  const SizedBox(height: DesyDesignSystemTokens.spaceSm),
+                  expandControl
+                      ? SizedBox(width: double.infinity, child: control)
+                      : Align(alignment: Alignment.centerRight, child: control),
+                ],
+              ),
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: expandControl ? 2 : 1,
+                child: buildLabel(isNarrow: false),
+              ),
+              const SizedBox(width: DesyDesignSystemTokens.spaceMd),
+              if (expandControl) Expanded(flex: 3, child: control) else control,
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
 
 /// A compact numeric property with accessible discrete step actions.
@@ -167,11 +223,15 @@ class DesyNumericKnobRow extends StatelessWidget {
     required this.onChanged,
     this.minimum = 0,
     this.maximum = 999,
+    this.description,
   }) : assert(minimum <= maximum),
        assert(step > 0);
 
   /// The property name.
   final String label;
+
+  /// Optional usage guidance.
+  final String? description;
 
   /// The current numeric value.
   final double value;
@@ -194,6 +254,7 @@ class DesyNumericKnobRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DesyKnobRow(
     label: label,
+    description: description,
     control: DecoratedBox(
       decoration: BoxDecoration(
         color: context.theme.colors.secondary,
@@ -249,10 +310,14 @@ class DesyBooleanKnobRow extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
+    this.description,
   });
 
   /// The property name.
   final String label;
+
+  /// Optional usage guidance.
+  final String? description;
 
   /// The current boolean state.
   final bool value;
@@ -263,6 +328,7 @@ class DesyBooleanKnobRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DesyKnobRow(
     label: label,
+    description: description,
     control: SizedBox(
       width: 104,
       child: DesySwitch(
@@ -284,10 +350,14 @@ class DesyTextKnobRow extends StatelessWidget {
     this.hintText,
     this.onChanged,
     this.enabled = true,
+    this.description,
   });
 
   /// The property name.
   final String label;
+
+  /// Optional usage guidance.
+  final String? description;
 
   /// The current text value.
   final String value;
@@ -304,8 +374,9 @@ class DesyTextKnobRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DesyKnobRow(
     label: label,
+    description: description,
+    expandControl: true,
     control: SizedBox(
-      width: 168,
       child: DesyTextField(
         label: label,
         value: value,
@@ -329,10 +400,14 @@ class DesyColorKnobRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.onChanged,
+    this.description,
   });
 
   /// The property name.
   final String label;
+
+  /// Optional usage guidance.
+  final String? description;
 
   /// The current literal Flutter color.
   final Color value;
@@ -343,6 +418,7 @@ class DesyColorKnobRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DesyKnobRow(
     label: label,
+    description: description,
     control: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -391,10 +467,14 @@ class DesyInstanceKnobRow extends StatelessWidget {
     required this.onPress,
     this.prefix,
     this.controlKey,
+    this.description,
   });
 
   /// The slot or property name.
   final String label;
+
+  /// Optional usage guidance.
+  final String? description;
 
   /// The currently selected registered instance name.
   final String instanceName;
@@ -411,21 +491,16 @@ class DesyInstanceKnobRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DesyKnobRow(
     label: label,
-    control: SizedBox(
-      width: 136,
-      child: Tooltip(
-        message: instanceName,
-        child: DesyTile(
-          key: controlKey,
-          prefix: prefix,
-          title: Text(
-            instanceName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          suffix: const Icon(DesyIcons.chevronsUpDown, size: 14),
-          onPress: onPress,
-        ),
+    description: description,
+    expandControl: true,
+    control: Tooltip(
+      message: instanceName,
+      child: DesyTile(
+        key: controlKey,
+        prefix: prefix,
+        title: Text(instanceName, maxLines: 1, overflow: TextOverflow.ellipsis),
+        suffix: const Icon(DesyIcons.chevronsUpDown, size: 14),
+        onPress: onPress,
       ),
     ),
   );

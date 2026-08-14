@@ -9,11 +9,16 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('motion entries may inherit the global duration', () {
-    const entry = DesyMotionEntry(
+    final entry = DesyMotionEntry(
       id: 'motion.inherited',
       name: 'Inherited duration',
       curve: Curves.linear,
-      builder: _emptyBuilder,
+      builder: _motionBuilder,
+      child: const DesyMotionChild.widget(
+        id: 'square',
+        name: 'Square',
+        builder: _emptyBuilder,
+      ),
     );
 
     expect(entry.duration, isNull);
@@ -34,17 +39,30 @@ void main() {
             id: 'motion.reveal',
             name: 'Reveal',
             curve: Curves.linear,
-            builder: (context) {
+            builder: (context, child) {
               final playback = DesyMotionPlaybackScope.maybeOf(context);
               expect(playback, isNotNull);
               return AnimatedBuilder(
                 animation: playback!,
                 builder: (context, child) {
                   renderedProgress = playback.value;
-                  return const SizedBox(width: 120, height: 52);
+                  return child!;
                 },
+                child: child,
               );
             },
+            child: const DesyMotionChild.widget(
+              id: 'square',
+              name: 'Square',
+              builder: _motionTestChild,
+            ),
+            alternatives: const [
+              DesyMotionChild.widget(
+                id: 'wide-square',
+                name: 'Wide square',
+                builder: _motionTestChild,
+              ),
+            ],
           ),
         ],
       );
@@ -65,6 +83,10 @@ void main() {
         findsOneWidget,
       );
       expect(find.byKey(const ValueKey('motion-playhead')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('motion-specimen-select')),
+        findsOneWidget,
+      );
       expect(find.text('Ping-pong'), findsOneWidget);
       expect(find.text('No controls declared.'), findsNothing);
 
@@ -107,16 +129,21 @@ void main() {
       name: id,
       duration: duration,
       curve: Curves.linear,
-      builder: (context) {
+      builder: (context, child) {
         final playback = DesyMotionPlaybackScope.maybeOf(context)!;
         return AnimatedBuilder(
           animation: playback,
-          builder: (context, child) {
+          builder: (context, _) {
             renderedProgress[id] = playback.value;
-            return const SizedBox(width: 120, height: 52);
+            return child;
           },
         );
       },
+      child: const DesyMotionChild.widget(
+        id: 'square',
+        name: 'Square',
+        builder: _motionTestChild,
+      ),
     );
     final registry = DesyRegistry(
       name: 'Global motion test',
@@ -144,17 +171,11 @@ void main() {
       const ValueKey('motion-global-playback-controls'),
     );
     expect(globalControls, findsOneWidget);
-    expect(find.text('TIMELINE'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('motion-playhead-thermometer')),
-      findsOneWidget,
+    final thermometer = find.byKey(
+      const ValueKey('motion-playhead-thermometer'),
     );
-    expect(
-      tester
-          .getSize(find.byKey(const ValueKey('motion-playhead-thermometer')))
-          .width,
-      250,
-    );
+    expect(thermometer, findsOneWidget);
+    expect(tester.getSize(thermometer).width, 250);
     expect(find.text('Once'), findsOneWidget);
     final durationField = find.byKey(const ValueKey('motion-global-duration'));
     expect(durationField, findsOneWidget);
@@ -188,18 +209,22 @@ void main() {
       40,
     );
     expect(
-      tester.getSize(find.byKey(const ValueKey('motion-speed-1.0'))).height,
+      tester.getSize(find.byKey(const ValueKey('motion-speed-mode'))).height,
       40,
     );
     expect(
-      tester.getTopLeft(find.byKey(const ValueKey('motion-speed-1.0'))).dy,
-      greaterThan(
-        tester
-            .getBottomLeft(
-              find.byKey(const ValueKey('motion-playhead-thermometer')),
-            )
-            .dy,
+      tester.getCenter(find.byKey(const ValueKey('motion-loop-mode'))).dx,
+      lessThan(tester.getCenter(thermometer).dx),
+    );
+    expect(
+      tester.getCenter(thermometer).dx,
+      lessThan(
+        tester.getCenter(find.byKey(const ValueKey('motion-speed-mode'))).dx,
       ),
+    );
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('motion-speed-mode'))).dy,
+      closeTo(tester.getTopLeft(durationField).dy, 0.01),
     );
 
     await tester.pump(const Duration(milliseconds: 50));
@@ -208,8 +233,9 @@ void main() {
     expect(renderedProgress['motion.inherited'], closeTo(0, 0.001));
 
     _press(tester, const ValueKey('motion-play-pause'));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(renderedProgress['motion.fast'], closeTo(0.5, 0.05));
+    expect(renderedProgress['motion.fast'], closeTo(0.25, 0.05));
     expect(renderedProgress['motion.slow'], closeTo(0.25, 0.05));
     expect(renderedProgress['motion.inherited'], closeTo(0.25, 0.05));
 
@@ -221,9 +247,12 @@ void main() {
     expect(renderedProgress['motion.fast'], closeTo(pausedFast, 0.001));
     expect(renderedProgress['motion.slow'], closeTo(pausedSlow, 0.001));
 
+    _press(tester, const ValueKey('motion-speed-mode'));
+    await tester.pump();
+    expect(find.text('2.0×'), findsOneWidget);
+
     await tester.enterText(durationField, '400');
     await tester.pump();
-    expect(find.textContaining('/ 400 ms'), findsOneWidget);
     expect(
       tester
           .widget<EditableText>(
@@ -246,6 +275,11 @@ void _press(WidgetTester tester, ValueKey<String> key) {
 Widget _wrap(BuildContext context, Widget child) => child;
 
 Widget _emptyBuilder(BuildContext context) => const SizedBox.shrink();
+
+Widget _motionBuilder(BuildContext context, Widget child) => child;
+
+Widget _motionTestChild(BuildContext context) =>
+    const SizedBox(width: 120, height: 52);
 
 class _TestHarness extends StatelessWidget {
   const _TestHarness({required this.child});

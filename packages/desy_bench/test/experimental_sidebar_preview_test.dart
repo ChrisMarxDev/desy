@@ -308,7 +308,17 @@ void main() {
       1,
     );
     expect(tester.getTopLeft(contentRegion).dx, 248);
-    expect(tester.getTopLeft(contentTopDivider), const Offset(248, 32));
+    expect(tester.getTopLeft(contentTopDivider), const Offset(248, 48));
+    final themePicker = find.byKey(const ValueKey('top-bar-theme-select'));
+    expect(tester.getTopLeft(themePicker).dx, 272);
+    expect(tester.getSize(themePicker).width, lessThan(220));
+    expect(
+      find.descendant(
+        of: themePicker,
+        matching: find.byIcon(DesyIcons.palette),
+      ),
+      findsOneWidget,
+    );
     expect(
       tester.getTopLeft(find.byType(DesyScaffold)).dx,
       248,
@@ -341,12 +351,12 @@ void main() {
     final toggle = find.byKey(const ValueKey('registry-spine-toggle-sidebar'));
     expect(
       tester.getTopLeft(toggle).dx,
-      112,
+      136,
       reason: 'the Flutter window controls precede the panel control',
     );
     expect(
       tester.getCenter(toggle).dy,
-      16,
+      24,
       reason: 'the panel control shares the native traffic-light centerline',
     );
     expect(

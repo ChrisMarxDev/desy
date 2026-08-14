@@ -1,0 +1,32 @@
+version: '3'
+
+tasks:
+  run:
+    desc: Launch the local Desy Widgetbook comparison app on a selected device.
+    cmds:
+      - flutter run {{.CLI_ARGS}}
+
+  web:
+    desc: Launch the local Desy Widgetbook comparison app in Chrome.
+    cmds:
+      - flutter run -d chrome {{.CLI_ARGS}}
+
+  analyze:
+    desc: Analyze the local Desy Widgetbook comparison app.
+    cmds:
+      - flutter analyze
+
+  test:
+    desc: Run Widgetbook comparison app tests.
+    cmds:
+      - flutter test
+
+  build:web:
+    desc: Build the local Desy Widgetbook comparison app for web.
+    cmds:
+      - flutter build web {{.CLI_ARGS}}
+
+  format:
+    desc: Format the Widgetbook comparison app.
+    cmds:
+      - dart format lib test

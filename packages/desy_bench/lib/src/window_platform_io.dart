@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:desy_bench/desy_bench.dart';
 import 'package:flutter/widgets.dart';
 import 'package:window_manager/window_manager.dart';
+
+import 'window_controls.dart';
 
 /// Applies Desy's maintained macOS window; other native targets no-op.
 Future<void> prepareDesyPlatform() async {

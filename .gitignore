@@ -2,7 +2,13 @@
 .packages
 .flutter-plugins
 .flutter-plugins-dependencies
+.widget_preview/
 build/
 .idea/
 .vscode/
 *.iml
+
+# Local environment secrets. Commit only the documented template.
+.env
+.env.*
+!.env.example

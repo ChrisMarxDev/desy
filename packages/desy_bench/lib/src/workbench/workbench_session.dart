@@ -38,6 +38,10 @@ class DesyWorkbenchSession {
   final previewDevice = Beacon.writable<DesyDevicePreset?>(null);
   final knobValues = Beacon.writable<Map<String, Object>>({});
   final atlasQuery = Beacon.writable('');
+  final sidebarQuery = Beacon.writable('');
+  final previewAccessibility = Beacon.writable(
+    const DesyPreviewAccessibilitySettings(),
+  );
   final fontSampleText = Beacon.writable(
     'The quick brown fox jumps over the lazy dog.',
   );
@@ -104,19 +108,31 @@ class DesyWorkbenchSession {
 
   Map<String, Object> _defaults(DesyRegistryComponent? component) => {
     for (final definition in component?.knobDefinitions ?? const [])
-      definition.id: definition.kind == DesyKnobKind.widgetInstance
-          ? (definition.initial as DesyInstanceId).value
-          : definition.initial,
+      definition.id: switch (definition.kind) {
+        DesyKnobKind.widgetInstance =>
+          (definition.initial as DesyInstanceId).value,
+        DesyKnobKind.widgetInstances => [
+          for (final id in (definition.initial as DesyInstanceIds).values)
+            id.value,
+        ],
+        DesyKnobKind.event => const <String, Object?>{},
+        _ => definition.initial,
+      },
   };
 
   void selectPreviewDevice(DesyDevicePreset? device) {
     stage.value = stage.value.copyWith(
-      size: device?.frameSize ?? const DesyPreviewStage().size,
+      size: device?.screenSize ?? const DesyPreviewStage().size,
     );
     previewDevice.value = device;
   }
 
   void updateStage(DesyPreviewStage next) => stage.value = next;
+
+  /// Updates the preview-only environment without mutating consumer widgets.
+  void setPreviewAccessibility(DesyPreviewAccessibilitySettings settings) {
+    previewAccessibility.value = settings;
+  }
 
   /// Commits one source-aware note without mutating consumer registry data.
   void addWorkbenchAnnotation({
@@ -133,6 +149,17 @@ class DesyWorkbenchSession {
         comment: text,
         createdAt: DateTime.now(),
       ),
+    ]);
+    unawaited(annotations.store.save(workbenchAnnotations.value));
+  }
+
+  /// Removes the selected local review notes and persists the remaining inbox.
+  void removeWorkbenchAnnotations(Iterable<int> ids) {
+    final removed = ids.toSet();
+    if (removed.isEmpty) return;
+    workbenchAnnotations.value = List.unmodifiable([
+      for (final annotation in workbenchAnnotations.value)
+        if (!removed.contains(annotation.id)) annotation,
     ]);
     unawaited(annotations.store.save(workbenchAnnotations.value));
   }
@@ -180,11 +207,55 @@ class DesyWorkbenchSession {
     previewDevice.dispose();
     knobValues.dispose();
     atlasQuery.dispose();
+    sidebarQuery.dispose();
+    previewAccessibility.dispose();
     fontSampleText.dispose();
     stage.dispose();
     workbenchAnnotations.dispose();
     pendingAgentRequest.dispose();
   }
+}
+
+/// Media-query overrides applied only inside the inspected consumer preview.
+///
+/// These settings deliberately live beside the other ephemeral preview state:
+/// they are test conditions, not consumer theme or registry declarations.
+class DesyPreviewAccessibilitySettings {
+  const DesyPreviewAccessibilitySettings({
+    this.textScale = 1,
+    this.textDirection = TextDirection.ltr,
+    this.boldText = false,
+    this.highContrast = false,
+    this.disableAnimations = false,
+    this.showSemantics = false,
+    this.showHitTargets = false,
+  });
+
+  final double textScale;
+  final TextDirection textDirection;
+  final bool boldText;
+  final bool highContrast;
+  final bool disableAnimations;
+  final bool showSemantics;
+  final bool showHitTargets;
+
+  DesyPreviewAccessibilitySettings copyWith({
+    double? textScale,
+    TextDirection? textDirection,
+    bool? boldText,
+    bool? highContrast,
+    bool? disableAnimations,
+    bool? showSemantics,
+    bool? showHitTargets,
+  }) => DesyPreviewAccessibilitySettings(
+    textScale: textScale ?? this.textScale,
+    textDirection: textDirection ?? this.textDirection,
+    boldText: boldText ?? this.boldText,
+    highContrast: highContrast ?? this.highContrast,
+    disableAnimations: disableAnimations ?? this.disableAnimations,
+    showSemantics: showSemantics ?? this.showSemantics,
+    showHitTargets: showHitTargets ?? this.showHitTargets,
+  );
 }
 
 /// Geometry of the movable, resizable preview artboard in a detail canvas.

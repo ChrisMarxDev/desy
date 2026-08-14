@@ -7,6 +7,7 @@
 /// Its value is the canonical component path, never its derived display label.
 abstract final class DesyWorkbenchRoutes {
   static const atlasPath = '/atlas';
+  static const canvasPath = '/canvas';
   static const sketchSegment = 'sketch';
   static const sketchPath = '$atlasPath/$sketchSegment';
   static const themesPath = '/themes';

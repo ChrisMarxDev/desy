@@ -39,9 +39,14 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('workbench-annotation-dock')),
-      findsNothing,
+      find.byKey(const ValueKey('workbench-annotation-summary')),
+      findsOneWidget,
     );
+    await tester.tap(
+      find.byKey(const ValueKey('workbench-annotation-summary')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Review your feedback'), findsOneWidget);
   });
 }
 

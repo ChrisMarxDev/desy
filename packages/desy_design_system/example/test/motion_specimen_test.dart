@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('dogfood motion autoplays with legible foreground contrast', (
+  testWidgets('dogfood motion autoplays the supplied signal square', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1100, 800));
@@ -27,15 +27,15 @@ void main() {
     );
 
     final specimen = find.byKey(const ValueKey('dogfood-motion-specimen'));
-    final initialWidth = tester.getSize(specimen).width;
+    final initialLeft = tester.getTopLeft(specimen).dx;
     await tester.pump(const Duration(milliseconds: 45));
-    final animatedWidth = tester.getSize(specimen).width;
+    await tester.pump(const Duration(milliseconds: 16));
+    final animatedLeft = tester.getTopLeft(specimen).dx;
 
-    expect(animatedWidth, greaterThan(initialWidth));
-    expect(find.text('Motion preview'), findsOneWidget);
-    final label = tester.widget<Text>(find.text('Motion preview'));
+    expect(animatedLeft, lessThan(initialLeft));
+    expect(find.byIcon(DesyIcons.sparkles), findsOneWidget);
     final decoration =
         tester.widget<Container>(specimen).decoration! as BoxDecoration;
-    expect(label.style?.color, isNot(decoration.color));
+    expect(decoration.color, isNotNull);
   });
 }

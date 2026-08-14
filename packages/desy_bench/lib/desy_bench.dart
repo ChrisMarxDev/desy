@@ -2,6 +2,7 @@
 library;
 
 export 'src/desy_bench_app.dart';
+export 'src/desy_bench_launcher.dart';
 export 'src/desy_text_field.dart';
 export 'src/device_preview.dart';
 export 'src/detail_extension.dart';

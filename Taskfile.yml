@@ -19,9 +19,21 @@ includes:
   dogfood:
     taskfile: ./packages/desy_design_system/example/Taskfile.yml
     dir: ./packages/desy_design_system/example
+  widgetbook:
+    taskfile: ./packages/desy_design_system/widgetbook/Taskfile.yml
+    dir: ./packages/desy_design_system/widgetbook
+  widget_previewer:
+    taskfile: ./packages/desy_design_system/widget_previewer/Taskfile.yml
+    dir: ./packages/desy_design_system/widget_previewer
   screenshot_builder:
     taskfile: ./packages/extensions/desy_screenshot_builder/Taskfile.yml
     dir: ./packages/extensions/desy_screenshot_builder
+  genui:
+    taskfile: ./packages/extensions/desy_genui/Taskfile.yml
+    dir: ./packages/extensions/desy_genui
+  genui_example:
+    taskfile: ./packages/extensions/desy_genui/example/Taskfile.yml
+    dir: ./packages/extensions/desy_genui/example
   widget_workshop:
     taskfile: ./packages/extensions/desy_widget_workshop/Taskfile.yml
     dir: ./packages/extensions/desy_widget_workshop
@@ -50,8 +62,11 @@ tasks:
       - task: agent_annotations:test
       - task: design_system:test
       - task: dogfood:test
+      - task: widgetbook:test
       - task: overlay:test
       - task: screenshot_builder:test
+      - task: genui:test
+      - task: genui_example:test
       - task: widget_workshop:test
 
   check:
@@ -61,7 +76,9 @@ tasks:
       - task: design_system:forui-boundary
       - task: test
       - task: dogfood:build:web
+      - task: widgetbook:build:web
       - task: overlay:build:example:web
+      - task: genui_example:build:web
 
   format:
     desc: Format maintained Dart sources.

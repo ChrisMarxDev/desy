@@ -5,6 +5,7 @@ import 'package:desy_design_system/desy_design_system.dart';
 import 'package:flutter/material.dart';
 
 import '../../motion_playback.dart';
+import '../../registry.dart';
 
 class DesyMotionPlaybackControls extends StatelessWidget {
   const DesyMotionPlaybackControls({
@@ -13,12 +14,18 @@ class DesyMotionPlaybackControls extends StatelessWidget {
     this.compact = false,
     this.globalDuration,
     this.onGlobalDurationChanged,
+    this.specimenChildren = const [],
+    this.selectedSpecimenChildId,
+    this.onSpecimenChildSelected,
   });
 
   final DesyMotionPlaybackController controller;
   final bool compact;
   final Duration? globalDuration;
   final ValueChanged<Duration>? onGlobalDurationChanged;
+  final List<DesyMotionChild> specimenChildren;
+  final String? selectedSpecimenChildId;
+  final ValueChanged<String>? onSpecimenChildSelected;
 
   static const _speeds = [0.5, 1.0, 2.0];
 
@@ -31,14 +38,27 @@ class DesyMotionPlaybackControls extends StatelessWidget {
             globalDuration: globalDuration,
             onGlobalDurationChanged: onGlobalDurationChanged,
           )
-        : _PanelMotionPlaybackControls(controller: controller),
+        : _PanelMotionPlaybackControls(
+            controller: controller,
+            specimenChildren: specimenChildren,
+            selectedSpecimenChildId: selectedSpecimenChildId,
+            onSpecimenChildSelected: onSpecimenChildSelected,
+          ),
   );
 }
 
 class _PanelMotionPlaybackControls extends StatelessWidget {
-  const _PanelMotionPlaybackControls({required this.controller});
+  const _PanelMotionPlaybackControls({
+    required this.controller,
+    required this.specimenChildren,
+    required this.selectedSpecimenChildId,
+    required this.onSpecimenChildSelected,
+  });
 
   final DesyMotionPlaybackController controller;
+  final List<DesyMotionChild> specimenChildren;
+  final String? selectedSpecimenChildId;
+  final ValueChanged<String>? onSpecimenChildSelected;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -54,8 +74,65 @@ class _PanelMotionPlaybackControls extends StatelessWidget {
       Text('Playback speed', style: Theme.of(context).textTheme.labelLarge),
       const SizedBox(height: 8),
       _SpeedButtons(controller: controller),
+      if (specimenChildren.length > 1 &&
+          selectedSpecimenChildId != null &&
+          onSpecimenChildSelected != null) ...[
+        const SizedBox(height: 18),
+        _MotionControlGroup(
+          label: 'SPECIMEN',
+          child: _SpecimenChildSelect(
+            children: specimenChildren,
+            selectedId: selectedSpecimenChildId!,
+            onChanged: onSpecimenChildSelected!,
+          ),
+        ),
+      ],
     ],
   );
+}
+
+class _SpecimenChildSelect extends StatelessWidget {
+  const _SpecimenChildSelect({
+    required this.children,
+    required this.selectedId,
+    required this.onChanged,
+  });
+
+  final List<DesyMotionChild> children;
+  final String selectedId;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = children.firstWhere(
+      (child) => child.id == selectedId,
+      orElse: () => children.first,
+    );
+    return DesySelect<String>.rich(
+      key: const ValueKey('motion-specimen-select'),
+      size: DesySelectSize.sm,
+      control: DesySelectControl.lifted(
+        value: selected.id,
+        onChange: (value) {
+          if (value != null) onChanged(value);
+        },
+      ),
+      format: (id) => children
+          .firstWhere((child) => child.id == id, orElse: () => selected)
+          .name,
+      children: [
+        for (final child in children)
+          DesySelectItem.item(
+            key: ValueKey('motion-specimen-${child.id}'),
+            value: child.id,
+            title: Text(child.name),
+            subtitle: child.isRegisteredInstance
+                ? const Text('Registered component instance')
+                : const Text('Widget specimen'),
+          ),
+      ],
+    );
+  }
 }
 
 class _CompactMotionPlaybackControls extends StatelessWidget {
@@ -74,111 +151,56 @@ class _CompactMotionPlaybackControls extends StatelessWidget {
     key: const ValueKey('motion-global-playback-controls'),
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) => _CompactDockControls(
-              controller: controller,
-              globalDuration: globalDuration,
-              onGlobalDurationChanged: onGlobalDurationChanged,
-              stack: constraints.maxWidth < 620,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: 250,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        'TIMELINE',
-                        style: context.theme.typography.body.xs.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: .8,
-                        ),
-                      ),
-                      const Spacer(),
-                      _PlayheadLabel(controller: controller, inline: true),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  _PlaybackThermometer(
-                    key: const ValueKey('motion-playhead-thermometer'),
-                    controller: controller,
-                  ),
-                ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _DockControl(
+              child: _PlayPauseButton(
+                controller: controller,
+                iconOnly: true,
+                size: DesyButtonSize.sm,
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          _SpeedButtons(
-            controller: controller,
-            size: DesyButtonSize.sm,
-            dockHeight: 40,
-          ),
-        ],
+            if (globalDuration case final duration?) ...[
+              const SizedBox(width: 10),
+              _DockControl(
+                child: _GlobalDurationField(
+                  duration: duration,
+                  onChanged: onGlobalDurationChanged,
+                  compact: true,
+                ),
+              ),
+            ],
+            const SizedBox(width: 18),
+            _DockControl(
+              child: _LoopModeButton(
+                controller: controller,
+                size: DesyButtonSize.sm,
+              ),
+            ),
+            const SizedBox(width: 18),
+            SizedBox(
+              width: 250,
+              child: _PlaybackThermometer(
+                key: const ValueKey('motion-playhead-thermometer'),
+                controller: controller,
+              ),
+            ),
+            const SizedBox(width: 18),
+            _DockControl(
+              child: _SpeedModeButton(
+                controller: controller,
+                size: DesyButtonSize.sm,
+              ),
+            ),
+          ],
+        ),
       ),
     ),
   );
-}
-
-class _CompactDockControls extends StatelessWidget {
-  const _CompactDockControls({
-    required this.controller,
-    required this.globalDuration,
-    required this.onGlobalDurationChanged,
-    required this.stack,
-  });
-
-  final DesyMotionPlaybackController controller;
-  final Duration? globalDuration;
-  final ValueChanged<Duration>? onGlobalDurationChanged;
-  final bool stack;
-
-  @override
-  Widget build(BuildContext context) {
-    final play = _DockControl(
-      child: _PlayPauseButton(
-        controller: controller,
-        iconOnly: true,
-        size: DesyButtonSize.sm,
-      ),
-    );
-    final duration = globalDuration == null
-        ? null
-        : _DockControl(
-            child: _GlobalDurationField(
-              duration: globalDuration!,
-              onChanged: onGlobalDurationChanged,
-              compact: true,
-            ),
-          );
-    final playbackType = _DockControl(
-      child: _LoopModeButton(controller: controller, size: DesyButtonSize.sm),
-    );
-    if (stack) {
-      return Wrap(
-        spacing: 12,
-        runSpacing: 10,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [play, ?duration, playbackType],
-      );
-    }
-    return Row(
-      children: [
-        play,
-        if (duration != null) ...[const SizedBox(width: 10), duration],
-        const SizedBox(width: 18),
-        playbackType,
-      ],
-    );
-  }
 }
 
 class _DockControl extends StatelessWidget {
@@ -354,10 +376,9 @@ class _LoopModeButton extends StatelessWidget {
 }
 
 class _PlayheadLabel extends StatelessWidget {
-  const _PlayheadLabel({required this.controller, this.inline = false});
+  const _PlayheadLabel({required this.controller});
 
   final DesyMotionPlaybackController controller;
-  final bool inline;
 
   @override
   Widget build(BuildContext context) {
@@ -368,7 +389,6 @@ class _PlayheadLabel extends StatelessWidget {
       key: const ValueKey('motion-playhead-label'),
       style: Theme.of(context).textTheme.bodySmall,
     );
-    if (inline) return value;
     return Row(
       children: [
         Text('Timeline', style: Theme.of(context).textTheme.labelLarge),
@@ -541,15 +561,9 @@ class _PlaybackSlider extends StatelessWidget {
 }
 
 class _SpeedButtons extends StatelessWidget {
-  const _SpeedButtons({
-    required this.controller,
-    this.size = DesyButtonSize.xs,
-    this.dockHeight,
-  });
+  const _SpeedButtons({required this.controller});
 
   final DesyMotionPlaybackController controller;
-  final DesyButtonSize size;
-  final double? dockHeight;
 
   @override
   Widget build(BuildContext context) => Wrap(
@@ -557,21 +571,41 @@ class _SpeedButtons extends StatelessWidget {
     runSpacing: 6,
     children: [
       for (final option in DesyMotionPlaybackControls._speeds)
-        SizedBox(
-          height: dockHeight,
-          child: DesyButton(
-            key: ValueKey('motion-speed-$option'),
-            size: size,
-            mainAxisSize: MainAxisSize.min,
-            variant: controller.speed == option
-                ? DesyButtonVariant.primary
-                : DesyButtonVariant.outline,
-            onPress: () => controller.setSpeed(option),
-            child: Text('$option×'),
-          ),
+        DesyButton(
+          key: ValueKey('motion-speed-$option'),
+          size: DesyButtonSize.xs,
+          mainAxisSize: MainAxisSize.min,
+          variant: controller.speed == option
+              ? DesyButtonVariant.primary
+              : DesyButtonVariant.outline,
+          onPress: () => controller.setSpeed(option),
+          child: Text('$option×'),
         ),
     ],
   );
+}
+
+class _SpeedModeButton extends StatelessWidget {
+  const _SpeedModeButton({required this.controller, required this.size});
+
+  final DesyMotionPlaybackController controller;
+  final DesyButtonSize size;
+
+  @override
+  Widget build(BuildContext context) {
+    final speeds = DesyMotionPlaybackControls._speeds;
+    final currentIndex = speeds.indexOf(controller.speed);
+    final nextSpeed = speeds[(currentIndex + 1) % speeds.length];
+    return DesyButton(
+      key: const ValueKey('motion-speed-mode'),
+      size: size,
+      variant: DesyButtonVariant.outline,
+      mainAxisSize: MainAxisSize.min,
+      semanticsLabel: 'Playback speed ${controller.speed} times',
+      onPress: () => controller.setSpeed(nextSpeed),
+      child: Text('${controller.speed.toStringAsFixed(1)}×'),
+    );
+  }
 }
 
 extension on DesyMotionLoopMode {

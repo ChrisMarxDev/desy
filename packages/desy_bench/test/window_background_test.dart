@@ -33,9 +33,9 @@ void main() {
 
     expect(appliedColors, [const Color(0xffffffff)]);
 
-    await tester.tap(find.byKey(const ValueKey('sidebar-theme-select')));
+    await tester.tap(find.byKey(const ValueKey('top-bar-theme-select')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('sidebar-theme-dark')));
+    await tester.tap(find.byKey(const ValueKey('top-bar-theme-dark')));
     await tester.pumpAndSettle();
 
     expect(appliedColors, [const Color(0xffffffff), const Color(0xff0f0f10)]);

@@ -1,0 +1,22 @@
+name: desy_widget_previewer
+description: Local Flutter Widget Previewer experiment for comparing Desy and Flutter's source-local previews.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.8.0
+  flutter: '>=3.44.0'
+
+resolution: workspace
+
+dependencies:
+  desy_design_system:
+    path: ..
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

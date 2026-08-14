@@ -1,6 +1,18 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 
+/// Visual density for a [DesySelect] field.
+enum DesySelectSize {
+  /// Small, toolbar-friendly field height.
+  sm,
+
+  /// Standard form-control field height.
+  md,
+
+  /// Large field height for spacious forms.
+  lg,
+}
+
 /// Desy's typed single-selection control.
 ///
 /// The public API deliberately covers the controlled rich select used by the
@@ -16,6 +28,7 @@ class DesySelect<T> extends StatelessWidget {
     this.label,
     this.description,
     this.enabled = true,
+    this.size = DesySelectSize.md,
   });
 
   /// State ownership for this select.
@@ -36,6 +49,9 @@ class DesySelect<T> extends StatelessWidget {
   /// Whether the control accepts interaction.
   final bool enabled;
 
+  /// The field's visual density.
+  final DesySelectSize size;
+
   @override
   Widget build(BuildContext context) => FSelect<T>.rich(
     control: control._toForui(),
@@ -43,6 +59,11 @@ class DesySelect<T> extends StatelessWidget {
     label: label,
     description: description,
     enabled: enabled,
+    size: switch (size) {
+      DesySelectSize.sm => FTextFieldSizeVariant.sm,
+      DesySelectSize.md => FTextFieldSizeVariant.md,
+      DesySelectSize.lg => FTextFieldSizeVariant.lg,
+    },
     children: [for (final item in children) item._toForui()],
   );
 }

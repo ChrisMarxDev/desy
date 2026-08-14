@@ -65,12 +65,15 @@ final designSystem = DesyRegistry(
   ],
 );
 
-void main() => runApp(DesyBenchApp(registry: designSystem));
+Future<void> main() => runDesyBenchApp(registry: designSystem);
 ```
 
 The theme and button remain consumer-owned. Use stable, unique IDs across the
 registry. Previews build the real widget at its intended logical size under its
 real theme.
+
+`runDesyBenchApp` handles Flutter binding and Desy's desktop window setup. Use
+`DesyBenchApp` directly when embedding the workbench within a larger app.
 
 ## Compare real Flutter prototype directions
 
@@ -154,6 +157,8 @@ consumer-owned or optional packages.
 - [`dev.md`](dev.md) — the single contributor guide.
 - [`CORE_PRINCIPLES.md`](CORE_PRINCIPLES.md) — product and architecture
   decision gate.
+- [`concept/features/index.html`](concept/features/index.html) — the single
+  roadmap and product-idea hub.
 
 Run the complete verification suite with:
 

@@ -23,16 +23,19 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     required this.session,
     this.location,
     this.onNavigate,
+    this.onOpenAnnotations,
   });
 
   final DesyWorkbenchSession session;
   final Uri? location;
   final ValueChanged<String>? onNavigate;
+  final VoidCallback? onOpenAnnotations;
 
   @override
   Widget build(BuildContext context) {
     final currentLocation = location ?? GoRouterState.of(context).uri;
-    final theme = session.activeThemeIndex.watch(context);
+    final themeIndex = session.activeThemeIndex.watch(context);
+    final query = session.sidebarQuery.watch(context).trim();
     final componentRoots = session.registry.componentGroups;
     final componentTree = _componentTreeChildren(
       context,
@@ -42,6 +45,7 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     final componentSections = _componentPreviewSections(componentRoots);
     final componentCount = session.registry.allComponents.length;
     final extensions = session.extensions;
+    final searchResults = _searchEntries(query);
 
     return DesySidebar(
       constraints: const BoxConstraints(minWidth: double.infinity),
@@ -55,110 +59,184 @@ class DesyWorkbenchSidebar extends StatelessWidget {
           children: [
             const Text('REGISTRY'),
             const SizedBox(height: 10),
-            DesySelect<int>.rich(
-              key: const ValueKey('sidebar-theme-select'),
-              control: DesySelectControl.lifted(
-                value: theme,
-                onChange: (index) {
-                  if (index != null) session.selectTheme(index);
-                },
-              ),
-              format: (index) => session.registry.themes[index].name,
-              children: [
-                for (final (index, option) in session.registry.themes.indexed)
-                  DesySelectItem.item(
-                    key: ValueKey('sidebar-theme-${option.id}'),
-                    value: index,
-                    title: Text(option.name),
-                    subtitle: Text(option.description ?? 'Preview context'),
-                  ),
-              ],
-            ),
+            _searchField(context, query),
           ],
         ),
       ),
-      footer: null,
+      footer: onOpenAnnotations == null
+          ? null
+          : _SidebarAnnotationSummary(
+              session: session,
+              onOpen: onOpenAnnotations!,
+            ),
       children: [
-        DesySidebarSection(
-          key: const ValueKey('sidebar-section-registry'),
-          label: 'Registry',
-          children: [
-            DesySidebarItem(
-              key: const ValueKey('registry-atlas-nav'),
-              icon: const Icon(DesyIcons.layoutGrid, size: 18),
-              label: const Text('All components'),
-              selected:
-                  currentLocation.path == DesyWorkbenchRoutes.atlasPath &&
-                  currentLocation.queryParameters['folder'] == null,
-              onPress: () => _go(context, DesyWorkbenchRoutes.atlasPath),
-            ),
-          ],
-        ),
-        if (session.registry.allPrototypes.isNotEmpty)
+        if (query.isNotEmpty)
           DesySidebarSection(
-            key: const ValueKey('sidebar-section-prototypes'),
-            label: 'Prototypes',
-            count: session.registry.allPrototypes.length,
+            key: const ValueKey('sidebar-section-search-results'),
+            label: 'Search results',
+            count: searchResults.length,
             children: [
-              for (final prototypeSession in session.registry.allPrototypes)
-                DesySidebarItem(
-                  key: ValueKey('prototype-session-${prototypeSession.id}'),
-                  icon: const Icon(DesyIcons.sparkles, size: 18),
-                  label: Text(prototypeSession.name),
-                  selected:
-                      currentLocation.path ==
+              if (searchResults.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+                  child: Text(
+                    'No registry entries match “$query”.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.theme.colors.mutedForeground,
+                    ),
+                  ),
+                )
+              else
+                for (final entry in searchResults)
+                  _componentEntryItem(context, entry),
+            ],
+          )
+        else ...[
+          DesySidebarSection(
+            key: const ValueKey('sidebar-section-registry'),
+            label: 'Registry',
+            children: [
+              DesySidebarItem(
+                key: const ValueKey('registry-atlas-nav'),
+                icon: const Icon(DesyIcons.layoutGrid, size: 18),
+                label: const Text('All components'),
+                selected:
+                    currentLocation.path == DesyWorkbenchRoutes.atlasPath &&
+                    currentLocation.queryParameters['folder'] == null,
+                onPress: () => _go(context, DesyWorkbenchRoutes.atlasPath),
+              ),
+              DesySidebarItem(
+                key: const ValueKey('registry-canvas-nav'),
+                icon: const Icon(DesyIcons.layers, size: 18),
+                label: const Text('Canvas'),
+                selected:
+                    currentLocation.path == DesyWorkbenchRoutes.canvasPath,
+                onPress: () => _go(context, DesyWorkbenchRoutes.canvasPath),
+              ),
+            ],
+          ),
+          if (session.registry.allPrototypes.isNotEmpty)
+            DesySidebarSection(
+              key: const ValueKey('sidebar-section-prototypes'),
+              label: 'Prototypes',
+              count: session.registry.allPrototypes.length,
+              children: [
+                for (final prototypeSession in session.registry.allPrototypes)
+                  DesySidebarItem(
+                    key: ValueKey('prototype-session-${prototypeSession.id}'),
+                    icon: const Icon(DesyIcons.sparkles, size: 18),
+                    label: Text(prototypeSession.name),
+                    selected:
+                        currentLocation.path ==
+                        DesyWorkbenchRoutes.prototype(prototypeSession.id),
+                    onPress: () => _go(
+                      context,
                       DesyWorkbenchRoutes.prototype(prototypeSession.id),
-                  onPress: () => _go(
-                    context,
-                    DesyWorkbenchRoutes.prototype(prototypeSession.id),
+                    ),
                   ),
-                ),
-            ],
-          ),
-        if (extensions.isNotEmpty)
-          DesySidebarSection(
-            key: const ValueKey('sidebar-section-tools'),
-            label: 'Tools',
-            children: [
-              for (final extension in extensions)
-                DesySidebarItem(
-                  key: ValueKey('tool-extension-${extension.id}'),
-                  icon: Icon(extension.icon ?? DesyIcons.boxes, size: 18),
-                  label: Text(extension.name),
-                  selected:
-                      currentLocation.path ==
-                      DesyWorkbenchRoutes.workspaceExtension(extension.id),
-                  onPress: () => _go(
-                    context,
-                    DesyWorkbenchRoutes.workspaceExtension(extension.id),
-                  ),
-                ),
-            ],
-          ),
-        if (session.registry.hasAtoms)
-          DesySidebarSection(
-            key: const ValueKey('sidebar-section-atoms'),
-            label: 'Atoms',
-            children: _atomItems(context, currentLocation),
-          ),
-        if (componentCount > 0)
-          _ComponentsSidebarSection(
-            entryCount: componentCount,
-            sections: componentSections,
-            theme: session.registry.themes[theme],
-            selectedEntryId: _selectedEntryId(currentLocation),
-            onOpenAtlas: () => _go(context, DesyWorkbenchRoutes.atlasPath),
-            onOpenSection: (section) => _go(
-              context,
-              DesyWorkbenchRoutes.atlas(folderId: section.folderId),
+              ],
             ),
-            onOpen: (entry) {
-              session.prepareEntry(entry);
-              _go(context, DesyWorkbenchRoutes.entry(entry.id));
-            },
-            treeChildren: componentTree,
-          ),
+          if (extensions.isNotEmpty)
+            DesySidebarSection(
+              key: const ValueKey('sidebar-section-tools'),
+              label: 'Tools',
+              children: [
+                for (final extension in extensions)
+                  DesySidebarItem(
+                    key: ValueKey('tool-extension-${extension.id}'),
+                    icon: Icon(extension.icon ?? DesyIcons.boxes, size: 18),
+                    label: Text(extension.name),
+                    selected:
+                        currentLocation.path ==
+                        DesyWorkbenchRoutes.workspaceExtension(extension.id),
+                    onPress: () => _go(
+                      context,
+                      DesyWorkbenchRoutes.workspaceExtension(extension.id),
+                    ),
+                  ),
+              ],
+            ),
+          if (session.registry.hasAtoms)
+            DesySidebarSection(
+              key: const ValueKey('sidebar-section-atoms'),
+              label: 'Atoms',
+              children: _atomItems(context, currentLocation),
+            ),
+          if (componentCount > 0)
+            _ComponentsSidebarSection(
+              entryCount: componentCount,
+              sections: componentSections,
+              theme: session.registry.themes[themeIndex],
+              selectedEntryId: _selectedEntryId(currentLocation),
+              onOpenAtlas: () => _go(context, DesyWorkbenchRoutes.atlasPath),
+              onOpenSection: (section) => _go(
+                context,
+                DesyWorkbenchRoutes.atlas(folderId: section.folderId),
+              ),
+              onOpen: (entry) {
+                session.prepareEntry(entry);
+                _go(context, DesyWorkbenchRoutes.entry(entry.id));
+              },
+              treeChildren: componentTree,
+            ),
+        ],
       ],
+    );
+  }
+
+  List<DesyRegistryEntry> _searchEntries(String query) {
+    final normalized = query.toLowerCase();
+    if (normalized.isEmpty) return const [];
+    return session.registry.allEntries
+        .where((entry) {
+          final haystack = [
+            entry.name,
+            entry.id,
+            entry.description,
+            entry.path,
+            ...entry.folderIds,
+          ].whereType<String>().join(' ').toLowerCase();
+          return haystack.contains(normalized);
+        })
+        .toList(growable: false);
+  }
+
+  Widget _searchField(BuildContext context, String query) {
+    final field = DesyTextField(
+      key: const ValueKey('sidebar-search'),
+      label: 'Search registry',
+      value: session.sidebarQuery.value,
+      hintText: 'Search registry',
+      prefixIcon: Icon(
+        DesyIcons.search,
+        size: 16,
+        color: context.theme.colors.mutedForeground,
+      ),
+      suffixIcon: query.isEmpty
+          ? null
+          : DesyButton.icon(
+              size: DesyButtonSize.xs,
+              variant: DesyButtonVariant.ghost,
+              semanticsLabel: 'Clear registry search',
+              onPress: () => session.sidebarQuery.value = '',
+              child: const Icon(DesyIcons.x, size: 14),
+            ),
+      onChanged: (value) => session.sidebarQuery.value = value,
+    );
+    if (Localizations.of<MaterialLocalizations>(
+          context,
+          MaterialLocalizations,
+        ) !=
+        null) {
+      return field;
+    }
+    return Localizations(
+      locale: const Locale('en'),
+      delegates: const [
+        DefaultMaterialLocalizations.delegate,
+        DefaultWidgetsLocalizations.delegate,
+      ],
+      child: field,
     );
   }
 
@@ -327,6 +405,106 @@ String? _selectedEntryId(Uri location) {
 ///
 /// Both modes resolve previews and destinations from the same active registry.
 /// The preference changes presentation only; the file tree remains the default.
+class _SidebarAnnotationSummary extends StatelessWidget {
+  const _SidebarAnnotationSummary({
+    required this.session,
+    required this.onOpen,
+  });
+
+  final DesyWorkbenchSession session;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final annotations = session.workbenchAnnotations.watch(context);
+    final latest = annotations.isEmpty ? null : annotations.last;
+    final colors = context.theme.colors;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: colors.border)),
+      ),
+      child: Semantics(
+        button: true,
+        label: 'Open ${annotations.length} annotations',
+        child: GestureDetector(
+          key: const ValueKey('workbench-annotation-summary'),
+          behavior: HitTestBehavior.opaque,
+          onTap: onOpen,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: colors.desy.signalSurface,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    DesyIcons.messageSquare,
+                    size: 14,
+                    color: colors.desy.signal,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: latest == null
+                      ? Text(
+                          'Annotations',
+                          style: context.theme.typography.body.sm.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${annotations.length} annotations',
+                              style: context.theme.typography.body.sm.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${latest.target.displayLabel}: ${latest.comment}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.theme.typography.body.xs.copyWith(
+                                color: colors.mutedForeground,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+                Container(
+                  constraints: const BoxConstraints(
+                    minWidth: 22,
+                    minHeight: 22,
+                  ),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: colors.desy.signal,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    '${annotations.length}',
+                    style: context.theme.typography.body.xs.copyWith(
+                      color: colors.desy.onSignal,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ComponentsSidebarSection extends StatefulWidget {
   const _ComponentsSidebarSection({
     required this.entryCount,

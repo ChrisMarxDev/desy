@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  start:
+    desc: Start Flutter's local Widget Previewer for the real Desy dogfood widgets.
+    cmds:
+      - flutter widget-preview start {{.CLI_ARGS}}
+
+  clean:
+    desc: Remove Flutter Widget Previewer generated state.
+    cmds:
+      - flutter widget-preview clean
+
+  analyze:
+    desc: Analyze the Widget Previewer comparison declarations.
+    cmds:
+      - flutter analyze

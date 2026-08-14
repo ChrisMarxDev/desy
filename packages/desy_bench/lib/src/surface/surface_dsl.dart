@@ -698,6 +698,47 @@ final class DesySurfaceValidator {
               );
             }
           }
+        case DesyKnobKind.widgetInstances:
+          if (value is! List || value.any((item) => item is! String)) {
+            issues.add(
+              DesySurfaceValidationIssue(
+                path: knobPath,
+                message: 'Expected a list of component-instance IDs.',
+              ),
+            );
+          } else {
+            for (final (index, item) in value.cast<String>().indexed) {
+              final itemPath = '$knobPath[$index]';
+              if (registry.resolveComponentInstance(item) == null) {
+                issues.add(
+                  DesySurfaceValidationIssue(
+                    path: itemPath,
+                    message: 'Unknown component instance "$item".',
+                  ),
+                );
+              }
+              if (definition.options.isNotEmpty &&
+                  !definition.options.contains(item)) {
+                issues.add(
+                  DesySurfaceValidationIssue(
+                    path: itemPath,
+                    message:
+                        'Instance "$item" is not legal for knob '
+                        '"${definition.id}".',
+                  ),
+                );
+              }
+            }
+          }
+        case DesyKnobKind.event:
+          issues.add(
+            DesySurfaceValidationIssue(
+              path: knobPath,
+              message:
+                  'Event bindings are supplied by a runtime adapter and '
+                  'cannot be authored in a local surface document.',
+            ),
+          );
       }
     }
   }

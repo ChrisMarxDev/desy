@@ -1,11 +1,74 @@
 import 'package:desy_bench/desy_bench.dart';
 import 'package:desy_bench/src/workbench/presentation/workbench_sidebar.dart';
 import 'package:desy_bench/src/workbench/workbench_session.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 
 void main() {
+  testWidgets('sidebar search filters registry entries and can be cleared', (
+    tester,
+  ) async {
+    final session = DesyWorkbenchSession(
+      registry: DesyRegistry(
+        name: 'Searchable registry',
+        themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+        components: [
+          _component('action.primary', path: '/actions'),
+          _component('input.checkbox', path: '/inputs'),
+        ],
+      ),
+    );
+    addTearDown(session.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FTheme(
+          data: FTheme.neutral.light.desktop,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: DesyWorkbenchSidebar(
+              session: session,
+              location: Uri.parse('/atlas'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey('sidebar-search')),
+      'checkbox',
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('sidebar-section-search-results')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('sidebar-entry-input.checkbox')),
+      findsOne,
+    );
+    expect(
+      find.byKey(const ValueKey('sidebar-entry-action.primary')),
+      findsNothing,
+    );
+
+    await tester.tap(find.bySemanticsLabel('Clear registry search'));
+    await tester.pumpAndSettle();
+
+    expect(session.sidebarQuery.value, isEmpty);
+    expect(
+      find.byKey(const ValueKey('sidebar-section-search-results')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('sidebar-entry-action.primary')),
+      findsOne,
+    );
+  });
+
   testWidgets('a deep-linked entry expands its component file-tree ancestors', (
     tester,
   ) async {
@@ -19,13 +82,15 @@ void main() {
     addTearDown(session.dispose);
 
     await tester.pumpWidget(
-      FTheme(
-        data: FTheme.neutral.light.desktop,
-        child: Directionality(
-          textDirection: TextDirection.ltr,
-          child: DesyWorkbenchSidebar(
-            session: session,
-            location: Uri.parse('/entries/deep.component'),
+      MaterialApp(
+        home: FTheme(
+          data: FTheme.neutral.light.desktop,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: DesyWorkbenchSidebar(
+              session: session,
+              location: Uri.parse('/entries/deep.component'),
+            ),
           ),
         ),
       ),
@@ -59,13 +124,15 @@ void main() {
     addTearDown(session.dispose);
 
     await tester.pumpWidget(
-      FTheme(
-        data: FTheme.neutral.light.desktop,
-        child: Directionality(
-          textDirection: TextDirection.ltr,
-          child: DesyWorkbenchSidebar(
-            session: session,
-            location: Uri.parse('/entries/override.component'),
+      MaterialApp(
+        home: FTheme(
+          data: FTheme.neutral.light.desktop,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: DesyWorkbenchSidebar(
+              session: session,
+              location: Uri.parse('/entries/override.component'),
+            ),
           ),
         ),
       ),
@@ -116,14 +183,16 @@ void main() {
     addTearDown(session.dispose);
 
     await tester.pumpWidget(
-      FTheme(
-        data: FTheme.neutral.light.desktop,
-        child: Directionality(
-          textDirection: TextDirection.ltr,
-          child: DesyWorkbenchSidebar(
-            session: session,
-            location: Uri.parse('/atlas'),
-            onNavigate: (location) => destination = location,
+      MaterialApp(
+        home: FTheme(
+          data: FTheme.neutral.light.desktop,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: DesyWorkbenchSidebar(
+              session: session,
+              location: Uri.parse('/atlas'),
+              onNavigate: (location) => destination = location,
+            ),
           ),
         ),
       ),
@@ -222,14 +291,16 @@ void main() {
     addTearDown(session.dispose);
 
     await tester.pumpWidget(
-      FTheme(
-        data: FTheme.neutral.light.desktop,
-        child: Directionality(
-          textDirection: TextDirection.ltr,
-          child: DesyWorkbenchSidebar(
-            session: session,
-            location: Uri.parse('/entries/components.button'),
-            onNavigate: (location) => destination = location,
+      MaterialApp(
+        home: FTheme(
+          data: FTheme.neutral.light.desktop,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: DesyWorkbenchSidebar(
+              session: session,
+              location: Uri.parse('/entries/components.button'),
+              onNavigate: (location) => destination = location,
+            ),
           ),
         ),
       ),
@@ -262,13 +333,15 @@ void main() {
     addTearDown(session.dispose);
 
     await tester.pumpWidget(
-      FTheme(
-        data: FTheme.neutral.light.desktop,
-        child: Directionality(
-          textDirection: TextDirection.ltr,
-          child: DesyWorkbenchSidebar(
-            session: session,
-            location: Uri.parse('/atlas'),
+      MaterialApp(
+        home: FTheme(
+          data: FTheme.neutral.light.desktop,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: DesyWorkbenchSidebar(
+              session: session,
+              location: Uri.parse('/atlas'),
+            ),
           ),
         ),
       ),

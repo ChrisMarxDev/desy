@@ -75,31 +75,18 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     _globalMotionDuration = globalDuration;
     _motionPlayback = DesyMotionPlaybackController(
       vsync: this,
-      duration: _cycleDuration(entries, globalDuration),
+      duration: globalDuration,
       loopMode: DesyMotionLoopMode.once,
       autoplay: false,
     );
   }
 
-  Duration _cycleDuration(
-    List<DesyRegistryEntry> entries,
-    Duration globalDuration,
-  ) {
-    var duration = globalDuration;
-    for (final entry in entries) {
-      final declared = (entry.source as DesyMotionEntry).duration;
-      if (declared != null && declared > duration) duration = declared;
-    }
-    return duration;
-  }
-
   void _setGlobalMotionDuration(Duration duration) {
     final playback = _motionPlayback;
     if (playback == null || duration <= Duration.zero) return;
-    final entries = _entriesForDestination(folderId);
     setState(() {
       _globalMotionDuration = duration;
-      playback.setDuration(_cycleDuration(entries, duration));
+      playback.setDuration(duration);
     });
   }
 
@@ -191,7 +178,6 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
                 entry: entries[index],
                 theme: theme,
                 motionPlayback: _motionPlayback,
-                globalMotionDuration: _globalMotionDuration,
                 onOpen: () => widget.onOpen(entries[index]),
               ),
             ),
@@ -286,14 +272,12 @@ class _AtlasCard extends StatelessWidget {
     required this.entry,
     required this.theme,
     required this.motionPlayback,
-    required this.globalMotionDuration,
     required this.onOpen,
   });
 
   final DesyRegistryEntry entry;
   final DesyTheme theme;
   final DesyMotionPlaybackController? motionPlayback;
-  final Duration? globalMotionDuration;
   final VoidCallback onOpen;
 
   @override
@@ -349,21 +333,12 @@ class _AtlasCard extends StatelessWidget {
     final playback = motionPlayback;
     final source = entry.source;
     if (playback == null || source is! DesyMotionEntry) return entry.builder;
-    final duration =
-        source.duration ??
-        globalMotionDuration ??
-        DesyMotionPlaybackController.defaultDuration;
-    final durationRatio =
-        (duration.inMicroseconds / playback.duration.inMicroseconds).clamp(
-          0.0,
-          1.0,
-        );
-    final progress = playback.timeline.drive(
-      CurveTween(curve: Interval(0, durationRatio, curve: source.curve)),
-    );
     return (context) => DesyMotionPlaybackScope(
-      progress: progress,
-      child: Builder(builder: source.builder),
+      progress: playback.timeline,
+      child: Builder(
+        builder: (context) =>
+            source.build(context, source.defaultChild.build(context)),
+      ),
     );
   }
 }

@@ -125,6 +125,64 @@ void main() {
     final decoration = container.decoration! as BoxDecoration;
     expect(decoration.color, DesyVisualColors.light.panel);
     expect(decoration.border, isNotNull);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).textAlignVertical,
+      TextAlignVertical.center,
+    );
+  });
+
+  testWidgets('agent chat uses Desy message roles and submits native text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    String? submitted;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: Center(
+            child: SizedBox(
+              width: 700,
+              child: DesyChatThread(
+                detail: 'desy.design-system',
+                messages: const [
+                  DesyChatMessage(
+                    role: DesyChatRole.user,
+                    child: Text('Build a comparison.'),
+                  ),
+                  DesyChatMessage(
+                    role: DesyChatRole.agent,
+                    child: Text('Generated surface'),
+                  ),
+                ],
+                composer: DesyChatComposer(
+                  onSubmit: (value) => submitted = value,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('YOU'), findsOneWidget);
+    expect(find.text('GENUI AGENT'), findsWidgets);
+    expect(find.text('desy.design-system'), findsOneWidget);
+    expect(find.byType(DesyTextField), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), '  Build an atlas card.  ');
+    await tester.pump();
+    expect(
+      tester.widget<DesyButton>(find.byType(DesyButton)).onPress,
+      isNotNull,
+    );
+    await tester.tap(find.text('Generate UI'));
+    await tester.pumpAndSettle();
+
+    expect(submitted, 'Build an atlas card.');
   });
 
   testWidgets('core controls expose Desy-owned contracts', (tester) async {
@@ -331,7 +389,7 @@ void main() {
   });
 
   testWidgets(
-    'knob sheet derives its count and its controls remain separated',
+    'knob sheet separates its titled context from readable controls',
     (tester) async {
       double? numericValue;
       bool? booleanValue;
@@ -345,6 +403,8 @@ void main() {
                 key: const ValueKey('knob-sheet-frame'),
                 width: 320,
                 child: DesyKnobSheet(
+                  title: 'Properties',
+                  subtitle: 'Adjust the selected component.',
                   sections: [
                     DesyKnobSection(
                       label: 'LAYOUT',
@@ -377,7 +437,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('2'), findsOneWidget);
+      expect(find.text('Properties'), findsOneWidget);
+      expect(find.text('Adjust the selected component.'), findsOneWidget);
+      expect(find.text('2'), findsNothing);
       await tester.tap(find.bySemanticsLabel('Increase Width'));
       await tester.pumpAndSettle();
       expect(numericValue, 328);
@@ -394,6 +456,53 @@ void main() {
       await tester.tap(find.text('Off'));
       await tester.pumpAndSettle();
       expect(booleanValue, isTrue);
+    },
+  );
+
+  testWidgets(
+    'knob sheet gives text controls the full framed width in a narrow rail',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DesyDesignSystemScope(
+            theme: DesyDesignSystemTheme.light,
+            child: const Center(
+              child: SizedBox(
+                key: ValueKey('narrow-knob-sheet-frame'),
+                width: 174,
+                child: DesyKnobSheet(
+                  title: 'Button',
+                  subtitle: 'Adjust this component.',
+                  sections: [
+                    DesyKnobSection(
+                      label: 'CONTENT',
+                      children: [
+                        DesyTextKnobRow(
+                          label: 'Label',
+                          description:
+                              'Visible action copy used by the button.',
+                          value: 'Continue',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final frame = tester.getRect(
+        find.byKey(const ValueKey('narrow-knob-sheet-frame')),
+      );
+      final field = tester.getRect(find.byType(EditableText));
+
+      expect(frame.width, 174);
+      expect(field.left, greaterThan(frame.left));
+      expect(field.right, lessThan(frame.right));
+      expect(tester.takeException(), isNull);
     },
   );
 

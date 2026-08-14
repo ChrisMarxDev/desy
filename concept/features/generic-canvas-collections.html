@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Desy generic canvas collections</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="shell">
+    <nav><a href="index.html">← Planned features</a><span>Impact 5 · Complexity 5 · Yield 1.00</span></nav>
+
+    <section class="hero">
+      <div class="eyebrow">Rank 17 · Registry-derived collection canvas</div>
+      <h1>Every collection can become a workspace, without ceasing to be a catalogue.</h1>
+      <p class="lede">A folder, atom lane, or component collection should open as a named scene of real registry previews. It begins as a familiar grid, then lets a designer select, move, resize, overlap, inspect, and compare several real widgets in one shared canvas. The shared canvas engine is now used by the component Canvas beta and prototype sessions; its implemented boundary is documented in <a href="../../docs/concepts/collection-canvas.md">Collection canvas</a>.</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Reason and user value</h2>
+        <p>Catalogue grids are good at browsing one item at a time; detail canvases are good at inspecting one item deeply. Design work often needs both at once: compare a button, badge, field, and feedback state at their real sizes; move them into a relationship; then inspect one of them without losing the rest.</p>
+      </article>
+      <article class="card">
+        <h2>Decision</h2>
+        <p><strong>Make the center surface generic, not every screen canvas-shaped.</strong> A sidebar destination resolves a typed collection scene from the one registry. The scene chooses an appropriate initial presentation, while one canvas engine owns pan, zoom, selection, stacking, geometry, and inspector hand-off.</p>
+      </article>
+
+      <article class="card full">
+        <h2>UX model</h2>
+        <div class="flow"><strong>Sidebar destination</strong><span>→</span><strong>Registry query</strong><span>→</span><strong>Initial readable layout</strong><span>→</span><strong>Select or arrange real previews</strong><span>→</span><strong>Inspect one item</strong></div>
+        <table>
+          <thead><tr><th>Moment</th><th>Canvas behaviour</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Open a folder or lane</td><td>Show all resolved items in a deterministic grid that preserves the current browse order. A collection label and item count stay visible.</td><td>The first frame answers the same question as today’s list or grid: “What is in here?”</td></tr>
+            <tr><td>Select an item</td><td>One pink selection outline and one inspector target. The item stays in the scene; it does not navigate away.</td><td>Comparison remains intact while controls become precise.</td></tr>
+            <tr><td>Double-click or press Enter</td><td>Drill into the existing single-item detail view. Back returns to the collection scene with its local arrangement intact for the session.</td><td>Deep editing is progressive disclosure, not a competing screen model.</td></tr>
+            <tr><td>Drag or resize</td><td>Move only the selected real preview; handles resize only that preview. Overlap and z-order are allowed. A reset action restores the derived grid.</td><td>It is a work surface, not an auto-reflowing gallery pretending to be a canvas.</td></tr>
+            <tr><td>Pan, zoom, or inspect</td><td>Blank-canvas drag pans; compact zoom controls scale the scene; direct manipulation always wins over canvas navigation. The global annotation layer still targets only real consumer widgets.</td><td>Large device frames and multi-item comparison remain usable without making individual previews unreachable.</td></tr>
+          </tbody>
+        </table>
+      </article>
+
+      <article class="card">
+        <h2>Scope</h2>
+        <ul>
+          <li>One typed <code>DesyCanvasScene</code> resolved from a sidebar destination and the active registry.</li>
+          <li>Stable scene-item IDs, real-widget builders, a derived initial rectangle, and optional item-specific inspector data.</li>
+          <li>A shared canvas engine for geometry, paint order, selection, zoom, pan, reset, keyboard movement, and accessible item labels.</li>
+          <li>Collection adapters for current component folders and compatible atom lanes. Existing catalogue cards become scene chrome, not a second preview implementation.</li>
+          <li>One selected item opens the existing detail surface; multi-item editing stays in the collection scene.</li>
+          <li>Session-local arrangement only in the first slice. Reloading a registry re-derives unavailable items safely.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Non-goals</h2>
+        <ul>
+          <li>No general-purpose Figma replacement or freeform screen authoring.</li>
+          <li>No serialised widget tree, callbacks, or application logic.</li>
+          <li>No parallel registry, copied folder inventory, or consumer-declared canvas metadata for ordinary catalogue use.</li>
+          <li>No forced canvas for specialized lanes whose value comes from their existing purpose-built board, such as Measurements or Motion.</li>
+          <li>No permanent persistence, collaboration, or promotion contract in the first slice.</li>
+        </ul>
+      </article>
+
+      <article class="card full">
+        <h2>Architecture sketch</h2>
+        <pre><code>DesyWorkbenchNavigationDestination
+  → DesyCanvasSceneResolver(registry, destination, activeTheme)
+  → DesyCanvasScene(items: immutable DesyCanvasSceneItem values)
+  → DesyCollectionCanvas(session-local scene state)
+  → real DesyWidgetPreview / existing atom preview builder
+  → selection → existing detail inspector or route</code></pre>
+        <p>The resolver derives scene contents from the existing registry and navigation tree. The canvas owns only ephemeral geometry keyed by stable item ID; it must never become a second declaration source. This reinforces Principles 1, 3, 5, 8, 12, and 13: one registry, real widgets, derived structure, readable scaled previews, rich typed scene values, and composition rather than a flag-heavy gallery API.</p>
+      </article>
+
+      <article class="card">
+        <h2>Phased rollout</h2>
+        <ol>
+          <li><s>Extract the proven drag-box, geometry, z-order, and zoom behaviour into a private generic canvas primitive.</s> Done: Canvas v2 and prototype sessions now share the typed primitive with host-supplied details builders.</li>
+          <li>Adapt one component-folder Atlas grid into a scene with deterministic initial placement and reset.</li>
+          <li>Route selection into the current detail inspector without duplicating knobs or preview construction.</li>
+          <li>Add compatible atom-lane adapters, keeping specialized boards where a generic scene loses useful meaning.</li>
+          <li>Only after daily use, decide whether ephemeral arrangements earn a narrow serialisable manifest.</li>
+        </ol>
+      </article>
+
+      <article class="card">
+        <h2>Open questions</h2>
+        <ul>
+          <li>Should the explicit control say <em>Arrange</em> / <em>Browse</em>, or should every compatible destination open in canvas mode by default with a resettable grid?</li>
+          <li>Which atom lanes preserve enough shared geometry to benefit: Colors and Icons likely do; Fonts, Motion, and Measurements may remain bespoke.</li>
+          <li>Should selection own the right inspector immediately, or should a second click or Enter be required to avoid accidental knob changes while arranging?</li>
+          <li>What minimal scene-state lifetime feels useful: route lifetime, workbench session, or an explicit future saved board?</li>
+          <li>How should a scene announce offscreen selected items and overlapping previews to keyboard and screen-reader users?</li>
+        </ul>
+      </article>
+
+      <article class="card accent">
+        <h2>Do or don’t?</h2>
+        <p><strong>Do, but start with one collection adapter and no persistence.</strong> Impact 5/5, complexity 5/5, risk 3/5, yield 1.00. The reward is a coherent daily workspace that matches how components are compared in practice. The main risk is silently building a second, serialised UI editor. Keep scene items registry-derived, initial layout deterministic, geometry ephemeral, and specialized boards free to remain specialized until a generic canvas is demonstrably better.</p>
+      </article>
+    </section>
+
+    <footer>Decision: the canvas is a presentation and temporary arrangement of registry-derived real widgets, never another source of system truth.</footer>
+  </main>
+</body>
+</html>

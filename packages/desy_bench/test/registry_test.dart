@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:desy_bench/desy_bench.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -457,6 +459,19 @@ void main() {
     );
   });
 
+  test('components may omit named instances', () {
+    final component = DesyComponent(
+      id: 'trail.summary',
+      name: 'Summary',
+      knobs: (k) => (label: k.string('label', initial: 'Summary')),
+      build: (context, knobs) => Text(knobs.label.value),
+    );
+
+    expect(component.instanceIds, isEmpty);
+    expect(component.defaultInstanceId, isNull);
+    expect(component.valuesFor('default'), {'label': 'Summary'});
+  });
+
   test('bound-record components retain typed literal color knobs', () {
     final component = DesyComponent(
       id: 'status.dot',
@@ -527,6 +542,55 @@ void main() {
     );
     expect(suffix.kind, DesyKnobKind.widgetInstance);
     expect(component.referencesFor('default').single.value, 'status.clear');
+  });
+
+  testWidgets('surface-scoped instance IDs use the external child resolver', (
+    tester,
+  ) async {
+    final leaf = DesyStaticComponent(
+      id: 'status',
+      name: 'Status',
+      instances: {'clear': (_) => const Text('Registry child')},
+    );
+    final component = DesyComponent(
+      id: 'card',
+      name: 'Card',
+      knobs: (k) => (
+        body: k.widgetInstance(
+          'body',
+          initial: 'status.clear',
+          options: const ['status.clear'],
+        ),
+      ),
+      build: (context, knobs) => knobs.body.widget,
+      instances: (knobs) => {
+        'default': [knobs.body('status.clear')],
+      },
+    );
+    final registry = DesyRegistry(
+      name: 'Surface composition',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [leaf, component],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Builder(
+          builder: (context) => component.buildWithValues(
+            context,
+            const {'body': DesyInstanceId.surface('live-child')},
+            widgets: DesyWidgetResolver.withSurfaceChildren(
+              registry,
+              buildSurfaceChild: (_, id) => Text('Surface $id'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Surface live-child'), findsOneWidget);
+    expect(find.text('Registry child'), findsNothing);
   });
 
   test('registry validation rejects unknown component-instance references', () {
@@ -747,6 +811,11 @@ void main() {
   test('experimental catalogue export is derived without widget builders', () {
     final registry = DesyRegistry(
       name: 'Exported system',
+      catalogConfig: const DesyCatalogConfig(
+        id: 'example.design-system',
+        version: '1.0.0',
+        description: 'Example agent catalogue.',
+      ),
       themes: [
         DesyTheme(id: 'light', name: 'Light', wrap: (_, child) => child),
       ],
@@ -770,8 +839,19 @@ void main() {
         DesyComponent(
           id: 'button.primary',
           name: 'Primary button',
-          knobs: (k) =>
-              (label: k.string('label', name: 'Label', initial: 'Save')),
+          knobs: (k) => (
+            label: k.string(
+              'label',
+              name: 'Label',
+              description: 'Visible button copy.',
+              initial: 'Save',
+            ),
+            children: k.widgetInstances(
+              'children',
+              description: 'Ordered button adornments.',
+            ),
+            press: k.event('press', description: 'Activate the button.'),
+          ),
           build: (context, knobs) => Text(knobs.label.value),
           instances: (knobs) => {
             'primary': [knobs.label('Save')],
@@ -784,7 +864,12 @@ void main() {
     final components = export['components']! as List<Object?>;
     final component = components.single! as Map<String, Object?>;
 
-    expect(export['schemaVersion'], '0.1-experimental');
+    expect(export['schemaVersion'], '0.2-experimental');
+    expect(export['catalog'], {
+      'id': 'example.design-system',
+      'version': '1.0.0',
+      'description': 'Example agent catalogue.',
+    });
     final primitives = export['primitives']! as Map<String, Object?>;
     expect(primitives['icons'], [
       {
@@ -797,9 +882,177 @@ void main() {
     ]);
     expect(component['id'], 'button.primary');
     expect(component['knobs'], [
-      {'id': 'label', 'name': 'Label', 'kind': 'string'},
+      {
+        'id': 'label',
+        'name': 'Label',
+        'description': 'Visible button copy.',
+        'kind': 'string',
+        'initial': 'Save',
+      },
+      {
+        'id': 'children',
+        'name': 'Children',
+        'description': 'Ordered button adornments.',
+        'kind': 'component-instances',
+        'initial': <Object>[],
+      },
+      {
+        'id': 'press',
+        'name': 'Press',
+        'description': 'Activate the button.',
+        'kind': 'event',
+      },
     ]);
     expect(export.toString(), isNot(contains('Closure')));
+    expect(() => jsonEncode(export), returnsNormally);
+  });
+
+  test('catalogue export is opt-in and honors component policy', () {
+    final themes = const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)];
+    final disabled = DesyRegistry(name: 'Local only', themes: themes);
+
+    expect(DesyCatalogueExport(disabled).isEnabled, isFalse);
+    expect(
+      () => DesyCatalogueExport(disabled).toJson(),
+      throwsA(isA<StateError>()),
+    );
+
+    final enabled = DesyRegistry(
+      name: 'Agent ready',
+      themes: themes,
+      catalogConfig: const DesyCatalogConfig(id: 'agent-ready', version: '1'),
+      components: [
+        DesyStaticComponent(
+          id: 'visible',
+          name: 'Visible',
+          instances: {'default': (_) => const SizedBox()},
+        ),
+        DesyStaticComponent(
+          id: 'internal',
+          name: 'Internal',
+          catalogConfig: const DesyComponentCatalogConfig(include: false),
+          instances: {'default': (_) => const SizedBox()},
+        ),
+      ],
+    );
+
+    final components =
+        DesyCatalogueExport(enabled).toJson()['components']! as List<Object?>;
+    expect(enabled.catalogComponents.map((component) => component.id), [
+      'visible',
+    ]);
+    expect(components.map((item) => (item! as Map<String, Object?>)['id']), [
+      'visible',
+    ]);
+  });
+
+  testWidgets('multi-instance knobs resolve real widgets in selected order', (
+    tester,
+  ) async {
+    final list = DesyComponent(
+      id: 'status.list',
+      name: 'Status list',
+      knobs: (k) => (
+        children: k.widgetInstances(
+          'children',
+          description: 'Ordered status tiles.',
+          initial: const ['status.clear', 'status.delayed'],
+          options: const ['status.clear', 'status.delayed'],
+        ),
+      ),
+      build: (context, knobs) => Column(children: knobs.children.widgets),
+      instances: (knobs) => {
+        'default': [
+          knobs.children(const ['status.delayed', 'status.clear']),
+        ],
+      },
+    );
+    final registry = DesyRegistry(
+      name: 'Composition',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [
+        DesyStaticComponent(
+          id: 'status',
+          name: 'Status',
+          instances: {
+            'clear': (_) => const Text('Clear'),
+            'delayed': (_) => const Text('Delayed'),
+          },
+        ),
+        list,
+      ],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Builder(
+          builder: (context) =>
+              list.buildInstance(context, 'default', registry.widgetBuilder),
+        ),
+      ),
+    );
+
+    expect(
+      tester.widgetList<Text>(find.byType(Text)).map((text) => text.data),
+      ['Delayed', 'Clear'],
+    );
+    expect(list.valuesFor('default')['children'], [
+      'status.delayed',
+      'status.clear',
+    ]);
+    expect(list.referencesFor('default').map((reference) => reference.value), [
+      'status.delayed',
+      'status.clear',
+    ]);
+  });
+
+  testWidgets('event knobs forward optional payloads through the host', (
+    tester,
+  ) async {
+    final host = _RecordingEventHost();
+    final component = DesyComponent(
+      id: 'composer',
+      name: 'Composer',
+      knobs: (k) => (
+        submit: k.event(
+          'submit',
+          description: 'Send the current composer value.',
+        ),
+      ),
+      build: (context, knobs) => GestureDetector(
+        onTap: () => knobs.submit.emit({'text': 'Hello'}),
+        child: const Text('Send'),
+      ),
+      instances: (knobs) => const {},
+    );
+    final registry = DesyRegistry(
+      name: 'Events',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [component],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Builder(
+          builder: (context) => component.buildWithValues(
+            context,
+            const {
+              'submit': {'action': 'send-message'},
+            },
+            widgets: registry.widgetBuilder,
+            events: host,
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Send'));
+
+    expect(host.invocations, hasLength(1));
+    expect(host.invocations.single.knobId, 'submit');
+    expect(host.invocations.single.action, {'action': 'send-message'});
+    expect(host.invocations.single.payload, {'text': 'Hello'});
   });
 
   testWidgets('named instances resolve through their bound record', (
@@ -900,5 +1153,12 @@ void main() {
 }
 
 Widget _wrap(BuildContext context, Widget child) => child;
+
+final class _RecordingEventHost implements DesyEventHost {
+  final List<DesyEventInvocation> invocations = [];
+
+  @override
+  void emit(DesyEventInvocation invocation) => invocations.add(invocation);
+}
 
 Widget _emptyPreview(BuildContext context) => const SizedBox();

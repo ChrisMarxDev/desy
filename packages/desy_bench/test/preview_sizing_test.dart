@@ -351,7 +351,7 @@ void main() {
       );
       expect(
         phoneSize.aspectRatio,
-        closeTo(Devices.ios.iPhone15Pro.frameSize.aspectRatio, 0.001),
+        closeTo(Devices.ios.iPhone15Pro.screenSize.aspectRatio, 0.001),
       );
       expect(
         receivedConstraints!.maxWidth,
@@ -359,6 +359,61 @@ void main() {
       );
     },
   );
+
+  testWidgets('detail device screens use the active theme background', (
+    tester,
+  ) async {
+    const background = Color(0xFF16324F);
+    const deviceTheme = DesyTheme(
+      id: 'device-theme',
+      name: 'Device theme',
+      wrap: _wrap,
+      previewBackgroundColor: background,
+    );
+    final session = DesyWorkbenchSession(
+      registry: DesyRegistry(name: 'Test', themes: const [deviceTheme]),
+    )..selectPreviewDevice(DesyDevicePreset.iPhone15Pro);
+    addTearDown(session.dispose);
+
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 560,
+          height: 440,
+          child: Builder(
+            builder: (context) => DesyPreviewCanvas(
+              session: session,
+              theme: deviceTheme,
+              device: session.previewDevice.watch(context),
+              toolbar: null,
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester
+          .widget<ColoredBox>(
+            find.byKey(const ValueKey('detail-device-screen-iPhone15Pro')),
+          )
+          .color,
+      background,
+    );
+
+    session.selectPreviewDevice(DesyDevicePreset.iPadPro11);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<ColoredBox>(
+            find.byKey(const ValueKey('detail-device-screen-iPadPro11')),
+          )
+          .color,
+      background,
+    );
+  });
 
   testWidgets('sketch resize supplies real responsive widget constraints', (
     tester,

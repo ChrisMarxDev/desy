@@ -1,7 +1,9 @@
 # Desy Bench development
 
-This is the maintained contributor guide. Keep it about implemented behavior;
-future ideas belong in issues, not repository documentation.
+This is the maintained contributor guide. Keep it about implemented behavior.
+Planned product work and concept ideas belong only in the
+[`concept/features` index](concept/features/index.html); implemented contracts
+belong in `docs/concepts/` and evidence belongs in `docs/research/`.
 
 ## Architecture
 
@@ -77,6 +79,29 @@ registered instance by its registry-scoped `componentId.instanceId`; resolution,
 cycle guards, and the missing-instance diagnostic are centralized in
 `DesyWidgetResolver`. Ask consumers only for information Desy cannot derive.
 
+### Agent catalogue derivation
+
+Agent-facing catalogue metadata is opt-in on the same registry. Add a
+`DesyCatalogConfig(id: ..., version: ...)` to enable
+`DesyCatalogueExport`; omit it to keep a registry local-only. Components are
+included by default and may use `DesyComponentCatalogConfig(include: false)`
+or an agent-facing description override for exceptional cases. The export is a
+protocol-neutral, JSON-ready description—GenUI/A2UI adapters remain separate
+packages and continue to invoke the registry's real widget builders locally.
+The maintained GenUI adapter lives in `packages/extensions/desy_genui`.
+`DesyGenUiCatalog.compile(registry)` produces both an executable Flutter
+`Catalog` and a backend-safe schema/prompt/example artifact with a deterministic
+digest. Its `example/` is intentionally backend-free and feeds typed local
+A2UI v0.9 messages to `SurfaceController`.
+
+Every knob kind accepts optional `description` guidance. Use `widgetInstance`
+for one child and `widgetInstances` for an ordered list of real registered
+instances; these remain composition knobs rather than a parallel slot model.
+Use `event` for user intent emitted from the real widget. Event payloads are
+optional JSON-shaped maps, while the adapter owns the opaque action binding and
+the application/backend owns business semantics. Local surface documents may
+author single and multi-instance values but never event bindings.
+
 The dogfood registry is the only maintained executable inventory:
 `packages/desy_design_system/example/lib/src/desy_design_system_registry.dart`.
 It must contain purposeful production-like entries, never test fixtures.
@@ -118,7 +143,7 @@ The workbench sections are Registry, Prototypes, Atoms, and Components.
 Prototypes lists consumer-declared sessions containing real Flutter directions.
 Atoms lists only non-empty typed lanes; Components retains its file tree.
 
-The planned Registry Spine shell keeps this live navigation visible while the
+The Registry Spine architecture keeps this live navigation visible while the
 center moves between Atlas inspection, component details, and prototype
 comparison. The shell-owned annotation service targets only explicitly scoped
 registry previews and prototype widgets: scaffold chrome and editing controls
