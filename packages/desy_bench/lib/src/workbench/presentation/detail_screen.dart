@@ -2,8 +2,8 @@
 // ignore_for_file: public_member_api_docs
 
 import 'dart:math' as math;
-import 'dart:ui' show PointerDeviceKind;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
@@ -131,6 +131,7 @@ class DesyDetailScreen extends StatefulWidget {
 
 class _DesyDetailScreenState extends State<DesyDetailScreen>
     with TickerProviderStateMixin {
+  late final _DetailImageExportController _imageExportController;
   String _selectedVariantId = 'default';
   String? _selectedMotionChildId;
   String? _selectedMotionFirstInstanceId;
@@ -145,6 +146,7 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
   @override
   void initState() {
     super.initState();
+    _imageExportController = _DetailImageExportController();
     _initializeMotionPlayback();
   }
 
@@ -154,6 +156,7 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
     if (oldWidget.entry.id != widget.entry.id ||
         oldWidget.entry.source != widget.entry.source) {
       _selectedVariantId = 'default';
+      _imageExportController.reset();
       _disposeMotionPlayback();
       _initializeMotionPlayback();
     }
@@ -198,6 +201,7 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
   @override
   void dispose() {
     _disposeMotionPlayback();
+    _imageExportController.dispose();
     super.dispose();
   }
 
@@ -276,7 +280,9 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
         onOpenFolder: widget.onOpenFolder,
         imageSaver: widget.imageSaver,
         imageExportAction: widget.imageExportAction,
-        showImageExport: component != null,
+        imageExportController: component == null
+            ? null
+            : _imageExportController,
         variants: variants,
         inspectionContext: widget.inspectionContext,
       ),
@@ -286,6 +292,9 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
         entry: entry,
         values: values,
         motionControls: motion == null ? null : _buildMotionControls(),
+        imageExportController: component == null
+            ? null
+            : _imageExportController,
       ),
     );
   }
@@ -389,6 +398,60 @@ class _DetailVariant {
   final DesyPreviewBuilder builder;
 }
 
+class _DetailImageExportController extends ChangeNotifier {
+  Object? _owner;
+  Future<void> Function()? _onExport;
+  bool _exporting = false;
+  String? _status;
+
+  bool get exporting => _exporting;
+  String? get status => _status;
+
+  void attach(Object owner, Future<void> Function() onExport) {
+    _owner = owner;
+    _onExport = onExport;
+  }
+
+  void detach(Object owner) {
+    if (!identical(_owner, owner)) return;
+    _owner = null;
+    _onExport = null;
+  }
+
+  Future<void> export() async {
+    if (_exporting) return;
+    await _onExport?.call();
+  }
+
+  void start() {
+    _exporting = true;
+    _status = 'Exporting image…';
+    notifyListeners();
+  }
+
+  void complete(String status) {
+    _status = status;
+    notifyListeners();
+  }
+
+  void finish() {
+    _exporting = false;
+    notifyListeners();
+  }
+
+  void clearStatus() {
+    if (_status == null) return;
+    _status = null;
+    notifyListeners();
+  }
+
+  void reset() {
+    _exporting = false;
+    _status = null;
+    notifyListeners();
+  }
+}
+
 class _DetailInstanceGallery extends StatefulWidget {
   const _DetailInstanceGallery({
     required this.session,
@@ -399,7 +462,7 @@ class _DetailInstanceGallery extends StatefulWidget {
     required this.onOpenFolder,
     required this.imageSaver,
     required this.imageExportAction,
-    required this.showImageExport,
+    required this.imageExportController,
     required this.variants,
     this.inspectionContext,
   });
@@ -412,7 +475,7 @@ class _DetailInstanceGallery extends StatefulWidget {
   final ValueChanged<String>? onOpenFolder;
   final DesyImageSaver imageSaver;
   final DesyImageExportAction? imageExportAction;
-  final bool showImageExport;
+  final _DetailImageExportController? imageExportController;
   final List<_DetailVariant> variants;
   final DesyWorkbenchInspectionContext? inspectionContext;
 
@@ -430,20 +493,23 @@ class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
   int? _canvasPointer;
   Offset? _canvasPointerPosition;
   String? _activeVariantId;
-  String? _exportStatus;
-  var _exporting = false;
   var _zoom = 1.0;
 
   @override
   void initState() {
     super.initState();
     _activeVariantId = _preferredActiveVariantId();
+    widget.imageExportController?.attach(this, _exportActiveImage);
     _zoomController.addListener(_handleZoomChanged);
   }
 
   @override
   void didUpdateWidget(covariant _DetailInstanceGallery oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageExportController != widget.imageExportController) {
+      oldWidget.imageExportController?.detach(this);
+      widget.imageExportController?.attach(this, _exportActiveImage);
+    }
     final activeIds = widget.variants.map((variant) => variant.id).toSet();
     _captureKeys.removeWhere((id, _) => !activeIds.contains(id));
     final selectedId = _selectedVariantId();
@@ -461,6 +527,7 @@ class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
 
   @override
   void dispose() {
+    widget.imageExportController?.detach(this);
     _zoomController
       ..removeListener(_handleZoomChanged)
       ..dispose();
@@ -511,11 +578,11 @@ class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
   void _select(_DetailVariant variant) {
     setState(() {
       _activeVariantId = variant.id;
-      _exportStatus = null;
       _paintOrder
         ..remove(variant.id)
         ..add(variant.id);
     });
+    widget.imageExportController?.clearStatus();
     variant.onSelect?.call();
   }
 
@@ -531,15 +598,13 @@ class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
       (widget.variants.isEmpty ? null : widget.variants.first.id);
 
   Future<void> _exportActiveImage() async {
-    if (_exporting) return;
+    final controller = widget.imageExportController;
+    if (controller == null || controller.exporting) return;
     final variantId = _activeVariantId;
     final boundaryKey = variantId == null ? null : _captureKeys[variantId];
     if (variantId == null || boundaryKey == null) return;
 
-    setState(() {
-      _exporting = true;
-      _exportStatus = 'Exporting image…';
-    });
+    controller.start();
     try {
       final fileName = desyPngFileName(
         entryId: widget.entry.id,
@@ -554,11 +619,9 @@ class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
         fileName: fileName,
       );
       if (!mounted) return;
-      setState(() {
-        _exportStatus = switch (result) {
-          DesyImageSaveResult.saved => 'Saved $fileName',
-          DesyImageSaveResult.cancelled => 'Image export canceled',
-        };
+      controller.complete(switch (result) {
+        DesyImageSaveResult.saved => 'Saved $fileName',
+        DesyImageSaveResult.cancelled => 'Image export canceled',
       });
     } catch (error, stackTrace) {
       if (error is! UnsupportedError) {
@@ -574,13 +637,13 @@ class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
         );
       }
       if (!mounted) return;
-      setState(() {
-        _exportStatus = error is UnsupportedError
+      controller.complete(
+        error is UnsupportedError
             ? error.message?.toString() ?? 'Image export is unavailable'
-            : 'Image export failed. Let the preview settle and try again.';
-      });
+            : 'Image export failed. Let the preview settle and try again.',
+      );
     } finally {
-      if (mounted) setState(() => _exporting = false);
+      if (mounted) controller.finish();
     }
   }
 
@@ -710,10 +773,6 @@ class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
                 child: _DetailPreviewToolbar(
                   entry: widget.entry,
                   onOpenFolder: widget.onOpenFolder,
-                  showImageExport: widget.showImageExport,
-                  exporting: _exporting,
-                  exportStatus: _exportStatus,
-                  onExportImage: _exporting ? null : _exportActiveImage,
                 ),
               ),
               Positioned(
@@ -1115,18 +1174,10 @@ class _DetailPreviewToolbar extends StatelessWidget {
   const _DetailPreviewToolbar({
     required this.entry,
     required this.onOpenFolder,
-    required this.showImageExport,
-    required this.exporting,
-    required this.exportStatus,
-    required this.onExportImage,
   });
 
   final DesyRegistryEntry entry;
   final ValueChanged<String>? onOpenFolder;
-  final bool showImageExport;
-  final bool exporting;
-  final String? exportStatus;
-  final VoidCallback? onExportImage;
 
   @override
   Widget build(BuildContext context) {
@@ -1139,54 +1190,59 @@ class _DetailPreviewToolbar extends StatelessWidget {
         border: Border.all(color: colors.border),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _DetailBreadcrumbs(entry: entry, onOpenFolder: onOpenFolder),
-              if (showImageExport) ...[
-                const SizedBox(width: DesyDesignSystemTokens.spaceSm),
-                DesyButton(
-                  key: const ValueKey('detail-export-image'),
-                  variant: DesyButtonVariant.primary,
-                  size: DesyButtonSize.xs,
-                  mainAxisSize: MainAxisSize.min,
-                  onPress: onExportImage,
-                  semanticsLabel: exporting
-                      ? 'Exporting component image'
-                      : 'Export component image',
-                  child: const Text('Export image'),
-                ),
-              ],
-            ],
-          ),
-          if (exportStatus case final status?) ...[
-            const SizedBox(height: DesyDesignSystemTokens.spaceXs),
-            Semantics(
-              key: const ValueKey('detail-export-image-status'),
-              liveRegion: true,
-              child: Text(
-                status,
-                style: context.theme.typography.body.xs.copyWith(
-                  color: context.theme.colors.mutedForeground,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+      child: _DetailBreadcrumbs(entry: entry, onOpenFolder: onOpenFolder),
     );
   }
 }
 
-class _DetailBreadcrumbs extends StatelessWidget {
+class _DetailBreadcrumbs extends StatefulWidget {
   const _DetailBreadcrumbs({required this.entry, required this.onOpenFolder});
 
   final DesyRegistryEntry entry;
   final ValueChanged<String>? onOpenFolder;
+
+  @override
+  State<_DetailBreadcrumbs> createState() => _DetailBreadcrumbsState();
+}
+
+class _DetailBreadcrumbsState extends State<_DetailBreadcrumbs> {
+  final List<TapGestureRecognizer> _folderRecognizers = [];
+
+  DesyRegistryEntry get entry => widget.entry;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncRecognizers();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DetailBreadcrumbs oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncRecognizers();
+  }
+
+  void _syncRecognizers() {
+    while (_folderRecognizers.length > entry.folderIds.length) {
+      _folderRecognizers.removeLast().dispose();
+    }
+    while (_folderRecognizers.length < entry.folderIds.length) {
+      _folderRecognizers.add(TapGestureRecognizer());
+    }
+    for (var index = 0; index < _folderRecognizers.length; index++) {
+      _folderRecognizers[index].onTap = widget.onOpenFolder == null
+          ? null
+          : () => widget.onOpenFolder!(entry.folderIds[index]);
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final recognizer in _folderRecognizers) {
+      recognizer.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1194,56 +1250,41 @@ class _DetailBreadcrumbs extends StatelessWidget {
     final style = Theme.of(context).textTheme.labelSmall?.copyWith(
       color: context.theme.colors.mutedForeground,
     );
+    final linkStyle = style?.copyWith(
+      color: context.theme.colors.foreground,
+      decoration: TextDecoration.underline,
+      decorationColor: context.theme.colors.mutedForeground,
+    );
     return Semantics(
-      label: 'Breadcrumb',
+      label: 'Breadcrumb: ${segments.join(' / ')}',
       container: true,
       explicitChildNodes: true,
-      child: Wrap(
+      child: SelectableText.rich(
         key: const ValueKey('detail-breadcrumbs'),
-        spacing: 3,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          for (var index = 0; index < segments.length; index++) ...[
-            if (index > 0)
-              Icon(
-                DesyIcons.chevronRight,
-                size: 11,
-                color: context.theme.colors.mutedForeground,
-              ),
-            if (index < entry.folderIds.length)
-              Semantics(
-                key: ValueKey(
-                  'detail-breadcrumb-folder-${entry.folderIds[index]}',
-                ),
-                button: true,
-                enabled: onOpenFolder != null,
-                label: 'Open ${segments[index]} folder',
-                excludeSemantics: true,
-                onTap: onOpenFolder == null
-                    ? null
-                    : () => onOpenFolder!(entry.folderIds[index]),
-                child: DesyButton(
-                  variant: DesyButtonVariant.ghost,
-                  size: DesyButtonSize.xs,
-                  mainAxisSize: MainAxisSize.min,
-                  onPress: onOpenFolder == null
+        TextSpan(
+          style: style,
+          children: [
+            for (var index = 0; index < segments.length; index++) ...[
+              if (index > 0) const TextSpan(text: ' / '),
+              if (index < entry.folderIds.length)
+                TextSpan(
+                  text: segments[index],
+                  style: widget.onOpenFolder == null ? style : linkStyle,
+                  recognizer: widget.onOpenFolder == null
                       ? null
-                      : () => onOpenFolder!(entry.folderIds[index]),
-                  child: Text(
-                    segments[index],
-                    key: ValueKey('detail-breadcrumb-$index'),
-                    style: style,
-                  ),
-                ),
-              )
-            else
-              Text(
-                segments[index],
-                key: ValueKey('detail-breadcrumb-$index'),
-                style: style,
-              ),
+                      : _folderRecognizers[index],
+                  mouseCursor: widget.onOpenFolder == null
+                      ? MouseCursor.defer
+                      : SystemMouseCursors.click,
+                  semanticsLabel: widget.onOpenFolder == null
+                      ? segments[index]
+                      : 'Open ${segments[index]} folder',
+                )
+              else
+                TextSpan(text: segments[index], style: style),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -1256,6 +1297,7 @@ class _DetailInspector extends StatelessWidget {
     required this.entry,
     required this.values,
     required this.motionControls,
+    required this.imageExportController,
   });
 
   final DesyWorkbenchSession session;
@@ -1263,11 +1305,13 @@ class _DetailInspector extends StatelessWidget {
   final DesyRegistryEntry entry;
   final Map<String, Object> values;
   final Widget? motionControls;
+  final _DetailImageExportController? imageExportController;
 
   @override
   Widget build(BuildContext context) => ColoredBox(
     color: context.theme.colors.background,
     child: ListView(
+      key: const ValueKey('detail-controls-list'),
       padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceLg),
       children: [
         if (motionControls case final controls?) ...[controls],
@@ -1280,11 +1324,16 @@ class _DetailInspector extends StatelessWidget {
             values: values,
             onChanged: session.setKnob,
             title: 'Controls',
+            subtitle: entry.id,
           ),
         ],
         if (motionControls == null &&
             (component == null || component!.knobDefinitions.isEmpty)) ...[
-          DesyKnobSheet(title: 'Controls', sections: const []),
+          DesyKnobSheet(
+            title: 'Controls',
+            subtitle: component == null ? null : entry.id,
+            sections: const [],
+          ),
         ],
         DesyDetailExtensionsRegion(session: session, entry: entry),
         const SizedBox(height: DesyDesignSystemTokens.spaceLg),
@@ -1293,6 +1342,55 @@ class _DetailInspector extends StatelessWidget {
           onChanged: session.setPreviewAccessibility,
           selectedDevice: session.previewDevice.watch(context),
           onDeviceChanged: session.selectPreviewDevice,
+        ),
+        if (imageExportController case final controller?) ...[
+          const SizedBox(height: DesyDesignSystemTokens.spaceLg),
+          _DetailActionsSheet(controller: controller),
+        ],
+      ],
+    ),
+  );
+}
+
+class _DetailActionsSheet extends StatelessWidget {
+  const _DetailActionsSheet({required this.controller});
+
+  final _DetailImageExportController controller;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: controller,
+    builder: (context, _) => DesyKnobSheet(
+      key: const ValueKey('detail-actions-sheet'),
+      title: 'Actions',
+      sections: [
+        DesyKnobSection(
+          label: 'IMAGE',
+          children: [
+            DesyButton(
+              key: const ValueKey('detail-export-image'),
+              variant: DesyButtonVariant.primary,
+              size: DesyButtonSize.md,
+              onPress: controller.exporting ? null : controller.export,
+              semanticsLabel: controller.exporting
+                  ? 'Exporting component image'
+                  : 'Export component image',
+              child: const Text('Export image'),
+            ),
+            if (controller.status case final status?) ...[
+              const SizedBox(height: DesyDesignSystemTokens.spaceSm),
+              Semantics(
+                key: const ValueKey('detail-export-image-status'),
+                liveRegion: true,
+                child: Text(
+                  status,
+                  style: context.theme.typography.body.sm.copyWith(
+                    color: context.theme.colors.mutedForeground,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ],
     ),

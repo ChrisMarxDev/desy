@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show SelectableText;
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 
@@ -43,8 +44,9 @@ class DesyCatalogueCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    path.toUpperCase(),
+                  SelectableText(
+                    path,
+                    key: const ValueKey('desy-catalogue-card-path'),
                     style: typeface.xs2.copyWith(
                       color: colors.mutedForeground,
                       letterSpacing: .4,
@@ -68,11 +70,11 @@ class DesyCatalogueCard extends StatelessWidget {
               DesyDesignSystemTokens.spaceMd,
               DesyDesignSystemTokens.spaceMd,
             ),
-            child: Text(
+            child: SelectableText(
               identifier,
+              key: const ValueKey('desy-catalogue-card-identifier'),
               style: typeface.xs.copyWith(color: colors.foreground),
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

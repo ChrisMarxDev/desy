@@ -1,4 +1,5 @@
 import 'package:desy_bench/desy_bench.dart';
+import 'package:flutter/material.dart' show SelectableText;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -28,10 +29,16 @@ void main() {
     tester.semantics.tap(find.semantics.byLabel('Open Primary button'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('detail-breadcrumb-folder-/actions')),
-      findsOneWidget,
+    final breadcrumb = tester.widget<SelectableText>(
+      find.byKey(const ValueKey('detail-breadcrumbs')),
     );
+    expect(
+      breadcrumb.textSpan?.toPlainText(includeSemanticsLabels: false),
+      'Actions / Primary button',
+    );
+    final folderSpan = breadcrumb.textSpan!.children!.first as TextSpan;
+    expect(folderSpan.mouseCursor, SystemMouseCursors.click);
+    expect(folderSpan.style?.decoration, TextDecoration.underline);
     expect(find.semantics.byLabel('Open Actions folder'), findsOneWidget);
 
     tester.semantics.tap(find.semantics.byLabel('Open Actions folder'));

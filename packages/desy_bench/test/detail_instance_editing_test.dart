@@ -41,6 +41,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    final controls = tester.widget<DesyKnobSheet>(
+      find.byWidgetPredicate(
+        (widget) => widget is DesyKnobSheet && widget.title == 'Controls',
+      ),
+    );
+    expect(controls.subtitle, component.id);
+
     session.selectPreviewDevice(DesyDevicePreset.iPhone15Pro);
     await tester.pumpAndSettle();
 

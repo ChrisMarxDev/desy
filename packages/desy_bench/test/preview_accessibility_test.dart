@@ -56,7 +56,9 @@ void main() {
     expect(previewMedia!.textScaler.scale(10), 10);
     expect(previewDirection, TextDirection.ltr);
 
-    await tester.tap(find.text('iPhone 15 Pro'));
+    await tester.tap(find.byKey(const ValueKey('preview-frame-select')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('preview-frame-iPhone15Pro')));
     await tester.pumpAndSettle();
     expect(session.previewDevice.value, DesyDevicePreset.iPhone15Pro);
 

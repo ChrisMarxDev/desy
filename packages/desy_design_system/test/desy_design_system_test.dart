@@ -544,7 +544,9 @@ void main() {
         ),
       );
 
-      final path = tester.widget<Text>(find.text('ACTIONS'));
+      final path = tester.widget<SelectableText>(
+        find.byKey(const ValueKey('desy-catalogue-card-path')),
+      );
       expect(
         path.style?.color,
         DesyDesignSystemFoundation.themeData(
@@ -556,6 +558,10 @@ void main() {
             .getSize(find.byKey(const ValueKey('desy-catalogue-card-divider')))
             .height,
         1,
+      );
+      expect(
+        find.byKey(const ValueKey('desy-catalogue-card-identifier')),
+        findsOneWidget,
       );
       expect(find.text('desy.component.button'), findsOneWidget);
     },

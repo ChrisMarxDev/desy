@@ -166,21 +166,23 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
           ),
           const SizedBox(height: 10),
           Expanded(
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 280,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
-                mainAxisExtent: 236,
-              ),
-              itemCount: entries.length,
-              itemBuilder: (context, index) => _AtlasCard(
-                entry: entries[index],
-                theme: theme,
-                motionPlayback: _motionPlayback,
-                onOpen: () => widget.onOpen(entries[index]),
-              ),
-            ),
+            child: folderId == null
+                ? _ComponentsAtlasSections(
+                    rootEntries: [
+                      for (final entry in entries)
+                        if (entry.folderIds.isEmpty) entry,
+                    ],
+                    sections: _componentSections(entries),
+                    theme: theme,
+                    motionPlayback: _motionPlayback,
+                    onOpen: widget.onOpen,
+                  )
+                : _AtlasEntryGrid(
+                    entries: entries,
+                    theme: theme,
+                    motionPlayback: _motionPlayback,
+                    onOpen: widget.onOpen,
+                  ),
           ),
         ],
       ),
@@ -248,6 +250,46 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     return folder == null ? const [] : _entriesInFolderTree(folder);
   }
 
+  List<_AtlasFolderSection> _componentSections(
+    List<DesyRegistryEntry> visibleEntries,
+  ) {
+    final entriesById = {
+      for (final entry in visibleEntries)
+        if (entry.component != null) entry.id: entry,
+    };
+    final sections = <_AtlasFolderSection>[];
+    for (final group in session.registry.componentGroups) {
+      _appendVisibleSection(group, 0, entriesById, sections);
+    }
+    return sections;
+  }
+
+  void _appendVisibleSection(
+    DesyComponentGroup group,
+    int depth,
+    Map<String, DesyRegistryEntry> entriesById,
+    List<_AtlasFolderSection> sections,
+  ) {
+    final directEntries = [
+      for (final component in group.components) ?entriesById[component.id],
+    ];
+    final childSections = <_AtlasFolderSection>[];
+    for (final child in group.children) {
+      _appendVisibleSection(child, depth + 1, entriesById, childSections);
+    }
+    if (directEntries.isEmpty && childSections.isEmpty) return;
+    sections
+      ..add(
+        _AtlasFolderSection(
+          path: group.path,
+          name: group.name,
+          depth: depth,
+          entries: directEntries,
+        ),
+      )
+      ..addAll(childSections);
+  }
+
   String _eyebrow(
     DesyComponentGroup? folder,
     DesyAtomKind? atomKind,
@@ -265,6 +307,170 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     DesyAtomKind? atomKind,
     bool atomRoot,
   ) => atomKind?.label ?? (atomRoot ? 'Atoms' : folder?.name ?? 'Components');
+}
+
+class _AtlasFolderSection {
+  const _AtlasFolderSection({
+    required this.path,
+    required this.name,
+    required this.depth,
+    required this.entries,
+  });
+
+  final String path;
+  final String name;
+  final int depth;
+  final List<DesyRegistryEntry> entries;
+}
+
+class _ComponentsAtlasSections extends StatelessWidget {
+  const _ComponentsAtlasSections({
+    required this.rootEntries,
+    required this.sections,
+    required this.theme,
+    required this.motionPlayback,
+    required this.onOpen,
+  });
+
+  final List<DesyRegistryEntry> rootEntries;
+  final List<_AtlasFolderSection> sections;
+  final DesyTheme theme;
+  final DesyMotionPlaybackController? motionPlayback;
+  final ValueChanged<DesyRegistryEntry> onOpen;
+
+  @override
+  Widget build(BuildContext context) => CustomScrollView(
+    key: const ValueKey('atlas-component-sections'),
+    slivers: [
+      if (rootEntries.isNotEmpty)
+        _AtlasEntriesSliver(
+          entries: rootEntries,
+          theme: theme,
+          motionPlayback: motionPlayback,
+          onOpen: onOpen,
+          bottomPadding: 18,
+        ),
+      for (final (index, section) in sections.indexed) ...[
+        SliverToBoxAdapter(
+          child: _AtlasFolderHeading(
+            section: section,
+            first: rootEntries.isEmpty && index == 0,
+          ),
+        ),
+        if (section.entries.isNotEmpty)
+          _AtlasEntriesSliver(
+            entries: section.entries,
+            theme: theme,
+            motionPlayback: motionPlayback,
+            onOpen: onOpen,
+            bottomPadding: 6,
+          ),
+      ],
+      const SliverToBoxAdapter(child: SizedBox(height: 28)),
+    ],
+  );
+}
+
+class _AtlasFolderHeading extends StatelessWidget {
+  const _AtlasFolderHeading({required this.section, required this.first});
+
+  final _AtlasFolderSection section;
+  final bool first;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final style = switch (section.depth) {
+      0 => textTheme.headlineSmall,
+      1 => textTheme.titleLarge,
+      2 => textTheme.titleMedium,
+      _ => textTheme.titleSmall,
+    };
+    final topSpacing = first
+        ? 2.0
+        : switch (section.depth) {
+            0 => 28.0,
+            1 => 20.0,
+            2 => 16.0,
+            _ => 14.0,
+          };
+    return Padding(
+      padding: EdgeInsets.only(top: topSpacing, bottom: 10),
+      child: Semantics(
+        header: true,
+        child: Text(
+          section.name,
+          key: ValueKey('atlas-folder-heading-${section.path}'),
+          style: style,
+        ),
+      ),
+    );
+  }
+}
+
+class _AtlasEntryGrid extends StatelessWidget {
+  const _AtlasEntryGrid({
+    required this.entries,
+    required this.theme,
+    required this.motionPlayback,
+    required this.onOpen,
+  });
+
+  final List<DesyRegistryEntry> entries;
+  final DesyTheme theme;
+  final DesyMotionPlaybackController? motionPlayback;
+  final ValueChanged<DesyRegistryEntry> onOpen;
+
+  @override
+  Widget build(BuildContext context) => CustomScrollView(
+    slivers: [
+      _AtlasEntriesSliver(
+        entries: entries,
+        theme: theme,
+        motionPlayback: motionPlayback,
+        onOpen: onOpen,
+        bottomPadding: 0,
+      ),
+    ],
+  );
+}
+
+class _AtlasEntriesSliver extends StatelessWidget {
+  const _AtlasEntriesSliver({
+    required this.entries,
+    required this.theme,
+    required this.motionPlayback,
+    required this.onOpen,
+    required this.bottomPadding,
+  });
+
+  final List<DesyRegistryEntry> entries;
+  final DesyTheme theme;
+  final DesyMotionPlaybackController? motionPlayback;
+  final ValueChanged<DesyRegistryEntry> onOpen;
+  final double bottomPadding;
+
+  @override
+  Widget build(BuildContext context) => SliverPadding(
+    padding: EdgeInsets.only(bottom: bottomPadding),
+    sliver: SliverGrid(
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 280,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        mainAxisExtent: 236,
+      ),
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => _AtlasCard(
+          entry: entries[index],
+          theme: theme,
+          motionPlayback: motionPlayback,
+          onOpen: () => onOpen(entries[index]),
+        ),
+        childCount: entries.length,
+      ),
+    ),
+  );
 }
 
 class _AtlasCard extends StatelessWidget {
@@ -291,12 +497,12 @@ class _AtlasCard extends StatelessWidget {
       onTap: onOpen,
       child: GestureDetector(
         key: ValueKey('atlas-card-${entry.id}'),
-        // The card owns the semantic tap action above. Keep this gesture for
-        // pointer input without adding a second, competing accessibility action.
+        // Selectable metadata owns pointer gestures over its text. Taps on the
+        // remaining card surface keep the established open-entry behaviour.
         excludeFromSemantics: true,
         onTap: onOpen,
         child: DesyCatalogueCard(
-          path: entry.path,
+          path: entry.component?.path ?? entry.path,
           identifier: entry.id,
           preview: ClipRect(
             child: DesyWidgetPreview(

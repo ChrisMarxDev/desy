@@ -102,7 +102,28 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.drag(
+        find.byKey(const ValueKey('detail-controls-list')),
+        const Offset(0, -1600),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Actions'), findsOneWidget);
       expect(find.text('Export image'), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: find.byKey(const ValueKey('detail-export-image')),
+          matching: find.byKey(const ValueKey('detail-actions-sheet')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('detail-preview-toolbar')),
+          matching: find.byKey(const ValueKey('detail-export-image')),
+        ),
+        findsNothing,
+      );
       await tester.tap(find.byKey(const ValueKey('detail-export-image')));
       await tester.pumpAndSettle();
 

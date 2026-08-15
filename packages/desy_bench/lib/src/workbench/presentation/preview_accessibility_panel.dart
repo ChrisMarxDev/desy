@@ -35,28 +35,23 @@ class DesyPreviewAccessibilityPanel extends StatelessWidget {
             description:
                 'View the component responsively or inside a device bezel.',
             expandControl: true,
-            control: Wrap(
-              spacing: DesyDesignSystemTokens.spaceXs,
-              runSpacing: DesyDesignSystemTokens.spaceXs,
+            control: DesySelect<_PreviewFrame>.rich(
+              key: const ValueKey('preview-frame-select'),
+              size: DesySelectSize.sm,
+              control: DesySelectControl.lifted(
+                value: _PreviewFrame.fromDevice(selectedDevice),
+                onChange: (frame) {
+                  if (frame != null) onDeviceChanged(frame.device);
+                },
+              ),
+              format: (frame) => frame.label,
               children: [
-                _DeviceButton(
-                  label: 'Responsive',
-                  device: null,
-                  selectedDevice: selectedDevice,
-                  onChanged: onDeviceChanged,
-                ),
-                _DeviceButton(
-                  label: 'iPhone 15 Pro',
-                  device: DesyDevicePreset.iPhone15Pro,
-                  selectedDevice: selectedDevice,
-                  onChanged: onDeviceChanged,
-                ),
-                _DeviceButton(
-                  label: 'iPad Pro 11',
-                  device: DesyDevicePreset.iPadPro11,
-                  selectedDevice: selectedDevice,
-                  onChanged: onDeviceChanged,
-                ),
+                for (final frame in _PreviewFrame.values)
+                  DesySelectItem.item(
+                    key: ValueKey('preview-frame-${frame.name}'),
+                    value: frame,
+                    title: Text(frame.label),
+                  ),
               ],
             ),
           ),
@@ -134,27 +129,19 @@ class DesyPreviewAccessibilityPanel extends StatelessWidget {
   );
 }
 
-class _DeviceButton extends StatelessWidget {
-  const _DeviceButton({
-    required this.label,
-    required this.device,
-    required this.selectedDevice,
-    required this.onChanged,
-  });
+enum _PreviewFrame {
+  responsive('Responsive', null),
+  iPhone15Pro('iPhone 15 Pro', DesyDevicePreset.iPhone15Pro),
+  iPadPro11('iPad Pro 11', DesyDevicePreset.iPadPro11);
+
+  const _PreviewFrame(this.label, this.device);
 
   final String label;
   final DesyDevicePreset? device;
-  final DesyDevicePreset? selectedDevice;
-  final ValueChanged<DesyDevicePreset?> onChanged;
 
-  @override
-  Widget build(BuildContext context) => DesyButton(
-    size: DesyButtonSize.xs,
-    mainAxisSize: MainAxisSize.min,
-    variant: selectedDevice == device
-        ? DesyButtonVariant.primary
-        : DesyButtonVariant.outline,
-    onPress: () => onChanged(device),
-    child: Text(label),
-  );
+  static _PreviewFrame fromDevice(DesyDevicePreset? device) => switch (device) {
+    DesyDevicePreset.iPhone15Pro => _PreviewFrame.iPhone15Pro,
+    DesyDevicePreset.iPadPro11 => _PreviewFrame.iPadPro11,
+    null => _PreviewFrame.responsive,
+  };
 }
