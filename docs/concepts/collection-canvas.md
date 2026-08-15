@@ -19,6 +19,11 @@ The host owns the domain:
 - each item's real-widget `previewBuilder`;
 - the typed `detailsBuilder` callback, including any host-local editing state.
 
+For authored prototype sequences, `DesyPrototype.canvasPlacement` can supply a
+typed `DesyCanvasPlacement(offset, size)`. It determines the first drag-box
+frame only, making a vertical iteration flow explicit without persisting later
+user moves or creating a separate canvas manifest.
+
 The generic callback is deliberately item-shaped:
 
 ```dart

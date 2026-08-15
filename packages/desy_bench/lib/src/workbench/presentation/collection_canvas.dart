@@ -27,6 +27,7 @@ class DesyCanvasSceneItem<T> {
     required this.value,
     required this.previewBuilder,
     this.initialSize = const Size(320, 240),
+    this.initialRect,
   });
 
   final String id;
@@ -34,6 +35,7 @@ class DesyCanvasSceneItem<T> {
   final T value;
   final DesyCanvasPreviewBuilder<T> previewBuilder;
   final Size initialSize;
+  final Rect? initialRect;
 }
 
 typedef DesyCanvasPreviewBuilder<T> =
@@ -185,9 +187,9 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
                 ),
               ),
               Positioned(
-                top: 12,
-                right: 12,
-                bottom: 12,
+                top: 0,
+                right: 0,
+                bottom: 0,
                 width: drawerWidth,
                 child: IgnorePointer(
                   ignoring: selected == null,
@@ -247,6 +249,17 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
     const columns = 3;
     const gap = 64.0;
     const inset = 72.0;
+    final placement = item.initialRect;
+    if (placement != null) {
+      return DesyDragBoxGeometry(
+        rect: Rect.fromLTWH(
+          placement.left,
+          placement.top,
+          math.max(placement.width, _minimumBoxExtent),
+          math.max(placement.height, _minimumBoxExtent),
+        ),
+      );
+    }
     final size = item.initialSize;
     return DesyDragBoxGeometry(
       rect: Rect.fromLTWH(
@@ -341,13 +354,12 @@ class _CollectionCanvasItem<T> extends StatelessWidget {
     ignoreChildPointer: true,
     onSelect: onSelect,
     onChanged: onChanged,
-    label: selected
-        ? DesyDragBoxLabel(
-            key: ValueKey('$keyPrefix-selection-size-${item.id}'),
-            size: geometry.rect.size,
-            identifier: item.name,
-          )
-        : null,
+    label: DesyDragBoxLabel(
+      key: ValueKey('$keyPrefix-selection-size-${item.id}'),
+      size: geometry.rect.size,
+      identifier: item.name,
+      selected: selected,
+    ),
     child: Semantics(
       container: true,
       selected: selected,
@@ -355,7 +367,10 @@ class _CollectionCanvasItem<T> extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           border: Border.all(
-            color: context.theme.colors.desy.signal.withValues(alpha: .48),
+            color: context.theme.colors.desy.signal.withValues(
+              alpha: selected ? .9 : .28,
+            ),
+            width: selected ? 1.5 : 1,
           ),
         ),
         child: ClipRect(
@@ -387,25 +402,22 @@ class _CollectionCanvasInspectorDrawer extends StatelessWidget {
     decoration: BoxDecoration(
       color: context.theme.colors.background,
       border: Border(left: BorderSide(color: context.theme.colors.border)),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: .08),
-          blurRadius: 18,
-          offset: const Offset(-4, 0),
-        ),
-      ],
     ),
     child: Column(
       children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: DesyButton.icon(
-            key: closeKey,
-            variant: DesyButtonVariant.ghost,
-            size: DesyButtonSize.xs,
-            onPress: onClose,
-            semanticsLabel: 'Close canvas controls',
-            child: const Icon(DesyIcons.x, size: 14),
+        SizedBox(
+          height: 48,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: DesyButton.icon(
+              key: closeKey,
+              variant: DesyButtonVariant.ghost,
+              size: DesyButtonSize.md,
+              onPress: onClose,
+              semanticsLabel: 'Collapse details sidebar',
+              semanticsTooltip: 'Collapse details sidebar',
+              child: const Icon(DesyIcons.panelRightClose, size: 18),
+            ),
           ),
         ),
         Expanded(child: child),

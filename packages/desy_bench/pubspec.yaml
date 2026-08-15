@@ -21,6 +21,7 @@ dependencies:
       path: packages/desy_design_system
       ref: main
   device_preview: ^1.3.1
+  file_selector: ^1.1.0
   flutter:
     sdk: flutter
   flutter_box_transform: ^0.4.7

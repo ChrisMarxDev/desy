@@ -17,6 +17,8 @@ import 'motion_playback_controls.dart';
 import '../../device_preview.dart';
 import '../../motion_playback.dart';
 import '../../registry.dart';
+import '../component_image_export.dart';
+import '../component_image_save.dart';
 import '../widget_preview.dart';
 import '../workbench_annotation.dart';
 import '../workbench_session.dart';
@@ -112,12 +114,16 @@ class DesyDetailScreen extends StatefulWidget {
     required this.entry,
     this.inspectionContext,
     this.onOpenFolder,
+    this.imageSaver = saveDesyImage,
+    this.imageExportAction,
   });
 
   final DesyWorkbenchSession session;
   final DesyRegistryEntry entry;
   final DesyWorkbenchInspectionContext? inspectionContext;
   final ValueChanged<String>? onOpenFolder;
+  final DesyImageSaver imageSaver;
+  final DesyImageExportAction? imageExportAction;
 
   @override
   State<DesyDetailScreen> createState() => _DesyDetailScreenState();
@@ -127,6 +133,8 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
     with TickerProviderStateMixin {
   String _selectedVariantId = 'default';
   String? _selectedMotionChildId;
+  String? _selectedMotionFirstInstanceId;
+  String? _selectedMotionSecondInstanceId;
   DesyMotionPlaybackController? _motionPlayback;
 
   DesyMotionEntry? get _motion => switch (widget.entry.source) {
@@ -155,6 +163,26 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
     final motion = _motion;
     if (motion == null) return;
     _selectedMotionChildId = motion.defaultChild.id;
+    if (motion.supportsTransition) {
+      final declaredInstances = [
+        for (final child in motion.children)
+          if (child.instanceId case final instance?) instance.value,
+      ];
+      final availableInstances = [
+        for (final instance in widget.session.registry.allComponentInstances)
+          instance.id,
+      ];
+      _selectedMotionFirstInstanceId = declaredInstances.isNotEmpty
+          ? declaredInstances.first
+          : availableInstances.isEmpty
+          ? null
+          : availableInstances.first;
+      _selectedMotionSecondInstanceId = declaredInstances.length > 1
+          ? declaredInstances[1]
+          : availableInstances.length > 1
+          ? availableInstances[1]
+          : _selectedMotionFirstInstanceId;
+    }
     _motionPlayback = DesyMotionPlaybackController(
       vsync: this,
       duration: motion.duration ?? DesyMotionPlaybackController.defaultDuration,
@@ -241,13 +269,14 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
     return _DetailBody(
       preview: _DetailInstanceGallery(
         session: session,
+        entry: entry,
         theme: theme,
         device: device,
         accessibility: accessibility,
-        toolbar: _DetailPreviewToolbar(
-          entry: entry,
-          onOpenFolder: widget.onOpenFolder,
-        ),
+        onOpenFolder: widget.onOpenFolder,
+        imageSaver: widget.imageSaver,
+        imageExportAction: widget.imageExportAction,
+        showImageExport: component != null,
         variants: variants,
         inspectionContext: widget.inspectionContext,
       ),
@@ -270,26 +299,58 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
     return DesyMotionPlaybackScope(
       progress: playback.progress,
       child: Builder(
-        builder: (context) => motion.build(
-          context,
-          motion
+        builder: (context) {
+          final fallback = motion
               .childForId(_selectedMotionChildId ?? motion.defaultChild.id)
-              .build(context, widgets: widget.session.registry.widgetBuilder),
-        ),
+              .build(context, widgets: widget.session.registry.widgetBuilder);
+          if (!motion.supportsTransition) {
+            return motion.build(context, fallback);
+          }
+          return motion.buildTransition(
+            context,
+            _buildMotionInstance(
+              context,
+              _selectedMotionFirstInstanceId,
+              fallback,
+            ),
+            _buildMotionInstance(
+              context,
+              _selectedMotionSecondInstanceId,
+              fallback,
+            ),
+          );
+        },
       ),
     );
   }
+
+  Widget _buildMotionInstance(
+    BuildContext context,
+    String? instanceId,
+    Widget fallback,
+  ) => instanceId == null
+      ? fallback
+      : widget.session.registry.widgetBuilder.build(context, instanceId);
 
   Widget _buildMotionControls() {
     final motion = _motion!;
     return DesyMotionPlaybackControls(
       controller: _motionPlayback!,
-      specimenChildren: motion.children,
+      specimenChildren: motion.supportsTransition ? const [] : motion.children,
       selectedSpecimenChildId: _selectedMotionChildId ?? motion.defaultChild.id,
       onSpecimenChildSelected: (id) {
         if (id == _selectedMotionChildId) return;
         setState(() => _selectedMotionChildId = id);
       },
+      transitionInstances: motion.supportsTransition
+          ? widget.session.registry.allComponentInstances
+          : const [],
+      firstTransitionInstanceId: _selectedMotionFirstInstanceId,
+      secondTransitionInstanceId: _selectedMotionSecondInstanceId,
+      onFirstTransitionInstanceChanged: (id) =>
+          setState(() => _selectedMotionFirstInstanceId = id),
+      onSecondTransitionInstanceChanged: (id) =>
+          setState(() => _selectedMotionSecondInstanceId = id),
     );
   }
 
@@ -331,19 +392,27 @@ class _DetailVariant {
 class _DetailInstanceGallery extends StatefulWidget {
   const _DetailInstanceGallery({
     required this.session,
+    required this.entry,
     required this.theme,
     required this.device,
     required this.accessibility,
-    required this.toolbar,
+    required this.onOpenFolder,
+    required this.imageSaver,
+    required this.imageExportAction,
+    required this.showImageExport,
     required this.variants,
     this.inspectionContext,
   });
 
   final DesyWorkbenchSession session;
+  final DesyRegistryEntry entry;
   final DesyTheme theme;
   final DesyDevicePreset? device;
   final DesyPreviewAccessibilitySettings accessibility;
-  final Widget toolbar;
+  final ValueChanged<String>? onOpenFolder;
+  final DesyImageSaver imageSaver;
+  final DesyImageExportAction? imageExportAction;
+  final bool showImageExport;
   final List<_DetailVariant> variants;
   final DesyWorkbenchInspectionContext? inspectionContext;
 
@@ -353,23 +422,36 @@ class _DetailInstanceGallery extends StatefulWidget {
 
 class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
   final Map<String, DesyDragBoxGeometry> _geometries = {};
+  final Map<String, GlobalKey> _captureKeys = {};
   final List<String> _paintOrder = [];
   final TransformationController _zoomController = TransformationController();
   DesyDevicePreset? _lastDevice;
   DesyDevicePreset? _zoomedDevice;
   int? _canvasPointer;
   Offset? _canvasPointerPosition;
+  String? _activeVariantId;
+  String? _exportStatus;
+  var _exporting = false;
   var _zoom = 1.0;
 
   @override
   void initState() {
     super.initState();
+    _activeVariantId = _preferredActiveVariantId();
     _zoomController.addListener(_handleZoomChanged);
   }
 
   @override
   void didUpdateWidget(covariant _DetailInstanceGallery oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final activeIds = widget.variants.map((variant) => variant.id).toSet();
+    _captureKeys.removeWhere((id, _) => !activeIds.contains(id));
+    final selectedId = _selectedVariantId();
+    if (selectedId != null) {
+      _activeVariantId = selectedId;
+    } else if (!activeIds.contains(_activeVariantId)) {
+      _activeVariantId = _preferredActiveVariantId();
+    }
     if (oldWidget.device != widget.device) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _fitDevicePreview();
@@ -398,6 +480,7 @@ class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
     final deviceChanged = device != _lastDevice;
     for (var index = 0; index < widget.variants.length; index++) {
       final variant = widget.variants[index];
+      _captureKeys.putIfAbsent(variant.id, GlobalKey.new);
       final geometry = DesyDragBoxGeometry(
         rect: Rect.fromLTWH(
           stage.offset.dx,
@@ -427,11 +510,78 @@ class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
 
   void _select(_DetailVariant variant) {
     setState(() {
+      _activeVariantId = variant.id;
+      _exportStatus = null;
       _paintOrder
         ..remove(variant.id)
         ..add(variant.id);
     });
     variant.onSelect?.call();
+  }
+
+  String? _selectedVariantId() {
+    for (final variant in widget.variants) {
+      if (variant.selected) return variant.id;
+    }
+    return null;
+  }
+
+  String? _preferredActiveVariantId() =>
+      _selectedVariantId() ??
+      (widget.variants.isEmpty ? null : widget.variants.first.id);
+
+  Future<void> _exportActiveImage() async {
+    if (_exporting) return;
+    final variantId = _activeVariantId;
+    final boundaryKey = variantId == null ? null : _captureKeys[variantId];
+    if (variantId == null || boundaryKey == null) return;
+
+    setState(() {
+      _exporting = true;
+      _exportStatus = 'Exporting image…';
+    });
+    try {
+      final fileName = desyPngFileName(
+        entryId: widget.entry.id,
+        variantId: variantId,
+        themeId: widget.theme.id,
+      );
+      final exportAction =
+          widget.imageExportAction ??
+          DesyComponentImageExporter(saveImage: widget.imageSaver).export;
+      final result = await exportAction(
+        boundaryKey: boundaryKey,
+        fileName: fileName,
+      );
+      if (!mounted) return;
+      setState(() {
+        _exportStatus = switch (result) {
+          DesyImageSaveResult.saved => 'Saved $fileName',
+          DesyImageSaveResult.cancelled => 'Image export canceled',
+        };
+      });
+    } catch (error, stackTrace) {
+      if (error is! UnsupportedError) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stackTrace,
+            library: 'desy_bench',
+            context: ErrorDescription(
+              'while exporting registry component "${widget.entry.id}"',
+            ),
+          ),
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _exportStatus = error is UnsupportedError
+            ? error.message?.toString() ?? 'Image export is unavailable'
+            : 'Image export failed. Let the preview settle and try again.';
+      });
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
   }
 
   void _updateGeometry(String id, DesyDragBoxGeometry geometry) {
@@ -542,7 +692,9 @@ class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
                               theme: widget.theme,
                               device: widget.device,
                               accessibility: widget.accessibility,
+                              captureKey: _captureKeys[variant.id]!,
                               inspectionContext: widget.inspectionContext,
+                              selected: variant.id == _activeVariantId,
                               onSelect: () => _select(variant),
                               onChanged: (geometry) =>
                                   _updateGeometry(variant.id, geometry),
@@ -555,7 +707,14 @@ class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
               Positioned(
                 top: _detailToolbarTop,
                 left: 12,
-                child: widget.toolbar,
+                child: _DetailPreviewToolbar(
+                  entry: widget.entry,
+                  onOpenFolder: widget.onOpenFolder,
+                  showImageExport: widget.showImageExport,
+                  exporting: _exporting,
+                  exportStatus: _exportStatus,
+                  onExportImage: _exporting ? null : _exportActiveImage,
+                ),
               ),
               Positioned(
                 right: 12,
@@ -659,7 +818,9 @@ class _DetailCanvasItem extends StatelessWidget {
     required this.theme,
     required this.device,
     required this.accessibility,
+    required this.captureKey,
     required this.inspectionContext,
+    required this.selected,
     required this.onSelect,
     required this.onChanged,
   });
@@ -669,7 +830,9 @@ class _DetailCanvasItem extends StatelessWidget {
   final DesyTheme theme;
   final DesyDevicePreset? device;
   final DesyPreviewAccessibilitySettings accessibility;
+  final GlobalKey captureKey;
   final DesyWorkbenchInspectionContext? inspectionContext;
+  final bool selected;
   final VoidCallback onSelect;
   final ValueChanged<DesyDragBoxGeometry> onChanged;
 
@@ -684,6 +847,7 @@ class _DetailCanvasItem extends StatelessWidget {
           );
     final child = _PreviewAccessibilityScope(
       settings: accessibility,
+      captureKey: captureKey,
       child: preview,
     );
     final visual = _buildVisual(context, child);
@@ -706,7 +870,7 @@ class _DetailCanvasItem extends StatelessWidget {
           ? const ValueKey('detail-artboard-hit')
           : ValueKey('detail-instance-artboard-hit-${variant.id}'),
       resizeHandleKeyPrefix: 'detail-resize-${variant.id}',
-      selected: variant.selected,
+      selected: selected,
       // Device previews own their move surface so the rendered bezel cannot
       // claim a drag. Responsive viewers continue to use DragBox directly.
       draggable: device == null,
@@ -744,7 +908,7 @@ class _DetailCanvasItem extends StatelessWidget {
   Widget _buildVisual(BuildContext context, Widget child) => Semantics(
     key: ValueKey('detail-instance-selector-${variant.id}'),
     container: true,
-    selected: variant.selected,
+    selected: selected,
     label: variant.onSelect == null
         ? '${variant.name} preview'
         : '${variant.name} instance preview',
@@ -951,10 +1115,18 @@ class _DetailPreviewToolbar extends StatelessWidget {
   const _DetailPreviewToolbar({
     required this.entry,
     required this.onOpenFolder,
+    required this.showImageExport,
+    required this.exporting,
+    required this.exportStatus,
+    required this.onExportImage,
   });
 
   final DesyRegistryEntry entry;
   final ValueChanged<String>? onOpenFolder;
+  final bool showImageExport;
+  final bool exporting;
+  final String? exportStatus;
+  final VoidCallback? onExportImage;
 
   @override
   Widget build(BuildContext context) {
@@ -971,7 +1143,39 @@ class _DetailPreviewToolbar extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _DetailBreadcrumbs(entry: entry, onOpenFolder: onOpenFolder),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _DetailBreadcrumbs(entry: entry, onOpenFolder: onOpenFolder),
+              if (showImageExport) ...[
+                const SizedBox(width: DesyDesignSystemTokens.spaceSm),
+                DesyButton(
+                  key: const ValueKey('detail-export-image'),
+                  variant: DesyButtonVariant.primary,
+                  size: DesyButtonSize.xs,
+                  mainAxisSize: MainAxisSize.min,
+                  onPress: onExportImage,
+                  semanticsLabel: exporting
+                      ? 'Exporting component image'
+                      : 'Export component image',
+                  child: const Text('Export image'),
+                ),
+              ],
+            ],
+          ),
+          if (exportStatus case final status?) ...[
+            const SizedBox(height: DesyDesignSystemTokens.spaceXs),
+            Semantics(
+              key: const ValueKey('detail-export-image-status'),
+              liveRegion: true,
+              child: Text(
+                status,
+                style: context.theme.typography.body.xs.copyWith(
+                  color: context.theme.colors.mutedForeground,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1098,26 +1302,31 @@ class _DetailInspector extends StatelessWidget {
 class _PreviewAccessibilityScope extends StatelessWidget {
   const _PreviewAccessibilityScope({
     required this.settings,
+    required this.captureKey,
     required this.child,
   });
 
   final DesyPreviewAccessibilitySettings settings;
+  final GlobalKey captureKey;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final colors = context.theme.colors;
-    final preview = MediaQuery(
-      data: media.copyWith(
-        textScaler: TextScaler.linear(settings.textScale),
-        boldText: settings.boldText,
-        highContrast: settings.highContrast,
-        disableAnimations: settings.disableAnimations,
-      ),
-      child: Directionality(
-        textDirection: settings.textDirection,
-        child: child,
+    final preview = RepaintBoundary(
+      key: captureKey,
+      child: MediaQuery(
+        data: media.copyWith(
+          textScaler: TextScaler.linear(settings.textScale),
+          boldText: settings.boldText,
+          highContrast: settings.highContrast,
+          disableAnimations: settings.disableAnimations,
+        ),
+        child: Directionality(
+          textDirection: settings.textDirection,
+          child: child,
+        ),
       ),
     );
     return DesyPreviewAccessibilityOverlay(

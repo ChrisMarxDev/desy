@@ -27,6 +27,9 @@ only component-specific knob state and its controls drawer.
   from the right with that component's declared `DesyComponentKnobPanel`.
   The drawer never takes layout width from the canvas and can be closed without
   changing the current camera position.
+- Every item keeps a faint signal-pink frame and a light-pink name-and-size
+  label. Selecting it strengthens the frame and inverts the label to a solid
+  signal-pink background with white text.
 - Knob values are ephemeral and local to this canvas route, keyed by the stable
   component ID. Switching selection preserves each item's experiment and does
   not mutate the Detail screen's inspection session or the immutable registry.

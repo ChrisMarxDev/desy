@@ -21,6 +21,10 @@ buildKnobControlsPrototypeSession() => DesyPrototypeSession(
       name: 'Context first',
       description:
           'A component-level heading gives every control shared context before the groups begin.',
+      canvasPlacement: DesyCanvasPlacement(
+        offset: Offset(72, 96),
+        size: Size(320, 480),
+      ),
       builder: _contextFirstSheet,
     ),
     DesyPrototype(
@@ -28,6 +32,10 @@ buildKnobControlsPrototypeSession() => DesyPrototypeSession(
       name: 'Property first',
       description:
           'The most visible decision leads; supporting adjustments follow as a second step.',
+      canvasPlacement: DesyCanvasPlacement(
+        offset: Offset(72, 672),
+        size: Size(320, 480),
+      ),
       builder: _propertyFirstSheet,
     ),
     DesyPrototype(
@@ -35,6 +43,10 @@ buildKnobControlsPrototypeSession() => DesyPrototypeSession(
       name: 'Section first',
       description:
           'Three explicit groups make content, shape, and state easy to find at a glance.',
+      canvasPlacement: DesyCanvasPlacement(
+        offset: Offset(72, 1248),
+        size: Size(320, 480),
+      ),
       builder: _sectionFirstSheet,
     ),
   ],
@@ -66,48 +78,44 @@ class _FramedSheetDirectionState extends State<_FramedSheetDirection> {
   var _enabled = true;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 174,
-    child: DesyKnobSheet(
-      title: switch (widget.hierarchy) {
-        _FramedSheetHierarchy.context ||
-        _FramedSheetHierarchy.section => 'Button',
-        _FramedSheetHierarchy.property => 'Button label',
-      },
-      subtitle: switch (widget.hierarchy) {
-        _FramedSheetHierarchy.context => 'Adjust this component.',
-        _FramedSheetHierarchy.property => 'Start with its visible action copy.',
-        _FramedSheetHierarchy.section =>
-          'Content, appearance, and availability.',
-      },
-      sections: switch (widget.hierarchy) {
-        _FramedSheetHierarchy.context => [
-          DesyKnobSection(label: 'CONTENT', children: [_labelRow()]),
-          DesyKnobSection(
-            label: 'APPEARANCE',
-            children: [_radiusRow(), _enabledRow()],
-          ),
-        ],
-        _FramedSheetHierarchy.property => [
-          DesyKnobSection(
-            label: 'PRIMARY DECISION',
-            children: [_labelRow(description: 'The action people read first.')],
-          ),
-          DesyKnobSection(
-            label: 'REFINE',
-            children: [
-              _radiusRow(description: 'The button’s outer shape.'),
-              _enabledRow(description: 'Whether the action is available.'),
-            ],
-          ),
-        ],
-        _FramedSheetHierarchy.section => [
-          DesyKnobSection(label: 'CONTENT', children: [_labelRow()]),
-          DesyKnobSection(label: 'SHAPE', children: [_radiusRow()]),
-          DesyKnobSection(label: 'STATE', children: [_enabledRow()]),
-        ],
-      },
-    ),
+  Widget build(BuildContext context) => DesyKnobSheet(
+    title: switch (widget.hierarchy) {
+      _FramedSheetHierarchy.context ||
+      _FramedSheetHierarchy.section => 'Button',
+      _FramedSheetHierarchy.property => 'Button label',
+    },
+    subtitle: switch (widget.hierarchy) {
+      _FramedSheetHierarchy.context => 'Adjust this component.',
+      _FramedSheetHierarchy.property => 'Start with its visible action copy.',
+      _FramedSheetHierarchy.section => 'Content, appearance, and availability.',
+    },
+    sections: switch (widget.hierarchy) {
+      _FramedSheetHierarchy.context => [
+        DesyKnobSection(label: 'CONTENT', children: [_labelRow()]),
+        DesyKnobSection(
+          label: 'APPEARANCE',
+          children: [_radiusRow(), _enabledRow()],
+        ),
+      ],
+      _FramedSheetHierarchy.property => [
+        DesyKnobSection(
+          label: 'PRIMARY DECISION',
+          children: [_labelRow(description: 'The action people read first.')],
+        ),
+        DesyKnobSection(
+          label: 'REFINE',
+          children: [
+            _radiusRow(description: 'The button’s outer shape.'),
+            _enabledRow(description: 'Whether the action is available.'),
+          ],
+        ),
+      ],
+      _FramedSheetHierarchy.section => [
+        DesyKnobSection(label: 'CONTENT', children: [_labelRow()]),
+        DesyKnobSection(label: 'SHAPE', children: [_radiusRow()]),
+        DesyKnobSection(label: 'STATE', children: [_enabledRow()]),
+      ],
+    },
   );
 
   DesyTextKnobRow _labelRow({String? description}) => DesyTextKnobRow(

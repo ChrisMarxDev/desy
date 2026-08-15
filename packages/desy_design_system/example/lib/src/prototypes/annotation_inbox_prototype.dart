@@ -21,6 +21,10 @@ buildAnnotationInboxPrototypeSession() => DesyPrototypeSession(
       name: 'Review sheet',
       description:
           'Recommended: calm rows, clear batch actions, and a compact persistent summary.',
+      canvasPlacement: DesyCanvasPlacement(
+        offset: Offset(72, 96),
+        size: Size(1000, 640),
+      ),
       builder: _reviewSheet,
     ),
     DesyPrototype(
@@ -28,6 +32,10 @@ buildAnnotationInboxPrototypeSession() => DesyPrototypeSession(
       name: 'Annotation ledger',
       description:
           'A denser, table-like inbox for scanning many notes at once.',
+      canvasPlacement: DesyCanvasPlacement(
+        offset: Offset(72, 832),
+        size: Size(1000, 640),
+      ),
       builder: _ledger,
     ),
     DesyPrototype(
@@ -35,6 +43,10 @@ buildAnnotationInboxPrototypeSession() => DesyPrototypeSession(
       name: 'Focused queue',
       description:
           'One selected note gets more reading space; useful when notes are long.',
+      canvasPlacement: DesyCanvasPlacement(
+        offset: Offset(72, 1568),
+        size: Size(1000, 640),
+      ),
       builder: _focusedQueue,
     ),
   ],

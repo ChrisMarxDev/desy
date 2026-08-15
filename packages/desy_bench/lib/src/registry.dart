@@ -1247,6 +1247,14 @@ final class DesyMotionChild {
 /// Builds a motion treatment around its supplied child specimen.
 typedef DesyMotionBuilder = Widget Function(BuildContext context, Widget child);
 
+/// Builds a transition between two real consumer widgets.
+///
+/// Registered motion surfaces supply the current pair; the consumer keeps
+/// ownership of the visual transition and can read [DesyMotionPlaybackScope]
+/// for the scrubbed timeline.
+typedef DesyMotionTransitionBuilder =
+    Widget Function(BuildContext context, Widget first, Widget second);
+
 /// A named motion primitive and a live consumer-owned animation specimen.
 class DesyMotionEntry {
   /// Creates a motion primitive.
@@ -1258,6 +1266,7 @@ class DesyMotionEntry {
     required this.builder,
     required DesyMotionChild child,
     List<DesyMotionChild> alternatives = const [],
+    this.transitionBuilder,
     this.intent = 'Motion',
     this.description,
   }) : children = List.unmodifiable([child, ...alternatives]) {
@@ -1297,6 +1306,12 @@ class DesyMotionEntry {
   /// Real consumer animation treatment, wrapped around a supplied child.
   final DesyMotionBuilder builder;
 
+  /// Optional consumer-owned transition treatment for a pair of widgets.
+  final DesyMotionTransitionBuilder? transitionBuilder;
+
+  /// Whether this motion offers a two-widget transition preview.
+  bool get supportsTransition => transitionBuilder != null;
+
   /// Real widget specimens that can be swapped in the motion-detail controls.
   ///
   /// The first child is the default used by compact previews such as Atlas.
@@ -1317,6 +1332,14 @@ class DesyMotionEntry {
 
   /// Builds [child] with the consumer-owned motion treatment.
   Widget build(BuildContext context, Widget child) => builder(context, child);
+
+  /// Builds a consumer-owned transition from [first] to [second].
+  ///
+  /// A regular one-child treatment remains useful when no transition was
+  /// declared, so the fallback animates the incoming child.
+  Widget buildTransition(BuildContext context, Widget first, Widget second) =>
+      transitionBuilder?.call(context, first, second) ??
+      builder(context, second);
 
   /// Optional display metadata for motion-oriented surfaces.
   final String intent;
@@ -2964,6 +2987,7 @@ class DesyPrototype {
     required this.name,
     required this.builder,
     this.description,
+    this.canvasPlacement,
   });
 
   /// Stable identity used by annotations and future review artifacts.
@@ -2978,6 +3002,31 @@ class DesyPrototype {
 
   /// Optional explanation of the visual decision being explored.
   final String? description;
+
+  /// Optional starting frame when this direction opens in a collection canvas.
+  ///
+  /// This is a consumer-declared reading order, not persisted user
+  /// arrangement. Omit it to use the canvas's deterministic default grid.
+  final DesyCanvasPlacement? canvasPlacement;
+}
+
+/// A consumer-declared initial frame for a real preview on a Desy canvas.
+///
+/// Canvas interaction remains local to the workbench. This value merely gives
+/// an authored comparison session a useful first arrangement and logical size.
+@immutable
+class DesyCanvasPlacement {
+  /// Creates an initial frame from a top-left logical [offset] and [size].
+  const DesyCanvasPlacement({required this.offset, required this.size});
+
+  /// Top-left canvas coordinate in logical pixels.
+  final Offset offset;
+
+  /// Logical constraints supplied to the real preview on first render.
+  final Size size;
+
+  /// The initial drag-box rectangle derived from [offset] and [size].
+  Rect get rect => offset & size;
 }
 
 /// A component instance paired with the component that owns its resolution.

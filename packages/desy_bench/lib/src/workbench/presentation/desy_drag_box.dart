@@ -389,25 +389,30 @@ class DesyDragBoxLabel extends StatelessWidget {
     super.key,
     required this.size,
     required this.identifier,
+    this.selected = true,
   });
 
   final Size size;
   final String identifier;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.theme.colors;
-    final textStyle = Theme.of(
-      context,
-    ).textTheme.labelSmall?.copyWith(color: colors.desy.onSignal);
+    final textStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
+      color: selected ? colors.desy.onSignal : colors.desy.signal,
+    );
     return IgnorePointer(
       child: Semantics(
         label:
             '$identifier, selection size ${size.width.round()} by ${size.height.round()} pixels',
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: colors.desy.signal,
+            color: colors.desy.signal.withValues(alpha: selected ? 1 : .15),
             borderRadius: BorderRadius.circular(4),
+            border: selected
+                ? null
+                : Border.all(color: colors.desy.signal.withValues(alpha: .35)),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Flutter Design"
+  short_description: "Design polished, accessible Flutter interfaces"
+  default_prompt: "Use $flutter-design to design a clear, accessible Flutter interface."

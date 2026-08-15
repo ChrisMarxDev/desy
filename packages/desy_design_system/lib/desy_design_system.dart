@@ -19,6 +19,7 @@ export 'src/desy_accordion.dart';
 export 'src/desy_dialog.dart';
 export 'src/desy_design_system_scope.dart';
 export 'src/desy_icons.dart';
+export 'src/desy_icon_menu.dart';
 export 'src/desy_knob_sheet.dart';
 export 'src/desy_progress_trail.dart';
 export 'src/desy_resize_divider.dart';

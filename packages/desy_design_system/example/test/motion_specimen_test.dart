@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('dogfood motion autoplays the supplied signal square', (
+  testWidgets('dogfood motion exposes transition instance controls', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1100, 800));
@@ -26,16 +26,29 @@ void main() {
       ),
     );
 
-    final specimen = find.byKey(const ValueKey('dogfood-motion-specimen'));
-    final initialLeft = tester.getTopLeft(specimen).dx;
+    expect(find.text('Inspect component'), findsOneWidget);
+    expect(find.text('STABLE'), findsOneWidget);
+    final instanceMenu = find.byKey(
+      const ValueKey('motion-transition-instance-menu'),
+    );
+    expect(instanceMenu, findsOneWidget);
+    await tester.tap(
+      find.descendant(of: instanceMenu, matching: find.byType(DesyButton)),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Transition instances'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('motion-transition-instance-1')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('motion-transition-instance-2')),
+      findsOneWidget,
+    );
+
     await tester.pump(const Duration(milliseconds: 45));
     await tester.pump(const Duration(milliseconds: 16));
-    final animatedLeft = tester.getTopLeft(specimen).dx;
-
-    expect(animatedLeft, lessThan(initialLeft));
-    expect(find.byIcon(DesyIcons.sparkles), findsOneWidget);
-    final decoration =
-        tester.widget<Container>(specimen).decoration! as BoxDecoration;
-    expect(decoration.color, isNotNull);
+    expect(find.text('Inspect component'), findsOneWidget);
   });
 }

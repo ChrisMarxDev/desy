@@ -218,6 +218,7 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
       curve: Curves.easeOutCubic,
       description: 'Sidebar width and similar spatial navigation changes.',
       builder: _buildMotionSpecimen,
+      transitionBuilder: _buildMotionTransition,
       child: const DesyMotionChild.widget(
         id: 'signal-square',
         name: 'Signal square',
@@ -229,6 +230,11 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
           name: 'Primary button',
           instanceId: DesyInstanceId('desy.component.button.primary'),
         ),
+        DesyMotionChild.instance(
+          id: 'outline-badge',
+          name: 'Outline badge',
+          instanceId: DesyInstanceId('desy.component.badge.outline'),
+        ),
       ],
     ),
     DesyMotionEntry(
@@ -238,6 +244,7 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
       curve: Curves.easeOutCubic,
       description: 'A concise confirmation or newly revealed state.',
       builder: _buildMotionSpecimen,
+      transitionBuilder: _buildMotionTransition,
       child: const DesyMotionChild.widget(
         id: 'signal-square',
         name: 'Signal square',
@@ -248,6 +255,11 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
           id: 'outline-badge',
           name: 'Outline badge',
           instanceId: DesyInstanceId('desy.component.badge.outline'),
+        ),
+        DesyMotionChild.instance(
+          id: 'primary-button',
+          name: 'Primary button',
+          instanceId: DesyInstanceId('desy.component.button.primary'),
         ),
       ],
     ),
@@ -1883,6 +1895,14 @@ class _SidebarSpecimen extends StatelessWidget {
 
 Widget _buildMotionSpecimen(BuildContext context, Widget child) =>
     _MotionSpecimen(child: child);
+
+Widget _buildMotionTransition(
+  BuildContext context,
+  Widget first,
+  Widget second,
+) => _MotionSpecimen(
+  child: DesyMotionWidgetTransition(first: first, second: second),
+);
 
 Widget _buildSignalSquare(BuildContext context) => const _SignalSquare();
 

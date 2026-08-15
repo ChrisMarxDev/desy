@@ -59,6 +59,21 @@ void main() {
       );
       expect(find.byType(DesyDragBox), findsNWidgets(2));
       expect(
+        find.byKey(const ValueKey('$prefix-selection-size-prototype.one')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('$prefix-selection-size-prototype.two')),
+        findsOneWidget,
+      );
+      final frame = tester.getRect(
+        find.byKey(const ValueKey('$prefix-frame-prototype.one')),
+      );
+      final preview = tester.getRect(
+        find.byKey(const ValueKey('prototype-fill-prototype.one')),
+      );
+      expect(preview.width, greaterThan(frame.width - 4));
+      expect(
         find.byKey(const ValueKey('prototypes-canvas-inspector')),
         findsNothing,
       );
@@ -72,17 +87,37 @@ void main() {
         find.byKey(const ValueKey('prototypes-canvas-inspector')),
         findsOneWidget,
       );
-      expect(find.text('Direction'), findsOneWidget);
+      expect(find.text('DIRECTION'), findsOneWidget);
       expect(find.text('prototype.two'), findsOneWidget);
       expect(find.text('A calmer visual direction.'), findsOneWidget);
       expect(
         find.byKey(const ValueKey('$prefix-selection-size-prototype.two')),
         findsOneWidget,
       );
+      expect(
+        tester
+            .widget<DesyDragBoxLabel>(
+              find.byKey(
+                const ValueKey('$prefix-selection-size-prototype.one'),
+              ),
+            )
+            .selected,
+        isFalse,
+      );
+      expect(
+        tester
+            .widget<DesyDragBoxLabel>(
+              find.byKey(
+                const ValueKey('$prefix-selection-size-prototype.two'),
+              ),
+            )
+            .selected,
+        isTrue,
+      );
     },
   );
 
-  testWidgets('prototype canvas keeps a sensible initial drag-box size', (
+  testWidgets('prototype canvas honours an authored initial frame', (
     tester,
   ) async {
     final session = DesyWorkbenchSession(
@@ -97,6 +132,10 @@ void main() {
               DesyPrototype(
                 id: 'prototype.sizing.one',
                 name: 'Narrow direction',
+                canvasPlacement: DesyCanvasPlacement(
+                  offset: Offset(64, 144),
+                  size: Size(420, 360),
+                ),
                 builder: _firstPrototype,
               ),
             ],
@@ -122,8 +161,8 @@ void main() {
     final frame = tester.getRect(
       find.byKey(const ValueKey('$prefix-frame-prototype.sizing.one')),
     );
-    expect(frame.width, 380);
-    expect(frame.height, 620);
+    expect(frame.topLeft, const Offset(64, 144));
+    expect(frame.size, const Size(420, 360));
   });
 }
 

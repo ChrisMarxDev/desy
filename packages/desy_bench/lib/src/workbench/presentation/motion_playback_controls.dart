@@ -17,6 +17,11 @@ class DesyMotionPlaybackControls extends StatelessWidget {
     this.specimenChildren = const [],
     this.selectedSpecimenChildId,
     this.onSpecimenChildSelected,
+    this.transitionInstances = const [],
+    this.firstTransitionInstanceId,
+    this.secondTransitionInstanceId,
+    this.onFirstTransitionInstanceChanged,
+    this.onSecondTransitionInstanceChanged,
   });
 
   final DesyMotionPlaybackController controller;
@@ -26,6 +31,11 @@ class DesyMotionPlaybackControls extends StatelessWidget {
   final List<DesyMotionChild> specimenChildren;
   final String? selectedSpecimenChildId;
   final ValueChanged<String>? onSpecimenChildSelected;
+  final List<DesyRegisteredComponentInstance> transitionInstances;
+  final String? firstTransitionInstanceId;
+  final String? secondTransitionInstanceId;
+  final ValueChanged<String>? onFirstTransitionInstanceChanged;
+  final ValueChanged<String>? onSecondTransitionInstanceChanged;
 
   static const _speeds = [0.5, 1.0, 2.0];
 
@@ -43,6 +53,12 @@ class DesyMotionPlaybackControls extends StatelessWidget {
             specimenChildren: specimenChildren,
             selectedSpecimenChildId: selectedSpecimenChildId,
             onSpecimenChildSelected: onSpecimenChildSelected,
+            transitionInstances: transitionInstances,
+            firstTransitionInstanceId: firstTransitionInstanceId,
+            secondTransitionInstanceId: secondTransitionInstanceId,
+            onFirstTransitionInstanceChanged: onFirstTransitionInstanceChanged,
+            onSecondTransitionInstanceChanged:
+                onSecondTransitionInstanceChanged,
           ),
   );
 }
@@ -53,12 +69,22 @@ class _PanelMotionPlaybackControls extends StatelessWidget {
     required this.specimenChildren,
     required this.selectedSpecimenChildId,
     required this.onSpecimenChildSelected,
+    required this.transitionInstances,
+    required this.firstTransitionInstanceId,
+    required this.secondTransitionInstanceId,
+    required this.onFirstTransitionInstanceChanged,
+    required this.onSecondTransitionInstanceChanged,
   });
 
   final DesyMotionPlaybackController controller;
   final List<DesyMotionChild> specimenChildren;
   final String? selectedSpecimenChildId;
   final ValueChanged<String>? onSpecimenChildSelected;
+  final List<DesyRegisteredComponentInstance> transitionInstances;
+  final String? firstTransitionInstanceId;
+  final String? secondTransitionInstanceId;
+  final ValueChanged<String>? onFirstTransitionInstanceChanged;
+  final ValueChanged<String>? onSecondTransitionInstanceChanged;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -66,6 +92,23 @@ class _PanelMotionPlaybackControls extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       _PlaybackButtons(controller: controller),
+      if (transitionInstances.isNotEmpty &&
+          firstTransitionInstanceId != null &&
+          secondTransitionInstanceId != null &&
+          onFirstTransitionInstanceChanged != null &&
+          onSecondTransitionInstanceChanged != null) ...[
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerRight,
+          child: _TransitionInstanceMenu(
+            instances: transitionInstances,
+            firstId: firstTransitionInstanceId!,
+            secondId: secondTransitionInstanceId!,
+            onFirstChanged: onFirstTransitionInstanceChanged!,
+            onSecondChanged: onSecondTransitionInstanceChanged!,
+          ),
+        ),
+      ],
       const SizedBox(height: 18),
       _PlayheadLabel(controller: controller),
       const SizedBox(height: 8),
@@ -89,6 +132,105 @@ class _PanelMotionPlaybackControls extends StatelessWidget {
       ],
     ],
   );
+}
+
+class _TransitionInstanceMenu extends StatelessWidget {
+  const _TransitionInstanceMenu({
+    required this.instances,
+    required this.firstId,
+    required this.secondId,
+    required this.onFirstChanged,
+    required this.onSecondChanged,
+  });
+
+  final List<DesyRegisteredComponentInstance> instances;
+  final String firstId;
+  final String secondId;
+  final ValueChanged<String> onFirstChanged;
+  final ValueChanged<String> onSecondChanged;
+
+  @override
+  Widget build(BuildContext context) => DesyIconMenu(
+    key: const ValueKey('motion-transition-instance-menu'),
+    icon: DesyIcons.chevronsUpDown,
+    semanticsLabel: 'Customize transition instances',
+    menuBuilder: (context) => SizedBox(
+      width: 280,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Transition instances',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            const SizedBox(height: 12),
+            _TransitionInstanceSelect(
+              key: const ValueKey('motion-transition-instance-1'),
+              label: 'Instance 1',
+              value: firstId,
+              instances: instances,
+              onChanged: onFirstChanged,
+            ),
+            const SizedBox(height: 12),
+            _TransitionInstanceSelect(
+              key: const ValueKey('motion-transition-instance-2'),
+              label: 'Instance 2',
+              value: secondId,
+              instances: instances,
+              onChanged: onSecondChanged,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _TransitionInstanceSelect extends StatelessWidget {
+  const _TransitionInstanceSelect({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.instances,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String value;
+  final List<DesyRegisteredComponentInstance> instances;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) => DesySelect<String>.rich(
+    label: Text(label),
+    size: DesySelectSize.sm,
+    control: DesySelectControl.lifted(
+      value: value,
+      onChange: (next) {
+        if (next != null) onChanged(next);
+      },
+    ),
+    format: _labelFor,
+    children: [
+      for (final instance in instances)
+        DesySelectItem.item(
+          key: ValueKey('motion-transition-option-${instance.id}'),
+          value: instance.id,
+          title: Text(_labelFor(instance.id)),
+          subtitle: Text(instance.component.name),
+        ),
+    ],
+  );
+
+  String _labelFor(String id) => instances
+      .firstWhere(
+        (instance) => instance.id == id,
+        orElse: () => instances.first,
+      )
+      .name;
 }
 
 class _SpecimenChildSelect extends StatelessWidget {

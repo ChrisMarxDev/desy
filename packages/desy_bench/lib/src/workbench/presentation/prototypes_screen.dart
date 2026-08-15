@@ -42,17 +42,22 @@ class DesyPrototypesScreen extends StatelessWidget {
             id: prototype.id,
             name: prototype.name,
             value: prototype,
-            initialSize: const Size(380, 620),
-            previewBuilder: (context, prototype) =>
-                DesyWorkbenchInspectionScope(
-                  key: ValueKey('prototype-scope-${prototype.id}'),
-                  context: DesyWorkbenchInspectionContext(
-                    artifactId: prototype.id,
-                    kind: 'Prototype',
-                    label: prototype.name,
-                  ),
-                  child: Builder(builder: prototype.builder),
+            initialSize:
+                prototype.canvasPlacement?.size ?? const Size(380, 620),
+            initialRect: prototype.canvasPlacement?.rect,
+            previewBuilder: (context, prototype) => SizedBox(
+              key: ValueKey('prototype-fill-${prototype.id}'),
+              width: double.infinity,
+              child: DesyWorkbenchInspectionScope(
+                key: ValueKey('prototype-scope-${prototype.id}'),
+                context: DesyWorkbenchInspectionContext(
+                  artifactId: prototype.id,
+                  kind: 'Prototype',
+                  label: prototype.name,
                 ),
+                child: Builder(builder: prototype.builder),
+              ),
+            ),
           ),
       ],
       detailsBuilder: (context, item) =>
@@ -69,22 +74,50 @@ class _PrototypeCanvasDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListView(
     key: const ValueKey('prototypes-canvas-inspector'),
-    padding: const EdgeInsets.all(16),
+    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
     children: [
-      DesyKnobSheet(
-        title: 'Direction',
-        subtitle: prototype.name,
-        sections: [
-          DesyKnobSection(
-            label: 'PROTOTYPE',
-            children: [
-              DesyKnobRow(label: 'ID', control: Text(prototype.id)),
-              if (prototype.description case final description?)
-                DesyKnobRow(label: 'Notes', control: Text(description)),
-            ],
-          ),
-        ],
+      Text(
+        'DIRECTION',
+        style: context.theme.typography.body.xs.copyWith(
+          color: context.theme.colors.mutedForeground,
+          fontWeight: FontWeight.w800,
+          letterSpacing: .8,
+        ),
       ),
+      const SizedBox(height: 6),
+      Text(prototype.name, style: context.theme.typography.display.xs),
+      const SizedBox(height: 18),
+      Divider(color: context.theme.colors.border, height: 1),
+      const SizedBox(height: 16),
+      _PrototypeDetailBlock(label: 'PROTOTYPE ID', value: prototype.id),
+      if (prototype.description case final description?) ...[
+        const SizedBox(height: 20),
+        _PrototypeDetailBlock(label: 'NOTES', value: description),
+      ],
+    ],
+  );
+}
+
+class _PrototypeDetailBlock extends StatelessWidget {
+  const _PrototypeDetailBlock({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: context.theme.typography.body.xs.copyWith(
+          color: context.theme.colors.mutedForeground,
+          fontWeight: FontWeight.w800,
+          letterSpacing: .7,
+        ),
+      ),
+      const SizedBox(height: 6),
+      SelectableText(value, style: context.theme.typography.body.sm),
     ],
   );
 }

@@ -209,3 +209,76 @@ class DesyMotionPlaybackScope extends InheritedNotifier<Animation<double>> {
       .dependOnInheritedWidgetOfExactType<DesyMotionPlaybackScope>()
       ?.progress;
 }
+
+/// A scrub-friendly transition between two real widgets.
+///
+/// The outgoing widget leaves slightly toward the leading edge while the
+/// incoming widget enters from the trailing edge. Consumers can supply an
+/// explicit [progress] or rely on the nearest [DesyMotionPlaybackScope].
+class DesyMotionWidgetTransition extends StatelessWidget {
+  /// Creates a two-widget motion transition.
+  const DesyMotionWidgetTransition({
+    required this.first,
+    required this.second,
+    this.progress,
+    this.distance = 24,
+    super.key,
+  });
+
+  /// Widget displayed at the start of the timeline.
+  final Widget first;
+
+  /// Widget displayed at the end of the timeline.
+  final Widget second;
+
+  /// Optional zero-to-one timeline. Defaults to the nearest motion scope.
+  final Animation<double>? progress;
+
+  /// Horizontal offset applied to each widget at its hidden endpoint.
+  final double distance;
+
+  @override
+  Widget build(BuildContext context) {
+    final animation =
+        progress ??
+        DesyMotionPlaybackScope.maybeOf(context) ??
+        kAlwaysCompleteAnimation;
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, _) {
+        final value = animation.value.clamp(0.0, 1.0).toDouble();
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            ExcludeSemantics(
+              excluding: value >= .5,
+              child: IgnorePointer(
+                ignoring: value >= .5,
+                child: Opacity(
+                  opacity: 1 - value,
+                  child: Transform.translate(
+                    offset: Offset(-distance * value, 0),
+                    child: first,
+                  ),
+                ),
+              ),
+            ),
+            ExcludeSemantics(
+              excluding: value < .5,
+              child: IgnorePointer(
+                ignoring: value < .5,
+                child: Opacity(
+                  opacity: value,
+                  child: Transform.translate(
+                    offset: Offset(distance * (1 - value), 0),
+                    child: second,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
