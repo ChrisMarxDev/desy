@@ -7,6 +7,7 @@ import 'package:desy_design_system/desy_design_system.dart';
 import 'package:flutter/material.dart';
 
 import '../../registry.dart';
+import '../workbench_annotation.dart';
 import '../widget_preview.dart';
 import 'desy_drag_box.dart';
 
@@ -151,6 +152,7 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
             .min(360.0, constraints.maxWidth * .36)
             .clamp(280.0, 360.0)
             .toDouble();
+        final inspection = DesyWorkbenchInspectionHost.maybeOf(context);
         return ColoredBox(
           color: background,
           child: Stack(
@@ -186,6 +188,23 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
                   onZoomIn: () => _setZoom(_zoom + .15),
                 ),
               ),
+              if (inspection?.onToggleInspection case final onToggle?)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 12,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: _CollectionCanvasActionBar(
+                      keyPrefix: widget.keyPrefix,
+                      annotating: inspection!.inspectionActive,
+                      onSelect: inspection.inspectionActive
+                          ? onToggle
+                          : _clearSelection,
+                      onAnnotate: onToggle,
+                    ),
+                  ),
+                ),
               Positioned(
                 top: 0,
                 right: 0,
@@ -312,6 +331,92 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
     }
     return Size(width, height);
   }
+}
+
+class _CollectionCanvasActionBar extends StatelessWidget {
+  const _CollectionCanvasActionBar({
+    required this.keyPrefix,
+    required this.annotating,
+    required this.onSelect,
+    required this.onAnnotate,
+  });
+
+  final String keyPrefix;
+  final bool annotating;
+  final VoidCallback onSelect;
+  final VoidCallback onAnnotate;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: 'Canvas modes',
+    container: true,
+    child: DecoratedBox(
+      key: ValueKey('$keyPrefix-action-bar'),
+      decoration: BoxDecoration(
+        color: context.theme.colors.background,
+        border: Border.all(color: context.theme.colors.border),
+        borderRadius: BorderRadius.circular(DesyDesignSystemTokens.radiusMd),
+        boxShadow: [
+          BoxShadow(
+            color: context.theme.colors.foreground.withValues(alpha: .12),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DesyButton(
+              key: ValueKey('$keyPrefix-mode-select'),
+              size: DesyButtonSize.sm,
+              variant: annotating
+                  ? DesyButtonVariant.ghost
+                  : DesyButtonVariant.primary,
+              mainAxisSize: MainAxisSize.min,
+              semanticsLabel: 'Select canvas items',
+              semanticsTooltip: 'Select canvas items',
+              onPress: onSelect,
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(DesyIcons.crosshair, size: 15),
+                  SizedBox(width: 6),
+                  Text('Select'),
+                ],
+              ),
+            ),
+            const SizedBox(width: 2),
+            DesyButton(
+              key: ValueKey('$keyPrefix-mode-annotate'),
+              size: DesyButtonSize.sm,
+              variant: annotating
+                  ? DesyButtonVariant.primary
+                  : DesyButtonVariant.ghost,
+              mainAxisSize: MainAxisSize.min,
+              semanticsLabel: annotating
+                  ? 'Stop annotating canvas widgets'
+                  : 'Annotate canvas widgets',
+              semanticsTooltip: annotating
+                  ? 'Stop annotating canvas widgets'
+                  : 'Annotate canvas widgets',
+              onPress: onAnnotate,
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(DesyIcons.messageSquare, size: 15),
+                  SizedBox(width: 6),
+                  Text('Annotate'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _CollectionCanvasItem<T> extends StatelessWidget {

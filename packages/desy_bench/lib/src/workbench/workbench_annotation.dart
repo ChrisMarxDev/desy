@@ -39,6 +39,8 @@ class DesyWorkbenchInspectionHost extends InheritedWidget {
     required this.screenId,
     required this.target,
     required this.onTargetSelected,
+    this.inspectionActive = false,
+    this.onToggleInspection,
     required super.child,
   });
 
@@ -54,6 +56,15 @@ class DesyWorkbenchInspectionHost extends InheritedWidget {
   /// Applies a source-aware target selection to the shell.
   final ValueChanged<DesyWorkbenchWidgetTarget> onTargetSelected;
 
+  /// Whether the shell is currently picking widgets for annotation.
+  final bool inspectionActive;
+
+  /// Switches the shell's annotation-picking mode when that mode is available.
+  ///
+  /// A canvas consumes this optional callback for its local mode dock; it does
+  /// not own a second annotation state.
+  final VoidCallback? onToggleInspection;
+
   /// Returns the nearest inspection bridge, if this content is inspectable.
   static DesyWorkbenchInspectionHost? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<DesyWorkbenchInspectionHost>();
@@ -62,7 +73,9 @@ class DesyWorkbenchInspectionHost extends InheritedWidget {
   bool updateShouldNotify(DesyWorkbenchInspectionHost oldWidget) =>
       screenId != oldWidget.screenId ||
       target != oldWidget.target ||
-      controller != oldWidget.controller;
+      controller != oldWidget.controller ||
+      inspectionActive != oldWidget.inspectionActive ||
+      onToggleInspection != oldWidget.onToggleInspection;
 }
 
 /// Stable artifact context supplied by an inspectable workbench region.

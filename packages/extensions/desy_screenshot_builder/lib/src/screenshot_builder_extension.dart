@@ -56,6 +56,8 @@ class _ScreenshotBuilderScreen extends StatefulWidget {
 class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
   static const _sidebarMinimum = 340.0;
   static const _sidebarMaximum = 440.0;
+  static const _inspectorMinimum = 340.0;
+  static const _inspectorMaximum = 480.0;
 
   final _boundaryKey = GlobalKey(debugLabel: 'screenshot-export-boundary');
   final _stageKey = GlobalKey(debugLabel: 'screenshot-logical-stage');
@@ -63,7 +65,9 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
   late final DesyScreenshotSceneController _scene;
 
   var _sidebarWidth = 360.0;
-  var _compactSidebarHeight = 340.0;
+  var _inspectorWidth = 360.0;
+  var _compactSidebarHeight = 240.0;
+  var _compactInspectorHeight = 240.0;
   var _dropActive = false;
   var _exporting = false;
   var _viewportSize = Size.zero;
@@ -315,7 +319,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
       color: colors.background,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 760;
+          final compact = constraints.maxWidth < 1120;
           final sidebar = _ScreenshotSidebar(
             scene: _scene,
             extension: extension,
@@ -326,6 +330,10 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
             onAdd: _addPaletteItem,
             onPickImage: () => unawaited(_pickImage()),
             onExport: () => unawaited(_exportScreenshot()),
+          );
+          final inspector = _ScreenshotLayerInspector(
+            scene: _scene,
+            extension: extension,
           );
           final viewport = DropTarget(
             onDragEntered: (_) => setState(() => _dropActive = true),
@@ -357,42 +365,85 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
           );
 
           if (compact) {
-            final maximum = (constraints.maxHeight * .6).clamp(260.0, 440.0);
-            final height = _compactSidebarHeight.clamp(260.0, maximum);
+            final hasSelection = _scene.selectedLayer != null;
+            final panelMaximum = (constraints.maxHeight * .34)
+                .clamp(180.0, 300.0)
+                .toDouble();
+            final sidebarHeight = _compactSidebarHeight
+                .clamp(180.0, panelMaximum)
+                .toDouble();
+            final inspectorHeight = _compactInspectorHeight
+                .clamp(180.0, panelMaximum)
+                .toDouble();
             return Column(
               children: [
-                SizedBox(height: height, child: sidebar),
+                SizedBox(height: sidebarHeight, child: sidebar),
                 DesyResizeDivider(
                   axis: Axis.horizontal,
-                  value: height,
+                  value: sidebarHeight,
                   semanticsLabel: 'Screenshot builder panel height',
                   onResize: (delta) => setState(() {
                     _compactSidebarHeight = (_compactSidebarHeight + delta)
-                        .clamp(260.0, maximum);
+                        .clamp(180.0, panelMaximum);
                   }),
                 ),
                 Expanded(child: viewport),
+                if (hasSelection) ...[
+                  DesyResizeDivider(
+                    key: const ValueKey('screenshot-inspector-resize-handle'),
+                    axis: Axis.horizontal,
+                    value: inspectorHeight,
+                    semanticsLabel: 'Screenshot element inspector height',
+                    onResize: (delta) => setState(() {
+                      _compactInspectorHeight =
+                          (_compactInspectorHeight - delta).clamp(
+                            180.0,
+                            panelMaximum,
+                          );
+                    }),
+                  ),
+                  SizedBox(height: inspectorHeight, child: inspector),
+                ],
               ],
             );
           }
 
-          final width = _sidebarWidth
+          final sidebarWidth = _sidebarWidth
               .clamp(
                 _sidebarMinimum,
-                math.min(_sidebarMaximum, constraints.maxWidth * .45),
+                math.min(_sidebarMaximum, constraints.maxWidth * .34),
+              )
+              .toDouble();
+          final inspectorWidth = _inspectorWidth
+              .clamp(
+                _inspectorMinimum,
+                math.min(_inspectorMaximum, constraints.maxWidth * .34),
               )
               .toDouble();
           return Row(
             children: [
-              SizedBox(width: width, child: sidebar),
+              SizedBox(width: sidebarWidth, child: sidebar),
               DesyResizeDivider(
                 axis: Axis.vertical,
-                value: width,
+                value: sidebarWidth,
                 semanticsLabel: 'Screenshot builder sidebar width',
                 onResize: (delta) => setState(() {
                   _sidebarWidth = (_sidebarWidth + delta).clamp(
                     _sidebarMinimum,
-                    math.min(_sidebarMaximum, constraints.maxWidth * .45),
+                    math.min(_sidebarMaximum, constraints.maxWidth * .34),
+                  );
+                }),
+              ),
+              SizedBox(width: inspectorWidth, child: inspector),
+              DesyResizeDivider(
+                key: const ValueKey('screenshot-inspector-resize-handle'),
+                axis: Axis.vertical,
+                value: inspectorWidth,
+                semanticsLabel: 'Screenshot element inspector width',
+                onResize: (delta) => setState(() {
+                  _inspectorWidth = (_inspectorWidth + delta).clamp(
+                    _inspectorMinimum,
+                    math.min(_inspectorMaximum, constraints.maxWidth * .34),
                   );
                 }),
               ),

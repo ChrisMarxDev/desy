@@ -64,6 +64,66 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Review your feedback'), findsOneWidget);
   });
+
+  testWidgets('prototype canvas owns the annotation mode switch', (
+    tester,
+  ) async {
+    const prototypeId = 'annotation.prototype.one';
+    const sessionId = 'annotation.prototype.session';
+    await tester.pumpWidget(
+      DesyBenchApp(
+        registry: DesyRegistry(
+          name: 'Canvas annotation test',
+          themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+          prototypes: [
+            DesyPrototypeSession(
+              id: sessionId,
+              name: 'Canvas directions',
+              prototypes: [
+                DesyPrototype(
+                  id: prototypeId,
+                  name: 'Annotation direction',
+                  builder: _prototypePreview,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    tester
+        .widget<DesySidebarItem>(
+          find.byKey(const ValueKey('prototype-session-$sessionId')),
+        )
+        .onPress!
+        .call();
+    await tester.pumpAndSettle();
+
+    const prefix = 'prototypes-canvas-$sessionId';
+    expect(find.byKey(const ValueKey('$prefix-action-bar')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('registry-spine-toggle-inspection')),
+      findsNothing,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('$prefix-mode-annotate')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('workbench-inspection-overlay')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('$prefix-mode-select')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('workbench-inspection-overlay')),
+      findsNothing,
+    );
+  });
 }
 
 Widget _wrap(BuildContext context, Widget child) => child;
+
+Widget _prototypePreview(BuildContext context) => const Text('Prototype body');

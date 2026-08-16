@@ -69,7 +69,7 @@ class _ScreenshotSidebar extends StatelessWidget {
               ),
               DesyTabEntry(
                 label: const Text('Scene', key: ValueKey('scene-tab')),
-                child: _ScenePanel(scene: scene, extension: extension),
+                child: _ScenePanel(scene: scene),
               ),
               DesyTabEntry(
                 label: const Text('Page', key: ValueKey('page-tab')),
@@ -292,14 +292,12 @@ class _PaletteTile extends StatelessWidget {
 }
 
 class _ScenePanel extends StatelessWidget {
-  const _ScenePanel({required this.scene, required this.extension});
+  const _ScenePanel({required this.scene});
 
   final DesyScreenshotSceneController scene;
-  final DesyWorkspaceExtensionContext extension;
 
   @override
   Widget build(BuildContext context) {
-    final selected = scene.selectedLayer;
     final topFirst = scene.layers.reversed.toList(growable: false);
     return ListView(
       key: const ValueKey('screenshot-scene-panel'),
@@ -336,40 +334,106 @@ class _ScenePanel extends StatelessWidget {
           )
         else
           for (final layer in topFirst) _LayerRow(layer: layer, scene: scene),
-        if (selected != null) ...[
-          const SizedBox(height: 20),
-          _SelectedLayerActions(layer: selected, scene: scene),
-          const SizedBox(height: 8),
-          switch (selected) {
-            final DesyScreenshotWidgetLayer layer => _WidgetInspector(
-              layer: layer,
-              scene: scene,
-              registry: extension.registry,
-            ),
-            final DesyScreenshotTextLayer layer => _TextInspector(
-              layer: layer,
-              scene: scene,
-              registry: extension.registry,
-            ),
-            final DesyScreenshotImageLayer layer => DesyKnobSheet(
-              segments: [
-                DesyKnobSegment(
-                  title: 'IMAGE',
-                  children: [
-                    DesyTextValueKnobRow(label: 'File', value: layer.name),
-                    DesyTextValueKnobRow(
-                      label: 'Size',
-                      value:
-                          '${layer.rect.width.round()} × ${layer.rect.height.round()}',
-                    ),
-                  ],
+      ],
+    );
+  }
+}
+
+class _ScreenshotLayerInspector extends StatelessWidget {
+  const _ScreenshotLayerInspector({
+    required this.scene,
+    required this.extension,
+  });
+
+  final DesyScreenshotSceneController scene;
+  final DesyWorkspaceExtensionContext extension;
+
+  @override
+  Widget build(BuildContext context) {
+    final layer = scene.selectedLayer;
+    return ColoredBox(
+      key: const ValueKey('screenshot-layer-inspector'),
+      color: context.theme.colors.background,
+      child: layer == null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'Select an element to edit its properties.',
+                  key: const ValueKey('screenshot-layer-inspector-empty'),
+                  textAlign: TextAlign.center,
+                  style: context.theme.typography.body.sm.copyWith(
+                    color: context.theme.colors.mutedForeground,
+                    height: 1.4,
+                  ),
                 ),
+              ),
+            )
+          : ListView(
+              key: const ValueKey('screenshot-layer-inspector-content'),
+              padding: EdgeInsets.zero,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'PROPERTIES',
+                        style: context.theme.typography.body.xs.copyWith(
+                          color: context.theme.colors.mutedForeground,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        layer.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.theme.typography.body.md.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _SelectedLayerActions(layer: layer, scene: scene),
+                const SizedBox(height: 8),
+                switch (layer) {
+                  final DesyScreenshotWidgetLayer widgetLayer =>
+                    _WidgetInspector(
+                      layer: widgetLayer,
+                      scene: scene,
+                      registry: extension.registry,
+                    ),
+                  final DesyScreenshotTextLayer textLayer => _TextInspector(
+                    layer: textLayer,
+                    scene: scene,
+                    registry: extension.registry,
+                  ),
+                  final DesyScreenshotImageLayer imageLayer => DesyKnobSheet(
+                    segments: [
+                      DesyKnobSegment(
+                        title: 'IMAGE',
+                        children: [
+                          DesyTextValueKnobRow(
+                            label: 'File',
+                            value: imageLayer.name,
+                          ),
+                          DesyTextValueKnobRow(
+                            label: 'Size',
+                            value:
+                                '${imageLayer.rect.width.round()} × ${imageLayer.rect.height.round()}',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  _ => const SizedBox.shrink(),
+                },
               ],
             ),
-            _ => const SizedBox.shrink(),
-          },
-        ],
-      ],
     );
   }
 }

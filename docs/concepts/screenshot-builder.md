@@ -23,9 +23,10 @@ The standalone extension owns a resizable sidebar with three views:
 1. **Elements** lists registry-derived component instances and the built-in
    Text and Image additions. Widgets and text may be clicked or dragged onto
    the canvas; image files may be picked or dropped from the host platform.
-2. **Scene** selects layers, changes their order and visibility, deletes them,
-   and edits the selected widget's knobs or the selected text's content,
-   typography, and color.
+2. **Scene** selects layers and shows their stack order and visibility. A
+   dedicated, resizable inspector beside the tabbed sidebar changes the
+   selected layer's order and visibility, deletes it, and edits widget knobs or
+   text content, typography, and color without hiding the scene or page tools.
 3. **Page** sets exact custom width and height, consumer theme, background or
    transparency, and starts PNG export.
 

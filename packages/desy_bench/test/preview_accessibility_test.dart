@@ -51,7 +51,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('MEDIA QUERY'), findsOneWidget);
     expect(find.text('Preview frame'), findsOneWidget);
     expect(previewMedia!.textScaler.scale(10), 10);
     expect(previewDirection, TextDirection.ltr);

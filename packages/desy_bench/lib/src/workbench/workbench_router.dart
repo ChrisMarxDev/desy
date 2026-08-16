@@ -283,6 +283,9 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
         workspaceExtension?.presentation ==
         DesyWorkspaceExtensionPresentation.standalone;
     final isSketch = location.path == DesyWorkbenchRoutes.sketchPath;
+    final usesCanvasActionBar = location.path.startsWith(
+      '${DesyWorkbenchRoutes.prototypesPath}/',
+    );
     final scaffold = DesyWorkbenchShortcuts(
       location: location,
       tree: navigationTree,
@@ -422,6 +425,7 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
                   onToggleSidebar: () =>
                       setState(() => _sidebarVisible = !_sidebarVisible),
                   inspecting: _inspectionActive,
+                  showInspectionToggle: !usesCanvasActionBar,
                   onToggleInspection: _toggleInspection,
                   onReportIssue: () {
                     final platform = kIsWeb
@@ -460,6 +464,7 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
           DesyDesignSystemTokens.toolbarHeight +
           DesyDesignSystemTokens.hairline,
       inspectionLeftInset: _sidebarVisible ? _sidebarWidth : 0,
+      inspectionBottomInset: usesCanvasActionBar ? 72 : 0,
       onTargetSelected: _selectAnnotationTarget,
       onDraftChanged: (value) => setState(() => _annotationDraft = value),
       onCommit: _commitAnnotation,
@@ -479,6 +484,8 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
       screenId: location.toString(),
       target: _annotationTarget,
       onTargetSelected: _selectAnnotationTarget,
+      inspectionActive: _inspectionActive,
+      onToggleInspection: _toggleInspection,
       child: DesyPreviewThemeScope(
         theme: activeTheme,
         // Native text fields retain their platform selection on every viewport.
@@ -509,6 +516,7 @@ class _RegistrySpineTopBar extends StatelessWidget {
     required this.contentLeadingInset,
     required this.onToggleSidebar,
     required this.inspecting,
+    required this.showInspectionToggle,
     required this.onToggleInspection,
     required this.onReportIssue,
   });
@@ -519,6 +527,7 @@ class _RegistrySpineTopBar extends StatelessWidget {
   final double contentLeadingInset;
   final VoidCallback onToggleSidebar;
   final bool inspecting;
+  final bool showInspectionToggle;
   final VoidCallback onToggleInspection;
   final VoidCallback onReportIssue;
 
@@ -607,24 +616,26 @@ class _RegistrySpineTopBar extends StatelessWidget {
                           onPress: onReportIssue,
                           child: const Icon(DesyIcons.messageSquare, size: 16),
                         ),
-                        const SizedBox(width: 4),
-                        DesyButton.icon(
-                          key: const ValueKey(
-                            'registry-spine-toggle-inspection',
+                        if (showInspectionToggle) ...[
+                          const SizedBox(width: 4),
+                          DesyButton.icon(
+                            key: const ValueKey(
+                              'registry-spine-toggle-inspection',
+                            ),
+                            size: DesyButtonSize.md,
+                            variant: inspecting
+                                ? DesyButtonVariant.primary
+                                : DesyButtonVariant.ghost,
+                            semanticsLabel: inspecting
+                                ? 'Stop inspecting widgets'
+                                : 'Inspect widgets',
+                            semanticsTooltip: inspecting
+                                ? 'Stop inspecting widgets'
+                                : 'Inspect widgets',
+                            onPress: onToggleInspection,
+                            child: const Icon(DesyIcons.crosshair, size: 16),
                           ),
-                          size: DesyButtonSize.md,
-                          variant: inspecting
-                              ? DesyButtonVariant.primary
-                              : DesyButtonVariant.ghost,
-                          semanticsLabel: inspecting
-                              ? 'Stop inspecting widgets'
-                              : 'Inspect widgets',
-                          semanticsTooltip: inspecting
-                              ? 'Stop inspecting widgets'
-                              : 'Inspect widgets',
-                          onPress: onToggleInspection,
-                          child: const Icon(DesyIcons.crosshair, size: 16),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -774,6 +785,7 @@ class _WorkbenchInspectionLayer extends StatefulWidget {
     required this.focusNode,
     required this.inspectionTopInset,
     required this.inspectionLeftInset,
+    required this.inspectionBottomInset,
     required this.onTargetSelected,
     required this.onDraftChanged,
     required this.onCommit,
@@ -794,6 +806,7 @@ class _WorkbenchInspectionLayer extends StatefulWidget {
   final FocusNode focusNode;
   final double inspectionTopInset;
   final double inspectionLeftInset;
+  final double inspectionBottomInset;
   final ValueChanged<DesyWorkbenchWidgetTarget> onTargetSelected;
   final ValueChanged<String> onDraftChanged;
   final VoidCallback onCommit;
@@ -1061,7 +1074,7 @@ class _WorkbenchInspectionLayerState extends State<_WorkbenchInspectionLayer> {
             left: widget.inspectionLeftInset,
             top: widget.inspectionTopInset,
             right: 0,
-            bottom: 0,
+            bottom: widget.inspectionBottomInset,
             child: Semantics(
               button: true,
               label: 'Select a widget to annotate',

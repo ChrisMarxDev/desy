@@ -37,6 +37,10 @@ void main() {
     expect(find.byKey(const ValueKey('page-tab')), findsOneWidget);
     expect(find.byKey(const ValueKey('add-text-element')), findsOneWidget);
     expect(
+      find.byKey(const ValueKey('screenshot-layer-inspector-empty')),
+      findsOneWidget,
+    );
+    expect(
       find.byKey(const ValueKey('add-widget-action.publish.default')),
       findsOneWidget,
     );
@@ -46,16 +50,22 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    await tester.tap(find.byKey(const ValueKey('scene-tab')));
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
 
-    expect(find.text('Publish · Default'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('screenshot-layer-inspector-content')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('widget-scale-control')), findsOneWidget);
     expect(find.text('Label'), findsWidgets);
     expect(find.byKey(const ValueKey('layer-forward')), findsOneWidget);
     expect(find.byKey(const ValueKey('layer-hide')), findsOneWidget);
     expect(find.byKey(const ValueKey('layer-delete')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('scene-tab')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    expect(find.text('Publish · Default'), findsWidgets);
 
     await tester.tap(find.byKey(const ValueKey('layer-hide')));
     await tester.pump();
@@ -82,14 +92,35 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('add-text-element')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('scene-tab')));
-    await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('text-content-control')), findsOneWidget);
     expect(find.byKey(const ValueKey('text-style-control')), findsOneWidget);
     expect(find.byKey(const ValueKey('text-color-control')), findsOneWidget);
     expect(find.text('Your text'), findsWidgets);
     expect(find.text('Ink'), findsOneWidget);
+  });
+
+  testWidgets('stacks the selected element inspector on compact layouts', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(900, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(_harness(extension, _extensionContext()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('add-text-element')));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.byKey(const ValueKey('screenshot-layer-inspector-content')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('screenshot-inspector-resize-handle')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('text-content-control')), findsOneWidget);
   });
 }
 
