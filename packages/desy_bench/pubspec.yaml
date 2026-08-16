@@ -29,6 +29,7 @@ dependencies:
   motor: ^1.1.0
   shared_preferences: ^2.5.5
   state_beacon: ^3.1.1
+  url_launcher: ^6.3.2
   window_manager: ^0.5.2
 
 dev_dependencies:

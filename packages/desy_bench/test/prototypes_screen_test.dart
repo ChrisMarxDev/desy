@@ -88,8 +88,12 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('DIRECTION'), findsOneWidget);
+      expect(find.text('Name'), findsOneWidget);
+      expect(find.text('Prototype ID'), findsOneWidget);
+      expect(find.text('Notes'), findsOneWidget);
       expect(find.text('prototype.two'), findsOneWidget);
       expect(find.text('A calmer visual direction.'), findsOneWidget);
+      expect(find.byType(DesyKnobSheet), findsOneWidget);
       expect(
         find.byKey(const ValueKey('$prefix-selection-size-prototype.two')),
         findsOneWidget,

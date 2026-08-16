@@ -34,11 +34,7 @@ void main() {
           .prototypeSession('desy.prototype-session.knob-controls')
           ?.prototypes
           .map((prototype) => prototype.id),
-      [
-        'desy.prototype.knob-controls.context-sheet',
-        'desy.prototype.knob-controls.property-sheet',
-        'desy.prototype.knob-controls.section-sheet',
-      ],
+      ['desy.prototype.knob-controls.divider-bands'],
     );
     expect(
       desyDesignSystemRegistry.resolve('desy.icon.shapes')?.path,
@@ -58,6 +54,7 @@ void main() {
         'desy.component.chat-message',
         'desy.component.chat-thread',
         'desy.component.color-knob-row',
+        'desy.component.date-time-knob-row',
         'desy.component.dialog',
         'desy.component.instance-knob-row',
         'desy.component.knob-sheet',
@@ -123,6 +120,7 @@ void main() {
       'cornerRadius',
       'clipContent',
       'showLabel',
+      'scheduledAt',
       'surfaceColor',
       'instance',
     ]);
@@ -138,9 +136,22 @@ void main() {
         DesyKnobKind.string,
         DesyKnobKind.number,
         DesyKnobKind.boolean,
+        DesyKnobKind.dateTime,
         DesyKnobKind.color,
         DesyKnobKind.widgetInstance,
       },
+    );
+    expect(
+      knobSheet.instanceIds,
+      containsAll(['scheduled-evening', 'scheduled-custom']),
+    );
+    expect(
+      knobSheet.valuesFor('scheduled-custom'),
+      containsPair('scheduledAt', DateTime.utc(2026, 8, 21, 14, 15)),
+    );
+    expect(
+      knobSheet.valuesFor('scheduled-custom'),
+      containsPair('surfaceColor', const Color(0x80336699)),
     );
   });
 
@@ -152,6 +163,7 @@ void main() {
     expect(colorKnobRow.instanceIds, [
       'signal-surface',
       'positive',
+      'custom-translucent',
       'disabled',
     ]);
     expect(colorKnobRow.knobDefinitions.map((definition) => definition.kind), [
@@ -159,6 +171,18 @@ void main() {
       DesyKnobKind.color,
       DesyKnobKind.boolean,
     ]);
+  });
+
+  test('date-time knob row declares a typed DateTime control', () {
+    final dateTimeKnobRow = desyDesignSystemRegistry.allComponents.singleWhere(
+      (component) => component.id == 'desy.component.date-time-knob-row',
+    );
+
+    expect(dateTimeKnobRow.instanceIds, ['default', 'evening', 'disabled']);
+    expect(
+      dateTimeKnobRow.knobDefinitions.map((definition) => definition.kind),
+      [DesyKnobKind.string, DesyKnobKind.dateTime, DesyKnobKind.boolean],
+    );
   });
 
   test('chat components declare composable slots and event knobs', () {

@@ -1,4 +1,5 @@
 import 'package:desy_bench/desy_bench.dart';
+import 'package:desy_design_system/desy_design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -30,9 +31,24 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byKey(const ValueKey('registry-spine-toggle-inspection')),
+    final reportIssue = find.byKey(
+      const ValueKey('registry-spine-report-issue'),
     );
+    expect(reportIssue, findsOneWidget);
+    expect(
+      tester.widget<DesyButton>(reportIssue).semanticsLabel,
+      'Report an issue',
+    );
+    final inspectionToggle = find.byKey(
+      const ValueKey('registry-spine-toggle-inspection'),
+    );
+    expect(
+      tester.getCenter(reportIssue).dx,
+      lessThan(tester.getCenter(inspectionToggle).dx),
+      reason: 'the report action sits beside the top-right annotation toggle',
+    );
+
+    await tester.tap(inspectionToggle);
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey('workbench-inspection-overlay')),

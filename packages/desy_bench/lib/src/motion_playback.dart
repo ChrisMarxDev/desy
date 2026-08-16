@@ -122,7 +122,7 @@ class DesyMotionPlaybackController extends ChangeNotifier {
     }
     if (_speed == speed) return;
     _speed = speed;
-    _timeline.duration = _effectiveDuration;
+    _updateEffectiveDuration();
     notifyListeners();
   }
 
@@ -137,13 +137,26 @@ class DesyMotionPlaybackController extends ChangeNotifier {
     }
     if (_duration == duration) return;
     _duration = duration;
-    _timeline.duration = _effectiveDuration;
+    _updateEffectiveDuration();
     notifyListeners();
   }
 
   Duration get _effectiveDuration {
     final microseconds = (_duration.inMicroseconds / _speed).round();
     return Duration(microseconds: microseconds < 1 ? 1 : microseconds);
+  }
+
+  void _updateEffectiveDuration() {
+    final resume = _isPlaying && !_isScrubbing;
+    final wasReversing = _timeline.status == AnimationStatus.reverse;
+    if (resume) _timeline.stop();
+    _timeline.duration = _effectiveDuration;
+    if (!resume) return;
+    if (wasReversing && loopMode == DesyMotionLoopMode.pingPong) {
+      _timeline.reverse();
+    } else {
+      _resume();
+    }
   }
 
   /// Pauses playback on the first seek update and moves the playhead.

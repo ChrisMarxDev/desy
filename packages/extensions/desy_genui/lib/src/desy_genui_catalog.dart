@@ -156,6 +156,7 @@ final class _Compiler {
         DesyKnobKind.widgetInstance => _surfaceId(knob, value, itemContext),
         DesyKnobKind.widgetInstances => _surfaceIds(knob, value, itemContext),
         DesyKnobKind.event => DesyEventBinding(value),
+        DesyKnobKind.dateTime => _dateTime(knob, value),
         _ => value as Object,
       };
     }
@@ -170,6 +171,14 @@ final class _Compiler {
       widgets: resolver,
       events: _GenUiEventHost(itemContext),
     );
+  }
+
+  DateTime _dateTime(KnobDefinition<Object> knob, Object value) {
+    if (value is String) {
+      final parsed = DateTime.tryParse(value);
+      if (parsed != null) return parsed;
+    }
+    throw ArgumentError.value(value, knob.id, 'Expected an ISO-8601 string.');
   }
 
   DesyInstanceId _surfaceId(
@@ -239,6 +248,9 @@ final class _Compiler {
         multipleOf: knob.step,
       ),
       DesyKnobKind.boolean => S.boolean(description: description),
+      DesyKnobKind.dateTime => S.string(
+        description: '$description Encoded as an ISO-8601 date-time string.',
+      ),
       DesyKnobKind.color => S.integer(
         description: '$description Encoded as a Flutter ARGB integer.',
         minimum: 0,
@@ -376,6 +388,8 @@ final class _Compiler {
           break;
         case DesyKnobKind.color:
           definition[knob.id] = _jsonValue(value);
+        case DesyKnobKind.dateTime:
+          definition[knob.id] = _jsonValue(value);
         case DesyKnobKind.string:
         case DesyKnobKind.number:
         case DesyKnobKind.boolean:
@@ -434,6 +448,7 @@ final class _GenUiEventHost implements DesyEventHost {
 }
 
 Object? _jsonValue(Object value) => switch (value) {
+  DateTime() => value.toIso8601String(),
   Color() => value.toARGB32(),
   DesyInstanceId(:final value) => value,
   DesyInstanceIds(:final values) => [for (final id in values) id.value],

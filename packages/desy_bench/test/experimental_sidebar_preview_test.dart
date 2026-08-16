@@ -374,6 +374,11 @@ void main() {
     expect(handle, findsNothing);
     expect(tester.getTopLeft(contentRegion).dx, 0);
     expect(
+      tester.getTopLeft(themePicker).dx,
+      greaterThanOrEqualTo(tester.getTopRight(toggle).dx + 16),
+      reason: 'the collapsed theme selector clears the leading controls',
+    );
+    expect(
       find.byKey(const ValueKey('desktop-sidebar-restore')),
       findsNothing,
       reason: 'the persistent top-frame control restores the sidebar',

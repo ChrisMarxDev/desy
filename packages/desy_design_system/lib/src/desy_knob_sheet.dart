@@ -2,114 +2,117 @@ import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
 
 import 'desy_button.dart';
-import 'desy_card.dart';
 import 'desy_design_system_scope.dart';
 import 'desy_icons.dart';
 import 'desy_switch.dart';
 import 'desy_text_field.dart';
 import 'desy_tile.dart';
 
-/// A clear sheet containing related workbench property controls.
+/// A sheet containing ordered, labelled property-control segments.
 class DesyKnobSheet extends StatelessWidget {
-  /// Creates a grouped knob sheet.
-  const DesyKnobSheet({
-    super.key,
-    this.title = 'Knobs',
-    this.subtitle,
-    required this.sections,
-  });
+  /// Creates a knob sheet.
+  const DesyKnobSheet({super.key, required this.segments});
 
-  /// The sheet heading.
-  final String title;
-
-  /// Optional context that explains the scope of the controls below.
-  final String? subtitle;
-
-  /// Typed groups of property controls shown in the sheet.
-  final List<DesyKnobSection> sections;
+  /// The ordered segments displayed in this sheet.
+  final List<DesyKnobSegment> segments;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final isNarrow = constraints.maxWidth < 280;
-      return DesyCard(
-        clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: isNarrow
-                ? DesyDesignSystemTokens.spaceMd
-                : DesyDesignSystemTokens.spaceLg,
-            vertical: DesyDesignSystemTokens.spaceLg,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Semantics(
-                header: true,
-                child: Text(title, style: context.theme.typography.display.sm),
-              ),
-              if (subtitle case final subtitle?) ...[
-                const SizedBox(height: DesyDesignSystemTokens.spaceSm),
-                Text(
-                  subtitle,
-                  style: context.theme.typography.body.md.copyWith(
-                    color: context.theme.colors.mutedForeground,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-              const SizedBox(height: DesyDesignSystemTokens.spaceBase),
-              SizedBox(
-                height: DesyDesignSystemTokens.hairline,
-                child: ColoredBox(color: context.theme.colors.border),
-              ),
-              const SizedBox(height: DesyDesignSystemTokens.spaceSm),
-              for (final section in sections) section,
+      return Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: isNarrow
+              ? DesyDesignSystemTokens.spaceMd
+              : DesyDesignSystemTokens.spaceLg,
+          vertical: DesyDesignSystemTokens.spaceLg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var index = 0; index < segments.length; index++) ...[
+              if (index > 0)
+                const SizedBox(height: DesyDesignSystemTokens.space2xl),
+              _DesyKnobSegmentContents(segment: segments[index]),
             ],
-          ),
+          ],
         ),
       );
     },
   );
 }
 
-/// A labelled group inside a [DesyKnobSheet].
-class DesyKnobSection extends StatelessWidget {
-  /// Creates a knob group.
-  const DesyKnobSection({
-    super.key,
-    required this.label,
+/// One labelled, ordered segment in a [DesyKnobSheet].
+class DesyKnobSegment {
+  /// Creates a knob segment.
+  const DesyKnobSegment({
+    required this.title,
+    this.description,
     required this.children,
   });
 
-  /// The compact section label.
-  final String label;
+  /// The compact heading that names this group of controls.
+  final String title;
 
-  /// The property controls belonging to the group.
+  /// Optional quiet context below [title].
+  final String? description;
+
+  /// The ordered content of this segment.
+  ///
+  /// Prefer Desy's standard knob rows: [DesyTextValueKnobRow],
+  /// [DesyTextKnobRow], [DesyBooleanKnobRow], [DesyNumericKnobRow],
+  /// [DesyDateTimeKnobRow], [DesyColorKnobRow], [DesyInstanceKnobRow], or
+  /// [DesyKnobRow]. A detail
+  /// extension may also supply one of its own self-contained widgets here;
+  /// keep it visually aligned with the surrounding knob rows.
   final List<Widget> children;
+}
+
+class _DesyKnobSegmentContents extends StatelessWidget {
+  const _DesyKnobSegmentContents({required this.segment});
+
+  final DesyKnobSegment segment;
 
   @override
   Widget build(BuildContext context) => Column(
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Padding(
-        padding: const EdgeInsets.only(
-          top: DesyDesignSystemTokens.spaceXs,
-          bottom: DesyDesignSystemTokens.spaceXs,
-        ),
-        child: Text(
-          label,
-          style: context.theme.typography.body.xs.copyWith(
+      Row(
+        children: [
+          Semantics(
+            header: true,
+            child: Text(
+              segment.title,
+              style: context.theme.typography.body.xs.copyWith(
+                color: context.theme.colors.mutedForeground,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
+              ),
+            ),
+          ),
+          const SizedBox(width: DesyDesignSystemTokens.spaceSm),
+          Expanded(
+            child: SizedBox(
+              height: DesyDesignSystemTokens.hairline,
+              child: ColoredBox(color: context.theme.colors.border),
+            ),
+          ),
+        ],
+      ),
+      if (segment.description case final description?) ...[
+        const SizedBox(height: DesyDesignSystemTokens.spaceXs),
+        Text(
+          description,
+          style: context.theme.typography.body.sm.copyWith(
             color: context.theme.colors.mutedForeground,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.1,
+            height: 1.35,
           ),
         ),
-      ),
-      ...children,
-      const SizedBox(height: DesyDesignSystemTokens.spaceBase),
+      ],
+      const SizedBox(height: DesyDesignSystemTokens.spaceLg),
+      ...segment.children,
     ],
   );
 }
@@ -139,17 +142,15 @@ class DesyKnobRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget buildLabel({required bool isNarrow}) => Column(
+    Widget buildLabel() => Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style:
-              (isNarrow
-                      ? context.theme.typography.body.lg
-                      : context.theme.typography.body.md)
-                  .copyWith(fontWeight: FontWeight.w600),
+          style: context.theme.typography.body.sm.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
         if (description case final description?) ...[
           const SizedBox(height: DesyDesignSystemTokens.spaceXs),
@@ -164,16 +165,8 @@ class DesyKnobRow extends StatelessWidget {
       ],
     );
 
-    return Container(
+    return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 64),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: context.theme.colors.border,
-            width: DesyDesignSystemTokens.hairline,
-          ),
-        ),
-      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth < 280) {
@@ -182,13 +175,13 @@ class DesyKnobRow extends StatelessWidget {
                 vertical: DesyDesignSystemTokens.spaceMd,
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  buildLabel(isNarrow: true),
+                  buildLabel(),
                   const SizedBox(height: DesyDesignSystemTokens.spaceSm),
                   expandControl
                       ? SizedBox(width: double.infinity, child: control)
-                      : Align(alignment: Alignment.centerRight, child: control),
+                      : control,
                 ],
               ),
             );
@@ -197,10 +190,7 @@ class DesyKnobRow extends StatelessWidget {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Expanded(
-                flex: expandControl ? 2 : 1,
-                child: buildLabel(isNarrow: false),
-              ),
+              Expanded(flex: expandControl ? 2 : 1, child: buildLabel()),
               const SizedBox(width: DesyDesignSystemTokens.spaceMd),
               if (expandControl) Expanded(flex: 3, child: control) else control,
             ],
@@ -388,6 +378,118 @@ class DesyTextKnobRow extends StatelessWidget {
   );
 }
 
+/// A read-only text value shown alongside a component property label.
+///
+/// Use this for stable metadata such as a component identifier. For editable
+/// content, use [DesyTextKnobRow] instead.
+class DesyTextValueKnobRow extends StatelessWidget {
+  /// Creates a read-only text property row.
+  const DesyTextValueKnobRow({
+    super.key,
+    required this.label,
+    required this.value,
+    this.description,
+  });
+
+  /// The metadata property name.
+  final String label;
+
+  /// Optional usage guidance.
+  final String? description;
+
+  /// The text value shown for the property.
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => DesyKnobRow(
+    label: label,
+    description: description,
+    expandControl: true,
+    control: Semantics(
+      label: '$label: $value',
+      child: Text(
+        value,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: context.theme.typography.body.sm.copyWith(
+          color: context.theme.colors.mutedForeground,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+  );
+}
+
+/// A typed date-and-time property edited without encoding it as one text knob.
+///
+/// Date and time fields accept `YYYY-MM-DD` and `HH:MM[:SS]`. Invalid
+/// intermediate edits remain in the native field without changing [value].
+class DesyDateTimeKnobRow extends StatelessWidget {
+  /// Creates a date-and-time knob row.
+  const DesyDateTimeKnobRow({
+    super.key,
+    required this.label,
+    required this.value,
+    this.onChanged,
+    this.description,
+  });
+
+  /// The property name.
+  final String label;
+
+  /// Optional usage guidance.
+  final String? description;
+
+  /// The current literal Flutter date and time.
+  final DateTime value;
+
+  /// Receives complete, valid date or time edits.
+  final ValueChanged<DateTime>? onChanged;
+
+  @override
+  Widget build(BuildContext context) => DesyKnobRow(
+    label: label,
+    description: description,
+    expandControl: true,
+    control: Wrap(
+      spacing: DesyDesignSystemTokens.spaceSm,
+      runSpacing: DesyDesignSystemTokens.spaceSm,
+      children: [
+        SizedBox(
+          width: 128,
+          child: DesyTextField(
+            key: ValueKey('date-time-knob-date-$label'),
+            label: '$label date',
+            value: _formatDate(value),
+            hintText: 'YYYY-MM-DD',
+            onChanged: onChanged == null
+                ? null
+                : (input) {
+                    final next = _replaceDate(value, input);
+                    if (next != null) onChanged!(next);
+                  },
+          ),
+        ),
+        SizedBox(
+          width: 112,
+          child: DesyTextField(
+            key: ValueKey('date-time-knob-time-$label'),
+            label: '$label time',
+            value: _formatTime(value),
+            hintText: 'HH:MM:SS',
+            onChanged: onChanged == null
+                ? null
+                : (input) {
+                    final next = _replaceTime(value, input);
+                    if (next != null) onChanged!(next);
+                  },
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 /// A literal color property with an editable ARGB value.
 ///
 /// The field accepts `#RRGGBB` for opaque colors and `#AARRGGBB` when an
@@ -400,6 +502,7 @@ class DesyColorKnobRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.onChanged,
+    this.onPick,
     this.description,
   });
 
@@ -415,6 +518,9 @@ class DesyColorKnobRow extends StatelessWidget {
   /// Receives a complete, valid ARGB color edit.
   final ValueChanged<Color>? onChanged;
 
+  /// Opens a richer owning color workflow, such as registry swatches + picker.
+  final VoidCallback? onPick;
+
   @override
   Widget build(BuildContext context) => DesyKnobRow(
     label: label,
@@ -422,11 +528,15 @@ class DesyColorKnobRow extends StatelessWidget {
     control: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Semantics(
-          label: '$label color preview',
+        DesyButton.icon(
+          key: ValueKey('color-knob-picker-$label'),
+          size: DesyButtonSize.sm,
+          variant: DesyButtonVariant.outline,
+          semanticsLabel: 'Pick $label color',
+          onPress: onPick,
           child: Container(
-            width: 24,
-            height: 24,
+            width: 20,
+            height: 20,
             decoration: BoxDecoration(
               color: value,
               border: Border.all(color: context.theme.colors.border),
@@ -529,6 +639,80 @@ class _StepButton extends StatelessWidget {
 
 String _formatNumber(double value) =>
     value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 1);
+
+String _formatDate(DateTime value) =>
+    '${value.year.toString().padLeft(4, '0')}-'
+    '${value.month.toString().padLeft(2, '0')}-'
+    '${value.day.toString().padLeft(2, '0')}';
+
+String _formatTime(DateTime value) =>
+    '${value.hour.toString().padLeft(2, '0')}:'
+    '${value.minute.toString().padLeft(2, '0')}:'
+    '${value.second.toString().padLeft(2, '0')}';
+
+DateTime? _replaceDate(DateTime value, String input) {
+  final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(input.trim());
+  if (match == null) return null;
+  final year = int.parse(match[1]!);
+  final month = int.parse(match[2]!);
+  final day = int.parse(match[3]!);
+  final next = value.isUtc
+      ? DateTime.utc(
+          year,
+          month,
+          day,
+          value.hour,
+          value.minute,
+          value.second,
+          value.millisecond,
+          value.microsecond,
+        )
+      : DateTime(
+          year,
+          month,
+          day,
+          value.hour,
+          value.minute,
+          value.second,
+          value.millisecond,
+          value.microsecond,
+        );
+  return next.year == year && next.month == month && next.day == day
+      ? next
+      : null;
+}
+
+DateTime? _replaceTime(DateTime value, String input) {
+  final match = RegExp(
+    r'^(\d{2}):(\d{2})(?::(\d{2}))?$',
+  ).firstMatch(input.trim());
+  if (match == null) return null;
+  final hour = int.parse(match[1]!);
+  final minute = int.parse(match[2]!);
+  final second = int.parse(match[3] ?? '0');
+  if (hour > 23 || minute > 59 || second > 59) return null;
+  return value.isUtc
+      ? DateTime.utc(
+          value.year,
+          value.month,
+          value.day,
+          hour,
+          minute,
+          second,
+          value.millisecond,
+          value.microsecond,
+        )
+      : DateTime(
+          value.year,
+          value.month,
+          value.day,
+          hour,
+          minute,
+          second,
+          value.millisecond,
+          value.microsecond,
+        );
+}
 
 String _colorHex(Color color) =>
     '#${color.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()}';

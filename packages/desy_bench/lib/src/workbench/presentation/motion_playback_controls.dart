@@ -12,6 +12,7 @@ class DesyMotionPlaybackControls extends StatelessWidget {
     super.key,
     required this.controller,
     this.compact = false,
+    this.stacked = false,
     this.globalDuration,
     this.onGlobalDurationChanged,
     this.specimenChildren = const [],
@@ -26,6 +27,12 @@ class DesyMotionPlaybackControls extends StatelessWidget {
 
   final DesyMotionPlaybackController controller;
   final bool compact;
+
+  /// Arranges the compact toolbar as a small vertical panel.
+  ///
+  /// This lets the detail inspector retain the Atlas control language while
+  /// giving its timeline the full panel width.
+  final bool stacked;
   final Duration? globalDuration;
   final ValueChanged<Duration>? onGlobalDurationChanged;
   final List<DesyMotionChild> specimenChildren;
@@ -45,8 +52,18 @@ class DesyMotionPlaybackControls extends StatelessWidget {
     builder: (context, child) => compact
         ? _CompactMotionPlaybackControls(
             controller: controller,
+            stacked: stacked,
             globalDuration: globalDuration,
             onGlobalDurationChanged: onGlobalDurationChanged,
+            specimenChildren: specimenChildren,
+            selectedSpecimenChildId: selectedSpecimenChildId,
+            onSpecimenChildSelected: onSpecimenChildSelected,
+            transitionInstances: transitionInstances,
+            firstTransitionInstanceId: firstTransitionInstanceId,
+            secondTransitionInstanceId: secondTransitionInstanceId,
+            onFirstTransitionInstanceChanged: onFirstTransitionInstanceChanged,
+            onSecondTransitionInstanceChanged:
+                onSecondTransitionInstanceChanged,
           )
         : _PanelMotionPlaybackControls(
             controller: controller,
@@ -141,6 +158,7 @@ class _TransitionInstanceMenu extends StatelessWidget {
     required this.secondId,
     required this.onFirstChanged,
     required this.onSecondChanged,
+    this.size = DesyButtonSize.sm,
   });
 
   final List<DesyRegisteredComponentInstance> instances;
@@ -148,12 +166,14 @@ class _TransitionInstanceMenu extends StatelessWidget {
   final String secondId;
   final ValueChanged<String> onFirstChanged;
   final ValueChanged<String> onSecondChanged;
+  final DesyButtonSize size;
 
   @override
   Widget build(BuildContext context) => DesyIconMenu(
     key: const ValueKey('motion-transition-instance-menu'),
     icon: DesyIcons.chevronsUpDown,
     semanticsLabel: 'Customize transition instances',
+    size: size,
     menuBuilder: (context) => SizedBox(
       width: 280,
       child: Padding(
@@ -280,78 +300,182 @@ class _SpecimenChildSelect extends StatelessWidget {
 class _CompactMotionPlaybackControls extends StatelessWidget {
   const _CompactMotionPlaybackControls({
     required this.controller,
+    required this.stacked,
     required this.globalDuration,
     required this.onGlobalDurationChanged,
+    required this.specimenChildren,
+    required this.selectedSpecimenChildId,
+    required this.onSpecimenChildSelected,
+    required this.transitionInstances,
+    required this.firstTransitionInstanceId,
+    required this.secondTransitionInstanceId,
+    required this.onFirstTransitionInstanceChanged,
+    required this.onSecondTransitionInstanceChanged,
   });
 
   final DesyMotionPlaybackController controller;
+  final bool stacked;
   final Duration? globalDuration;
   final ValueChanged<Duration>? onGlobalDurationChanged;
+  final List<DesyMotionChild> specimenChildren;
+  final String? selectedSpecimenChildId;
+  final ValueChanged<String>? onSpecimenChildSelected;
+  final List<DesyRegisteredComponentInstance> transitionInstances;
+  final String? firstTransitionInstanceId;
+  final String? secondTransitionInstanceId;
+  final ValueChanged<String>? onFirstTransitionInstanceChanged;
+  final ValueChanged<String>? onSecondTransitionInstanceChanged;
+
+  bool get _hasTransitionSelector =>
+      transitionInstances.isNotEmpty &&
+      firstTransitionInstanceId != null &&
+      secondTransitionInstanceId != null &&
+      onFirstTransitionInstanceChanged != null &&
+      onSecondTransitionInstanceChanged != null;
+
+  bool get _hasSpecimenSelector =>
+      specimenChildren.length > 1 &&
+      selectedSpecimenChildId != null &&
+      onSpecimenChildSelected != null;
 
   @override
   Widget build(BuildContext context) => DesyCard(
-    key: const ValueKey('motion-global-playback-controls'),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _DockControl(
-              child: _PlayPauseButton(
-                controller: controller,
-                iconOnly: true,
-                size: DesyButtonSize.sm,
-              ),
-            ),
-            if (globalDuration case final duration?) ...[
-              const SizedBox(width: 10),
-              _DockControl(
-                child: _GlobalDurationField(
-                  duration: duration,
-                  onChanged: onGlobalDurationChanged,
-                  compact: true,
-                ),
-              ),
-            ],
-            const SizedBox(width: 18),
-            _DockControl(
-              child: _LoopModeButton(
-                controller: controller,
-                size: DesyButtonSize.sm,
-              ),
-            ),
-            const SizedBox(width: 18),
-            SizedBox(
-              width: 250,
-              child: _PlaybackThermometer(
-                key: const ValueKey('motion-playhead-thermometer'),
-                controller: controller,
-              ),
-            ),
-            const SizedBox(width: 18),
-            _DockControl(
-              child: _SpeedModeButton(
-                controller: controller,
-                size: DesyButtonSize.sm,
-              ),
-            ),
-          ],
-        ),
-      ),
+    key: ValueKey(
+      stacked ? 'motion-playback-controls' : 'motion-global-playback-controls',
     ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: stacked ? _buildStacked() : _buildToolbar(),
+    ),
+  );
+
+  Widget _buildToolbar() => SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _DockControl(
+          child: _PlayPauseButton(
+            controller: controller,
+            iconOnly: true,
+            size: DesyButtonSize.sm,
+          ),
+        ),
+        if (globalDuration case final duration?) ...[
+          const SizedBox(width: 10),
+          _DockControl(
+            child: _GlobalDurationField(
+              duration: duration,
+              onChanged: onGlobalDurationChanged,
+              compact: true,
+            ),
+          ),
+        ],
+        const SizedBox(width: 18),
+        _DockControl(
+          child: _LoopModeButton(
+            controller: controller,
+            size: DesyButtonSize.sm,
+          ),
+        ),
+        const SizedBox(width: 18),
+        SizedBox(
+          width: 250,
+          child: _PlaybackThermometer(
+            key: const ValueKey('motion-playhead-thermometer'),
+            controller: controller,
+          ),
+        ),
+        const SizedBox(width: 18),
+        _DockControl(
+          child: _SpeedModeButton(
+            controller: controller,
+            size: DesyButtonSize.sm,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildStacked() => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _DockControl(
+            height: 32,
+            child: _PlayPauseButton(
+              controller: controller,
+              iconOnly: true,
+              size: DesyButtonSize.xs,
+            ),
+          ),
+          if (globalDuration case final duration?)
+            _GlobalDurationField(
+              duration: duration,
+              onChanged: onGlobalDurationChanged,
+              compact: true,
+            ),
+          _DockControl(
+            height: 32,
+            child: _LoopModeButton(
+              controller: controller,
+              size: DesyButtonSize.xs,
+            ),
+          ),
+          _DockControl(
+            height: 32,
+            child: _SpeedModeButton(
+              controller: controller,
+              size: DesyButtonSize.xs,
+            ),
+          ),
+          if (_hasTransitionSelector)
+            _DockControl(
+              height: 32,
+              child: _TransitionInstanceMenu(
+                instances: transitionInstances,
+                firstId: firstTransitionInstanceId!,
+                secondId: secondTransitionInstanceId!,
+                onFirstChanged: onFirstTransitionInstanceChanged!,
+                onSecondChanged: onSecondTransitionInstanceChanged!,
+                size: DesyButtonSize.xs,
+              ),
+            ),
+        ],
+      ),
+      const SizedBox(height: 10),
+      _PlaybackThermometer(
+        key: const ValueKey('motion-playhead-thermometer'),
+        controller: controller,
+      ),
+      if (_hasSpecimenSelector) ...[
+        const SizedBox(height: 12),
+        _MotionControlGroup(
+          label: 'SPECIMEN',
+          child: _SpecimenChildSelect(
+            children: specimenChildren,
+            selectedId: selectedSpecimenChildId!,
+            onChanged: onSpecimenChildSelected!,
+          ),
+        ),
+      ],
+    ],
   );
 }
 
 class _DockControl extends StatelessWidget {
-  const _DockControl({required this.child});
+  const _DockControl({required this.child, this.height = 40});
 
   final Widget child;
+  final double height;
 
   @override
-  Widget build(BuildContext context) => SizedBox(height: 40, child: child);
+  Widget build(BuildContext context) => SizedBox(height: height, child: child);
 }
 
 class _MotionControlGroup extends StatelessWidget {
@@ -599,10 +723,8 @@ class _PlaybackThermometer extends StatelessWidget {
               child: CustomPaint(
                 painter: _PlaybackThermometerPainter(
                   progress: current,
-                  baseColor: Colors.transparent,
                   guideColor: colors.border,
-                  progressColor: colors.desy.signal,
-                  playheadColor: colors.foreground,
+                  playheadColor: colors.desy.signal,
                   sections: _sections,
                 ),
               ),
@@ -617,35 +739,19 @@ class _PlaybackThermometer extends StatelessWidget {
 class _PlaybackThermometerPainter extends CustomPainter {
   const _PlaybackThermometerPainter({
     required this.progress,
-    required this.baseColor,
     required this.guideColor,
-    required this.progressColor,
     required this.playheadColor,
     required this.sections,
   });
 
   final double progress;
-  final Color baseColor;
   final Color guideColor;
-  final Color progressColor;
   final Color playheadColor;
   final int sections;
 
   @override
   void paint(Canvas canvas, Size size) {
     const trackTop = 8.0;
-    final track = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, trackTop, size.width, 8),
-      const Radius.circular(99),
-    );
-    canvas.drawRRect(track, Paint()..color = baseColor);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, trackTop, size.width * progress, 8),
-        const Radius.circular(99),
-      ),
-      Paint()..color = progressColor,
-    );
     final guidePaint = Paint()
       ..color = guideColor
       ..strokeWidth = 1;
@@ -675,9 +781,7 @@ class _PlaybackThermometerPainter extends CustomPainter {
   @override
   bool shouldRepaint(_PlaybackThermometerPainter oldDelegate) =>
       progress != oldDelegate.progress ||
-      baseColor != oldDelegate.baseColor ||
       guideColor != oldDelegate.guideColor ||
-      progressColor != oldDelegate.progressColor ||
       playheadColor != oldDelegate.playheadColor ||
       sections != oldDelegate.sections;
 }

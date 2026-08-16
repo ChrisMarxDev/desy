@@ -35,7 +35,7 @@ backend generates A2UI messages; it never receives Flutter callbacks or widget
 builders. The client keeps `compiled.catalog`, processes messages with
 `SurfaceController`, and sends user action envelopes back to the backend.
 
-Literal values are supported for string, number, boolean, color, single child,
-and multiple children knobs. Event knobs accept A2UI actions. Data bindings are
-intentionally deferred; multi-child slots deliberately advertise literal lists
-instead of template bindings.
+Literal values are supported for string, number, boolean, ISO-8601 date-time,
+color, single child, and multiple children knobs. Event knobs accept A2UI
+actions. Data bindings are intentionally deferred; multi-child slots
+deliberately advertise literal lists instead of template bindings.

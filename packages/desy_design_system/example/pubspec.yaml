@@ -14,6 +14,8 @@ dependencies:
     path: ../../desy_bench
   desy_design_system:
     path: ..
+  desy_screenshot_builder:
+    path: ../../extensions/desy_screenshot_builder
   file_selector: ^1.1.0
   flutter:
     sdk: flutter

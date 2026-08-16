@@ -659,6 +659,17 @@ final class DesySurfaceValidator {
               ),
             );
           }
+        case DesyKnobKind.dateTime:
+          if (value is! String || DateTime.tryParse(value) == null) {
+            issues.add(
+              DesySurfaceValidationIssue(
+                path: knobPath,
+                message:
+                    'Expected an ISO-8601 string for date-time knob '
+                    '"${definition.id}".',
+              ),
+            );
+          }
         case DesyKnobKind.color:
           if (value is! int) {
             issues.add(

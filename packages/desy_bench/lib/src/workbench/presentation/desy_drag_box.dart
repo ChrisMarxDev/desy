@@ -71,6 +71,8 @@ class DesyDragBox extends StatefulWidget {
     this.onInteractionEnd,
     this.label,
     this.labelGap = 6,
+    this.outsideFrameDecoration,
+    this.outsideFrameInset = 1,
   });
 
   final DesyDragBoxGeometry geometry;
@@ -99,6 +101,15 @@ class DesyDragBox extends StatefulWidget {
   final ValueChanged<DesyDragBoxInteraction>? onInteractionEnd;
   final Widget? label;
   final double labelGap;
+
+  /// Optional visual frame painted outside the clipped preview bounds.
+  ///
+  /// This keeps the frame readable when a consumer preview paints to its own
+  /// edge. It never receives pointers and does not change the child's layout.
+  final BoxDecoration? outsideFrameDecoration;
+
+  /// How far [outsideFrameDecoration] extends beyond the preview bounds.
+  final double outsideFrameInset;
 
   @override
   State<DesyDragBox> createState() => _DesyDragBoxState();
@@ -253,7 +264,23 @@ class _DesyDragBoxState extends State<DesyDragBox> {
                 cursor: widget.draggable
                     ? SystemMouseCursors.move
                     : SystemMouseCursors.basic,
-                child: ClipRect(key: widget.frameKey, child: content),
+                child: Stack(
+                  fit: StackFit.expand,
+                  clipBehavior: Clip.none,
+                  children: [
+                    ClipRect(key: widget.frameKey, child: content),
+                    if (widget.outsideFrameDecoration case final decoration?)
+                      Positioned(
+                        left: -widget.outsideFrameInset,
+                        top: -widget.outsideFrameInset,
+                        right: -widget.outsideFrameInset,
+                        bottom: -widget.outsideFrameInset,
+                        child: IgnorePointer(
+                          child: DecoratedBox(decoration: decoration),
+                        ),
+                      ),
+                  ],
+                ),
               );
             },
           ),

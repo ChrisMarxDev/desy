@@ -33,22 +33,19 @@ typedef DesyCanvasDetailsBuilder<T> = Widget Function(
 );
 ```
 
-It means Component Canvas can show an editable `DesyComponentKnobPanel`, while
-the Prototypes screen can show a read-only direction summary, without the
-canvas importing component knob state or prototype-specific metadata.
+It means a future Detail host can show its component controls while the
+Prototypes screen can show a direction summary, without the canvas importing
+component knob state or prototype-specific metadata.
 
 ## Current adapters
 
-- `DesyCanvasV2Screen` resolves `DesyRegistryComponent` values from
-  `DesyRegistry.allComponents`, owns temporary knob values keyed by component
-  ID, and supplies the component-controls drawer.
 - `DesyPrototypesScreen` resolves the current session's `DesyPrototype`
   directions, preserves each prototype's annotation scope, and supplies the
   direction-details drawer.
 
-Both previews remain actual consumer builders under the active consumer theme.
-Neither host constructs a second registry list or persists callbacks, widgets,
-or arrangement data.
+The prototype preview remains an actual consumer builder under the active
+consumer theme. It neither constructs a second registry list nor persists
+callbacks, widgets, or arrangement data.
 
 ## Extension rule
 

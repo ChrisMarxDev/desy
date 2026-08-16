@@ -108,7 +108,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Actions'), findsOneWidget);
+      expect(find.text('IMAGE'), findsOneWidget);
       expect(find.text('Export image'), findsOneWidget);
       expect(
         find.ancestor(

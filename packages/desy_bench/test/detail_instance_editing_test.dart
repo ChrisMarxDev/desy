@@ -41,12 +41,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final controls = tester.widget<DesyKnobSheet>(
-      find.byWidgetPredicate(
-        (widget) => widget is DesyKnobSheet && widget.title == 'Controls',
-      ),
+    final controls = tester.widgetList<DesyKnobSheet>(
+      find.byType(DesyKnobSheet),
     );
-    expect(controls.subtitle, component.id);
+    expect(
+      controls.map((sheet) => sheet.segments.map((segment) => segment.title)),
+      [
+        ['COMPONENT'],
+        ['CANVAS', 'ACCESSIBILITY', 'IMAGE'],
+      ],
+    );
+    expect(find.text(component.id), findsOneWidget);
 
     session.selectPreviewDevice(DesyDevicePreset.iPhone15Pro);
     await tester.pumpAndSettle();
@@ -178,6 +183,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    final controls = tester.widgetList<DesyKnobSheet>(
+      find.byType(DesyKnobSheet),
+    );
+    expect(
+      controls.map((sheet) => sheet.segments.map((segment) => segment.title)),
+      [
+        ['COMPONENT'],
+        ['CANVAS', 'ACCESSIBILITY', 'IMAGE'],
+      ],
+    );
+    expect(find.text(component.id), findsOneWidget);
     expect(find.text('Editing Default'), findsNothing);
     expect(find.text('Default · true'), findsOneWidget);
     expect(find.text('Alpha · true'), findsOneWidget);

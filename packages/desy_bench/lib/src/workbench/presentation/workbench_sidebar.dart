@@ -105,14 +105,6 @@ class DesyWorkbenchSidebar extends StatelessWidget {
                     currentLocation.queryParameters['folder'] == null,
                 onPress: () => _go(context, DesyWorkbenchRoutes.atlasPath),
               ),
-              DesySidebarItem(
-                key: const ValueKey('registry-canvas-nav'),
-                icon: const Icon(DesyIcons.layers, size: 18),
-                label: const Text('Canvas'),
-                selected:
-                    currentLocation.path == DesyWorkbenchRoutes.canvasPath,
-                onPress: () => _go(context, DesyWorkbenchRoutes.canvasPath),
-              ),
             ],
           ),
           if (session.registry.allPrototypes.isNotEmpty)

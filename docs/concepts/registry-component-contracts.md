@@ -66,11 +66,19 @@ separate schema list and then a parallel wiring list; Widgetbook research showed
 that duplication drifts. `K` is inferred from the record literal, so the author
 gets full autocomplete and return-type checking without any code generation.
 
-`KnobScope` is the authoring surface. It currently offers three primitives:
+`KnobScope` is the authoring surface. Its literal value knobs are:
 
 - `k.string(id, {name?, initial}) -> Knob<String>`
+- `k.number(id, {name?, initial, unit, step, minimum?, maximum?}) -> Knob<double>`
 - `k.boolean(id, {name?, initial}) -> Knob<bool>`
+- `k.dateTime(id, {name?, initial}) -> Knob<DateTime>`
+- `k.color(id, {name?, initial}) -> Knob<Color>`
+
+Its composition and interaction knobs are:
+
 - `k.widgetInstance(id, {name?, initial, options?}) -> WidgetInstanceKnob`
+- `k.widgetInstances(id, {name?, initial?, options?}) -> WidgetInstancesKnob`
+- `k.event(id, {name?, description?}) -> DesyEventKnob`
 
 The schema's runtime form is an immutable list of `KnobDefinition<Object>`
 (used by the workbench knob panel), while the typed handles (`Knob<T>`,
@@ -118,6 +126,22 @@ construction. Workbench state (which instance is selected, live knob edits) is
 ephemeral session state, never written back into the consumer declaration and
 never serialized. This is what keeps the registry a stable, single source of
 truth.
+
+### 6. Date-time and color controls stay typed and registry-aware
+
+A `dateTime` knob carries a Flutter `DateTime` through declaration, named
+instance overrides, the live component builder, and workbench edits. The shared
+knob row exposes separate `YYYY-MM-DD` and `HH:MM:SS` fields and preserves
+whether the declared value is UTC. Serializable surface and catalogue forms use
+an ISO-8601 string; parsing normalizes that string back to `DateTime` before the
+consumer builder runs.
+
+A `color` knob always carries a literal Flutter `Color`. Its workbench control
+offers the active registry's `DesyColorEntry` values as named swatches, then a
+custom hue, saturation, brightness, alpha, and ARGB picker. Choosing a registered
+swatch copies its literal value into ephemeral knob state; it does not store a
+second palette reference or require the component to redeclare color options.
+Serializable forms continue to use a complete ARGB integer.
 
 ## What a consumer no longer writes
 

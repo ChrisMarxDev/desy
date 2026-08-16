@@ -487,6 +487,23 @@ void main() {
     expect(component.valuesFor('warning')['color'], const Color(0xffffaa00));
   });
 
+  test('bound-record components retain typed DateTime knobs', () {
+    final initial = DateTime.utc(2026, 8, 15, 9, 30);
+    final delayed = DateTime.utc(2026, 8, 16, 14, 45);
+    final component = DesyComponent(
+      id: 'schedule.card',
+      name: 'Schedule card',
+      knobs: (k) => (startsAt: k.dateTime('startsAt', initial: initial)),
+      build: (context, knobs) => Text(knobs.startsAt.value.toIso8601String()),
+      instances: (knobs) => {
+        'delayed': [knobs.startsAt(delayed)],
+      },
+    );
+
+    expect(component.knobDefinitions.single.kind, DesyKnobKind.dateTime);
+    expect(component.valuesFor('delayed')['startsAt'], delayed);
+  });
+
   test('knob definitions freeze caller-owned option lists', () {
     final options = <String>['status.clear'];
     final definition = KnobDefinition<DesyInstanceId>(
@@ -846,6 +863,11 @@ void main() {
               description: 'Visible button copy.',
               initial: 'Save',
             ),
+            publishedAt: k.dateTime(
+              'publishedAt',
+              name: 'Published at',
+              initial: DateTime.utc(2026, 8, 15, 9, 30),
+            ),
             children: k.widgetInstances(
               'children',
               description: 'Ordered button adornments.',
@@ -888,6 +910,12 @@ void main() {
         'description': 'Visible button copy.',
         'kind': 'string',
         'initial': 'Save',
+      },
+      {
+        'id': 'publishedAt',
+        'name': 'Published at',
+        'kind': 'date-time',
+        'initial': '2026-08-15T09:30:00.000Z',
       },
       {
         'id': 'children',

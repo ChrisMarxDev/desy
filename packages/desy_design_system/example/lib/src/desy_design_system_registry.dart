@@ -308,6 +308,7 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
     _numericKnobComponent,
     _booleanKnobComponent,
     _textKnobComponent,
+    _dateTimeKnobComponent,
     _colorKnobComponent,
     _instanceKnobComponent,
     _textFieldComponent,
@@ -1029,6 +1030,35 @@ final _textKnobComponent = _component(
   },
 );
 
+final _dateTimeKnobComponent = _component(
+  id: 'desy.component.date-time-knob-row',
+  name: 'Date-time knob row',
+  path: '/inputs/knobs',
+  description:
+      'Edits one typed Flutter DateTime through separate date and time fields.',
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/desy_knob_sheet.dart',
+  knobs: (k) => (
+    label: k.string('label', name: 'Label', initial: 'Starts at'),
+    value: k.dateTime(
+      'value',
+      name: 'Value',
+      initial: DateTime.utc(2026, 8, 15, 9, 30),
+    ),
+    enabled: k.boolean('enabled', name: 'Enabled', initial: true),
+  ),
+  build: (context, knobs) => DesyDateTimeKnobRow(
+    label: knobs.label.value,
+    value: knobs.value.value,
+    onChanged: knobs.enabled.value ? (_) {} : null,
+  ),
+  instances: (knobs) => {
+    'default': [knobs.value(DateTime.utc(2026, 8, 15, 9, 30))],
+    'evening': [knobs.value(DateTime.utc(2026, 8, 15, 18, 45))],
+    'disabled': [knobs.enabled(false)],
+  },
+);
+
 final _colorKnobComponent = _component(
   id: 'desy.component.color-knob-row',
   name: 'Color knob row',
@@ -1055,6 +1085,10 @@ final _colorKnobComponent = _component(
     'positive': [
       knobs.label('Status color'),
       knobs.color(const Color(0xFF16A34A)),
+    ],
+    'custom-translucent': [
+      knobs.label('Overlay tint'),
+      knobs.color(const Color(0x80336699)),
     ],
     'disabled': [knobs.enabled(false)],
   },
@@ -1117,6 +1151,11 @@ final _knobSheetComponent = _component(
     ),
     clipContent: k.boolean('clipContent', name: 'Clip content', initial: true),
     showLabel: k.boolean('showLabel', name: 'Show label', initial: false),
+    scheduledAt: k.dateTime(
+      'scheduledAt',
+      name: 'Scheduled at',
+      initial: DateTime.utc(2026, 8, 18, 9, 30),
+    ),
     surfaceColor: k.color(
       'surfaceColor',
       name: 'Surface color',
@@ -1133,10 +1172,9 @@ final _knobSheetComponent = _component(
     ),
   ),
   build: (context, knobs) => DesyKnobSheet(
-    title: knobs.title.value,
-    sections: [
-      DesyKnobSection(
-        label: 'LAYOUT',
+    segments: [
+      DesyKnobSegment(
+        title: 'LAYOUT',
         children: [
           DesyNumericKnobRow(
             label: 'Corner radius',
@@ -1147,8 +1185,8 @@ final _knobSheetComponent = _component(
           ),
         ],
       ),
-      DesyKnobSection(
-        label: 'BEHAVIOR',
+      DesyKnobSegment(
+        title: 'BEHAVIOR',
         children: [
           DesyBooleanKnobRow(
             label: 'Clip content',
@@ -1162,12 +1200,14 @@ final _knobSheetComponent = _component(
           ),
         ],
       ),
-      DesyKnobSection(
-        label: 'CONTENT',
+      DesyKnobSegment(
+        title: 'CONTENT',
         children: [
           DesyTextKnobRow(
             label: 'Caption',
-            value: knobs.caption.value,
+            value:
+                '${knobs.caption.value} · '
+                '${_knobSheetDateLabel(knobs.scheduledAt.value)}',
             onChanged: (_) {},
           ),
           DesyColorKnobRow(
@@ -1190,6 +1230,16 @@ final _knobSheetComponent = _component(
     'roomy': [knobs.cornerRadius(12)],
     'labels': [knobs.caption('Live controls'), knobs.showLabel(true)],
     'signal-surface': [knobs.surfaceColor(const Color(0xFFFFF0F6))],
+    'scheduled-evening': [
+      knobs.caption('Evening review'),
+      knobs.scheduledAt(DateTime.utc(2026, 8, 18, 18, 45)),
+      knobs.surfaceColor(const Color(0xFFFFF0F6)),
+    ],
+    'scheduled-custom': [
+      knobs.caption('Custom overlay review'),
+      knobs.scheduledAt(DateTime.utc(2026, 8, 21, 14, 15)),
+      knobs.surfaceColor(const Color(0x80336699)),
+    ],
     'outline-instance': [knobs.instance('desy.component.badge.outline')],
   },
 );
@@ -1199,6 +1249,13 @@ String _knobSheetInstanceLabel(DesyInstanceId id) => id.value
     .split('.')
     .map((segment) => '${segment[0].toUpperCase()}${segment.substring(1)}')
     .join(' · ');
+
+String _knobSheetDateLabel(DateTime value) =>
+    '${value.year.toString().padLeft(4, '0')}-'
+    '${value.month.toString().padLeft(2, '0')}-'
+    '${value.day.toString().padLeft(2, '0')} '
+    '${value.hour.toString().padLeft(2, '0')}:'
+    '${value.minute.toString().padLeft(2, '0')}';
 
 final _textFieldComponent = DesyComponent(
   id: 'desy.component.text-field',

@@ -10,10 +10,13 @@ environment:
 resolution: workspace
 
 dependencies:
+  desktop_drop: ^0.7.1
   desy_bench:
     path: ../../desy_bench
   desy_design_system:
     path: ../../desy_design_system
+  file_saver: ^0.4.0
+  file_selector: ^1.1.0
   flutter:
     sdk: flutter
 

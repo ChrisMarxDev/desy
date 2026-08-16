@@ -97,6 +97,10 @@ A2UI v0.9 messages to `SurfaceController`.
 Every knob kind accepts optional `description` guidance. Use `widgetInstance`
 for one child and `widgetInstances` for an ordered list of real registered
 instances; these remain composition knobs rather than a parallel slot model.
+Use `dateTime` for a real Flutter `DateTime`; serializable adapters represent it
+as ISO-8601. Color knobs remain literal Flutter `Color` values, while the
+workbench derives named choices from the registry's existing Colors lane and
+also offers a custom ARGB/HSV picker.
 Use `event` for user intent emitted from the real widget. Event payloads are
 optional JSON-shaped maps, while the adapter owns the opaque action binding and
 the application/backend owns business semantics. Local surface documents may

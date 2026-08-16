@@ -50,6 +50,12 @@ void main() {
         initial: const Color(0xff336699),
       ),
       KnobDefinition(
+        id: 'startsAt',
+        name: 'Starts at',
+        kind: DesyKnobKind.dateTime,
+        initial: DateTime.utc(2026, 8, 15, 9, 30),
+      ),
+      KnobDefinition(
         id: 'status',
         name: 'Status',
         kind: DesyKnobKind.widgetInstance,
@@ -93,12 +99,53 @@ void main() {
     expect(find.byType(DesyTextKnobRow), findsOneWidget);
     expect(find.byType(DesyNumericKnobRow), findsOneWidget);
     expect(find.byType(DesyColorKnobRow), findsOneWidget);
+    expect(find.byType(DesyDateTimeKnobRow), findsOneWidget);
     expect(find.byType(DesyInstanceKnobRow), findsNWidgets(2));
     expect(find.byType(DesyKnobSheet), findsOneWidget);
     expect(find.byType(DesySwitch), findsOneWidget);
     expect(find.text('Visible copy.'), findsOneWidget);
     expect(find.text('Event'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('date-time knobs emit typed edits and preserve UTC time', (
+    tester,
+  ) async {
+    DateTime? changed;
+    final knob = KnobDefinition(
+      id: 'startsAt',
+      name: 'Starts at',
+      kind: DesyKnobKind.dateTime,
+      initial: DateTime.utc(2026, 8, 15, 9, 30, 12),
+    );
+    final registry = DesyRegistry(
+      name: 'Date-time knob',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+    );
+
+    await tester.pumpWidget(
+      FTheme(
+        data: FTheme.neutral.light.desktop,
+        child: MaterialApp(
+          home: Scaffold(
+            body: DesyComponentKnobPanel(
+              registry: registry,
+              knobs: [knob],
+              values: const {},
+              onChanged: (_, value) => changed = value as DateTime,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey('date-time-knob-date-Starts at')),
+      '2026-12-24',
+    );
+
+    expect(changed, DateTime.utc(2026, 12, 24, 9, 30, 12));
+    expect(changed!.isUtc, isTrue);
   });
 
   testWidgets('color knobs emit complete ARGB edits as Color values', (
@@ -138,6 +185,76 @@ void main() {
     );
 
     expect(changed, const Color(0x80445566));
+  });
+
+  testWidgets('color picker offers registry colors and a custom picker', (
+    tester,
+  ) async {
+    Color? changed;
+    final knob = KnobDefinition(
+      id: 'tint',
+      name: 'Tint',
+      kind: DesyKnobKind.color,
+      initial: const Color(0xff336699),
+    );
+    final registry = DesyRegistry(
+      name: 'Color picker',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      colors: const [
+        DesyColorEntry(
+          id: 'color.brand',
+          name: 'Brand',
+          color: Color(0xffe91e63),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      FTheme(
+        data: FTheme.neutral.light.desktop,
+        child: MaterialApp(
+          home: Scaffold(
+            body: DesyComponentKnobPanel(
+              registry: registry,
+              knobs: [knob],
+              values: const {},
+              onChanged: (_, value) => changed = value as Color,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('color-knob-picker-Tint')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('color-knob-option-tint-color.brand')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('color-knob-picker-field-tint')),
+      findsOneWidget,
+    );
+    expect(find.text('CUSTOM COLOR'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('color-knob-option-tint-color.brand')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(changed, const Color(0xffe91e63));
+
+    await tester.tap(find.byKey(const ValueKey('color-knob-picker-Tint')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('color-knob-picker-field-tint')),
+      '#80112233',
+    );
+    await tester.tap(find.byKey(const ValueKey('color-knob-use-custom-tint')));
+    await tester.pumpAndSettle();
+
+    expect(changed, const Color(0x80112233));
   });
 
   testWidgets('instance swaps list every registered instance to choose from', (

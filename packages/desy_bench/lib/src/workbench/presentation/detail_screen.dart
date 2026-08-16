@@ -345,6 +345,10 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
     final motion = _motion!;
     return DesyMotionPlaybackControls(
       controller: _motionPlayback!,
+      compact: true,
+      stacked: true,
+      globalDuration: _motionPlayback!.duration,
+      onGlobalDurationChanged: _motionPlayback!.setDuration,
       specimenChildren: motion.supportsTransition ? const [] : motion.children,
       selectedSpecimenChildId: _selectedMotionChildId ?? motion.defaultChild.id,
       onSpecimenChildSelected: (id) {
@@ -936,6 +940,15 @@ class _DetailCanvasItem extends StatelessWidget {
       ignoreChildPointer: device == null,
       onSelect: onSelect,
       onChanged: onChanged,
+      outsideFrameDecoration: BoxDecoration(
+        border: Border.all(
+          color: context.theme.colors.desy.signal.withValues(
+            alpha: selected ? .9 : .28,
+          ),
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      outsideFrameInset: selected ? 2 : 1,
       geometryResolver: device == null
           ? null
           : (geometry, interaction) => DesyDragBoxGeometry(
@@ -952,6 +965,7 @@ class _DetailCanvasItem extends StatelessWidget {
             : ValueKey('detail-instance-label-${variant.id}'),
         size: geometry.rect.size,
         identifier: variant.name,
+        selected: selected,
       ),
       child: device == null
           ? visual
@@ -971,28 +985,19 @@ class _DetailCanvasItem extends StatelessWidget {
     label: variant.onSelect == null
         ? '${variant.name} preview'
         : '${variant.name} instance preview',
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: context.theme.colors.desy.signal.withValues(alpha: .48),
-        ),
-      ),
-      child: ClipRect(
-        child: Center(
-          child: device == null
-              ? child
-              : DesyDevicePreview(
-                  device: device!,
-                  child: ColoredBox(
-                    key: ValueKey('detail-device-screen-${device!.name}'),
-                    color:
-                        theme.previewBackgroundColor ??
-                        context.theme.colors.background,
-                    child: Align(alignment: Alignment.center, child: child),
-                  ),
-                ),
-        ),
-      ),
+    child: Center(
+      child: device == null
+          ? child
+          : DesyDevicePreview(
+              device: device!,
+              child: ColoredBox(
+                key: ValueKey('detail-device-screen-${device!.name}'),
+                color:
+                    theme.previewBackgroundColor ??
+                    context.theme.colors.background,
+                child: Align(alignment: Alignment.center, child: child),
+              ),
+            ),
     ),
   );
 }
@@ -1308,48 +1313,62 @@ class _DetailInspector extends StatelessWidget {
   final _DetailImageExportController? imageExportController;
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: context.theme.colors.background,
-    child: ListView(
-      key: const ValueKey('detail-controls-list'),
-      padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceLg),
-      children: [
-        if (motionControls case final controls?) ...[controls],
-        if (component != null && component!.knobDefinitions.isNotEmpty) ...[
-          if (motionControls != null)
-            const SizedBox(height: DesyDesignSystemTokens.spaceLg),
-          DesyComponentKnobPanel(
+  Widget build(BuildContext context) {
+    final accessibilitySegments = buildPreviewEnvironmentSegments(
+      settings: session.previewAccessibility.watch(context),
+      onChanged: session.setPreviewAccessibility,
+      selectedDevice: session.previewDevice.watch(context),
+      onDeviceChanged: session.selectPreviewDevice,
+    );
+    final componentSegments =
+        component != null && component!.knobDefinitions.isNotEmpty
+        ? DesyComponentKnobPanel.segments(
             registry: session.registry,
             knobs: component!.knobDefinitions,
             values: values,
             onChanged: session.setKnob,
-            title: 'Controls',
-            subtitle: entry.id,
-          ),
-        ],
-        if (motionControls == null &&
-            (component == null || component!.knobDefinitions.isEmpty)) ...[
-          DesyKnobSheet(
-            title: 'Controls',
-            subtitle: component == null ? null : entry.id,
-            sections: const [],
-          ),
-        ],
-        DesyDetailExtensionsRegion(session: session, entry: entry),
-        const SizedBox(height: DesyDesignSystemTokens.spaceLg),
-        DesyPreviewAccessibilityPanel(
-          settings: session.previewAccessibility.watch(context),
-          onChanged: session.setPreviewAccessibility,
-          selectedDevice: session.previewDevice.watch(context),
-          onDeviceChanged: session.selectPreviewDevice,
+            componentId: entry.id,
+          )
+        : [
+            if (component != null)
+              DesyKnobSegment(
+                title: 'COMPONENT',
+                children: [DesyTextValueKnobRow(label: 'ID', value: entry.id)],
+              ),
+          ];
+    final primarySegments = <DesyKnobSegment>[
+      if (motionControls case final controls?)
+        DesyKnobSegment(
+          title: 'PLAYBACK',
+          description: 'Control this motion preview.',
+          children: [controls],
         ),
-        if (imageExportController case final controller?) ...[
-          const SizedBox(height: DesyDesignSystemTokens.spaceLg),
-          _DetailActionsSheet(controller: controller),
+      ...componentSegments,
+    ];
+    final environmentSegments = <DesyKnobSegment>[
+      ...accessibilitySegments,
+      if (imageExportController case final controller?)
+        DesyKnobSegment(
+          title: 'IMAGE',
+          description: 'Export the selected real preview.',
+          children: [_DetailActionsSheet(controller: controller)],
+        ),
+    ];
+    return ColoredBox(
+      color: context.theme.colors.background,
+      child: ListView(
+        key: const ValueKey('detail-controls-list'),
+        padding: EdgeInsets.zero,
+        children: [
+          if (primarySegments.isNotEmpty)
+            DesyKnobSheet(segments: primarySegments),
+          DesyDetailExtensionsRegion(session: session, entry: entry),
+          if (environmentSegments.isNotEmpty)
+            DesyKnobSheet(segments: environmentSegments),
         ],
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 class _DetailActionsSheet extends StatelessWidget {
@@ -1360,39 +1379,36 @@ class _DetailActionsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: controller,
-    builder: (context, _) => DesyKnobSheet(
+    builder: (context, _) => KeyedSubtree(
       key: const ValueKey('detail-actions-sheet'),
-      title: 'Actions',
-      sections: [
-        DesyKnobSection(
-          label: 'IMAGE',
-          children: [
-            DesyButton(
-              key: const ValueKey('detail-export-image'),
-              variant: DesyButtonVariant.primary,
-              size: DesyButtonSize.md,
-              onPress: controller.exporting ? null : controller.export,
-              semanticsLabel: controller.exporting
-                  ? 'Exporting component image'
-                  : 'Export component image',
-              child: const Text('Export image'),
-            ),
-            if (controller.status case final status?) ...[
-              const SizedBox(height: DesyDesignSystemTokens.spaceSm),
-              Semantics(
-                key: const ValueKey('detail-export-image-status'),
-                liveRegion: true,
-                child: Text(
-                  status,
-                  style: context.theme.typography.body.sm.copyWith(
-                    color: context.theme.colors.mutedForeground,
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DesyButton(
+            key: const ValueKey('detail-export-image'),
+            variant: DesyButtonVariant.primary,
+            size: DesyButtonSize.md,
+            onPress: controller.exporting ? null : controller.export,
+            semanticsLabel: controller.exporting
+                ? 'Exporting component image'
+                : 'Export component image',
+            child: const Text('Export image'),
+          ),
+          if (controller.status case final status?) ...[
+            const SizedBox(height: DesyDesignSystemTokens.spaceSm),
+            Semantics(
+              key: const ValueKey('detail-export-image-status'),
+              liveRegion: true,
+              child: Text(
+                status,
+                style: context.theme.typography.body.sm.copyWith(
+                  color: context.theme.colors.mutedForeground,
                 ),
               ),
-            ],
+            ),
           ],
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }

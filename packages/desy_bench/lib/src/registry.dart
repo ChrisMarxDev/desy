@@ -798,6 +798,7 @@ class DesyRegistryValidator {
           case DesyKnobKind.string:
           case DesyKnobKind.number:
           case DesyKnobKind.boolean:
+          case DesyKnobKind.dateTime:
           case DesyKnobKind.color:
           case DesyKnobKind.event:
             break;
@@ -1593,6 +1594,9 @@ enum DesyKnobKind {
   /// A true/false value.
   boolean,
 
+  /// A literal Flutter [DateTime].
+  dateTime,
+
   /// A literal Flutter [Color].
   color,
 
@@ -1881,6 +1885,14 @@ abstract interface class KnobScope {
     required bool initial,
   });
 
+  /// Declares a literal [DateTime] knob.
+  Knob<DateTime> dateTime(
+    String id, {
+    String? name,
+    String? description,
+    required DateTime initial,
+  });
+
   /// Declares a literal [Color] knob.
   Knob<Color> color(
     String id, {
@@ -1966,6 +1978,22 @@ final class DeclarationKnobScope implements KnobScope {
       id: id,
       name: name ?? _humanize(id),
       kind: DesyKnobKind.boolean,
+      initial: initial,
+      description: description,
+    ),
+  );
+
+  @override
+  Knob<DateTime> dateTime(
+    String id, {
+    String? name,
+    String? description,
+    required DateTime initial,
+  }) => _register(
+    KnobDefinition(
+      id: id,
+      name: name ?? _humanize(id),
+      kind: DesyKnobKind.dateTime,
       initial: initial,
       description: description,
     ),
@@ -2145,6 +2173,14 @@ final class ResolvedKnobScope implements KnobScope {
     String? name,
     String? description,
     required bool initial,
+  }) => _resolve(id);
+
+  @override
+  Knob<DateTime> dateTime(
+    String id, {
+    String? name,
+    String? description,
+    required DateTime initial,
   }) => _resolve(id);
 
   @override
@@ -2717,6 +2753,7 @@ final class DesyComponent<K> extends DesyRegistryComponent {
         case DesyKnobKind.string:
         case DesyKnobKind.number:
         case DesyKnobKind.boolean:
+        case DesyKnobKind.dateTime:
         case DesyKnobKind.color:
         case DesyKnobKind.event:
           break;
@@ -3095,6 +3132,12 @@ Object _toSettingValue(KnobDefinition<Object> definition, Object value) {
       }
     case DesyKnobKind.boolean:
       if (value is bool) return value;
+    case DesyKnobKind.dateTime:
+      if (value is DateTime) return value;
+      if (value is String) {
+        final parsed = DateTime.tryParse(value);
+        if (parsed != null) return parsed;
+      }
     case DesyKnobKind.color:
       if (value is Color) return value;
       if (value is int) return Color(value);

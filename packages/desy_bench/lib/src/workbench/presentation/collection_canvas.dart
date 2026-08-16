@@ -354,6 +354,15 @@ class _CollectionCanvasItem<T> extends StatelessWidget {
     ignoreChildPointer: true,
     onSelect: onSelect,
     onChanged: onChanged,
+    outsideFrameDecoration: BoxDecoration(
+      border: Border.all(
+        color: context.theme.colors.desy.signal.withValues(
+          alpha: selected ? .9 : .28,
+        ),
+        width: selected ? 1.5 : 1,
+      ),
+    ),
+    outsideFrameInset: selected ? 2 : 1,
     label: DesyDragBoxLabel(
       key: ValueKey('$keyPrefix-selection-size-${item.id}'),
       size: geometry.rect.size,
@@ -364,22 +373,10 @@ class _CollectionCanvasItem<T> extends StatelessWidget {
       container: true,
       selected: selected,
       label: 'Select ${item.name}',
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: context.theme.colors.desy.signal.withValues(
-              alpha: selected ? .9 : .28,
-            ),
-            width: selected ? 1.5 : 1,
-          ),
-        ),
-        child: ClipRect(
-          child: Center(
-            child: DesyWidgetPreview(
-              theme: theme,
-              builder: (context) => item.previewBuilder(context, item.value),
-            ),
-          ),
+      child: Center(
+        child: DesyWidgetPreview(
+          theme: theme,
+          builder: (context) => item.previewBuilder(context, item.value),
         ),
       ),
     ),

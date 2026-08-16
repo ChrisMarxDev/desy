@@ -202,6 +202,7 @@ void main() {
       find.byKey(const ValueKey('sidebar-section-registry')),
       findsOneWidget,
     );
+    expect(find.byKey(const ValueKey('registry-canvas-nav')), findsNothing);
     expect(find.byKey(const ValueKey('sidebar-section-atoms')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('sidebar-section-components')),

@@ -403,11 +403,10 @@ void main() {
                 key: const ValueKey('knob-sheet-frame'),
                 width: 320,
                 child: DesyKnobSheet(
-                  title: 'Properties',
-                  subtitle: 'Adjust the selected component.',
-                  sections: [
-                    DesyKnobSection(
-                      label: 'LAYOUT',
+                  segments: [
+                    DesyKnobSegment(
+                      title: 'LAYOUT',
+                      description: 'Adjust the selected component.',
                       children: [
                         DesyNumericKnobRow(
                           label: 'Width',
@@ -418,8 +417,8 @@ void main() {
                         ),
                       ],
                     ),
-                    DesyKnobSection(
-                      label: 'BEHAVIOR',
+                    DesyKnobSegment(
+                      title: 'BEHAVIOR',
                       children: [
                         DesyBooleanKnobRow(
                           label: 'Clip content',
@@ -437,7 +436,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Properties'), findsOneWidget);
+      expect(find.text('LAYOUT'), findsOneWidget);
       expect(find.text('Adjust the selected component.'), findsOneWidget);
       expect(find.text('2'), findsNothing);
       await tester.tap(find.bySemanticsLabel('Increase Width'));
@@ -471,11 +470,10 @@ void main() {
                 key: ValueKey('narrow-knob-sheet-frame'),
                 width: 174,
                 child: DesyKnobSheet(
-                  title: 'Button',
-                  subtitle: 'Adjust this component.',
-                  sections: [
-                    DesyKnobSection(
-                      label: 'CONTENT',
+                  segments: [
+                    DesyKnobSegment(
+                      title: 'CONTENT',
+                      description: 'Adjust this component.',
                       children: [
                         DesyTextKnobRow(
                           label: 'Label',
@@ -505,6 +503,49 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('knob sheet displays read-only metadata without row dividers', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: const Center(
+            child: SizedBox(
+              width: 174,
+              child: DesyKnobSheet(
+                segments: [
+                  DesyKnobSegment(
+                    title: 'COMPONENT',
+                    children: [
+                      DesyTextValueKnobRow(
+                        label: 'ID',
+                        value: 'desy.component.button',
+                      ),
+                      DesyBooleanKnobRow(
+                        label: 'Enabled',
+                        value: true,
+                        onChanged: null,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('desy.component.button'), findsOneWidget);
+    expect(find.byType(DesyKnobRow), findsNWidgets(2));
+    final label = tester.getRect(find.text('Enabled'));
+    final toggle = tester.getRect(find.byType(DesySwitch));
+    expect(toggle.left, closeTo(label.left, .1));
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('shortcut label exposes one semantic chord', (tester) async {
     await tester.pumpWidget(

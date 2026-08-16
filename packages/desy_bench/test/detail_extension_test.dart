@@ -90,7 +90,7 @@ void main() {
               find.byKey(const ValueKey('detail-extension:button:notes')),
             )
             .dy,
-        greaterThan(tester.getTopLeft(find.text('Controls')).dy),
+        greaterThan(tester.getTopLeft(find.text('COMPONENT')).dy),
       );
       expect(
         tester
@@ -221,7 +221,7 @@ void main() {
       );
       FlutterError.onError = previousOnError;
 
-      expect(find.text('Controls'), findsOneWidget);
+      expect(find.text('COMPONENT'), findsOneWidget);
       expect(find.text('Healthy extension body'), findsOneWidget);
       expect(find.text('Must not build'), findsNothing);
       expect(
@@ -292,7 +292,7 @@ void main() {
       findsNothing,
     );
     expect(find.text('Sibling remains visible'), findsOneWidget);
-    expect(find.text('Controls'), findsOneWidget);
+    expect(find.text('COMPONENT'), findsOneWidget);
   });
 
   testWidgets('public app routes registered detail extensions to components', (

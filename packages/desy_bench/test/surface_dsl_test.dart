@@ -233,6 +233,39 @@ void main() {
       expect(DesySurfaceValidator(_registry).validate(surface), isEmpty);
     });
 
+    test('accepts ISO-8601 values for DateTime knobs', () {
+      final component = DesyComponent(
+        id: 'schedule.card',
+        name: 'Schedule card',
+        knobs: (knobs) => (
+          startsAt: knobs.dateTime(
+            'startsAt',
+            initial: DateTime.utc(2026, 8, 15, 9, 30),
+          ),
+        ),
+        build: (context, knobs) => Text(
+          knobs.startsAt.value.toIso8601String(),
+        ),
+      );
+      final registry = DesyRegistry(
+        name: 'Surface DateTime',
+        themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+        components: [component],
+      );
+      final valid = DesySurfaceDocument.parse('''
+{"component":"schedule.card","knobs":{"startsAt":"2026-08-15T09:30:00.000Z"}}
+''');
+      final invalid = DesySurfaceDocument.parse('''
+{"component":"schedule.card","knobs":{"startsAt":"tomorrow"}}
+''');
+
+      expect(DesySurfaceValidator(registry).validate(valid), isEmpty);
+      expect(
+        DesySurfaceValidator(registry).validate(invalid).single.message,
+        contains('ISO-8601'),
+      );
+    });
+
     test(
       'accepts ordered multi-instance values and rejects event bindings',
       () {

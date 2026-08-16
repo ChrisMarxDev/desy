@@ -210,6 +210,7 @@ class DesyCatalogueExport {
       DesyKnobKind.boolean => 'boolean',
       DesyKnobKind.string => 'string',
       DesyKnobKind.number => 'number',
+      DesyKnobKind.dateTime => 'date-time',
       DesyKnobKind.color => 'color',
       DesyKnobKind.widgetInstance => 'component-instance',
       DesyKnobKind.widgetInstances => 'component-instances',
@@ -226,6 +227,7 @@ class DesyCatalogueExport {
   Object _knobValue(KnobDefinition<Object> knob) => switch (knob.initial) {
     DesyInstanceId(:final value) => value,
     DesyInstanceIds(:final values) => [for (final id in values) id.value],
+    DateTime() => (knob.initial as DateTime).toIso8601String(),
     Color() => (knob.initial as Color).toARGB32(),
     _ => knob.initial,
   };
@@ -238,6 +240,8 @@ class DesyCatalogueExport {
     return {
       for (final knob in component.knobDefinitions)
         knob.id: switch (knob.kind) {
+          DesyKnobKind.dateTime =>
+            (values[knob.id]! as DateTime).toIso8601String(),
           DesyKnobKind.color => (values[knob.id]! as Color).toARGB32(),
           _ => values[knob.id]!,
         },

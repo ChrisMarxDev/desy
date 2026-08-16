@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Detail canvas convergence plan</title>
+  <style>
+    :root { --bg:#f6f6f7; --surface:#fff; --ink:#1c1c1f; --muted:#686873; --line:#ddddE3; --pink:#ef3f78; --pink-soft:#fff0f5; --warn:#fff5d9; --radius:10px; }
+    * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 Inter,ui-sans-serif,system-ui,sans-serif; }
+    main { width:min(1100px,calc(100vw - 32px)); margin:auto; padding:28px 0 56px; } header,section { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:20px; } section { margin-top:14px; }
+    h1,h2,h3,p { margin:0; } h1 { font-size:32px; line-height:1.1; } h2 { font-size:19px; margin-bottom:10px; } h3 { font-size:14px; margin:14px 0 6px; } p + p { margin-top:8px; }
+    .meta,.chips,.actions,.section-tools { display:flex; gap:8px; flex-wrap:wrap; align-items:center; } .meta { margin-top:12px; } .chip { padding:3px 9px; border-radius:999px; background:#f2f2f4; color:var(--muted); font-size:12px; font-weight:700; } .chip.pink { background:var(--pink-soft); color:#b11f52; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; } .card { background:#fafafb; border:1px solid var(--line); border-radius:8px; padding:14px; }
+    table { width:100%; border-collapse:collapse; } th,td { padding:9px 10px; text-align:left; vertical-align:top; border-bottom:1px solid var(--line); } th { color:var(--muted); font-size:11px; letter-spacing:.08em; text-transform:uppercase; background:#fafafb; } tr:last-child td { border-bottom:0; }
+    ul,ol { margin:0; padding-left:20px; } li+li { margin-top:5px; } code,pre { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; } pre { padding:12px; overflow:auto; border-radius:8px; background:#19191c; color:#f5f5f6; }
+    .decision { border-color:#efc567; background:var(--warn); } .check { display:grid; grid-template-columns:auto 1fr; gap:8px; align-items:start; padding:8px; border:1px solid var(--line); border-radius:7px; background:#fff; } .check+ .check { margin-top:7px; }
+    select,textarea,button { font:inherit; } select,textarea { border:1px solid var(--line); border-radius:7px; padding:7px; background:#fff; } textarea { width:100%; min-height:68px; margin-top:10px; } button { border:0; border-radius:7px; padding:9px 12px; background:#1c1c1f; color:#fff; cursor:pointer; } button.secondary { background:#f0f0f2; color:var(--ink); }
+    .section-head { display:flex; justify-content:space-between; gap:12px; align-items:start; } @media(max-width:640px){ main{width:min(100% - 20px,1100px);padding-top:10px} header,section{padding:15px}.section-head{display:block}.section-tools{margin-top:8px} }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Detail canvas convergence</h1>
+    <p>Plan to retire the duplicate hand-built detail canvas in favour of the shared collection-canvas engine, while adopting <code>desy.component.knob-sheet</code> as the definitive detail-control surface.</p>
+    <div class="meta"><span class="chip pink">Draft</span><span class="chip">2026-08-15</span><span class="chip">No backend or persistence</span><span class="chip">Registry remains source of truth</span></div>
+  </header>
+
+  <section>
+    <div class="section-head"><h2>Goal and scope</h2><div class="section-tools"><label>Status <select><option selected>Approve</option><option>Revise</option><option>Defer</option></select></label></div></div>
+    <div class="grid"><div class="card"><h3>Ship now</h3><ul><li>Draw opted-in drag-box frames outside the preview clip.</li><li>Use the real segmented knob-sheet layout throughout Details.</li><li>Remove the all-components <code>/canvas</code> destination and its duplicate screen.</li></ul></div><div class="card"><h3>Plan next</h3><ul><li>Generalise the shared canvas for a host-managed preview environment, per-item capture boundary, and device geometry.</li><li>Move Detail variants onto it only after parity tests pass.</li></ul></div></div>
+    <textarea placeholder="Scope notes"></textarea>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Current delta</h2><div class="section-tools"><label>Status <select><option selected>Approve</option><option>Revise</option></select></label></div></div>
+    <table><thead><tr><th>Capability</th><th>Shared collection canvas</th><th>Old detail canvas</th><th>Transition requirement</th></tr></thead><tbody>
+      <tr><td>Scene basics</td><td>InteractiveViewer, dot grid, geometry, z-order, labels, overlay drawer.</td><td>Custom Transform + manual pointer pan, geometry, z-order, labels.</td><td>Shared canvas already wins; remove manual camera.</td></tr>
+      <tr><td>Items</td><td>Typed scene item: ID, name, real builder, optional initial frame.</td><td>Detail variant: default, named instance, scenario; selected variant mutates session knobs.</td><td>Add a typed detail-item adapter; retain variant selection callback.</td></tr>
+      <tr><td>Device previews</td><td>No device bezel or fixed-aspect resize policy.</td><td>Logical device screen, bezel, aspect-locking resize, device-change fit.</td><td>Extract device-frame policy into the generic item contract before migration.</td></tr>
+      <tr><td>Preview environment</td><td>Active theme only.</td><td>Theme, accessibility scope, semantic inspection scope.</td><td>Use a host-provided preview wrapper around each shared item.</td></tr>
+      <tr><td>Image export</td><td>No capture boundary.</td><td>Per-variant capture key and export controller.</td><td>Add optional item capture boundary / resolver before removing gallery.</td></tr>
+      <tr><td>Controls</td><td>Host-provided drawer builder.</td><td>Resizable split panel with knobs, accessibility, motion, extensions, export.</td><td>Keep Detail controls as a persistent, resizable knob-sheet panel in phase one; drawer is not a replacement.</td></tr>
+    </tbody></table>
+    <textarea placeholder="Delta corrections or newly discovered dependencies"></textarea>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Touched files and classes</h2><div class="section-tools"><label>Status <select><option selected>Approve</option><option>Revise</option></select></label></div></div>
+    <label class="check"><input type="checkbox" checked><span><code>desy_drag_box.dart</code> — add an opt-in outside-frame decoration, preserving current callers by default.</span></label>
+    <label class="check"><input type="checkbox" checked><span><code>detail_screen.dart</code> — compose all current control regions into one ordered <code>DesyKnobSheet</code> surface; retain resize divider and preview behavior.</span></label>
+    <label class="check"><input type="checkbox" checked><span><code>workbench_sidebar.dart</code>, <code>workbench_router.dart</code>, <code>workbench_routes.dart</code>, <code>workbench_navigation_tree.dart</code> — remove the all-components Canvas destination.</span></label>
+    <label class="check"><input type="checkbox"><span>Phase two: <code>collection_canvas.dart</code> — add typed item preview/capture/device policies; migrate <code>_DetailInstanceGallery</code>.</span></label>
+    <textarea placeholder="File/class notes"></textarea>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Logic and data flow</h2><div class="section-tools"><label>Status <select><option selected>Approve</option><option>Revise</option></select></label></div></div>
+    <pre>DesyRegistry entry
+  → DesyDetailScreen builds typed variants + preview environment
+  → phase-one _DetailInstanceGallery (unchanged scene policy)
+  → DesyDragBox outside frame + real preview clip
+  → persistent Detail knob sheet
+      → session.setKnob / preview accessibility / device / motion / export
+
+phase two
+  → DesyDetailCanvasItem adapter
+  → DesyCollectionCanvas scene engine
+  → host wrapper: accessibility + inspection + device + capture boundary</pre>
+    <p>All values remain in the existing workbench session or local detail controller. No callbacks, widgets, or user placements are persisted.</p>
+    <textarea placeholder="Flow notes"></textarea>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>State model and UI transitions</h2><div class="section-tools"><label>Status <select><option selected>Approve</option><option>Revise</option></select></label></div></div>
+    <div class="grid"><div class="card"><h3>Existing owners retained</h3><ul><li><code>DesyWorkbenchSession</code>: knob values, accessibility settings, selected device and stage.</li><li><code>_DetailInstanceGalleryState</code>: temporary geometry, active variant, camera, capture keys.</li><li><code>_DetailImageExportController</code>: export busy/status lifecycle.</li><li><code>DesyMotionPlaybackController</code>: motion lifecycle.</li></ul></div><div class="card"><h3>Transitions</h3><ul><li>Selection keeps the current controls panel; no drawer swap in Details.</li><li>Device change re-derives fixed device frame and fit transform.</li><li>Resizing retains immediate geometry updates; external frame never intercepts pointers.</li><li>Phase-two engine migration keeps the same visible initial layout and keyboard semantics.</li></ul></div></div>
+    <textarea placeholder="State or transition notes"></textarea>
+  </section>
+
+  <section><div class="section-head"><h2>Backend and database changes</h2><div class="section-tools"><label>Status <select><option selected>Approve</option><option>Revise</option></select></label></div></div><p><strong>None.</strong> The consumer registry stays local, immutable, and code-owned. Canvas placement remains ephemeral after opening a Detail screen.</p></section>
+
+  <section>
+    <div class="section-head"><h2>Tests and verification</h2><div class="section-tools"><label>Status <select><option selected>Approve</option><option>Revise</option></select></label></div></div>
+    <label class="check"><input type="checkbox" checked><span>Widget test that the outside frame exceeds the preview clip but does not alter the content constraints.</span></label>
+    <label class="check"><input type="checkbox" checked><span>Detail tests for one unified knob sheet, device/aspect resize, accessibility changes, variants, motion, and image export.</span></label>
+    <label class="check"><input type="checkbox" checked><span>Navigation tests proving there is no total-components Canvas route or sidebar item.</span></label>
+    <label class="check"><input type="checkbox" checked><span>Run <code>task check</code> before declaring phase one complete; use the dogfood desktop app for visual QA.</span></label>
+    <textarea placeholder="Verification notes"></textarea>
+  </section>
+
+  <section class="decision">
+    <div class="section-head"><h2>Risks and open decisions</h2><div class="section-tools"><label>Status <select><option selected>Approve</option><option>Revise</option><option>Defer</option></select></label></div></div>
+    <ul><li><strong>Do not migrate Detail to the generic canvas yet.</strong> It would lose device bezel/aspect-lock, preview environment, capture/export, and persistent resize-panel behavior today.</li><li><strong>Recommended default:</strong> use the generic canvas only after it gains host-owned wrappers and item policies. Then Details and Prototypes share engine mechanics, but not necessarily the same inspector presentation.</li><li>The outside border must be opt-in to avoid changing Sketch and existing Detail geometry unexpectedly.</li><li>Removing <code>/canvas</code> may break saved/deep links; redirect it to Atlas for one release if compatibility is required. Recommended: redirect rather than leave a dead route.</li></ul>
+    <textarea placeholder="Decision notes"></textarea>
+  </section>
+
+  <section><h2>Export review</h2><div class="actions"><button id="export">Generate handoff</button><button class="secondary" id="copy">Copy</button></div><textarea id="handoff" placeholder="Your review handoff will appear here"></textarea></section>
+</main>
+<script>
+  const statuses=[...document.querySelectorAll('select')];
+  const notes=[...document.querySelectorAll('textarea:not(#handoff)')];
+  document.getElementById('export').onclick=()=>{
+    const approved=statuses.filter(s=>s.value==='Approve').length;
+    const checked=[...document.querySelectorAll('input[type=checkbox]:checked')].length;
+    const text=notes.map(n=>n.value.trim()).filter(Boolean).join('\n');
+    document.getElementById('handoff').value=`Proceed with the Detail canvas phase-one implementation. Approved sections: ${approved}/${statuses.length}. Included checklist items: ${checked}.\n\nDecisions: retain the old Detail canvas until device, accessibility, capture/export, and persistent-panel parity exist in the generic canvas. Remove the all-components Canvas route and use the real knob-sheet surface.\n\nReviewer notes:\n${text||'(none)'}`;
+  };
+  document.getElementById('copy').onclick=async()=>{const t=document.getElementById('handoff');if(!t.value)document.getElementById('export').click();try{await navigator.clipboard.writeText(t.value)}catch(_){t.select();document.execCommand('copy')}};
+</script>
+</body>
+</html>

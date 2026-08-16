@@ -1,18 +1,22 @@
 // Desy routes are internal workbench infrastructure, not consumer API.
 // ignore_for_file: public_member_api_docs
 
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:go_router/go_router.dart';
 import 'package:state_beacon/state_beacon.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'components_canvas/components_canvas_screen.dart';
+import 'issue_report.dart';
 import '../registry.dart';
 import '../window_controls.dart';
 import '../workspace_extension.dart';
 import 'presentation/atlas_screen.dart';
-import 'presentation/canvas_v2_screen.dart';
 import 'presentation/detail_screen.dart';
 import 'presentation/measures_screen.dart';
 import 'presentation/prototypes_screen.dart';
@@ -93,8 +97,7 @@ GoRouter createDesyWorkbenchRouter(
         ),
         GoRoute(
           path: DesyWorkbenchRoutes.canvasPath,
-          pageBuilder: (context, state) =>
-              _instantPage(state, DesyCanvasV2Screen(session: session)),
+          redirect: (_, _) => DesyWorkbenchRoutes.atlasPath,
         ),
         GoRoute(
           path: '${DesyWorkbenchRoutes.prototypesPath}/:sessionId',
@@ -420,6 +423,24 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
                       setState(() => _sidebarVisible = !_sidebarVisible),
                   inspecting: _inspectionActive,
                   onToggleInspection: _toggleInspection,
+                  onReportIssue: () {
+                    final platform = kIsWeb
+                        ? 'web'
+                        : defaultTargetPlatform.name;
+                    unawaited(
+                      launchUrl(
+                        buildDesyIssueReportUri(
+                          DesyIssueReportContext(
+                            registryName: widget.session.registry.name,
+                            themeName: activeTheme.name,
+                            themeId: activeTheme.id,
+                            route: location.toString(),
+                            platform: platform,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -479,6 +500,7 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
 /// dividers; these controls simply float over its reserved top space.
 class _RegistrySpineTopBar extends StatelessWidget {
   static const _edgeInset = 12.0;
+  static const _controlGap = 16.0;
 
   const _RegistrySpineTopBar({
     required this.session,
@@ -488,6 +510,7 @@ class _RegistrySpineTopBar extends StatelessWidget {
     required this.onToggleSidebar,
     required this.inspecting,
     required this.onToggleInspection,
+    required this.onReportIssue,
   });
 
   final DesyWorkbenchSession session;
@@ -497,6 +520,7 @@ class _RegistrySpineTopBar extends StatelessWidget {
   final VoidCallback onToggleSidebar;
   final bool inspecting;
   final VoidCallback onToggleInspection;
+  final VoidCallback onReportIssue;
 
   @override
   Widget build(BuildContext context) {
@@ -504,86 +528,171 @@ class _RegistrySpineTopBar extends StatelessWidget {
     return SizedBox(
       key: const ValueKey('registry-spine-top-bar'),
       height: DesyDesignSystemTokens.toolbarHeight,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            left: contentLeadingInset,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: DesyCompactSelect<int>(
-                key: const ValueKey('top-bar-theme-select'),
-                value: themeIndex,
-                onChanged: session.selectTheme,
-                format: (index) => session.registry.themes[index].name,
-                semanticsLabel: 'Select preview theme',
-                size: DesyButtonSize.md,
-                items: [
-                  for (final (index, option) in session.registry.themes.indexed)
-                    DesyCompactSelectItem(
-                      key: ValueKey('top-bar-theme-${option.id}'),
-                      value: index,
-                    ),
-                ],
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: contentLeadingInset),
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        builder: (context, animatedContentLeadingInset, _) =>
+            CustomMultiChildLayout(
+              delegate: _RegistrySpineTopBarLayoutDelegate(
+                contentLeadingInset: animatedContentLeadingInset,
+                controlGap: _controlGap,
               ),
-            ),
-          ),
-          Positioned.fill(
-            child: Row(
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: _edgeInset),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (windowControls case final controls?) ...[
-                        _WorkbenchWindowControls(controls: controls),
-                        const SizedBox(width: 28),
-                      ],
-                      DesyButton.icon(
-                        key: const ValueKey('registry-spine-toggle-sidebar'),
-                        size: DesyButtonSize.md,
-                        variant: DesyButtonVariant.ghost,
-                        semanticsLabel: sidebarVisible
-                            ? 'Hide registry sidebar'
-                            : 'Show registry sidebar',
-                        semanticsTooltip: sidebarVisible
-                            ? 'Hide registry sidebar'
-                            : 'Show registry sidebar',
-                        onPress: onToggleSidebar,
-                        child: Icon(
-                          sidebarVisible
-                              ? DesyIcons.panelLeftClose
-                              : DesyIcons.panelLeftOpen,
-                          size: 17,
+                LayoutId(
+                  id: _RegistrySpineTopBarSlot.theme,
+                  child: DesyCompactSelect<int>(
+                    key: const ValueKey('top-bar-theme-select'),
+                    value: themeIndex,
+                    onChanged: session.selectTheme,
+                    format: (index) => session.registry.themes[index].name,
+                    semanticsLabel: 'Select preview theme',
+                    size: DesyButtonSize.md,
+                    items: [
+                      for (final (index, option)
+                          in session.registry.themes.indexed)
+                        DesyCompactSelectItem(
+                          key: ValueKey('top-bar-theme-${option.id}'),
+                          value: index,
                         ),
-                      ),
                     ],
                   ),
                 ),
-                const Spacer(),
-                DesyButton.icon(
-                  key: const ValueKey('registry-spine-toggle-inspection'),
-                  size: DesyButtonSize.md,
-                  variant: inspecting
-                      ? DesyButtonVariant.primary
-                      : DesyButtonVariant.ghost,
-                  semanticsLabel: inspecting
-                      ? 'Stop inspecting widgets'
-                      : 'Inspect widgets',
-                  semanticsTooltip: inspecting
-                      ? 'Stop inspecting widgets'
-                      : 'Inspect widgets',
-                  onPress: onToggleInspection,
-                  child: const Icon(DesyIcons.crosshair, size: 16),
+                LayoutId(
+                  id: _RegistrySpineTopBarSlot.leading,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: _edgeInset),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (windowControls case final controls?) ...[
+                          _WorkbenchWindowControls(controls: controls),
+                          const SizedBox(width: 28),
+                        ],
+                        DesyButton.icon(
+                          key: const ValueKey('registry-spine-toggle-sidebar'),
+                          size: DesyButtonSize.md,
+                          variant: DesyButtonVariant.ghost,
+                          semanticsLabel: sidebarVisible
+                              ? 'Hide registry sidebar'
+                              : 'Show registry sidebar',
+                          semanticsTooltip: sidebarVisible
+                              ? 'Hide registry sidebar'
+                              : 'Show registry sidebar',
+                          onPress: onToggleSidebar,
+                          child: Icon(
+                            sidebarVisible
+                                ? DesyIcons.panelLeftClose
+                                : DesyIcons.panelLeftOpen,
+                            size: 17,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(width: _edgeInset),
+                LayoutId(
+                  id: _RegistrySpineTopBarSlot.trailing,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: _edgeInset),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DesyButton.icon(
+                          key: const ValueKey('registry-spine-report-issue'),
+                          size: DesyButtonSize.md,
+                          variant: DesyButtonVariant.ghost,
+                          semanticsLabel: 'Report an issue',
+                          semanticsTooltip: 'Report an issue on GitHub',
+                          onPress: onReportIssue,
+                          child: const Icon(DesyIcons.messageSquare, size: 16),
+                        ),
+                        const SizedBox(width: 4),
+                        DesyButton.icon(
+                          key: const ValueKey(
+                            'registry-spine-toggle-inspection',
+                          ),
+                          size: DesyButtonSize.md,
+                          variant: inspecting
+                              ? DesyButtonVariant.primary
+                              : DesyButtonVariant.ghost,
+                          semanticsLabel: inspecting
+                              ? 'Stop inspecting widgets'
+                              : 'Inspect widgets',
+                          semanticsTooltip: inspecting
+                              ? 'Stop inspecting widgets'
+                              : 'Inspect widgets',
+                          onPress: onToggleInspection,
+                          child: const Icon(DesyIcons.crosshair, size: 16),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
       ),
     );
   }
+}
+
+enum _RegistrySpineTopBarSlot { leading, theme, trailing }
+
+class _RegistrySpineTopBarLayoutDelegate extends MultiChildLayoutDelegate {
+  _RegistrySpineTopBarLayoutDelegate({
+    required this.contentLeadingInset,
+    required this.controlGap,
+  });
+
+  final double contentLeadingInset;
+  final double controlGap;
+
+  @override
+  void performLayout(Size size) {
+    final childConstraints = BoxConstraints.loose(size);
+    final leadingSize = layoutChild(
+      _RegistrySpineTopBarSlot.leading,
+      childConstraints,
+    );
+    positionChild(
+      _RegistrySpineTopBarSlot.leading,
+      Offset(0, (size.height - leadingSize.height) / 2),
+    );
+
+    final trailingSize = layoutChild(
+      _RegistrySpineTopBarSlot.trailing,
+      childConstraints,
+    );
+    positionChild(
+      _RegistrySpineTopBarSlot.trailing,
+      Offset(
+        size.width - trailingSize.width,
+        (size.height - trailingSize.height) / 2,
+      ),
+    );
+
+    final safeThemeLeadingInset = leadingSize.width + controlGap;
+    final themeLeadingInset = contentLeadingInset < safeThemeLeadingInset
+        ? safeThemeLeadingInset
+        : contentLeadingInset;
+    final availableThemeWidth =
+        size.width - themeLeadingInset - trailingSize.width - controlGap;
+    final themeSize = layoutChild(
+      _RegistrySpineTopBarSlot.theme,
+      BoxConstraints.loose(
+        Size(availableThemeWidth.clamp(0, size.width), size.height),
+      ),
+    );
+    positionChild(
+      _RegistrySpineTopBarSlot.theme,
+      Offset(themeLeadingInset, (size.height - themeSize.height) / 2),
+    );
+  }
+
+  @override
+  bool shouldRelayout(_RegistrySpineTopBarLayoutDelegate oldDelegate) =>
+      contentLeadingInset != oldDelegate.contentLeadingInset ||
+      controlGap != oldDelegate.controlGap;
 }
 
 class _WorkbenchWindowControls extends StatelessWidget {

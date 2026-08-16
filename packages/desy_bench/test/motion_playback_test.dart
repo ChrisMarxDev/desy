@@ -82,21 +82,41 @@ void main() {
         find.byKey(const ValueKey('motion-playback-controls')),
         findsOneWidget,
       );
-      expect(find.byKey(const ValueKey('motion-playhead')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('motion-playhead-thermometer')),
+        findsOneWidget,
+      );
       expect(
         find.byKey(const ValueKey('motion-specimen-select')),
         findsOneWidget,
       );
+      final durationField = find.byKey(
+        const ValueKey('motion-global-duration'),
+      );
+      expect(durationField, findsOneWidget);
+      expect(
+        tester
+            .widget<EditableText>(
+              find.descendant(
+                of: durationField,
+                matching: find.byType(EditableText),
+              ),
+            )
+            .controller
+            .text,
+        '300',
+      );
       expect(find.text('Ping-pong'), findsOneWidget);
       expect(find.text('No controls declared.'), findsNothing);
 
+      await tester.enterText(durationField, '600');
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
-      expect(renderedProgress, closeTo(1 / 6, 0.05));
+      expect(renderedProgress, closeTo(1 / 12, 0.05));
 
       _press(tester, const ValueKey('motion-play-pause'));
       await tester.pump();
       final pausedProgress = renderedProgress;
-      expect(find.text('Play'), findsOneWidget);
       await tester.pump(const Duration(milliseconds: 80));
       expect(renderedProgress, closeTo(pausedProgress, 0.001));
 
@@ -107,7 +127,7 @@ void main() {
       await tester.pump();
       expect(find.text('Loop'), findsOneWidget);
 
-      _press(tester, const ValueKey('motion-speed-2.0'));
+      _press(tester, const ValueKey('motion-speed-mode'));
       await tester.pump();
       expect(find.text('2.0×'), findsOneWidget);
 
