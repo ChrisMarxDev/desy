@@ -1,3 +1,5 @@
+import 'dart:ui' show Tristate;
+
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:flutter/cupertino.dart' show CupertinoSwitch;
 import 'package:flutter/material.dart';
@@ -727,6 +729,112 @@ void main() {
       isEmpty,
     );
   });
+
+  testWidgets('interactive sidebar section labels use the click cursor', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: SizedBox(
+            width: 248,
+            height: 120,
+            child: DesySidebar(
+              children: [
+                DesySidebarSection(
+                  label: 'Components',
+                  count: 31,
+                  onLabelPress: () {},
+                  children: const [],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final label = find.byKey(
+      const ValueKey('sidebar-section-label-Components'),
+    );
+    expect(
+      find.descendant(
+        of: label,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is MouseRegion &&
+              widget.cursor == SystemMouseCursors.click,
+        ),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'collapsible sidebar sections expose disclosure state and preserve header actions',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      var actions = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DesyDesignSystemScope(
+            theme: DesyDesignSystemTheme.light,
+            child: SizedBox(
+              width: 248,
+              height: 160,
+              child: DesySidebar(
+                children: [
+                  DesySidebarSection(
+                    label: 'Atoms',
+                    collapsible: true,
+                    action: const Icon(DesyIcons.layoutGrid),
+                    actionSemanticsLabel: 'Change atom view',
+                    onActionPress: () => actions++,
+                    children: const [
+                      DesySidebarItem(
+                        key: ValueKey('colors-item'),
+                        label: Text('Colors'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final toggle = find.byKey(const ValueKey('sidebar-section-toggle-Atoms'));
+      expect(find.byKey(const ValueKey('colors-item')), findsOneWidget);
+      expect(tester.getSemantics(toggle).label, 'Collapse Atoms');
+      expect(
+        tester.getSemantics(toggle).flagsCollection.isExpanded,
+        Tristate.isTrue,
+      );
+      expect(find.byIcon(DesyIcons.chevronDown), findsOneWidget);
+
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('colors-item')), findsNothing);
+      expect(tester.getSemantics(toggle).label, 'Expand Atoms');
+      expect(
+        tester.getSemantics(toggle).flagsCollection.isExpanded,
+        Tristate.isFalse,
+      );
+      expect(find.byIcon(DesyIcons.chevronRight), findsOneWidget);
+
+      await tester.tap(find.bySemanticsLabel('Change atom view'));
+      await tester.pumpAndSettle();
+      expect(actions, 1);
+
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('colors-item')), findsOneWidget);
+      semantics.dispose();
+    },
+  );
 
   testWidgets('selected sidebar item uses the shared signal marker', (
     tester,

@@ -107,13 +107,14 @@ not simulate a compact preview by passing arbitrary smaller constraints to the
 consumer widget; the consumer's true layout remains inspectable while the
 workbench controls the presentation scale.
 
-Responsive previews take their logical size from the drag box. A named device
-preview instead has an immutable logical screen, device pixel ratio, platform,
-and safe-area geometry. Desy draws the screen and bezel at that real geometry,
-clips content to the screen, and scales the completed device down as one unit;
-it never scales up, inserts `SafeArea`, or adds scrolling for the consumer.
-This contract is shared by component details, Sketch artboards, and Prototype
-previews.
+Responsive previews take their logical size from the drag box. Named screen
+sizes such as iPhone and iPad are initial drag-box presets, not simulated
+devices: they render no bezel, do not override platform or safe-area geometry,
+and do not scale consumer content. Once chosen, a preset artboard is freely
+resizable and passes its live constraints directly to the consumer widget.
+Sketch artboards may separately opt into richer device geometry where that is
+their explicit subject; component Details and Prototype previews use ordinary
+responsive artboards.
 
 ## 9. Atoms are optional typed registry lanes
 
@@ -253,6 +254,30 @@ controls. Center modes may change, resize, or collapse secondary panels, but
 they do not replace registry or annotation ownership. Desy records source-aware
 feedback; users choose the developer, IDE, or coding agent that acts on it.
 Every consumer-source edit remains reviewable in the normal repository diff.
+
+## 21. Platform and package behaviour first
+
+For interaction, layout, scrolling, transforms, focus, semantics, and other
+platform behaviour, Desy uses Flutter's built-in widgets and the documented
+APIs of its selected dependencies as the default implementation. It does not
+rebuild a gesture arena, viewport, scrolling model, camera transform, text
+editing surface, or resize protocol in local pointer listeners merely to work
+around an integration issue.
+
+A custom interaction layer is allowed only when the native or dependency API
+cannot express a verified product requirement. Before introducing one, record
+the missing capability, exhaust the supported configuration and composition
+options, keep the custom seam narrowly isolated, and test it across the input
+modes it replaces. Convenience, premature control, or a failed first attempt
+at composition are not sufficient reasons to bypass the platform.
+
+Any proposal to recreate built-in Flutter or dependency behaviour—especially
+gesture handling, scrolling, transforms, camera control, focus, semantics,
+layout, text entry, or resizing—must be brought to the consumer before code is
+written. The proposal must name the built-in API considered, the concrete gap,
+the user-visible consequences, and why supported composition is insufficient.
+Proceed only with explicit consumer consent; otherwise preserve the platform
+behaviour and continue investigating its documented integration points.
 
 ## Non-goals for the first release
 

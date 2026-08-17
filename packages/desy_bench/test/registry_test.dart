@@ -504,6 +504,67 @@ void main() {
     expect(component.valuesFor('delayed')['startsAt'], delayed);
   });
 
+  test('choice knobs default to the first immutable string option', () {
+    final options = <String>['Automatic', 'Enabled', 'Disabled'];
+    final component = DesyComponent(
+      id: 'visibility.label',
+      name: 'Visibility label',
+      knobs: (k) => (visibility: k.choice('visibility', options: options)),
+      build: (context, knobs) => Text(knobs.visibility.value),
+      instances: (knobs) => {
+        'disabled': [knobs.visibility('Disabled')],
+      },
+    );
+    options.add('Sometimes');
+
+    final definition = component.knobDefinitions.single;
+    expect(definition.kind, DesyKnobKind.choice);
+    expect(definition.initial, 'Automatic');
+    expect(definition.options, ['Automatic', 'Enabled', 'Disabled']);
+    expect(component.valuesFor('disabled')['visibility'], 'Disabled');
+    expect(() => definition.options.add('Sometimes'), throwsUnsupportedError);
+  });
+
+  test('choice declarations reject empty, duplicate, and illegal values', () {
+    DesyRegistryComponent build({
+      required List<String> options,
+      String? initial,
+    }) => DesyComponent(
+      id: 'visibility.invalid',
+      name: 'Invalid visibility',
+      knobs: (k) => k.choice('visibility', options: options, initial: initial),
+      build: (context, knobs) => const SizedBox(),
+    );
+
+    expect(() => build(options: const []), throwsArgumentError);
+    expect(() => build(options: const ['']), throwsArgumentError);
+    expect(
+      () => build(options: const ['Automatic', 'Automatic']),
+      throwsArgumentError,
+    );
+    expect(
+      () => build(options: const ['Automatic', 'Enabled'], initial: 'Disabled'),
+      throwsArgumentError,
+    );
+    expect(
+      () => DesyComponent(
+        id: 'visibility.instance-invalid',
+        name: 'Invalid instance',
+        knobs: (k) => (
+          visibility: k.choice(
+            'visibility',
+            options: const ['Automatic', 'Enabled'],
+          ),
+        ),
+        build: (context, knobs) => const SizedBox(),
+        instances: (knobs) => {
+          'invalid': [knobs.visibility('Disabled')],
+        },
+      ),
+      throwsArgumentError,
+    );
+  });
+
   test('knob definitions freeze caller-owned option lists', () {
     final options = <String>['status.clear'];
     final definition = KnobDefinition<DesyInstanceId>(
@@ -868,6 +929,11 @@ void main() {
               name: 'Published at',
               initial: DateTime.utc(2026, 8, 15, 9, 30),
             ),
+            tone: k.choice(
+              'tone',
+              name: 'Tone',
+              options: const ['Neutral', 'Positive', 'Critical'],
+            ),
             children: k.widgetInstances(
               'children',
               description: 'Ordered button adornments.',
@@ -916,6 +982,13 @@ void main() {
         'name': 'Published at',
         'kind': 'date-time',
         'initial': '2026-08-15T09:30:00.000Z',
+      },
+      {
+        'id': 'tone',
+        'name': 'Tone',
+        'kind': 'choice',
+        'initial': 'Neutral',
+        'options': ['Neutral', 'Positive', 'Critical'],
       },
       {
         'id': 'children',

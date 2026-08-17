@@ -243,6 +243,44 @@ void main() {
     expect(find.text('Components'), findsOneWidget);
     expect(find.text('Showcases'), findsNothing);
 
+    for (final label in ['Registry', 'Prototypes', 'Atoms', 'Components']) {
+      expect(
+        find.byKey(ValueKey('sidebar-section-toggle-$label')),
+        findsOneWidget,
+      );
+    }
+
+    await tester.tap(
+      find.byKey(const ValueKey('sidebar-section-toggle-Atoms')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(ValueKey('sidebar-folder-${DesyAtomKind.colors.id}')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('sidebar-folder-/buttons')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('sidebar-section-toggle-Components')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('sidebar-folder-/buttons')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('sidebar-components-view-toggle')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('sidebar-section-toggle-Atoms')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('sidebar-section-toggle-Components')),
+    );
+    await tester.pumpAndSettle();
+
     expect(
       tester
           .widget<DesySidebarItem>(

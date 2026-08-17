@@ -112,6 +112,16 @@ void main() {
     controller.dispose();
   });
 
+  test('fitToContent caps self-sizing previews at 460 logical pixels', () {
+    final controller = DesyComponentsCanvasController();
+    final node = controller.add('card.fallback');
+
+    controller.fitToContent(node, const Size(900, 700));
+
+    expect(controller.nodes.value[node]!.rect.size, const Size.square(460));
+    controller.dispose();
+  });
+
   test('fitToContent keeps the placeholder for greedy full-bleed content', () {
     final controller = DesyComponentsCanvasController();
     final node = controller.add('button.fallback');

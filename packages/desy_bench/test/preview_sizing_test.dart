@@ -4,6 +4,7 @@ import 'package:desy_bench/src/device_preview.dart';
 import 'package:desy_bench/src/registry.dart';
 import 'package:desy_bench/src/workbench/components_canvas/components_canvas_controller.dart';
 import 'package:desy_bench/src/workbench/components_canvas/components_canvas_screen.dart';
+import 'package:desy_bench/src/workbench/presentation/collection_canvas.dart';
 import 'package:desy_bench/src/workbench/presentation/desy_drag_box.dart';
 import 'package:desy_bench/src/workbench/presentation/detail_screen.dart';
 import 'package:desy_bench/src/workbench/widget_preview.dart';
@@ -74,6 +75,34 @@ void main() {
       expect(visualSize.dy, lessThanOrEqualTo(320));
     },
   );
+
+  testWidgets('fitted previews use a 460 square logical ceiling', (
+    tester,
+  ) async {
+    BoxConstraints? receivedConstraints;
+
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 220,
+          height: 160,
+          child: DesyFittedPreview(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                receivedConstraints = constraints;
+                return const SizedBox.expand();
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      receivedConstraints,
+      const BoxConstraints(maxWidth: 460, maxHeight: 460),
+    );
+  });
 
   testWidgets('drag box clips oversized content to its frame', (tester) async {
     const frameKey = ValueKey('clipped-frame');
@@ -157,6 +186,277 @@ void main() {
     expect(liveChanges, 0);
     expect(finalChanges, 1);
     expect(committed!.rect.topLeft, isNot(const Offset(60, 40)));
+  });
+
+  testWidgets('drag box supports mouse movement', (tester) async {
+    const frameKey = ValueKey('mouse-drag-frame');
+    await tester.pumpWidget(
+      _TestHarness(
+        child: Transform(
+          transform: Matrix4.identity(),
+          child: SizedBox(
+            width: 320,
+            height: 240,
+            child: DesyDragBox(
+              geometry: const DesyDragBoxGeometry(
+                rect: Rect.fromLTWH(60, 40, 120, 80),
+              ),
+              clampingRect: const Rect.fromLTWH(0, 0, 320, 240),
+              constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
+              frameKey: frameKey,
+              onChanged: (_) {},
+              child: const ColoredBox(color: Colors.red),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final before = tester.getRect(find.byKey(frameKey));
+    final gesture = await tester.startGesture(before.center);
+    await gesture.moveBy(const Offset(32, 16));
+    await gesture.up();
+    await tester.pump();
+
+    expect(tester.getRect(find.byKey(frameKey)).topLeft, isNot(before.topLeft));
+  });
+
+  testWidgets('collection canvas lets a mouse drag move an item', (
+    tester,
+  ) async {
+    const frameKey = ValueKey('collection-mouse-drag-frame');
+    var geometryChanges = 0;
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 640,
+          height: 480,
+          child: DesyCollectionCanvas<String>(
+            theme: theme,
+            title: 'Canvas',
+            detailsBuilder: (_, _) => const SizedBox.shrink(),
+            initialSelectedItemId: 'item',
+            items: [
+              DesyCanvasSceneItem(
+                id: 'item',
+                name: 'Item',
+                value: 'item',
+                initialRect: const Rect.fromLTWH(60, 200, 120, 80),
+                frameKey: frameKey,
+                onGeometryChanged: (_) => geometryChanges++,
+                previewBuilder: (_, _) => const ColoredBox(color: Colors.red),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final before = tester.getRect(find.byKey(frameKey));
+    final gesture = await tester.startGesture(
+      before.center,
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(32, 16));
+    await gesture.moveBy(const Offset(1, 1));
+    await gesture.up();
+    await tester.pump();
+
+    expect(tester.getRect(find.byKey(frameKey)).topLeft, isNot(before.topLeft));
+    expect(geometryChanges, greaterThan(0));
+  });
+
+  testWidgets('collection canvas reserves a large finite stage around items', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 640,
+          height: 480,
+          child: DesyCollectionCanvas<String>(
+            theme: theme,
+            title: 'Canvas',
+            keyPrefix: 'large-canvas',
+            detailsBuilder: (_, _) => const SizedBox.shrink(),
+            items: [
+              DesyCanvasSceneItem(
+                id: 'item',
+                name: 'Item',
+                value: 'item',
+                initialRect: const Rect.fromLTWH(60, 200, 120, 80),
+                previewBuilder: (_, _) => const ColoredBox(color: Colors.red),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final stage = tester.getSize(
+      find.byKey(const ValueKey('large-canvas-stage')),
+    );
+    expect(stage.width, greaterThanOrEqualTo(2600));
+    expect(stage.height, greaterThanOrEqualTo(2500));
+  });
+
+  testWidgets('collection canvas tints its workspace outside the stage', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 640,
+          height: 480,
+          child: DesyCollectionCanvas<String>(
+            theme: theme,
+            title: 'Canvas',
+            keyPrefix: 'workspace-canvas',
+            detailsBuilder: (_, _) => const SizedBox.shrink(),
+            items: [
+              DesyCanvasSceneItem(
+                id: 'item',
+                name: 'Item',
+                value: 'item',
+                previewBuilder: (_, _) => const ColoredBox(color: Colors.red),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final workspace = find.byKey(const ValueKey('workspace-canvas-workspace'));
+    final workspaceColor = tester.widget<ColoredBox>(workspace).color;
+    final context = tester.element(workspace);
+    expect(workspaceColor, isNot(context.theme.colors.background));
+  });
+
+  testWidgets('collection canvas clamps its minimum zoom to 50 percent', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 640,
+          height: 480,
+          child: DesyCollectionCanvas<String>(
+            theme: theme,
+            title: 'Canvas',
+            keyPrefix: 'minimum-zoom',
+            zoomDockKeyPrefix: 'minimum-zoom',
+            initialZoom: .1,
+            detailsBuilder: (_, _) => const SizedBox.shrink(),
+            items: [
+              DesyCanvasSceneItem(
+                id: 'item',
+                name: 'Item',
+                value: 'item',
+                previewBuilder: (_, _) => const ColoredBox(color: Colors.red),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester
+          .widget<Semantics>(
+            find.byKey(const ValueKey('minimum-zoom-zoom-level')),
+          )
+          .properties
+          .label,
+      'Zoom 50 percent',
+    );
+  });
+
+  testWidgets('collection canvas pans only when a mouse drag starts blank', (
+    tester,
+  ) async {
+    const frameKey = ValueKey('collection-blank-pan-frame');
+    var geometryChanges = 0;
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 640,
+          height: 480,
+          child: DesyCollectionCanvas<String>(
+            theme: theme,
+            title: 'Canvas',
+            detailsBuilder: (_, _) => const SizedBox.shrink(),
+            initialSelectedItemId: 'item',
+            items: [
+              DesyCanvasSceneItem(
+                id: 'item',
+                name: 'Item',
+                value: 'item',
+                initialRect: const Rect.fromLTWH(60, 200, 120, 80),
+                frameKey: frameKey,
+                onGeometryChanged: (_) => geometryChanges++,
+                previewBuilder: (_, _) => const ColoredBox(color: Colors.red),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final before = tester.getRect(find.byKey(frameKey));
+    final gesture = await tester.startGesture(
+      const Offset(500, 360),
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(32, 16));
+    await gesture.up();
+    await tester.pump();
+
+    expect(tester.getRect(find.byKey(frameKey)).topLeft, isNot(before.topLeft));
+    expect(geometryChanges, 0);
+  });
+
+  testWidgets('collection canvas routes trackpad movement to the viewport', (
+    tester,
+  ) async {
+    const frameKey = ValueKey('collection-trackpad-frame');
+    var geometryChanges = 0;
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 640,
+          height: 480,
+          child: DesyCollectionCanvas<String>(
+            theme: theme,
+            title: 'Canvas',
+            detailsBuilder: (_, _) => const SizedBox.shrink(),
+            initialSelectedItemId: 'item',
+            items: [
+              DesyCanvasSceneItem(
+                id: 'item',
+                name: 'Item',
+                value: 'item',
+                initialRect: const Rect.fromLTWH(60, 200, 120, 80),
+                frameKey: frameKey,
+                onGeometryChanged: (_) => geometryChanges++,
+                previewBuilder: (_, _) => const ColoredBox(color: Colors.red),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final before = tester.getRect(find.byKey(frameKey));
+    final trackpad = await tester.createGesture(
+      kind: PointerDeviceKind.trackpad,
+    );
+    await trackpad.panZoomStart(before.center);
+    await trackpad.panZoomUpdate(before.center, pan: const Offset(0, 80));
+    await trackpad.up();
+    await tester.pump();
+
+    expect(tester.getRect(find.byKey(frameKey)).topLeft, isNot(before.topLeft));
+    expect(geometryChanges, 0);
   });
 
   testWidgets('drag box does not move while a trackpad scroll starts on it', (
@@ -271,94 +571,90 @@ void main() {
     expect(doubleTaps, 1);
   });
 
-  testWidgets(
-    'detail resizes responsive widgets and only scales fixed device previews',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1600, 900));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      BoxConstraints? receivedConstraints;
-      final session = DesyWorkbenchSession(
-        registry: DesyRegistry(name: 'Test', themes: const [theme]),
-      );
-      addTearDown(session.dispose);
+  testWidgets('detail presets use an unscaled, freely resizable viewport', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    BoxConstraints? receivedConstraints;
+    final session = DesyWorkbenchSession(
+      registry: DesyRegistry(name: 'Test', themes: const [theme]),
+    );
+    addTearDown(session.dispose);
 
-      await tester.pumpWidget(
-        _TestHarness(
-          child: SizedBox(
-            width: 560,
-            height: 440,
-            child: Builder(
-              builder: (context) => DesyPreviewCanvas(
-                session: session,
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 560,
+          height: 440,
+          child: Builder(
+            builder: (context) => DesyPreviewCanvas(
+              session: session,
+              theme: theme,
+              device: session.previewDevice.watch(context),
+              toolbar: const SizedBox.shrink(),
+              child: DesyWidgetPreview(
                 theme: theme,
-                device: session.previewDevice.watch(context),
-                toolbar: const SizedBox.shrink(),
-                child: DesyWidgetPreview(
-                  theme: theme,
-                  builder: (context) => LayoutBuilder(
-                    builder: (context, constraints) {
-                      receivedConstraints = constraints;
-                      return SizedBox(
-                        key: ValueKey(
-                          constraints.maxWidth >= 600
-                              ? 'responsive-wide-detail'
-                              : 'responsive-compact-detail',
-                        ),
-                        width: constraints.maxWidth >= 600 ? 800 : 120,
-                        height: 64,
-                      );
-                    },
-                  ),
+                builder: (context) => LayoutBuilder(
+                  builder: (context, constraints) {
+                    receivedConstraints = constraints;
+                    return SizedBox(
+                      key: ValueKey(
+                        constraints.maxWidth >= 600
+                            ? 'responsive-wide-detail'
+                            : 'responsive-compact-detail',
+                      ),
+                      width: constraints.maxWidth >= 600 ? 800 : 120,
+                      height: 64,
+                    );
+                  },
                 ),
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
 
-      expect(
-        find.byKey(const ValueKey('responsive-wide-detail')),
-        findsNothing,
-      );
-      expect(
-        find.byKey(const ValueKey('responsive-compact-detail')),
-        findsOneWidget,
-      );
-      expect(receivedConstraints!.maxWidth, 320);
-      expect(find.byType(DesyDragBox), findsOneWidget);
-      expect(
-        tester.getSize(find.byKey(const ValueKey('detail-artboard'))),
-        const Size(320, 240),
-      );
+    expect(find.byKey(const ValueKey('responsive-wide-detail')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('responsive-compact-detail')),
+      findsOneWidget,
+    );
+    expect(receivedConstraints!.maxWidth, 320);
+    expect(find.byType(DesyDragBox), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('detail-artboard'))),
+      const Size(320, 240),
+    );
 
-      await tester.drag(
-        find.byKey(const ValueKey('detail-resize-bottomRight')),
-        const Offset(580, 0),
-      );
-      await tester.pump();
+    await tester.drag(
+      find.byKey(const ValueKey('detail-resize-bottomRight')),
+      const Offset(580, 0),
+    );
+    await tester.pump();
 
-      expect(session.stage.value.size, const Size(900, 240));
-      expect(receivedConstraints!.maxWidth, 900);
-      expect(
-        find.byKey(const ValueKey('responsive-wide-detail')),
-        findsOneWidget,
-      );
+    expect(session.stage.value.size, const Size(900, 240));
+    expect(receivedConstraints!.maxWidth, 900);
+    expect(
+      find.byKey(const ValueKey('responsive-wide-detail')),
+      findsOneWidget,
+    );
 
-      session.selectPreviewDevice(DesyDevicePreset.iPhone15Pro);
-      await tester.pumpAndSettle();
-      final phoneSize = tester.getSize(
-        find.byKey(const ValueKey('detail-artboard')),
-      );
-      expect(
-        phoneSize.aspectRatio,
-        closeTo(Devices.ios.iPhone15Pro.screenSize.aspectRatio, 0.001),
-      );
-      expect(
-        receivedConstraints!.maxWidth,
-        Devices.ios.iPhone15Pro.screenSize.width,
-      );
-    },
-  );
+    session.selectPreviewDevice(DesyDevicePreset.iPhone15Pro);
+    await tester.pumpAndSettle();
+    final phoneSize = tester.getSize(
+      find.byKey(const ValueKey('detail-artboard')),
+    );
+    expect(
+      phoneSize.aspectRatio,
+      closeTo(Devices.ios.iPhone15Pro.screenSize.aspectRatio, 0.001),
+    );
+    expect(
+      receivedConstraints!.maxWidth,
+      Devices.ios.iPhone15Pro.screenSize.width,
+    );
+  });
 
   testWidgets('detail device screens use the active theme background', (
     tester,
@@ -497,6 +793,95 @@ void main() {
     expect(tester.getSize(widePreview), const Size(384, 204));
     expect(find.text('384 × 204 px'), findsOneWidget);
     expect(find.text('220 × 120 px'), findsNothing);
+  });
+
+  testWidgets('self-sizing sketch previews cap their natural frame at 460', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final component = DesyStaticComponent(
+      id: 'large-natural-preview',
+      name: 'Large natural preview',
+      instances: {'default': (_) => const SizedBox(width: 900, height: 700)},
+    );
+    final session = DesyWorkbenchSession(
+      registry: DesyRegistry(
+        name: 'Test',
+        themes: const [theme],
+        components: [component],
+      ),
+    );
+    final controller = DesyComponentsCanvasController();
+    final nodeId = controller.add('large-natural-preview.default');
+    addTearDown(session.dispose);
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      _TestHarness(
+        child: DesyComponentsCanvas(
+          session: session,
+          controller: controller,
+          onBack: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(controller.nodes.value[nodeId]!.rect.size, const Size.square(460));
+    expect(find.text('460 × 460 px'), findsOneWidget);
+  });
+
+  testWidgets('sketch components keep their native tap interactions', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var presses = 0;
+    final component = DesyStaticComponent(
+      id: 'interactive',
+      name: 'Interactive',
+      instances: {
+        'default': (_) => TextButton(
+          key: const ValueKey('interactive-sketch-button'),
+          onPressed: () => presses++,
+          child: const Text('Press demo'),
+        ),
+      },
+    );
+    final session = DesyWorkbenchSession(
+      registry: DesyRegistry(
+        name: 'Test',
+        themes: const [theme],
+        components: [component],
+      ),
+    );
+    final controller = DesyComponentsCanvasController();
+    final nodeId = controller.add('interactive.default');
+    controller.select(null);
+    addTearDown(session.dispose);
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      _TestHarness(
+        child: DesyComponentsCanvas(
+          session: session,
+          controller: controller,
+          onBack: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final placedButton = find.descendant(
+      of: find.byKey(ValueKey(nodeId)),
+      matching: find.byKey(const ValueKey('interactive-sketch-button')),
+    );
+    await tester.tap(placedButton);
+    await tester.pump();
+
+    expect(presses, 1);
+    expect(controller.selectedId.value, nodeId);
   });
 
   testWidgets('sketch geometry changes do not rebuild live previews', (

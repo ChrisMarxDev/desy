@@ -51,7 +51,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Preview frame'), findsOneWidget);
+    expect(find.text('Canvas size'), findsOneWidget);
     expect(previewMedia!.textScaler.scale(10), 10);
     expect(previewDirection, TextDirection.ltr);
 

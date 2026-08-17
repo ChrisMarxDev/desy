@@ -8,10 +8,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('motion entries may inherit the global duration', () {
+  test('motion entries require and expose an intended duration', () {
     final entry = DesyMotionEntry(
       id: 'motion.inherited',
       name: 'Inherited duration',
+      duration: const Duration(milliseconds: 280),
       curve: Curves.linear,
       builder: _motionBuilder,
       child: const DesyMotionChild.widget(
@@ -21,8 +22,8 @@ void main() {
       ),
     );
 
-    expect(entry.duration, isNull);
-    expect(entry.displayValue, contains('Global duration'));
+    expect(entry.duration, const Duration(milliseconds: 280));
+    expect(entry.displayValue, contains('280 ms'));
   });
 
   testWidgets(
@@ -31,6 +32,7 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(1100, 800));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       var renderedProgress = 0.0;
+      Duration? builderDuration;
       final registry = DesyRegistry(
         name: 'Motion test',
         themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
@@ -38,8 +40,10 @@ void main() {
           DesyMotionEntry(
             id: 'motion.reveal',
             name: 'Reveal',
+            duration: const Duration(milliseconds: 300),
             curve: Curves.linear,
-            builder: (context, child) {
+            builder: (context, child, duration) {
+              builderDuration = duration;
               final playback = DesyMotionPlaybackScope.maybeOf(context);
               expect(playback, isNotNull);
               return AnimatedBuilder(
@@ -108,9 +112,11 @@ void main() {
       );
       expect(find.text('Ping-pong'), findsOneWidget);
       expect(find.text('No controls declared.'), findsNothing);
+      expect(builderDuration, const Duration(milliseconds: 300));
 
       await tester.enterText(durationField, '600');
       await tester.pump();
+      expect(builderDuration, const Duration(milliseconds: 600));
       await tester.pump(const Duration(milliseconds: 50));
       expect(renderedProgress, closeTo(1 / 12, 0.05));
 
@@ -144,12 +150,12 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1100, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final renderedProgress = <String, double>{};
-    DesyMotionEntry motion(String id, [Duration? duration]) => DesyMotionEntry(
+    DesyMotionEntry motion(String id, Duration duration) => DesyMotionEntry(
       id: id,
       name: id,
       duration: duration,
       curve: Curves.linear,
-      builder: (context, child) {
+      builder: (context, child, _) {
         final playback = DesyMotionPlaybackScope.maybeOf(context)!;
         return AnimatedBuilder(
           animation: playback,
@@ -171,7 +177,7 @@ void main() {
       motion: [
         motion('motion.fast', const Duration(milliseconds: 100)),
         motion('motion.slow', const Duration(milliseconds: 200)),
-        motion('motion.inherited'),
+        motion('motion.default', const Duration(milliseconds: 150)),
       ],
     );
     final session = DesyWorkbenchSession(registry: registry);
@@ -250,14 +256,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     expect(renderedProgress['motion.fast'], closeTo(0, 0.001));
     expect(renderedProgress['motion.slow'], closeTo(0, 0.001));
-    expect(renderedProgress['motion.inherited'], closeTo(0, 0.001));
+    expect(renderedProgress['motion.default'], closeTo(0, 0.001));
 
     _press(tester, const ValueKey('motion-play-pause'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(renderedProgress['motion.fast'], closeTo(0.25, 0.05));
     expect(renderedProgress['motion.slow'], closeTo(0.25, 0.05));
-    expect(renderedProgress['motion.inherited'], closeTo(0.25, 0.05));
+    expect(renderedProgress['motion.default'], closeTo(0.25, 0.05));
 
     _press(tester, const ValueKey('motion-play-pause'));
     await tester.pump();
@@ -296,7 +302,8 @@ Widget _wrap(BuildContext context, Widget child) => child;
 
 Widget _emptyBuilder(BuildContext context) => const SizedBox.shrink();
 
-Widget _motionBuilder(BuildContext context, Widget child) => child;
+Widget _motionBuilder(BuildContext context, Widget child, Duration duration) =>
+    child;
 
 Widget _motionTestChild(BuildContext context) =>
     const SizedBox(width: 120, height: 52);

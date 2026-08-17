@@ -99,6 +99,7 @@ class DesyDragBox extends StatefulWidget {
   final ValueChanged<DesyDragBoxInteraction>? onInteractionStart;
   final DesyDragBoxGeometryResolver? geometryResolver;
   final ValueChanged<DesyDragBoxInteraction>? onInteractionEnd;
+
   final Widget? label;
   final double labelGap;
 
@@ -337,6 +338,7 @@ class _DesyDragBoxState extends State<DesyDragBox> {
   }
 
   void _handlePointerDown(PointerDownEvent event) {
+    if (!_editingPointerDevices.contains(event.kind)) return;
     widget.onSelect?.call();
     if (widget.onDoubleTap == null) return;
     _activePointer = event.pointer;

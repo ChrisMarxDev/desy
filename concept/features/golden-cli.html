@@ -1,22 +1,200 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Desy Golden CLI</title><link rel="stylesheet" href="../styles.css"></head>
-<body><main class="shell">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Desy Golden CLI</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<main class="shell">
   <nav><a href="index.html">← Planned features</a><span>Impact 5 · Complexity 3 · Yield 1.67</span></nav>
-  <section class="hero"><div class="eyebrow">Rank 3 · Verification</div><h1>Golden evidence attached to the design journey.</h1><p class="lede">A local CLI renders deterministic registry-selected matrices, while the Registry Spine shows the focused artifact’s result as a concise receipt in the current activity stream and promotion review.</p></section>
-  <section class="grid">
-    <article class="card"><h2>Reason and user value</h2><p>Golden tests are valuable but expensive to author and keep organized. Desy already knows what can render and how it should be addressed. The CLI converts that inventory into intentional, reviewable coverage without creating a separate gallery.</p></article>
-    <article class="card"><h2>Scope</h2><ul><li><code>desy golden plan</code>: preview the capture matrix.</li><li><code>desy golden capture</code>: create missing baselines.</li><li><code>desy golden verify</code>: compare without mutation.</li><li><code>desy golden update --accept</code>: explicit baseline acceptance.</li><li><code>desy golden diff</code>: emit images plus registry state and source context.</li><li>Selection by stable IDs, paths, themes, scenarios, or tags derived from typed lanes.</li></ul></article>
-    <article class="card"><h2>Non-goals</h2><ul><li>No silent golden updates.</li><li>No hosted comparison service.</li><li>No promise of pixel stability across arbitrary Flutter SDKs and operating systems.</li><li>No automatic capture of every combinatorial knob value.</li></ul></article>
-    <article class="card"><h2>Implementation sketch</h2><ol><li>Consumer supplies a tiny Flutter test entrypoint that imports its registry.</li><li>The CLI writes only ephemeral runner configuration under <code>.dart_tool</code> and invokes <code>flutter test</code>.</li><li>A versioned capture recipe records registry ID, values, theme, viewport, pixel ratio, fonts, locale, and settle policy.</li><li>Store PNGs and recipe metadata in consumer source control.</li><li>Emit human output plus stable JSON for agent tooling.</li></ol></article>
-    <article class="card full"><h2>Proposed integration</h2><pre><code>// tool/desy.dart
-void main(List&lt;String&gt; args) =&gt;
-  DesyCli(registry: appDesignSystem).run(args);
 
-$ flutter test tool/desy_golden_test.dart --dart-define=DESY_PLAN=goldens.json
-$ desy golden verify --changed</code></pre><p class="muted">The exact launcher is an open technical spike: Flutter rendering must remain inside the test binding even if a thin Dart command orchestrates it.</p></article>
-    <article class="card"><h2>Open questions</h2><ul><li>Should the public command be a global executable or <code>dart run</code>?</li><li>How are fonts and platform rendering pinned?</li><li>What constitutes “affected” without a usage graph?</li><li>Should animation capture use a fixed clock or named frame checkpoints?</li></ul></article>
-    <article class="card accent"><h2>Do or don’t?</h2><p><strong>Do a selected-matrix MVP.</strong> Impact 5/5, complexity 3/5, risk 2/5. Defer affected-only selection and cross-platform normalization until deterministic local captures are proven.</p></article>
+  <section class="hero">
+    <div class="eyebrow">Rank 5 · Verification</div>
+    <h1>One command turns the real registry into deterministic golden evidence.</h1>
+    <p class="lede">A thin local command launches Flutter’s headless widget-test runner. Inside that runner, Desy derives a complete default matrix from every registered component, real theme, named instance, and scenario; Flutter performs the rasterization and comparison.</p>
+    <div class="flow"><strong>Desy registry</strong><span>→</span><strong>Complete derived plan</strong><span>→</span><strong>flutter test</strong><span>→</span><strong>PNGs + JSON receipt</strong></div>
   </section>
-  <footer>Decision: CLI orchestrates Flutter test infrastructure; the registry remains the only capture inventory.</footer>
-</main></body></html>
+
+  <section class="grid">
+    <article class="card">
+      <h2>Reason and user value</h2>
+      <p>Golden tests catch visual regressions, but hand-authored harnesses duplicate theme, sizing, component, and naming knowledge. Desy already owns those addresses and builders. The proposed tool removes repetitive wiring while leaving test intent, baseline acceptance, and platform policy under the consumer’s control.</p>
+    </article>
+    <article class="card">
+      <h2>Decision</h2>
+      <p><strong>Use <code>flutter test</code> as the rendering engine.</strong> A plain Dart process cannot mount a consumer registry whose declarations import Flutter and <code>dart:ui</code>. A hidden desktop executable adds window-manager and GPU variability. Flutter’s widget-test binding is the smallest supported headless boundary and already owns golden comparison and <code>--update-goldens</code>.</p>
+    </article>
+  </section>
+
+  <section class="card full">
+    <h2>Two-process architecture</h2>
+    <table>
+      <thead><tr><th>Part</th><th>Owns</th><th>Must not own</th></tr></thead>
+      <tbody>
+        <tr><td>Thin command</td><td>Argument parsing, locating the consumer test entrypoint, launching <code>flutter test</code>, exit codes, and opening the final receipt.</td><td>Registry import, widget building, rasterization, or image comparison.</td></tr>
+        <tr><td>Flutter test harness</td><td>Registry validation, matrix expansion, theme wrapping, viewport/media setup, fixed settling, capture, comparison/update, and the machine-readable receipt.</td><td>A copied component inventory or workbench chrome.</td></tr>
+        <tr><td>Consumer test bridge</td><td>One compile-time registry import plus optional additive frames, cases, exclusions, or app-specific bootstrap.</td><td>The baseline component inventory, per-component widget tests, or duplicated builders.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card full">
+    <h2>Where the coupling actually comes from</h2>
+    <table>
+      <thead><tr><th>Coupling</th><th>Why it exists</th><th>Boundary</th></tr></thead>
+      <tbody>
+        <tr><td>Registry → Flutter engine</td><td><code>DesyRegistry</code> contains <code>Widget</code>, <code>BuildContext</code>, <code>Color</code>, <code>Size</code>, theme-wrapper, component, instance, and scenario builders. Importing the registry is therefore not a pure Dart operation.</td><td>Intentional and permanent: registry compilation and target resolution run inside a Flutter process.</td></tr>
+        <tr><td>Renderer → <code>flutter_test</code></td><td>View configuration, fake time, pumping, raster capture, <code>matchesGoldenFile</code>, and the golden comparator belong to Flutter’s test binding.</td><td>Test-only optional package; never a dependency of the app or <code>desy_bench</code> runtime.</td></tr>
+        <tr><td>Preview → consumer bootstrap</td><td>The registry supplies the real theme wrapper, but it cannot derive application localization delegates, font asset loading, dependency scopes, fake clocks, or image providers.</td><td>One explicit runtime bootstrap owned by the consumer test, separate from the serializable capture plan.</td></tr>
+        <tr><td>Pixels → environment</td><td>Flutter revision, engine revision, operating system, bundled font bytes, and pixel ratio affect raster output.</td><td>Pin and fingerprint the environment; do not promise cross-environment identity.</td></tr>
+        <tr><td>CLI → Flutter tool</td><td>The CLI only starts the process that can load Flutter and forwards its exit status.</td><td>No registry import, widget callbacks, or image comparison in the CLI.</td></tr>
+        <tr><td>Workbench app → goldens</td><td>None is required. The test imports the registry declaration directly and never mounts <code>DesyBenchApp</code>.</td><td>Keep the app and all workbench chrome out of the dependency graph.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>MVP commands</h2>
+      <ul>
+        <li><code>dart run desy_goldens plan</code> expands and prints the selected matrix without comparing pixels.</li>
+        <li><code>dart run desy_goldens verify</code> launches the headless Flutter test and never mutates baselines.</li>
+        <li><code>dart run desy_goldens update --accept</code> launches the same test with Flutter’s explicit golden-update mode.</li>
+      </ul>
+      <p>Do not add separate <code>capture</code> and <code>diff</code> commands in V1: explicit update creates missing baselines, and Flutter’s local comparator already writes mismatch images.</p>
+    </article>
+    <article class="card">
+      <h2>Consumer entrypoint</h2>
+      <pre><code>// test/desy_goldens_test.dart
+void main() =&gt; desyGoldenTests(
+  registry: appDesignSystem,
+);</code></pre>
+      <pre><code>// Optional additions and exceptions only.
+void main() =&gt; desyGoldenTests(
+  registry: appDesignSystem,
+  options: DesyGoldenOptions(
+    additionalFrames: [DesyGoldenFrame.phone],
+    additionalCases: [checkoutLoadingCase],
+    exclusions: [
+      DesyGoldenExclusion(
+        componentId: 'app.component.live-map',
+        reason: 'Native map surface has a separate integration test.',
+      ),
+    ],
+  ),
+);</code></pre>
+      <p class="muted">The first form is the normal setup. Options are additive or explicit exceptions; they never restate the registry inventory.</p>
+    </article>
+    <article class="card">
+      <h2>What becomes a case</h2>
+      <ul>
+        <li>Every registered component’s default preview.</li>
+        <li>Every named instance and every declared scenario for that component.</li>
+        <li>Every declared real consumer theme.</li>
+        <li>One canonical content frame, device-pixel ratio, locale, text scale, and accessibility environment by default.</li>
+        <li>Additional frames or bespoke knob-value cases only when the consumer asks for them.</li>
+        <li>One deterministic filename derived from component, variant, theme, frame, and environment IDs.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <h2>Determinism contract</h2>
+      <ul>
+        <li>Pin Flutter SDK, operating-system image, and bundled font files in CI.</li>
+        <li>Load fonts before tests; never depend on host-installed fonts.</li>
+        <li>Use an explicit locale, logical size, pixel ratio, and text scale for every case.</li>
+        <li>Default to a fixed pump policy. Infinite animations must use a named frame checkpoint instead of universal <code>pumpAndSettle</code>.</li>
+        <li>Block network images and uncontrolled clocks in the deterministic suite.</li>
+      </ul>
+    </article>
+  </section>
+
+  <section class="card full accent">
+    <h2>Deterministic registry-to-golden wiring</h2>
+    <ol>
+      <li><strong>Derive.</strong> <code>DesyGoldenPlan.fromRegistry(registry)</code> reads the immutable registry directly and includes every component default, named instance, declared scenario, and theme. No suite inventory is authored beside it.</li>
+      <li><strong>Augment.</strong> Optional values may add frames or bespoke knob-value cases, or exclude an inherently non-deterministic target with a required reason. Overrides never replace the derived inventory wholesale.</li>
+      <li><strong>Validate.</strong> Plan compilation rejects registry errors, duplicate case IDs, unresolved addition/exclusion IDs, invalid frame geometry, and exclusions without reasons before any widget is mounted.</li>
+      <li><strong>Order.</strong> Derived cases are sorted lexicographically by stable IDs. The compiler emits canonical JSON and a SHA-256 plan digest so declaration order cannot change baseline identity.</li>
+      <li><strong>Resolve.</strong> At render time, a case resolves directly against the supplied registry: default uses <code>component.preview</code>, an instance uses <code>component.buildInstance</code> with <code>registry.widgetBuilder</code>, and a scenario uses its declared builder. Nothing is copied into another catalogue.</li>
+      <li><strong>Host.</strong> The harness supplies the same minimal Flutter preview shell used by Desy and automatically loads bundled font assets. A runtime-only bootstrap is available only for consumer localization, dependency scopes, clocks, or image fakes that the registry cannot derive. The selected registry <code>DesyTheme.wrap</code> remains authoritative.</li>
+      <li><strong>Frame.</strong> The harness resets <code>WidgetTester.view</code>, sets explicit physical size and device-pixel ratio, installs fixed locale/text/accessibility values, and renders without Desy canvas zoom or fit transforms.</li>
+      <li><strong>Settle.</strong> The case advances fake time using a typed fixed policy. Continuous animations require an explicit named checkpoint; a universal <code>pumpAndSettle</code> is forbidden.</li>
+      <li><strong>Compare.</strong> Flutter’s configured comparator owns verification and update. Desy supplies only the stable golden key and records the outcome.</li>
+      <li><strong>Receipt.</strong> The harness writes the plan digest, case ID, component source path, resolved IDs, bootstrap ID/version, logical and physical geometry, font hashes, Flutter/engine/platform fingerprint, baseline path, and diff path.</li>
+    </ol>
+  </section>
+
+  <section class="card full">
+    <h2>Stable case identity</h2>
+    <pre><code>app.component.badge/
+  instance.outline/
+  app.theme.dark/
+  frame.content/
+  environment.standard.png</code></pre>
+    <p>Only stable IDs participate in the key; display names, source ordering, and paths do not. A default preview, named instance, and scenario are distinct variant kinds. No suite ID or unrelated <code>DesyCatalogConfig</code> is required, so a minimal registry becomes golden-testable immediately.</p>
+  </section>
+
+  <section class="card full accent">
+    <h2>Execution flow</h2>
+    <ol>
+      <li>The command resolves <code>test/desy_goldens_test.dart</code> or an explicitly supplied entrypoint.</li>
+      <li>It invokes <code>flutter test</code> with a Desy mode and report path under <code>.dart_tool/desy/goldens/</code>; update mode additionally passes Flutter’s update-goldens flag only after <code>--accept</code>.</li>
+      <li>The test imports the consumer’s registry declaration directly, runs normal registry validation, and derives an immutable canonical case list from every component, instance, scenario, and theme.</li>
+      <li>For each case, the harness resets and configures the Flutter test view and media values, enters the consumer bootstrap, wraps the widget with the selected <code>DesyTheme</code>, then resolves the real default, named instance, or scenario builder.</li>
+      <li>The harness pumps according to the declared settle policy and delegates comparison or update to Flutter’s golden comparator.</li>
+      <li>It writes a JSON receipt containing case IDs, source paths, environment fingerprint, outcomes, baseline paths, and diff paths. The command forwards Flutter’s exit code.</li>
+    </ol>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>Package boundary</h2>
+      <p>Prototype this as an optional <code>packages/extensions/desy_goldens</code> package. Keep the immutable derived-plan model separate from its <code>flutter_test</code> harness, and keep the executable as a small orchestrator. The consumer imports this package only from a test entrypoint. Do not place test-runner concerns in <code>desy_bench</code> core, depend on the app entrypoint, or reuse the interactive Screenshot Builder scene model.</p>
+    </article>
+    <article class="card">
+      <h2>Baselines and receipts</h2>
+      <p>Commit baseline PNGs beside the consumer test suite. A newly registered component, instance, scenario, or theme automatically creates a planned case; normal verification reports its baseline as missing and never accepts it silently. Keep ephemeral diffs and the latest JSON receipt out of source control. The receipt identifies the registry/catalog version, Flutter version, platform, locale, font fingerprint, derived case, and exact stable IDs so CI and the Registry Spine can explain a failure without parsing console prose.</p>
+    </article>
+    <article class="card">
+      <h2>Non-goals</h2>
+      <ul>
+        <li>No silent baseline updates or agent-side acceptance.</li>
+        <li>No hosted comparison service in the first release.</li>
+        <li>No claim that one baseline is stable across arbitrary Flutter versions or operating systems.</li>
+        <li>No automatic capture of all knob combinations, generated GenUI surfaces, or Screenshot Builder scenes.</li>
+        <li>No source generation beyond optional ephemeral runner data under <code>.dart_tool</code>.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <h2>Open questions</h2>
+      <ul>
+        <li>Should the executable be published as <code>desy</code> or the narrower <code>desy_goldens</code> while the broader CLI is deferred?</li>
+        <li>Should content-sized frames join the fixed-viewport MVP, and what finite loose constraint should define their intended logical size?</li>
+        <li>Which typed atom lanes should become automatic golden cases after component coverage is proven? Motion and media need lane-specific settle and capture policies.</li>
+        <li>Should the harness use Flutter’s exact comparator only, or allow an explicit consumer-supplied comparator later?</li>
+        <li>Which Registry Spine activity surface should consume the JSON receipt after the CLI is proven independently?</li>
+      </ul>
+    </article>
+  </section>
+
+  <section class="card full">
+    <h2>Rollout and acceptance</h2>
+    <ol>
+      <li><strong>Spike:</strong> one dogfood component, two themes, one fixed viewport, one committed baseline, and verified non-zero exit on mismatch.</li>
+      <li><strong>MVP:</strong> automatic component/default/instance/scenario/theme expansion, canonical plan digest, deterministic naming, plan/verify/update commands, automatic bundled-font loading, optional consumer bootstrap, and JSON receipt.</li>
+      <li><strong>Product integration:</strong> show the latest focused receipt in Registry Spine only after CLI behavior is stable.</li>
+    </ol>
+    <p>Acceptance requires identical reruns on the pinned CI image, a useful Flutter-generated diff after a deliberate one-pixel change, no mutation during verify, explicit acceptance for update, and proof that every rendered target came from the supplied registry.</p>
+  </section>
+
+  <section class="card full accent">
+    <h2>Do or don’t?</h2>
+    <p><strong>Do the selected-matrix MVP.</strong> Impact 5/5, complexity 3/5, risk 2/5. The repository already has stable registry identities, real theme wrappers, default previews, named instances, scenarios, and PNG capture precedent. The main risk is environmental pixel drift, which is bounded by pinning one CI renderer rather than building a custom rendering runtime.</p>
+  </section>
+
+  <footer>Decision: a thin CLI orchestrates Flutter’s headless test runner; the consumer registry remains the only widget inventory and Flutter remains the rasterizer and comparator.</footer>
+</main>
+</body>
+</html>

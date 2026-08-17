@@ -212,6 +212,19 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
   ],
   motion: [
     DesyMotionEntry(
+      id: 'desy.motion.sidebar-reveal',
+      name: 'Sidebar reveal',
+      duration: DesyDesignSystemTokens.navigationMotion,
+      curve: Curves.easeOutCubic,
+      description: 'Fades and eases a persistent sidebar into its workspace.',
+      builder: _buildSidebarReveal,
+      child: const DesyMotionChild.widget(
+        id: 'signal-square',
+        name: 'Signal square',
+        builder: _buildSignalSquare,
+      ),
+    ),
+    DesyMotionEntry(
       id: 'desy.motion.navigation',
       name: 'Navigation reveal',
       duration: DesyDesignSystemTokens.navigationMotion,
@@ -219,6 +232,59 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
       description: 'Sidebar width and similar spatial navigation changes.',
       builder: _buildMotionSpecimen,
       transitionBuilder: _buildMotionTransition,
+      child: const DesyMotionChild.widget(
+        id: 'signal-square',
+        name: 'Signal square',
+        builder: _buildSignalSquare,
+      ),
+      alternatives: const [
+        DesyMotionChild.instance(
+          id: 'primary-button',
+          name: 'Primary button',
+          instanceId: DesyInstanceId('desy.component.button.primary'),
+        ),
+        DesyMotionChild.instance(
+          id: 'outline-badge',
+          name: 'Outline badge',
+          instanceId: DesyInstanceId('desy.component.badge.outline'),
+        ),
+      ],
+    ),
+    DesyMotionEntry(
+      id: 'desy.motion.content-swap',
+      name: 'Content swap',
+      duration: DesyDesignSystemTokens.feedbackMotion,
+      curve: Curves.easeInOutCubic,
+      description: 'Crossfades two elements in one stable view without travel.',
+      builder: _buildMotionSpecimen,
+      transitionBuilder: _buildContentSwapTransition,
+      child: const DesyMotionChild.widget(
+        id: 'signal-square',
+        name: 'Signal square',
+        builder: _buildSignalSquare,
+      ),
+      alternatives: const [
+        DesyMotionChild.instance(
+          id: 'primary-button',
+          name: 'Primary button',
+          instanceId: DesyInstanceId('desy.component.button.primary'),
+        ),
+        DesyMotionChild.instance(
+          id: 'outline-badge',
+          name: 'Outline badge',
+          instanceId: DesyInstanceId('desy.component.badge.outline'),
+        ),
+      ],
+    ),
+    DesyMotionEntry(
+      id: 'desy.motion.screen-navigation',
+      name: 'Screen navigation',
+      duration: DesyDesignSystemTokens.navigationMotion,
+      curve: Curves.easeOutCubic,
+      description:
+          'Fades and slides between destination screens while keeping the shell stable.',
+      builder: _buildScreenReveal,
+      transitionBuilder: _buildScreenNavigationTransition,
       child: const DesyMotionChild.widget(
         id: 'signal-square',
         name: 'Signal square',
@@ -297,6 +363,7 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
   ],
   components: [
     _sampleComponent,
+    _allKnobsComponent,
     _buttonComponent,
     _badgeComponent,
     _chatMessageComponent,
@@ -308,6 +375,7 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
     _numericKnobComponent,
     _booleanKnobComponent,
     _textKnobComponent,
+    _choiceKnobComponent,
     _dateTimeKnobComponent,
     _colorKnobComponent,
     _instanceKnobComponent,
@@ -342,6 +410,175 @@ final _sampleComponent = DesyComponent(
       Expanded(child: Text(knobs.label1.value)),
       Expanded(child: Text(knobs.label2.value)),
     ],
+  ),
+);
+
+final _allKnobsComponent = DesyComponent(
+  id: 'desy.component.all-knobs',
+  name: 'All knobs',
+  path: '/examples',
+  icon: DesyIcons.component,
+  description:
+      'A release-review specimen exercising every knob contract through one real component.',
+  source:
+      'package:desy_design_system_example/src/desy_design_system_registry.dart',
+  defaultSize: const Size(640, 440),
+  knobs: (k) => (
+    title: k.string('title', name: 'Title', initial: 'Release review'),
+    status: k.choice(
+      'status',
+      name: 'Status',
+      options: const ['Automatic', 'Ready', 'Blocked'],
+    ),
+    inset: k.number(
+      'inset',
+      name: 'Content inset',
+      initial: 20,
+      unit: 'px',
+      step: 4,
+      minimum: 8,
+      maximum: 40,
+    ),
+    enabled: k.boolean('enabled', name: 'Enabled', initial: true),
+    scheduledAt: k.dateTime(
+      'scheduledAt',
+      name: 'Scheduled at',
+      initial: DateTime.utc(2026, 8, 24, 9, 30),
+    ),
+    accent: k.color('accent', name: 'Accent', initial: const Color(0xFFFF2871)),
+    leading: k.widgetInstance(
+      'leading',
+      name: 'Leading instance',
+      initial: _badgeDefaultInstanceId,
+      options: const [
+        _badgeDefaultInstanceId,
+        'desy.component.badge.outline',
+        _shortcutSingleKeyInstanceId,
+      ],
+    ),
+    supporting: k.widgetInstances(
+      'supporting',
+      name: 'Supporting instances',
+      initial: const [
+        'desy.component.badge.outline',
+        _shortcutSingleKeyInstanceId,
+      ],
+      options: const [
+        _badgeDefaultInstanceId,
+        'desy.component.badge.outline',
+        _shortcutSingleKeyInstanceId,
+      ],
+    ),
+    onActivate: k.event(
+      'onActivate',
+      name: 'Activate event',
+      description: 'Emits the visible release-review values.',
+    ),
+  ),
+  build: (context, knobs) => _buildAllKnobsSpecimen(
+    context,
+    title: knobs.title.value,
+    status: knobs.status.value,
+    inset: knobs.inset.value,
+    enabled: knobs.enabled.value,
+    scheduledAt: knobs.scheduledAt.value,
+    accent: knobs.accent.value,
+    leading: knobs.leading.widget,
+    supporting: knobs.supporting.widgets,
+    onActivate: knobs.enabled.value
+        ? () => knobs.onActivate.emit({
+            'title': knobs.title.value,
+            'status': knobs.status.value,
+            'scheduledAt': knobs.scheduledAt.value.toIso8601String(),
+            'accent': knobs.accent.value.toARGB32(),
+          })
+        : null,
+  ),
+  instances: (knobs) => {
+    'default': [knobs.status('Automatic')],
+    'ready': [
+      knobs.title('Release candidate ready'),
+      knobs.status('Ready'),
+      knobs.inset(16),
+      knobs.scheduledAt(DateTime.utc(2026, 8, 24, 14)),
+      knobs.accent(const Color(0xFF16A34A)),
+      knobs.leading('desy.component.badge.outline'),
+      knobs.supporting(const [_shortcutSingleKeyInstanceId]),
+    ],
+    'blocked': [
+      knobs.title('Release candidate blocked'),
+      knobs.status('Blocked'),
+      knobs.enabled(false),
+      knobs.accent(const Color(0xFFDC2626)),
+      knobs.supporting(const ['desy.component.badge.outline']),
+    ],
+  },
+);
+
+Widget _buildAllKnobsSpecimen(
+  BuildContext context, {
+  required String title,
+  required String status,
+  required double inset,
+  required bool enabled,
+  required DateTime scheduledAt,
+  required Color accent,
+  required Widget leading,
+  required List<Widget> supporting,
+  required VoidCallback? onActivate,
+}) => DesyCard(
+  child: Container(
+    width: 560,
+    padding: EdgeInsets.all(inset),
+    decoration: BoxDecoration(
+      color: Color.lerp(Theme.of(context).colorScheme.surface, accent, 0.08),
+      border: Border(left: BorderSide(color: accent, width: 4)),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            leading,
+            const SizedBox(width: DesyDesignSystemTokens.spaceMd),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: DesyDesignSystemTokens.spaceXs),
+                  Text(
+                    'Scheduled ${_knobSheetDateLabel(scheduledAt)} UTC',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: DesyDesignSystemTokens.spaceMd),
+            DesyBadge(
+              variant: status == 'Blocked'
+                  ? DesyBadgeVariant.destructive
+                  : DesyBadgeVariant.outline,
+              child: Text(status),
+            ),
+          ],
+        ),
+        const SizedBox(height: DesyDesignSystemTokens.spaceLg),
+        Wrap(
+          spacing: DesyDesignSystemTokens.spaceSm,
+          runSpacing: DesyDesignSystemTokens.spaceSm,
+          children: supporting,
+        ),
+        const SizedBox(height: DesyDesignSystemTokens.spaceLg),
+        DesyButton(
+          size: DesyButtonSize.sm,
+          mainAxisSize: MainAxisSize.min,
+          onPress: onActivate,
+          child: Text(enabled ? 'Open release' : 'Release unavailable'),
+        ),
+      ],
+    ),
   ),
 );
 
@@ -876,7 +1113,11 @@ final _selectComponent = _component(
   icon: DesyIcons.component,
   source: 'package:desy_design_system/src/control_aliases.dart',
   knobs: (k) => (
-    dark: k.boolean('dark', name: 'Select dark theme', initial: false),
+    theme: k.choice(
+      'theme',
+      name: 'Theme',
+      options: const ['Workbench light', 'Workbench dark', 'Follow system'],
+    ),
     showDescriptions: k.boolean(
       'showDescriptions',
       name: 'Show descriptions',
@@ -885,37 +1126,44 @@ final _selectComponent = _component(
   ),
   build: (context, knobs) => _buildSelect(
     context,
-    dark: knobs.dark.value,
+    theme: knobs.theme.value,
     showDescriptions: knobs.showDescriptions.value,
   ),
   instances: (knobs) => {
-    'default': [knobs.dark(false), knobs.showDescriptions(false)],
+    'light': [knobs.theme('Workbench light')],
+    'dark': [knobs.theme('Workbench dark')],
+    'system': [knobs.theme('Follow system')],
+    'described': [knobs.showDescriptions(true)],
   },
 );
 
 Widget _buildSelect(
   BuildContext context, {
-  required bool dark,
+  required String theme,
   required bool showDescriptions,
 }) => DesySelect<String>.rich(
-  control: DesySelectControl.lifted(
-    value: dark ? 'dark' : 'light',
-    onChange: (_) {},
-  ),
-  format: (value) => value == 'light' ? 'Workbench light' : 'Workbench dark',
+  control: DesySelectControl.lifted(value: theme, onChange: (_) {}),
+  format: (value) => value,
   children: [
     DesySelectItem.item(
-      value: 'light',
+      value: 'Workbench light',
       title: const Text('Workbench light'),
       subtitle: showDescriptions
           ? const Text('High-clarity neutral chrome')
           : null,
     ),
     DesySelectItem.item(
-      value: 'dark',
+      value: 'Workbench dark',
       title: const Text('Workbench dark'),
       subtitle: showDescriptions
           ? const Text('Low-glare preview context')
+          : null,
+    ),
+    DesySelectItem.item(
+      value: 'Follow system',
+      title: const Text('Follow system'),
+      subtitle: showDescriptions
+          ? const Text('Use the host platform brightness preference')
           : null,
     ),
   ],
@@ -1030,6 +1278,36 @@ final _textKnobComponent = _component(
   },
 );
 
+final _choiceKnobComponent = _component(
+  id: 'desy.component.choice-knob-row',
+  name: 'Choice knob row',
+  path: '/inputs/knobs',
+  description: 'Chooses one legal string through a compact Desy dropdown.',
+  icon: DesyIcons.component,
+  source: 'package:desy_design_system/src/desy_knob_sheet.dart',
+  knobs: (k) => (
+    label: k.string('label', name: 'Label', initial: 'Visibility'),
+    value: k.choice(
+      'value',
+      name: 'Value',
+      options: const ['Automatic', 'Enabled', 'Disabled'],
+    ),
+    interactive: k.boolean('interactive', name: 'Interactive', initial: true),
+  ),
+  build: (context, knobs) => DesyChoiceKnobRow(
+    label: knobs.label.value,
+    value: knobs.value.value,
+    options: knobs.value.definition.options,
+    onChanged: knobs.interactive.value ? (_) {} : null,
+  ),
+  instances: (knobs) => {
+    'automatic': [knobs.value('Automatic')],
+    'enabled': [knobs.value('Enabled')],
+    'disabled': [knobs.value('Disabled')],
+    'read-only': [knobs.interactive(false)],
+  },
+);
+
 final _dateTimeKnobComponent = _component(
   id: 'desy.component.date-time-knob-row',
   name: 'Date-time knob row',
@@ -1140,6 +1418,12 @@ final _knobSheetComponent = _component(
   knobs: (k) => (
     title: k.string('title', name: 'Title', initial: 'Knobs'),
     caption: k.string('caption', name: 'Caption', initial: 'Precision sheet'),
+    density: k.choice(
+      'density',
+      name: 'Density',
+      options: const ['Compact', 'Comfortable', 'Spacious'],
+      initial: 'Comfortable',
+    ),
     cornerRadius: k.number(
       'cornerRadius',
       name: 'Corner radius',
@@ -1150,7 +1434,6 @@ final _knobSheetComponent = _component(
       maximum: 48,
     ),
     clipContent: k.boolean('clipContent', name: 'Clip content', initial: true),
-    showLabel: k.boolean('showLabel', name: 'Show label', initial: false),
     scheduledAt: k.dateTime(
       'scheduledAt',
       name: 'Scheduled at',
@@ -1176,6 +1459,12 @@ final _knobSheetComponent = _component(
       DesyKnobSegment(
         title: 'LAYOUT',
         children: [
+          DesyChoiceKnobRow(
+            label: 'Density',
+            value: knobs.density.value,
+            options: knobs.density.definition.options,
+            onChanged: (_) {},
+          ),
           DesyNumericKnobRow(
             label: 'Corner radius',
             value: knobs.cornerRadius.value,
@@ -1191,11 +1480,6 @@ final _knobSheetComponent = _component(
           DesyBooleanKnobRow(
             label: 'Clip content',
             value: knobs.clipContent.value,
-            onChanged: (_) {},
-          ),
-          DesyBooleanKnobRow(
-            label: 'Show label',
-            value: knobs.showLabel.value,
             onChanged: (_) {},
           ),
         ],
@@ -1227,8 +1511,8 @@ final _knobSheetComponent = _component(
   ),
   instances: (knobs) => {
     'default': [knobs.title('Knobs')],
-    'roomy': [knobs.cornerRadius(12)],
-    'labels': [knobs.caption('Live controls'), knobs.showLabel(true)],
+    'roomy': [knobs.density('Spacious'), knobs.cornerRadius(12)],
+    'labels': [knobs.caption('Live controls')],
     'signal-surface': [knobs.surfaceColor(const Color(0xFFFFF0F6))],
     'scheduled-evening': [
       knobs.caption('Evening review'),
@@ -1398,6 +1682,7 @@ final _sidebarSectionComponent = _component(
       name: 'Label opens Atlas',
       initial: true,
     ),
+    collapsible: k.boolean('collapsible', name: 'Collapsible', initial: true),
   ),
   build: (context, knobs) => _buildSidebarSection(
     context,
@@ -1406,6 +1691,7 @@ final _sidebarSectionComponent = _component(
     showAction: knobs.showAction.value,
     previewGrid: knobs.previewGrid.value,
     opensAtlas: knobs.opensAtlas.value,
+    collapsible: knobs.collapsible.value,
   ),
   instances: (knobs) => {
     'default': [
@@ -1414,6 +1700,7 @@ final _sidebarSectionComponent = _component(
       knobs.showAction(true),
       knobs.previewGrid(false),
       knobs.opensAtlas(true),
+      knobs.collapsible(true),
     ],
   },
 );
@@ -1425,6 +1712,7 @@ Widget _buildSidebarSection(
   required bool showAction,
   required bool previewGrid,
   required bool opensAtlas,
+  required bool collapsible,
 }) => DesySidebar(
   children: [
     DesySidebarSection(
@@ -1441,6 +1729,7 @@ Widget _buildSidebarSection(
           : 'Use component preview grid',
       onActionPress: showAction ? () {} : null,
       onLabelPress: opensAtlas ? () {} : null,
+      collapsible: collapsible,
       children: const [
         DesySidebarItem(icon: Icon(DesyIcons.folder), label: Text('Actions')),
       ],
@@ -1950,16 +2239,46 @@ class _SidebarSpecimen extends StatelessWidget {
   );
 }
 
-Widget _buildMotionSpecimen(BuildContext context, Widget child) =>
-    _MotionSpecimen(child: child);
+Widget _buildMotionSpecimen(
+  BuildContext context,
+  Widget child,
+  Duration duration,
+) => _MotionSpecimen(child: child);
+
+Widget _buildSidebarReveal(
+  BuildContext context,
+  Widget child,
+  Duration duration,
+) => DesyMotionReveal(beginOffset: const Offset(-24, 0), child: child);
+
+Widget _buildScreenReveal(
+  BuildContext context,
+  Widget child,
+  Duration duration,
+) => DesyMotionReveal(beginOffset: const Offset(20, 0), child: child);
 
 Widget _buildMotionTransition(
   BuildContext context,
   Widget first,
   Widget second,
+  Duration duration,
 ) => _MotionSpecimen(
   child: DesyMotionWidgetTransition(first: first, second: second),
 );
+
+Widget _buildContentSwapTransition(
+  BuildContext context,
+  Widget first,
+  Widget second,
+  Duration duration,
+) => DesyMotionWidgetTransition(first: first, second: second, distance: 0);
+
+Widget _buildScreenNavigationTransition(
+  BuildContext context,
+  Widget first,
+  Widget second,
+  Duration duration,
+) => DesyMotionWidgetTransition(first: first, second: second, distance: 32);
 
 Widget _buildSignalSquare(BuildContext context) => const _SignalSquare();
 

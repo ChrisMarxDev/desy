@@ -1,3 +1,4 @@
+import 'package:desy_bench/desy_bench.dart';
 import 'package:desy_bench/src/workbench/presentation/detail_screen.dart';
 import 'package:desy_bench/src/workbench/workbench_session.dart';
 import 'package:desy_design_system/desy_design_system.dart';
@@ -6,6 +7,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('dogfood registers reusable workbench motion patterns', () {
+    final sidebar = desyDesignSystemRegistry.resolve(
+      'desy.motion.sidebar-reveal',
+    )!;
+    final contentSwap = desyDesignSystemRegistry.resolve(
+      'desy.motion.content-swap',
+    )!;
+    final screenNavigation = desyDesignSystemRegistry.resolve(
+      'desy.motion.screen-navigation',
+    )!;
+
+    expect(sidebar.source, isA<DesyMotionEntry>());
+    expect((contentSwap.source as DesyMotionEntry).supportsTransition, isTrue);
+    expect(
+      (screenNavigation.source as DesyMotionEntry).supportsTransition,
+      isTrue,
+    );
+  });
+
   testWidgets('dogfood motion exposes transition instance controls', (
     tester,
   ) async {
@@ -25,6 +45,8 @@ void main() {
         ),
       ),
     );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 220));
 
     expect(find.text('Inspect component'), findsOneWidget);
     expect(find.text('STABLE'), findsOneWidget);
@@ -32,6 +54,7 @@ void main() {
       const ValueKey('motion-transition-instance-menu'),
     );
     expect(instanceMenu, findsOneWidget);
+    await tester.ensureVisible(instanceMenu);
     await tester.tap(
       find.descendant(of: instanceMenu, matching: find.byType(DesyButton)),
     );

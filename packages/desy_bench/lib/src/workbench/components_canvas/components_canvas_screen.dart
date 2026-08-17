@@ -1658,7 +1658,7 @@ class _CanvasNodeFrame extends StatelessWidget {
                 identifier: node.instanceId ?? node.id,
               )
             : null,
-        ignoreChildPointer: !node.isArtboard,
+        ignoreChildPointer: false,
         child: DecoratedBox(
           decoration: selected
               ? BoxDecoration(

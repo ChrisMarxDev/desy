@@ -233,6 +233,21 @@ void main() {
       expect(DesySurfaceValidator(_registry).validate(surface), isEmpty);
     });
 
+    test('accepts only declared strings for choice knobs', () {
+      final valid = DesySurfaceDocument.parse('''
+{"component":"visibility.label","knobs":{"visibility":"Disabled"}}
+''');
+      final invalid = DesySurfaceDocument.parse('''
+{"component":"visibility.label","knobs":{"visibility":"Sometimes"}}
+''');
+
+      expect(DesySurfaceValidator(_registry).validate(valid), isEmpty);
+      expect(
+        DesySurfaceValidator(_registry).validate(invalid).single.message,
+        contains('Automatic, Enabled, Disabled'),
+      );
+    });
+
     test('accepts ISO-8601 values for DateTime knobs', () {
       final component = DesyComponent(
         id: 'schedule.card',
@@ -243,9 +258,7 @@ void main() {
             initial: DateTime.utc(2026, 8, 15, 9, 30),
           ),
         ),
-        build: (context, knobs) => Text(
-          knobs.startsAt.value.toIso8601String(),
-        ),
+        build: (context, knobs) => Text(knobs.startsAt.value.toIso8601String()),
       );
       final registry = DesyRegistry(
         name: 'Surface DateTime',
@@ -509,6 +522,17 @@ final _registry = DesyRegistry(
           (color: knobs.color('color', initial: const Color(0xff112233))),
       build: (context, knobs) => ColoredBox(color: knobs.color.value),
       instances: (knobs) => const {},
+    ),
+    DesyComponent(
+      id: 'visibility.label',
+      name: 'Visibility label',
+      knobs: (knobs) => (
+        visibility: knobs.choice(
+          'visibility',
+          options: const ['Automatic', 'Enabled', 'Disabled'],
+        ),
+      ),
+      build: (context, knobs) => Text(knobs.visibility.value),
     ),
     DesyComponent(
       id: 'card',

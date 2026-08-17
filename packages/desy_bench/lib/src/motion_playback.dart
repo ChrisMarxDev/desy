@@ -223,6 +223,206 @@ class DesyMotionPlaybackScope extends InheritedNotifier<Animation<double>> {
       ?.progress;
 }
 
+/// A scrub-friendly fade and slide reveal for one real widget.
+///
+/// Consumers can supply an explicit [progress] or rely on the nearest
+/// [DesyMotionPlaybackScope]. The widget stays semantically inert until it is
+/// mostly visible, which makes it suitable for sidebars and transient panels.
+class DesyMotionReveal extends StatelessWidget {
+  /// Creates a one-widget reveal.
+  const DesyMotionReveal({
+    required this.child,
+    this.progress,
+    this.beginOffset = const Offset(0, 16),
+    this.beginScale = 1,
+    super.key,
+  });
+
+  /// Widget shown at the end of the timeline.
+  final Widget child;
+
+  /// Optional zero-to-one timeline. Defaults to the nearest motion scope.
+  final Animation<double>? progress;
+
+  /// Pixel offset applied while the widget is hidden.
+  final Offset beginOffset;
+
+  /// Scale applied while the widget is hidden.
+  final double beginScale;
+
+  @override
+  Widget build(BuildContext context) {
+    final animation =
+        progress ??
+        DesyMotionPlaybackScope.maybeOf(context) ??
+        kAlwaysCompleteAnimation;
+    return AnimatedBuilder(
+      animation: animation,
+      child: child,
+      builder: (context, child) {
+        final value = animation.value.clamp(0.0, 1.0).toDouble();
+        return ExcludeSemantics(
+          excluding: value < .5,
+          child: IgnorePointer(
+            ignoring: value < .5,
+            child: Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: beginOffset * (1 - value),
+                child: Transform.scale(
+                  scale: beginScale + ((1 - beginScale) * value),
+                  child: child,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Reveals or hides a persistent workbench region with fade and travel.
+///
+/// Unlike [DesyMotionReveal], this owns its short transition and is intended
+/// for a region whose visibility is controlled by local UI state.
+class DesyMotionVisibilityTransition extends StatelessWidget {
+  /// Creates a visibility transition.
+  const DesyMotionVisibilityTransition({
+    required this.visible,
+    required this.child,
+    this.duration = const Duration(milliseconds: 180),
+    this.curve = Curves.easeOutCubic,
+    this.beginOffset = const Offset(-12, 0),
+    super.key,
+  });
+
+  /// Whether the region is visible.
+  final bool visible;
+
+  /// Region that remains mounted while it transitions.
+  final Widget child;
+
+  /// Duration of the visibility transition.
+  final Duration duration;
+
+  /// Easing used by the visibility transition.
+  final Curve curve;
+
+  /// Pixel offset applied while hidden.
+  final Offset beginOffset;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    return TweenAnimationBuilder<double>(
+      duration: reduceMotion ? Duration.zero : duration,
+      curve: curve,
+      tween: Tween(end: visible ? 1 : 0),
+      child: child,
+      builder: (context, value, child) => ExcludeSemantics(
+        excluding: value < .5,
+        child: IgnorePointer(
+          ignoring: value < .5,
+          child: Opacity(
+            opacity: value,
+            child: Transform.translate(
+              offset: beginOffset * (1 - value),
+              child: child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Animates the incoming content for a keyed workbench screen change.
+///
+/// Give each destination a stable [transitionKey]. The next screen fades and
+/// arrives from [incomingOffset] without retaining the outgoing route subtree.
+/// This keeps Flutter router-owned global keys unique during navigation.
+class DesyMotionScreenTransition extends StatefulWidget {
+  /// Creates a transition between keyed screen children.
+  const DesyMotionScreenTransition({
+    required this.transitionKey,
+    required this.child,
+    this.duration = const Duration(milliseconds: 180),
+    this.curve = Curves.easeOutCubic,
+    this.incomingOffset = const Offset(.025, 0),
+    super.key,
+  });
+
+  /// Stable identity of the currently visible destination.
+  final Key transitionKey;
+
+  /// Current destination content.
+  final Widget child;
+
+  /// Duration of each screen replacement.
+  final Duration duration;
+
+  /// Easing used for screen replacement.
+  final Curve curve;
+
+  /// Fractional offset from which incoming content enters.
+  final Offset incomingOffset;
+
+  @override
+  State<DesyMotionScreenTransition> createState() =>
+      _DesyMotionScreenTransitionState();
+}
+
+class _DesyMotionScreenTransitionState extends State<DesyMotionScreenTransition>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+    value: 1,
+  );
+
+  @override
+  void didUpdateWidget(covariant DesyMotionScreenTransition oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _controller.duration = widget.duration;
+    if (oldWidget.transitionKey == widget.transitionKey) return;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (reduceMotion) {
+      _controller.value = 1;
+    } else {
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    return AnimatedBuilder(
+      animation: _controller,
+      child: KeyedSubtree(key: widget.transitionKey, child: widget.child),
+      builder: (context, child) {
+        final value = reduceMotion ? 1.0 : _controller.value;
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: widget.incomingOffset * (1 - value),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
 /// A scrub-friendly transition between two real widgets.
 ///
 /// The outgoing widget leaves slightly toward the leading edge while the
@@ -235,6 +435,7 @@ class DesyMotionWidgetTransition extends StatelessWidget {
     required this.second,
     this.progress,
     this.distance = 24,
+    this.axis = Axis.horizontal,
     super.key,
   });
 
@@ -247,8 +448,11 @@ class DesyMotionWidgetTransition extends StatelessWidget {
   /// Optional zero-to-one timeline. Defaults to the nearest motion scope.
   final Animation<double>? progress;
 
-  /// Horizontal offset applied to each widget at its hidden endpoint.
+  /// Offset applied to each widget at its hidden endpoint.
   final double distance;
+
+  /// Axis along which the widgets exchange places.
+  final Axis axis;
 
   @override
   Widget build(BuildContext context) {
@@ -270,7 +474,7 @@ class DesyMotionWidgetTransition extends StatelessWidget {
                 child: Opacity(
                   opacity: 1 - value,
                   child: Transform.translate(
-                    offset: Offset(-distance * value, 0),
+                    offset: _offset(-distance * value),
                     child: first,
                   ),
                 ),
@@ -283,7 +487,7 @@ class DesyMotionWidgetTransition extends StatelessWidget {
                 child: Opacity(
                   opacity: value,
                   child: Transform.translate(
-                    offset: Offset(distance * (1 - value), 0),
+                    offset: _offset(distance * (1 - value)),
                     child: second,
                   ),
                 ),
@@ -294,4 +498,7 @@ class DesyMotionWidgetTransition extends StatelessWidget {
       },
     );
   }
+
+  Offset _offset(double value) =>
+      axis == Axis.horizontal ? Offset(value, 0) : Offset(0, value);
 }

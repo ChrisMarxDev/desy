@@ -241,6 +241,11 @@ final class _Compiler {
     final description = knob.description ?? knob.name;
     final Schema schema = switch (knob.kind) {
       DesyKnobKind.string => S.string(description: description),
+      DesyKnobKind.choice => Schema.fromMap({
+        'type': 'string',
+        'description': description,
+        'enum': knob.options,
+      }),
       DesyKnobKind.number => S.number(
         description: _numberDescription(knob, description),
         minimum: knob.minimum,
@@ -391,6 +396,7 @@ final class _Compiler {
         case DesyKnobKind.dateTime:
           definition[knob.id] = _jsonValue(value);
         case DesyKnobKind.string:
+        case DesyKnobKind.choice:
         case DesyKnobKind.number:
         case DesyKnobKind.boolean:
           definition[knob.id] = value;

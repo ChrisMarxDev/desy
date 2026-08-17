@@ -69,6 +69,7 @@ gets full autocomplete and return-type checking without any code generation.
 `KnobScope` is the authoring surface. Its literal value knobs are:
 
 - `k.string(id, {name?, initial}) -> Knob<String>`
+- `k.choice(id, {name?, options, initial?}) -> Knob<String>`
 - `k.number(id, {name?, initial, unit, step, minimum?, maximum?}) -> Knob<double>`
 - `k.boolean(id, {name?, initial}) -> Knob<bool>`
 - `k.dateTime(id, {name?, initial}) -> Knob<DateTime>`
@@ -142,6 +143,25 @@ custom hue, saturation, brightness, alpha, and ARGB picker. Choosing a registere
 swatch copies its literal value into ephemeral knob state; it does not store a
 second palette reference or require the component to redeclare color options.
 Serializable forms continue to use a complete ARGB integer.
+
+### 7. Finite strings use one choice contract everywhere
+
+A `choice` knob declares a non-empty ordered list of unique strings. Its
+`initial` value is optional: when omitted, Desy uses the first option. An
+explicit initial value and every named-instance override must appear in the
+declared options. Desy freezes the caller-owned list when the component is
+constructed.
+
+The selected string is simultaneously the component builder value, visible
+dropdown label, surface value, catalogue value, and GenUI string-enum value.
+There is intentionally no separate ID, index, label mapping, Dart-enum codec,
+or arbitrary-object serialization contract. This keeps finite properties
+constrained without making consumers declare parallel metadata.
+
+Workbench component details and the optional screenshot-builder extension use
+the same `DesyChoiceKnobRow`, backed by Desy's keyboard-operable select control.
+Free-form text remains a `string` knob; a property should use `choice` only when
+its legal values are genuinely finite.
 
 ## What a consumer no longer writes
 

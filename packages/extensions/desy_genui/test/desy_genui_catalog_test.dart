@@ -62,6 +62,13 @@ void main() {
     expect(properties['count'], containsPair('maximum', 9));
     expect(properties['count'], containsPair('multipleOf', 1));
     expect(properties['enabled'], containsPair('type', 'boolean'));
+    expect(
+      properties['tone'],
+      allOf(
+        containsPair('enum', ['Neutral', 'Positive', 'Critical']),
+        containsPair('default', 'Neutral'),
+      ),
+    );
     expect(properties['startsAt'], containsPair('type', 'string'));
     expect(
       properties['startsAt'],
@@ -107,6 +114,7 @@ void main() {
         'title': 'Live panel',
         'count': 4,
         'enabled': true,
+        'tone': 'Critical',
         'startsAt': '2026-08-16T14:45:00.000Z',
         'color': 0xff112233,
         'body': 'body',
@@ -129,7 +137,10 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('Live panel · 4 · true · 2026-08-16T14:45:00.000Z · ff112233'),
+      find.text(
+        'Live panel · 4 · true · Critical · '
+        '2026-08-16T14:45:00.000Z · ff112233',
+      ),
       findsOneWidget,
     );
     expect(find.text('Body'), findsOneWidget);
@@ -308,6 +319,7 @@ DesyRegistryComponent _panelComponent() => DesyComponent(
       maximum: 9,
     ),
     enabled: k.boolean('enabled', initial: false),
+    tone: k.choice('tone', options: const ['Neutral', 'Positive', 'Critical']),
     startsAt: k.dateTime('startsAt', initial: DateTime.utc(2026, 8, 15, 9, 30)),
     color: k.color('color', initial: const Color(0xff445566)),
     body: k.widgetInstance(
@@ -327,6 +339,7 @@ DesyRegistryComponent _panelComponent() => DesyComponent(
       Text(
         '${knobs.title.value} · ${knobs.count.value.toInt()} · '
         '${knobs.enabled.value} · '
+        '${knobs.tone.value} · '
         '${knobs.startsAt.value.toIso8601String()} · '
         '${knobs.color.value.toARGB32().toRadixString(16)}',
       ),

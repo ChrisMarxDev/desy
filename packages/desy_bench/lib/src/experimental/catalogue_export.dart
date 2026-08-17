@@ -209,6 +209,7 @@ class DesyCatalogueExport {
     'kind': switch (knob.kind) {
       DesyKnobKind.boolean => 'boolean',
       DesyKnobKind.string => 'string',
+      DesyKnobKind.choice => 'choice',
       DesyKnobKind.number => 'number',
       DesyKnobKind.dateTime => 'date-time',
       DesyKnobKind.color => 'color',

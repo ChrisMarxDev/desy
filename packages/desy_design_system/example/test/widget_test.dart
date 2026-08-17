@@ -71,6 +71,9 @@ void main() {
   testWidgets('launches the dogfood registry through the real workbench', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(DesyBenchApp(registry: desyDesignSystemRegistry));
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -79,7 +82,10 @@ void main() {
     expect(find.text('Sketch'), findsNothing);
     expect(find.text('Prototypes'), findsOneWidget);
     expect(find.text('JSON prototypes'), findsNothing);
-    expect(find.text('Components'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('sidebar-section-label-Components')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('opens the annotation inbox prototype session', (tester) async {

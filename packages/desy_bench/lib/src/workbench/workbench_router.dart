@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'components_canvas/components_canvas_screen.dart';
 import 'issue_report.dart';
+import '../motion_playback.dart';
 import '../registry.dart';
 import '../window_controls.dart';
 import '../workspace_extension.dart';
@@ -30,6 +31,10 @@ import 'workbench_shortcuts.dart';
 import 'workbench_annotation.dart';
 import 'annotation_workspace.dart';
 import 'widget_preview.dart';
+
+class _CommitAnnotationIntent extends Intent {
+  const _CommitAnnotationIntent();
+}
 
 /// Creates the router for one consumer-owned design system declaration.
 ///
@@ -237,6 +242,9 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
     setState(() {
       _annotationTarget = target;
       _annotationDraft = '';
+      // Picking is deliberately one-shot. The feedback dock retains the target,
+      // while the canvas immediately returns to ordinary pan and zoom input.
+      _inspectionActive = false;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _annotationFocusNode.requestFocus();
@@ -251,6 +259,14 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
         _annotationDraft = '';
       }
     });
+  }
+
+  void _enterSelectCanvasMode() {
+    if (_inspectionActive) _toggleInspection();
+  }
+
+  void _enterAnnotateCanvasMode() {
+    if (!_inspectionActive) _toggleInspection();
   }
 
   void _commitAnnotation() {
@@ -283,19 +299,27 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
         workspaceExtension?.presentation ==
         DesyWorkspaceExtensionPresentation.standalone;
     final isSketch = location.path == DesyWorkbenchRoutes.sketchPath;
-    final usesCanvasActionBar = location.path.startsWith(
-      '${DesyWorkbenchRoutes.prototypesPath}/',
+    final usesCanvasActionBar =
+        location.path.startsWith('${DesyWorkbenchRoutes.prototypesPath}/') ||
+        location.path.startsWith('${DesyWorkbenchRoutes.entriesPath}/');
+    final routeContent = DesyMotionScreenTransition(
+      transitionKey: ValueKey('workbench-route-$location'),
+      child: widget.child,
     );
     final scaffold = DesyWorkbenchShortcuts(
       location: location,
       tree: navigationTree,
       onNavigate: context.go,
+      onSelectCanvasMode: usesCanvasActionBar ? _enterSelectCanvasMode : null,
+      onAnnotateCanvasMode: usesCanvasActionBar
+          ? _enterAnnotateCanvasMode
+          : null,
       child: LayoutBuilder(
         builder: (context, constraints) {
           if (standaloneExtension) {
             return DesyScaffold(
               key: const ValueKey('standalone-workspace-extension-shell'),
-              child: widget.child,
+              child: routeContent,
             );
           }
           if (constraints.maxWidth < 640) {
@@ -307,12 +331,12 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
                         session: widget.session,
                         location: location,
                       ),
-                child: widget.child,
+                child: routeContent,
               ),
             );
           }
           if (isSketch) {
-            return DesyScaffold(child: widget.child);
+            return DesyScaffold(child: routeContent);
           }
           final maximumSidebarWidth =
               (constraints.maxWidth - _minimumWorkspaceWidth).clamp(
@@ -382,7 +406,7 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
                             height: DesyDesignSystemTokens.hairline,
                             child: ColoredBox(color: colors.border),
                           ),
-                          Expanded(child: DesyScaffold(child: widget.child)),
+                          Expanded(child: DesyScaffold(child: routeContent)),
                         ],
                       ),
                     ),
@@ -1146,6 +1170,12 @@ class _WorkbenchAnnotationInboxState extends State<_WorkbenchAnnotationInbox> {
   String? _message;
 
   @override
+  void initState() {
+    super.initState();
+    _selectedIds.addAll(widget.annotations.map((annotation) => annotation.id));
+  }
+
+  @override
   void didUpdateWidget(_WorkbenchAnnotationInbox oldWidget) {
     super.didUpdateWidget(oldWidget);
     _selectedIds.removeWhere(
@@ -1175,6 +1205,16 @@ class _WorkbenchAnnotationInboxState extends State<_WorkbenchAnnotationInbox> {
     });
   }
 
+  void _setAllSelected(bool selected) {
+    setState(() {
+      _selectedIds
+        ..clear()
+        ..addAll(
+          selected ? widget.annotations.map((annotation) => annotation.id) : [],
+        );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.theme.colors;
@@ -1183,7 +1223,7 @@ class _WorkbenchAnnotationInboxState extends State<_WorkbenchAnnotationInbox> {
       color: colors.foreground.withValues(alpha: .14),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1060, maxHeight: 760),
+          constraints: const BoxConstraints(maxWidth: 1160, maxHeight: 720),
           child: Padding(
             padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceXl),
             child: DecoratedBox(
@@ -1239,7 +1279,7 @@ class _WorkbenchAnnotationInboxState extends State<_WorkbenchAnnotationInbox> {
                     ),
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(64, 36, 64, 28),
+                        padding: const EdgeInsets.fromLTRB(48, 28, 48, 24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1269,8 +1309,18 @@ class _WorkbenchAnnotationInboxState extends State<_WorkbenchAnnotationInbox> {
                               ),
                             ],
                             const SizedBox(
-                              height: DesyDesignSystemTokens.spaceLg,
+                              height: DesyDesignSystemTokens.spaceMd,
                             ),
+                            if (widget.annotations.isNotEmpty)
+                              _AnnotationSelectionHeader(
+                                selectedCount: _selectedIds.length,
+                                totalCount: widget.annotations.length,
+                                onChanged: _setAllSelected,
+                              ),
+                            if (widget.annotations.isNotEmpty)
+                              const SizedBox(
+                                height: DesyDesignSystemTokens.spaceSm,
+                              ),
                             Expanded(
                               child: widget.annotations.isEmpty
                                   ? Center(
@@ -1286,7 +1336,7 @@ class _WorkbenchAnnotationInboxState extends State<_WorkbenchAnnotationInbox> {
                                       separatorBuilder: (_, _) =>
                                           const SizedBox(
                                             height:
-                                                DesyDesignSystemTokens.spaceSm,
+                                                DesyDesignSystemTokens.spaceXs,
                                           ),
                                       itemBuilder: (context, index) {
                                         final annotation =
@@ -1356,6 +1406,42 @@ class _AnnotationCountBadge extends StatelessWidget {
   );
 }
 
+class _AnnotationSelectionHeader extends StatelessWidget {
+  const _AnnotationSelectionHeader({
+    required this.selectedCount,
+    required this.totalCount,
+    required this.onChanged,
+  });
+
+  final int selectedCount;
+  final int totalCount;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: context.theme.colors.desy.panelSubtle,
+      borderRadius: BorderRadius.circular(DesyDesignSystemTokens.radiusSm),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: DesyDesignSystemTokens.spaceSm,
+      ),
+      child: DesyCheckbox(
+        key: const ValueKey('workbench-annotation-select-all'),
+        value: selectedCount == totalCount,
+        onChanged: onChanged,
+        label: Text(
+          selectedCount == totalCount
+              ? 'All $totalCount annotations selected'
+              : 'Select all $totalCount annotations',
+          style: context.theme.typography.body.sm,
+        ),
+      ),
+    ),
+  );
+}
+
 class _InboxAnnotationRow extends StatelessWidget {
   const _InboxAnnotationRow({
     required this.annotation,
@@ -1381,7 +1467,10 @@ class _InboxAnnotationRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(DesyDesignSystemTokens.radiusMd),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(DesyDesignSystemTokens.spaceMd),
+        padding: const EdgeInsets.symmetric(
+          horizontal: DesyDesignSystemTokens.spaceMd,
+          vertical: DesyDesignSystemTokens.spaceSm,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1399,38 +1488,27 @@ class _InboxAnnotationRow extends StatelessWidget {
                     target.displayLabel,
                     style: context.theme.typography.body.md,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     annotation.comment,
                     style: context.theme.typography.body.sm,
                   ),
-                  const SizedBox(height: 8),
-                  if (artifact != null)
-                    Text(
-                      '${artifact.kind}: ${artifact.label ?? artifact.artifactId}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.theme.typography.body.xs.copyWith(
-                        color: colors.mutedForeground,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  if (target.sourceLocation case final source?)
-                    Text(
-                      source.reference,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.theme.typography.body.xs.copyWith(
-                        color: colors.mutedForeground,
-                        fontFamily: 'monospace',
-                      ),
-                    ),
+                  const SizedBox(height: 4),
                   Text(
-                    'Page: ${target.screenId}',
+                    [
+                      if (artifact != null)
+                        '${artifact.kind}: ${artifact.label ?? artifact.artifactId}',
+                      if (target.sourceLocation case final source?)
+                        source.reference,
+                      'Page: ${target.screenId}',
+                    ].join('  ·  '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: context.theme.typography.body.xs.copyWith(
                       color: colors.mutedForeground,
+                      fontFamily: target.sourceLocation == null
+                          ? null
+                          : 'monospace',
                     ),
                   ),
                 ],
@@ -1556,25 +1634,61 @@ class _WorkbenchAnnotationDockState extends State<_WorkbenchAnnotationDock> {
             ),
             if (selectedTarget != null) ...[
               const SizedBox(height: DesyDesignSystemTokens.spaceSm),
-              DesyTextField(
-                key: const ValueKey('workbench-annotation-input'),
-                label: 'Feedback for ${selectedTarget.displayLabel}',
-                hintText: 'What should change about this widget?',
-                value: widget.draft,
-                focusNode: widget.focusNode,
-                minLines: 2,
-                maxLines: 4,
-                onChanged: widget.onDraftChanged,
+              Shortcuts(
+                shortcuts: const {
+                  SingleActivator(LogicalKeyboardKey.enter):
+                      _CommitAnnotationIntent(),
+                },
+                child: Actions(
+                  actions: {
+                    _CommitAnnotationIntent:
+                        CallbackAction<_CommitAnnotationIntent>(
+                          onInvoke: (_) {
+                            if (widget.draft.trim().isNotEmpty) {
+                              widget.onCommit();
+                            }
+                            return null;
+                          },
+                        ),
+                  },
+                  child: DesyTextField(
+                    key: const ValueKey('workbench-annotation-input'),
+                    label: 'Feedback for ${selectedTarget.displayLabel}',
+                    hintText: 'What should change about this widget?',
+                    value: widget.draft,
+                    focusNode: widget.focusNode,
+                    minLines: 2,
+                    maxLines: 4,
+                    onChanged: widget.onDraftChanged,
+                  ),
+                ),
               ),
               const SizedBox(height: DesyDesignSystemTokens.spaceSm),
               Align(
                 alignment: AlignmentDirectional.centerEnd,
-                child: DesyButton(
-                  key: const ValueKey('workbench-commit-annotation'),
-                  size: DesyButtonSize.sm,
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  onPress: widget.draft.trim().isEmpty ? null : widget.onCommit,
-                  child: const Text('Commit annotation'),
+                  children: [
+                    DesyButton(
+                      key: const ValueKey('workbench-commit-annotation'),
+                      size: DesyButtonSize.sm,
+                      mainAxisSize: MainAxisSize.min,
+                      onPress: widget.draft.trim().isEmpty
+                          ? null
+                          : widget.onCommit,
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Commit annotation'),
+                          SizedBox(width: DesyDesignSystemTokens.spaceSm),
+                          DesyKeyboardShortcutLabel(
+                            keys: ['↵'],
+                            semanticLabel: 'Keyboard shortcut: Enter',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -1741,18 +1855,21 @@ class _AnimatedWorkbenchSidebar extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
-    duration: const Duration(milliseconds: 180),
-    curve: Curves.easeOutCubic,
-    tween: Tween(end: visible ? 1 : 0),
-    child: child,
-    builder: (context, factor, child) => ClipRect(
-      child: KeyedSubtree(
-        key: const ValueKey('workbench-sidebar'),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          widthFactor: factor,
-          child: IgnorePointer(ignoring: factor < 1, child: child),
+  Widget build(BuildContext context) => DesyMotionVisibilityTransition(
+    visible: visible,
+    child: TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      tween: Tween(end: visible ? 1 : 0),
+      child: child,
+      builder: (context, factor, child) => ClipRect(
+        child: KeyedSubtree(
+          key: const ValueKey('workbench-sidebar'),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            widthFactor: factor,
+            child: IgnorePointer(ignoring: factor < 1, child: child),
+          ),
         ),
       ),
     ),

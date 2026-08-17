@@ -42,6 +42,38 @@ void main() {
     expect(contentPadding.padding, const EdgeInsets.fromLTRB(28, 28, 28, 0));
   });
 
+  testWidgets('Atlas count shares the headline and content meets search', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      DesyBenchApp(
+        registry: DesyRegistry(
+          name: 'Compact catalogue header',
+          themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+          components: [_component('header.component')],
+        ),
+      ),
+    );
+
+    final headline = find.byKey(const ValueKey('atlas-headline'));
+    expect(
+      find.descendant(
+        of: headline,
+        matching: find.byKey(const ValueKey('atlas-entry-count')),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('1 entries'), findsOneWidget);
+
+    final searchBottom = tester
+        .getRect(find.byKey(const ValueKey('atlas-search')))
+        .bottom;
+    final contentTop = tester
+        .getRect(find.byKey(const ValueKey('atlas-component-sections')))
+        .top;
+    expect(contentTop, searchBottom);
+  });
+
   testWidgets('fonts use the typed Fonts board', (tester) async {
     await tester.pumpWidget(
       DesyBenchApp(

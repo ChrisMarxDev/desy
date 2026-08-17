@@ -632,6 +632,17 @@ final class DesySurfaceValidator {
               ),
             );
           }
+        case DesyKnobKind.choice:
+          if (value is! String || !definition.options.contains(value)) {
+            issues.add(
+              DesySurfaceValidationIssue(
+                path: knobPath,
+                message:
+                    'Expected one of ${definition.options.join(', ')} for '
+                    'choice knob "${definition.id}".',
+              ),
+            );
+          }
         case DesyKnobKind.number:
           if (value is! num) {
             issues.add(

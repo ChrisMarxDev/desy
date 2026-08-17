@@ -52,6 +52,13 @@
 - Use `DesyResizeDivider` for every resizable panel boundary. It owns the one
   visible hairline, pointer hit target, cursor, keyboard control, and semantics;
   never pair it with a separate `Border`, divider `Container`, or resize handle.
+- Default to Flutter's built-in behaviour and documented dependency APIs for
+  gestures, scrolling, transforms, camera control, focus, semantics, layout,
+  text entry, and resizing. Before recreating any of that behaviour with local
+  pointer listeners, transforms, custom gesture coordination, or another
+  compatibility layer, stop and inform the consumer. State the native API,
+  the verified gap, the user-visible consequences, and why supported
+  composition is insufficient; obtain explicit consent before implementation.
 - `desy_design_system` owns the Forui dependency and keeps it behind Desy-owned
   widgets, variants, sizes, callbacks, and controllers. Do not add a direct
   Forui import or expose an `F*` type from `desy_bench`, an extension, or a new

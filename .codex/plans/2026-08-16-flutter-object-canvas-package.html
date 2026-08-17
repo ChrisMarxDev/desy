@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reusable Flutter object canvas package — implementation plan</title>
+  <style>
+    :root{color-scheme:light;--bg:#f4f5f2;--surface:#fff;--soft:#f0f2ed;--ink:#182016;--muted:#647063;--line:#d8ded4;--accent:#e83e73;--accent-soft:#fff0f5;--ok:#2f6f21;--warn:#9a6500;--danger:#a52a24;--radius:8px}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.52 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    main{width:min(1180px,calc(100vw - 32px));margin:0 auto;padding:32px 0 64px} header,section{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+    header{padding:26px;display:grid;gap:14px} section{margin-top:16px;padding:20px} h1,h2,h3,p{margin:0} h1{font-size:clamp(30px,4vw,48px);line-height:1.05} h2{font-size:21px} h3{font-size:15px;margin:16px 0 8px} p+p{margin-top:10px}
+    .chips,.tools,.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.chip{padding:4px 10px;border-radius:999px;background:var(--soft);color:var(--muted);font-size:13px;font-weight:700}.chip.accent{background:var(--accent-soft);color:var(--accent)}
+    .lede{max-width:900px;color:var(--muted);font-size:17px}.section-head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;margin-bottom:14px}.tools label{display:flex;gap:6px;align-items:center;color:var(--muted);font-size:13px;font-weight:700}
+    select,textarea,button{font:inherit} select,textarea{color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:6px} select{min-height:34px;padding:4px 9px} textarea{width:100%;min-height:78px;padding:10px;resize:vertical}.notes{margin-top:14px;display:grid;gap:6px}.notes label{color:var(--muted);font-size:13px;font-weight:700}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}.card{padding:14px;background:var(--soft);border:1px solid var(--line);border-radius:var(--radius)}.decision{background:#fffaea;border-color:#eed188}.risk{background:#fff4f2;border-color:#efc0bb}
+    table{width:100%;border-collapse:collapse;border:1px solid var(--line)}th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{background:var(--soft);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}tr:last-child td{border-bottom:0}
+    ul,ol{margin:0;padding-left:20px}li+li{margin-top:6px}.review{display:grid;gap:8px;padding:0;list-style:none}.review label{display:grid;grid-template-columns:auto 1fr;gap:8px;padding:10px;background:rgba(255,255,255,.72);border:1px solid var(--line);border-radius:6px}.review input{margin-top:4px}
+    code,pre{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}code{font-size:.92em}pre{margin:0;padding:14px;overflow:auto;background:#111510;color:#eef6e9;border-radius:7px;font-size:13px;line-height:1.55}.diagram{white-space:pre-wrap}
+    .api-note{margin-top:10px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--accent-soft)}a{color:#8d2046}.muted{color:var(--muted)}button{min-height:42px;padding:8px 14px;border:0;border-radius:999px;background:var(--accent);color:#fff;font-weight:800;cursor:pointer}.export{min-height:240px;background:#111510;color:#eef6e9}
+    @media(max-width:760px){main{width:min(100% - 16px,1180px);padding-top:8px}.section-head{display:grid}th:nth-child(4),td:nth-child(4){display:none}}
+  </style>
+</head>
+<body>
+<main data-plan-title="Reusable Flutter object canvas package">
+  <header>
+    <div class="chips"><span class="chip accent">Architecture + API plan</span><span class="chip">flutter_design_system_bench</span><span class="chip">Updated 2026-08-17 · Europe/Berlin</span><span class="chip">Planning only</span></div>
+    <h1>A finite, typed object canvas for Flutter</h1>
+    <p class="lede">Create a small reusable package that owns only canvas-bounded object geometry and interaction. It should replace duplicated movement, resize, transform scale, rotation, selection, viewport, snapping, guides, and ephemeral undo/redo in Screenshot Builder and Sketch/Canvas V2 while remaining independent of Desy, image/text domain models, persistence, and editor chrome.</p>
+  </header>
+
+  <section class="decision" data-section="Decisions Needed">
+    <div class="section-head"><h2>Decisions Needed</h2><div class="tools"><label>Status <select data-status="Decisions Needed"><option selected>Approve recommended defaults</option><option>Revise before implementation</option><option>Defer</option><option>Reject</option></select></label></div></div>
+    <div class="grid">
+      <div class="card"><h3>Package name</h3><label><input type="radio" name="package-name" value="object_canvas (recommended)" checked> <code>object_canvas</code> — recommended working name</label><br><label><input type="radio" name="package-name" value="flutter_object_canvas"> <code>flutter_object_canvas</code></label><br><label><input type="radio" name="package-name" value="canvas_objects"> <code>canvas_objects</code></label></div>
+      <div class="card"><h3>State API</h3><label><input type="radio" name="state-api" value="Controller-only V1 (recommended)" checked> Controller-only V1 — one source of truth</label><br><label><input type="radio" name="state-api" value="Controller plus objects convenience constructor"> Add <code>objects + onObjectChanged</code> convenience immediately</label></div>
+      <div class="card"><h3>Undo model</h3><label><input type="radio" name="undo-model" value="One CanvasAction per completed interaction backed by undo ChangeStack (recommended)" checked> One <code>CanvasAction</code> per completed interaction, backed by <code>undo</code></label><br><label><input type="radio" name="undo-model" value="Host-owned history only"> Emit actions but keep history entirely host-owned</label></div>
+      <div class="card"><h3>Object policy defaults</h3><label><input type="radio" name="object-defaults" value="Canvas-level defaults with optional per-object overrides (recommended)" checked> Canvas-level defaults; object overrides only for exceptions</label><br><label><input type="radio" name="object-defaults" value="All constraints and capabilities declared per object"> Require policy on every object</label></div>
+      <div class="card"><h3>Generic rendering</h3><label><input type="radio" name="rendering" value="Required generic builder plus typed Widget convenience constructor (recommended)" checked> Required builder for arbitrary data; <code>.widgets</code> convenience for <code>Widget</code> data</label><br><label><input type="radio" name="rendering" value="Require builder in every constructor"> Always require a builder</label></div>
+      <div class="card"><h3>Selection scope</h3><label><input type="radio" name="selection" value="Set-backed selection, single-object transforms in V1 (recommended)" checked> Set-backed selection; single-object transforms in V1</label><br><label><input type="radio" name="selection" value="Full multi-selection transforms in V1"> Full multi-selection transforms in V1</label></div>
+      <div class="card"><h3>Rotation foundation</h3><label><input type="radio" name="rotation" value="Run dependency/composition spike before choosing (recommended)" checked> Spike released packages + Flutter recognizers first</label><br><label><input type="radio" name="rotation" value="Track unreleased flutter_box_transform rotation"> Track unreleased <code>flutter_box_transform</code> rotation</label><br><label><input type="radio" name="rotation" value="Own rotation implementation from day one"> Own a narrow rotation implementation immediately</label></div>
+      <div class="card"><h3>Viewport ownership</h3><label><input type="radio" name="viewport" value="One ObjectCanvasController with a viewport subvalue (recommended)" checked> One controller with a viewport subvalue</label><br><label><input type="radio" name="viewport" value="Separate document and viewport controllers"> Separate document and viewport controllers</label></div>
+    </div>
+    <div class="notes"><label for="decision-notes">Decision notes</label><textarea id="decision-notes" data-note="Decision notes" placeholder="Change names, state ownership, V1 selection, rotation, or viewport decisions."></textarea></div>
+  </section>
+
+  <section data-section="Goal and Scope">
+    <div class="section-head"><h2>Goal and Scope</h2><div class="tools"><label>Status <select data-status="Goal and Scope"><option selected>Approved</option><option>Needs revision</option><option>Partially approved</option><option>Rejected</option></select></label></div></div>
+    <div class="grid">
+      <div class="card"><h3>In scope</h3><ul class="review">
+        <li><label><input type="checkbox" checked data-item="Finite explicit logical canvas size, clipping, border/background builder, and configurable containment policy"><span>Finite explicit logical canvas size, clipping, border/background builder, and configurable containment policy.</span></label></li>
+        <li><label><input type="checkbox" checked data-item="Immutable generic CanvasObject values with position, layout size, rotation, transform scale, pivot, capabilities, and typed data"><span>Immutable generic <code>CanvasObject&lt;T&gt;</code> values with stable IDs, typed data, position, layout size, rotation, transform scale, pivot, constraints, and capabilities.</span></label></li>
+        <li><label><input type="checkbox" checked data-item="Controller-owned objects, selection, z-order, viewport, coordinate conversion, and interaction lifecycle"><span>Controller-owned objects, selection, z-order, viewport, coordinate conversion, and interaction lifecycle.</span></label></li>
+        <li><label><input type="checkbox" checked data-item="Move, layout resize, transform scale, rotation, keyboard movement, and customizable selection handles"><span>Move, layout resize, transform scale, rotation, keyboard movement, and customizable selection handles.</span></label></li>
+        <li><label><input type="checkbox" checked data-item="One undoable CanvasAction per completed document edit"><span>One typed, undoable <code>CanvasAction</code> per completed move, resize, scale, rotate, add, remove, reorder, or data replacement; in-memory undo/redo uses the <code>undo</code> package.</span></label></li>
+        <li><label><input type="checkbox" checked data-item="Composable grid, edge, object-anchor, and angle snapping with guide output"><span>Composable grid, canvas-edge, object-anchor, and angle snapping with screen-space tolerance, snap locks/hysteresis, and guide output.</span></label></li>
+        <li><label><input type="checkbox" checked data-item="Screenshot Builder then Sketch migration as proof consumers"><span>Screenshot Builder first and Sketch/Canvas V2 second as proof consumers.</span></label></li>
+      </ul></div>
+      <div class="card"><h3>Out of scope</h3><ul class="review">
+        <li><label><input type="checkbox" checked data-item="No toolbars, sidebars, layers panels, property inspectors, dialogs, routes, or scaffold"><span>No toolbars, sidebars, layers panels, property inspectors, dialogs, routes, or application scaffold.</span></label></li>
+        <li><label><input type="checkbox" checked data-item="No built-in image picker, image model, rich text model, font catalogue, or Desy registry knowledge"><span>No built-in image picker, image model, rich-text model, font catalogue, or Desy registry knowledge.</span></label></li>
+        <li><label><input type="checkbox" checked data-item="No persistence, serialized history, collaboration, backend, or file export in V1"><span>No persistence, serialization of objects/history, collaboration, backend, or file export in V1. Undo/redo is ephemeral and controller-owned.</span></label></li>
+        <li><label><input type="checkbox" checked data-item="No connectors, graph links, drawing tools, shapes catalogue, groups, layout containers, or infinite scene in V1"><span>No connectors, graph links, drawing tools, shapes catalogue, groups, layout containers, or infinite scene in V1.</span></label></li>
+      </ul></div>
+    </div>
+    <div class="notes"><label for="scope-notes">Scope notes</label><textarea id="scope-notes" data-note="Scope notes"></textarea></div>
+  </section>
+
+  <section data-section="Proposed Public API">
+    <div class="section-head"><h2>Proposed Public API</h2><div class="tools"><label>Status <select data-status="Proposed Public API"><option selected>Approve direction</option><option>Revise names</option><option>Revise ownership</option><option>Reject</option></select></label></div></div>
+    <pre><code>sealed class EditorElement {}
+final class ImageElement extends EditorElement { /* host-owned bytes/source */ }
+final class TextElement extends EditorElement { /* host-owned text/style IDs */ }
+final class WidgetElement extends EditorElement { /* host-owned registry ID */ }
+
+final controller = ObjectCanvasController&lt;EditorElement&gt;(
+  canvasSize: const Size(1200, 630),
+  defaults: const CanvasObjectDefaults(
+    constraints: CanvasObjectConstraints(minSize: Size(24, 24)),
+    capabilities: CanvasObjectCapabilities.all,
+  ),
+  objects: [
+    CanvasObject&lt;EditorElement&gt;(
+      id: 'hero-image',
+      data: ImageElement(/* ... */),
+      geometry: const CanvasObjectGeometry(
+        position: Offset(80, 64),
+        size: Size(640, 360),       // real widget layout constraints
+        rotation: 0,               // radians around pivot
+        scale: 1,                  // paint transform; layout size unchanged
+        pivot: Alignment.center,
+      ),
+      // No policy boilerplate: canvas defaults apply.
+      // Supply constraints/capabilities only when this object is exceptional.
+    ),
+  ],
+  snapping: CanvasSnapping(
+    acquireDistance: CanvasScreenPixels(6),
+    releaseDistance: CanvasScreenPixels(10),
+    strategies: [
+      CanvasEdgeSnapping(),
+      ObjectAnchorSnapping(),
+      GridSnapping(step: 8),
+      AngleSnapping(stepDegrees: 15),
+    ],
+  ),
+);
+
+ObjectCanvas&lt;EditorElement&gt;(
+  controller: controller,
+  objectBuilder: (context, object, state) =&gt; switch (object.data) {
+    ImageElement element =&gt; buildImage(element),
+    TextElement element =&gt; buildText(element),
+    WidgetElement element =&gt; buildRealWidget(element),
+  },
+  backgroundBuilder: (context, canvas) =&gt; const ColoredBox(color: Colors.white),
+  selectionBuilder: defaultOrCustomSelection,
+  guideBuilder: defaultOrCustomGuides,
+  onAction: (CanvasActionEvent&lt;EditorElement&gt; event) {
+    // One event when an action is committed, undone, or redone.
+    logCanvasEdit(event);
+  },
+);</code></pre>
+    <div class="api-note"><strong>Recommended invariants:</strong> <code>size</code> and <code>scale</code> never mean the same thing. Resize modifies real layout constraints. Transform scale modifies the painted footprint after layout. Rotation and scale share an explicit pivot. List order is paint order. Constraints and capabilities resolve from canvas defaults first; an object declares an override only when it differs.</div>
+    <h3>Sensible rendering default without weakening generic data</h3>
+    <pre><code>// Arbitrary host data must explain how it becomes a real widget.
+ObjectCanvas&lt;EditorElement&gt;(
+  controller: editorController,
+  objectBuilder: buildEditorElement,
+);
+
+// When the data itself is already a Widget, no builder is necessary.
+ObjectCanvas&lt;Widget&gt;.widgets(
+  controller: widgetController,
+);</code></pre>
+    <p class="muted">A universal default builder cannot safely render an unconstrained <code>T</code>: the package cannot know how an <code>ImageElement</code>, text-style ID, registry ID, or application model becomes a widget. The typed <code>.widgets</code> constructor is the honest zero-boilerplate default, while the generic constructor preserves arbitrary data and real host rendering.</p>
+    <h3>Controller surface</h3>
+    <pre><code>class ObjectCanvasController&lt;T&gt; extends ChangeNotifier {
+  ObjectCanvasValue&lt;T&gt; get value;
+  List&lt;CanvasObject&lt;T&gt;&gt; get objects;
+  Set&lt;String&gt; get selectedIds;
+  CanvasViewport get viewport;
+
+  void add(CanvasObject&lt;T&gt; object, {bool select = true});
+  void remove(String id);
+  void replace(CanvasObject&lt;T&gt; object);
+  void updateData(String id, T data);
+  void setGeometry(String id, CanvasObjectGeometry geometry);
+  void select(String id, {CanvasSelectionMode mode = CanvasSelectionMode.replace});
+  void clearSelection();
+  void bringForward(String id);
+  void sendBackward(String id);
+  void bringToFront(String id);
+  void sendToBack(String id);
+
+  void setTransformTool(CanvasTransformTool tool); // resize | scale
+  void setViewport(CanvasViewport viewport);
+  void fitCanvas({EdgeInsets padding = const EdgeInsets.all(32)});
+  Offset screenToCanvas(Offset point);
+  Offset canvasToScreen(Offset point);
+
+  ValueListenable&lt;CanvasObject&lt;T&gt;&gt; objectListenable(String id);
+  ValueListenable&lt;List&lt;CanvasSnapGuide&gt;&gt; get guides;
+  ValueListenable&lt;CanvasHistoryState&gt; get history;
+
+  bool get canUndo;
+  bool get canRedo;
+  void perform(CanvasAction&lt;T&gt; action);
+  void undo();
+  void redo();
+  void clearHistory();
+}</code></pre>
+    <pre><code>sealed class CanvasAction&lt;T&gt; {
+  String get id;
+  String get description;
+  CanvasActionKind get kind;
+}
+
+final class CanvasTransformAction&lt;T&gt; extends CanvasAction&lt;T&gt; {
+  final String objectId;
+  final CanvasObjectGeometry before;
+  final CanvasObjectGeometry after;
+  final CanvasTransformKind transform; // move | resize | scale | rotate
+}
+
+// Pointer down: capture `before`.
+// Pointer updates: render draft geometry only; do not touch history.
+// Pointer up: create and perform exactly one action.
+controller.perform(CanvasTransformAction(
+  objectId: 'hero-image',
+  before: gestureStartGeometry,
+  after: finalSnappedGeometry,
+  transform: CanvasTransformKind.resize,
+));</code></pre>
+    <p class="muted"><code>CanvasHistory</code> adapts each typed action to one <code>undo.Change</code>. Because <code>ChangeStack.add()</code> executes immediately, gesture frames stay in separate draft state and only pointer-up adds/applies the action. Undo applies its <code>before</code> snapshot; redo applies <code>after</code>. A no-op gesture creates no action. Selection, hover, camera movement, and snap-guide state are view state and never enter document history.</p>
+    <div class="notes"><label for="api-notes">API notes</label><textarea id="api-notes" data-note="API notes" placeholder="Rename types, change callback frequency, add/remove controller methods, or alter size/scale semantics."></textarea></div>
+  </section>
+
+  <section data-section="Architecture">
+    <div class="section-head"><h2>Architecture</h2><div class="tools"><label>Status <select data-status="Architecture"><option selected>Approved</option><option>Needs revision</option><option>Partially approved</option><option>Rejected</option></select></label></div></div>
+    <pre class="diagram">Host domain
+  List&lt;CanvasObject&lt;T&gt;&gt; + objectBuilder(T)
+             │
+             ▼
+ObjectCanvasController&lt;T&gt;  ← programmatic add/remove/select/focus
+  ├─ committed document: canvas size + immutable ordered objects
+  ├─ view state: selection + camera transform + active transform tool
+  ├─ interaction state: active object draft + snap session + guides
+  └─ history adapter: CanvasAction&lt;T&gt; ↔ undo.ChangeStack
+             │
+             ▼
+ObjectCanvas&lt;T&gt;
+  ├─ viewport adapter (InteractiveViewer + TransformationController first)
+  └─ finite stage (clip/background/border)
+       ├─ arbitrary object widgets, laid out at geometry.size
+       ├─ paint transform: position + pivot + rotation + scale
+       └─ overlay: hit region + frame + handles + snap guides
+             │
+             ▼
+CanvasActionEvent&lt;T&gt; on commit | undo | redo → host observer
+
+Pure geometry seam
+  CanvasTransformEngine ─ CanvasSnapEngine ─ CanvasSceneIndex
+  No widget data, registry, persistence, file IO, editor panels, or theme dependency</pre>
+    <div class="grid">
+      <div class="card"><h3>Model layer</h3><p>Immutable objects, actions, and validation. Geometry stores position, real layout size, radians, positive transform scale, and pivot. Canvas-level defaults provide minimum size and capabilities; nullable per-object policy fields override only true exceptions. Each document edit is represented by a typed action with stable metadata and complete before/after values.</p></div>
+      <div class="card"><h3>Controller layer</h3><p>Owns lifecycle, unique-ID validation, paint order, selection, view state, and history. During a gesture it updates only object-scoped drafts. At gesture end it creates one typed <code>CanvasAction</code>; the history adapter uses <code>undo.ChangeStack</code> to apply, undo, or redo that action through the same document mutation path.</p></div>
+      <div class="card"><h3>Geometry layer</h3><p>Pure deterministic operations for local/world transforms, rotated corners, axis-aligned visual bounds, containment, handle deltas, resize versus scale, and snapping. No BuildContext or host data.</p></div>
+      <div class="card"><h3>Widget layer</h3><p>Composes Flutter's supported camera/gesture primitives and the selected transform dependency. It renders only inside the canvas and exposes builders for content and visual chrome.</p></div>
+      <div class="card"><h3>Customization layer</h3><p>Small interfaces: object builder, selection/handle builder, guide builder, background builder, hit-test delegate, snap strategies, boundary resolver, keyboard/modifier policy. Defaults remain useful.</p></div>
+      <div class="card"><h3>Consumer adapters</h3><p>Desy adapters map registry IDs, knobs, images, text styles, artboards, and layouts into host data. None of those types enters the package.</p></div>
+    </div>
+    <div class="notes"><label for="architecture-notes">Architecture notes</label><textarea id="architecture-notes" data-note="Architecture notes"></textarea></div>
+  </section>
+
+  <section data-section="Logic and Data Flow">
+    <div class="section-head"><h2>Logic and Data Flow</h2><div class="tools"><label>Status <select data-status="Logic and Data Flow"><option selected>Approved</option><option>Needs revision</option><option>Partially approved</option><option>Rejected</option></select></label></div></div>
+    <ol class="review">
+      <li><label><input type="checkbox" checked data-item="Host constructs immutable typed objects and an ObjectCanvasController"><span>The host constructs immutable typed objects and one controller. IDs are validated immediately; list order becomes paint order.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="ObjectCanvas renders a finite stage and builds arbitrary widgets at their logical layout size"><span><code>ObjectCanvas</code> renders a finite stage, builds each arbitrary widget at <code>geometry.size</code>, then applies scale/rotation/position as a paint transform.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Committed placement updates cached snapping metadata"><span>Add, remove, and applied/undone/redone document actions incrementally update the snap scene index. Canvas and grid metadata are built when configuration changes; no widget-tree measurement or full-scene scan occurs during a gesture.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Gesture start snapshots geometry and the precomputed snap index"><span>Gesture start snapshots the selected geometry and takes an immutable view of the already-built snap index, excluding active objects.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Pointer updates query precomputed snap targets"><span>Pointer updates derive only the active draft's proposed anchors, then query and rank nearby cached targets. Transform constraints and boundary policy run on that proposal; screen-pixel tolerances use current viewport scale.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Only the active object and guide overlay rebuild during interaction"><span>Only the active object-scoped listenable and guide overlay rebuild during interaction; the committed collection stays referentially stable.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Gesture end creates exactly one undoable action"><span>Gesture end compares start and final geometry. If changed, it creates exactly one <code>CanvasTransformAction</code> and adds one package <code>Change</code>; that call applies the final geometry, updates the snap index, and clears drafts/guides. Cancel or no-op creates no history entry.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Undo and redo replay the same typed action"><span><code>undo()</code> applies the action's before snapshot; <code>redo()</code> applies its after snapshot. Both use the same document replacement/index invalidation path and publish an action event with its phase.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Host edits arbitrary data through an undoable controller action"><span>Host property editors call <code>updateData</code>, which creates one <code>CanvasDataAction</code>. The canvas applies/undoes the typed value without interpreting image, text, registry, or application fields.</span></label></li>
+    </ol>
+    <div class="notes"><label for="flow-notes">Flow notes</label><textarea id="flow-notes" data-note="Logic and data-flow notes"></textarea></div>
+  </section>
+
+  <section data-section="State Model">
+    <div class="section-head"><h2>State Model</h2><div class="tools"><label>Status <select data-status="State Model"><option selected>Approved</option><option>Needs revision</option><option>Partially approved</option><option>Rejected</option></select></label></div></div>
+    <table><thead><tr><th>Use</th><th>Owner</th><th>State</th><th>Lifecycle / readers</th></tr></thead><tbody>
+      <tr><td><input type="checkbox" checked data-item="Controller owns committed document state"></td><td><code>ObjectCanvasController&lt;T&gt;</code></td><td>Canvas size; immutable paint-ordered objects; ID index.</td><td>Created/disposed by host. Canvas, layers panels, export adapters, and host observers read it.</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Controller owns view state"></td><td>Controller viewport subvalue</td><td>Translation, zoom, selected-ID set, active resize/scale tool, keyboard focus target.</td><td>Session-local; reset/focus/fit through methods. Never serialized by core.</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Controller owns transient interaction state"></td><td>Gesture draft</td><td>Initial object, proposed geometry, operation, active handles, snap session, guides.</td><td>Created on interaction start; converted to one action or discarded on end/cancel. It is not a history entry and never mutates committed geometry.</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Controller owns in-memory action history"></td><td><code>CanvasHistory&lt;T&gt;</code> wrapping <code>undo.ChangeStack</code></td><td>Undo/redo stacks plus observable <code>canUndo</code>, <code>canRedo</code>, and latest action event.</td><td>Same lifecycle as controller; ephemeral, clearable, optionally limited, never serialized. Package types stay behind the canvas API.</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Controller owns a precomputed snap scene index"></td><td>Controller geometry cache</td><td>Canvas/grid anchors and stable object anchors keyed by object ID and committed geometry revision.</td><td>Updated incrementally whenever an action is applied, undone, or redone, or snapping configuration changes; gesture frames only query it.</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Host owns arbitrary domain data"></td><td>Consumer app</td><td>Image bytes/URIs, text/style IDs, real widget IDs and knobs, persistence metadata.</td><td>Passed as <code>T</code>; package never serializes, clones, or interprets it.</td></tr>
+      <tr><td><input type="checkbox" checked data-item="No async loading or backend state in core"></td><td>None</td><td>No loading, network, permission, file, save, or error state.</td><td>Hosts render their own loading/error widgets as object content and decide retries.</td></tr>
+    </tbody></table>
+    <div class="notes"><label for="state-notes">State notes</label><textarea id="state-notes" data-note="State notes"></textarea></div>
+  </section>
+
+  <section data-section="Snapping Contract">
+    <div class="section-head"><h2>Snapping Contract</h2><div class="tools"><label>Status <select data-status="Snapping Contract"><option selected>Approved</option><option>Needs revision</option><option>Partially approved</option><option>Rejected</option></select></label></div></div>
+    <table><thead><tr><th>Strategy</th><th>V1 behavior</th><th>Customization seam</th></tr></thead><tbody>
+      <tr><td>Canvas edges</td><td>Leading/center/trailing anchors against finite canvas bounds; highest default priority for containment-adjacent moves.</td><td>Replace/remove strategy or change priority.</td></tr>
+      <tr><td>Object anchors</td><td>Leading/center/trailing anchors from peer visual bounds are precomputed when committed placement changes; immutable sorted X/Y index; deterministic tie breaks; guide descriptors returned separately.</td><td>Candidate filter excludes locked/hidden/custom objects; custom anchor provider allowed. Providers run on placement/commit, not per pointer frame.</td></tr>
+      <tr><td>Grid</td><td>Step/origin metadata is compiled when configuration changes; each frame performs only constant-time quantization for active move/resize anchors.</td><td>Custom step/origin; strategy removable.</td></tr>
+      <tr><td>Angles</td><td>Rotation increments such as 15° with screen/input-aware acquire and release thresholds.</td><td>Custom angle list or strategy.</td></tr>
+      <tr><td>Locks and guides</td><td>Acquire at 6 screen px, release at 10 screen px; stable lock avoids jitter; guides are immutable world-space descriptors.</td><td>Config values and guide builder/painter.</td></tr>
+      <tr><td>Rotated objects</td><td>V1 movement snaps axis-aligned visual bounds. Rotated local-axis resize snapping requires the geometry spike before commitment.</td><td>Future oriented-anchor provider without changing object data.</td></tr>
+    </tbody></table>
+    <div class="notes"><label for="snap-notes">Snapping notes</label><textarea id="snap-notes" data-note="Snapping notes"></textarea></div>
+  </section>
+
+  <section data-section="UI States and Transitions">
+    <div class="section-head"><h2>UI States and Transitions</h2><div class="tools"><label>Status <select data-status="UI States and Transitions"><option selected>Approved</option><option>Needs revision</option><option>Partially approved</option><option>Rejected</option></select></label></div></div>
+    <table><thead><tr><th>State</th><th>Canvas behavior</th><th>Transition / accessibility</th></tr></thead><tbody>
+      <tr><td>Empty</td><td>Finite background and border remain visible. Optional empty/background builder can explain how the host adds content.</td><td>No package-owned add button or abrupt alternate screen.</td></tr>
+      <tr><td>Idle content</td><td>Objects render in paint order without frames unless host style asks for hover affordance.</td><td>Each selectable object has a semantic label from a host callback and is reachable by keyboard traversal.</td></tr>
+      <tr><td>Selected</td><td>Selection frame/handles appear in the overlay; selection does not alter object layout.</td><td>Focus and selected semantics update together; builders may animate frame opacity but geometry is immediate.</td></tr>
+      <tr><td>Moving/resizing/scaling/rotating</td><td>One live draft updates at frame cadence; snap guides appear/disappear continuously; pointer capture stays with the active transform.</td><td>Announce committed geometry, not every pointer delta. Escape cancels; arrows move by configured step; modifiers are policy-driven.</td></tr>
+      <tr><td>Undo/redo</td><td>Controller applies the previous action's before/after snapshot immediately and updates only affected objects plus the snap index. Hosts derive button/shortcut enabled state from <code>history</code>.</td><td>Default actions expose semantic descriptions such as “Undo resize”. The package owns commands/state, while surrounding toolbar placement remains host-owned.</td></tr>
+      <tr><td>Locked/hidden/disabled</td><td>Hidden objects do not build or hit-test. Locked objects may select but do not expose transform handles. Disabled canvas renders without interaction.</td><td>State is conveyed through semantics and affordances, not color alone.</td></tr>
+      <tr><td>Host loading/error</td><td>The package has no global async state. Host object builders may return skeleton/error/retry content inside the object's real bounds.</td><td>Object geometry remains stable across host content transitions.</td></tr>
+    </tbody></table>
+    <div class="notes"><label for="ui-notes">UI notes</label><textarea id="ui-notes" data-note="UI state and transition notes"></textarea></div>
+  </section>
+
+  <section data-section="Touched Files and Classes">
+    <div class="section-head"><h2>Touched Files and Classes</h2><div class="tools"><label>Status <select data-status="Touched Files and Classes"><option selected>Approved</option><option>Needs revision</option><option>Partially approved</option><option>Rejected</option></select></label></div></div>
+    <table><thead><tr><th>Use</th><th>Path</th><th>Classes / change</th><th>Phase</th></tr></thead><tbody>
+      <tr><td><input type="checkbox" checked data-item="Create packages/object_canvas package shell"></td><td><code>packages/object_canvas/pubspec.yaml</code><br><code>lib/object_canvas.dart</code></td><td>Independent Flutter package with <code>undo: ^1.6.0</code>; no Desy/Forui/state-manager dependency; public barrel exports canvas-owned types rather than raw <code>undo</code> types.</td><td>1</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Create immutable object and action model"></td><td><code>lib/src/model/*.dart</code><br><code>lib/src/history/canvas_action.dart</code></td><td><code>CanvasObject&lt;T&gt;</code>, geometry, canvas defaults, optional object overrides, viewport, typed transform/add/remove/reorder/data/compound actions, and action events.</td><td>1</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Create ObjectCanvasController and undo adapter"></td><td><code>lib/src/controller/object_canvas_controller.dart</code><br><code>lib/src/history/canvas_history.dart</code></td><td>Document/view state, focused gesture drafts, selection, ordering, coordinate conversion, <code>undo.ChangeStack</code> adaptation, observable undo/redo state, and shared action application.</td><td>1–2</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Create transform geometry seam"></td><td><code>lib/src/geometry/*.dart</code></td><td>Local/world transform, rotated corners/AABB, containment, layout resize, transform scale, rotation, handle math.</td><td>2</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Port and generalize snapping engine"></td><td><code>lib/src/snapping/*.dart</code></td><td>Strategy contract, sorted scene index, gesture session, locks, candidate ranking, grid/edge/object/angle built-ins, guide descriptors.</td><td>2</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Create ObjectCanvas widget and overlays"></td><td><code>lib/src/widgets/object_canvas.dart</code><br><code>object_canvas_stage.dart</code><br><code>object_transform_frame.dart</code><br><code>canvas_viewport.dart</code></td><td>Finite surface, viewport composition, object builder, selection and handle builders, guide overlay, focus/actions/semantics.</td><td>2–3</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Create package example"></td><td><code>packages/object_canvas/example/</code></td><td>Mixed sealed data: image bytes, styled text, and arbitrary widgets; external property panel proves package boundary.</td><td>3</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Create package tests and benchmarks"></td><td><code>packages/object_canvas/test/</code><br><code>benchmark/</code></td><td>Model, controller, geometry, snapping, gesture, keyboard, semantics, rebuild isolation, rotated containment, and 100/1k/10k index benchmarks.</td><td>1–3</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Wire package into workspace tasks"></td><td><code>pubspec.yaml</code><br><code>Taskfile.yml</code><br><code>packages/object_canvas/Taskfile.yml</code></td><td>Workspace entry, analyze/test/example build tasks, canonical check integration.</td><td>1</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Adapt Screenshot Builder after package parity"></td><td><code>packages/extensions/desy_screenshot_builder/lib/src/*</code></td><td>Map screenshot layers to <code>CanvasObject&lt;ScreenshotElement&gt;</code>; delete local move/resize/select/snap/camera code after parity.</td><td>4</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Adapt Sketch Canvas V2 after first migration"></td><td><code>packages/desy_bench/lib/src/workbench/components_canvas/*</code></td><td>Retain Desy nodes/artboards/layouts/knobs in adapter; replace shared controller geometry, viewport, transform, and snapping machinery.</td><td>5</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Update concept and implemented documentation"></td><td><code>concept/features/flutter-object-canvas-package.html</code><br><code>docs/concepts/object-canvas.md</code></td><td>Keep concept while planned; move final stable contract to implemented docs once the package and first adapter ship.</td><td>All</td></tr>
+    </tbody></table>
+    <div class="notes"><label for="files-notes">File notes</label><textarea id="files-notes" data-note="File notes"></textarea></div>
+  </section>
+
+  <section data-section="Source and Dependency Strategy">
+    <div class="section-head"><h2>Source and Dependency Strategy</h2><div class="tools"><label>Status <select data-status="Source and Dependency Strategy"><option selected>Approved with license checks</option><option>Needs more research</option><option>Revise dependencies</option><option>Rejected</option></select></label></div></div>
+    <p>Full evidence: <a href="../../docs/research/flutter-object-canvas-package-landscape.md">Flutter object-canvas package landscape</a>, <a href="../../docs/research/dart-undo-package.md">Dart undo package integration</a>, and the existing <a href="../../docs/research/flutter_snap_alignment_packages.md">snapping research</a>.</p>
+    <table><thead><tr><th>Source</th><th>Use</th><th>Boundary</th></tr></thead><tbody>
+      <tr><td>Flutter <code>InteractiveViewer</code> + <code>TransformationController</code></td><td>Default camera composition, pan/zoom, coordinate conversion.</td><td>Use official APIs first. Do not replace the gesture arena without an evidence spike and approval under Principle 21.</td></tr>
+      <tr><td><code>box_transform</code> / <code>flutter_box_transform</code></td><td>Spike the lower-level pure geometry package first for constrained move/layout resize; its widget package proves handles, clamping, and pointer policies.</td><td>Released <code>flutter_box_transform</code> 0.4.7 has no rotation and “scale” still changes logical rect. Prefer the lower-level Apache-2.0 dependency if it fits; do not design against unreleased repository rotation.</td></tr>
+      <tr><td><code>undo</code> 1.6.0</td><td>Controller-owned in-memory undo/redo stack. Adapt each completed <code>CanvasAction</code> to exactly one <code>Change</code>; use <code>canUndo</code>, <code>canRedo</code>, <code>undo</code>, <code>redo</code>, and <code>clearHistory</code> behind a canvas-owned facade.</td><td><code>add()</code> executes immediately, so drag geometry must remain draft-only until pointer-up. Do not expose raw package types. Do not use released <code>addGroup()</code> for dependent actions: it is not atomic and undoes in forward order; represent multi-object edits as one composite action. Apache-2.0, zero runtime dependencies.</td></tr>
+      <tr><td>Desy snap engine/index/session</td><td>Extract our deterministic screen-space tolerance, hysteresis, sorted-anchor index, guide separation, and benchmark suite.</td><td>Rename/generalize; remove Desy concepts; add canvas-edge and angle strategies.</td></tr>
+      <tr><td><code>infinite_canvas</code>, <code>infinity_canvas</code>, <code>diagram_editor</code></td><td>Study controller, coordinate conversion, viewport, custom layer, and culling patterns.</td><td>Do not adopt their graph/infinite/persistence scene models wholesale for a finite minimal package.</td></tr>
+      <tr><td><code>canvas_editor</code>, <code>bounding_box</code>, <code>infinite_canvas_viewer</code></td><td>Use only as API/UX checklists for arbitrary widgets, controllers, rotation handles, and overlays.</td><td>The audited releases are small, mutable, WIP, or geometrically incomplete. Do not depend on or copy their state/gesture designs.</td></tr>
+      <tr><td><code>sticker_editor_plus</code>, <code>matrix_gesture_detector_pro</code>, <code>flutter_img_editor</code></td><td>Study sticker interaction, coordinate conversion, and history boundaries where useful.</td><td>Closed editor taxonomies, obsolete SDK constraints, or image-workflow coupling make them unsuitable foundations. Native <code>ScaleUpdateDetails</code> already provides gesture scale and rotation.</td></tr>
+      <tr><td><code>fluera_canvas</code></td><td>Study guide/candidate separation, spatial indexing, rotated selection, and headless/tool layering.</td><td>Complete drawing/persistence engine is intentionally much broader; source-reference only unless a narrow published API fits.</td></tr>
+      <tr><td>Excalidraw/Fabric/Konva/tldraw-style editors</td><td>Learn immutable element IDs, separate app/view state, transform transactions, and overlay/tool separation.</td><td>Copy only from license-compatible sources with exact provenance. Never assume a public repository means source may be copied.</td></tr>
+    </tbody></table>
+    <div class="api-note"><strong>Copying rule:</strong> prefer dependencies and our own extracted code. Any adapted third-party implementation gets a source URL + commit, license verification, retained notices, modification note, and entry in <code>THIRD_PARTY_NOTICES.md</code>. Do not copy unreleased or ambiguously licensed code merely because it is readable.</div>
+    <div class="notes"><label for="source-notes">Source/dependency notes</label><textarea id="source-notes" data-note="Source and dependency notes"></textarea></div>
+  </section>
+
+  <section data-section="Backend and Database Changes">
+    <div class="section-head"><h2>Backend and Database Changes</h2><div class="tools"><label>Status <select data-status="Backend and Database Changes"><option selected>Approved — none</option><option>Needs revision</option><option>Rejected</option></select></label></div></div>
+    <p><strong>None planned.</strong> This is an in-memory Flutter package. It defines no serialization, files, backend, database, migrations, environment variables, RPCs, authentication, or deployment. Host apps continue to own persistence and export.</p>
+    <div class="notes"><label for="backend-notes">Backend notes</label><textarea id="backend-notes" data-note="Backend/database notes"></textarea></div>
+  </section>
+
+  <section data-section="Implementation Phases">
+    <div class="section-head"><h2>Implementation Phases</h2><div class="tools"><label>Status <select data-status="Implementation Phases"><option selected>Approved</option><option>Needs revision</option><option>Partially approved</option><option>Rejected</option></select></label></div></div>
+    <ol class="review">
+      <li><label><input type="checkbox" checked data-item="Phase 0 geometry and dependency spike"><span><strong>Phase 0 — contract spike:</strong> prototype rotation, rotated resize, containment, and camera/object gesture composition using supported Flutter APIs and candidate dependencies. Record the concrete gap before custom interaction code.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Phase 1 package shell model controller action history and API tests"><span><strong>Phase 1 — model/controller/history:</strong> package shell, immutable values, global defaults plus object overrides, controller, typed <code>CanvasAction</code> hierarchy, <code>undo.ChangeStack</code> adapter, observable undo/redo state, paint order, selection, and API compile tests.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Phase 2 transform and snapping engines"><span><strong>Phase 2 — geometry:</strong> transform engine, finite bounds, move/layout-resize/scale/rotate, snap strategies/index/session/guides, deterministic tests and benchmarks.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Phase 3 ObjectCanvas widget example and accessibility"><span><strong>Phase 3 — widget:</strong> viewport, finite stage, arbitrary builder, frames/handles/guides, pointer devices, keyboard/focus/semantics, mixed-data example, web/mac/mobile widget tests.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Phase 4 Screenshot Builder migration"><span><strong>Phase 4 — first proof:</strong> adapt Screenshot Builder. Verify image/text/registry widget behavior and export fidelity, then delete only the replaced local canvas machinery.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Phase 5 Sketch Canvas V2 migration"><span><strong>Phase 5 — second proof:</strong> adapt Sketch/Canvas V2 while preserving Desy-specific artboards, layouts, knobs, and registry contracts outside the package.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Phase 6 stabilize and decide publication"><span><strong>Phase 6 — stabilization:</strong> API review after two consumers, documentation, dependency/license notices, performance receipts, changelog. Only then decide pub.dev publication, persistent history, and richer multi-selection follow-ups.</span></label></li>
+    </ol>
+    <div class="notes"><label for="phase-notes">Phase notes</label><textarea id="phase-notes" data-note="Implementation phase notes"></textarea></div>
+  </section>
+
+  <section data-section="Tests and Verification">
+    <div class="section-head"><h2>Tests and Verification</h2><div class="tools"><label>Status <select data-status="Tests and Verification"><option selected>Approved</option><option>Needs revision</option><option>Partially approved</option><option>Rejected</option></select></label></div></div>
+    <ul class="review">
+      <li><label><input type="checkbox" checked data-item="API compile tests for generic mixed data and controller lifecycle"><span>API compile tests for generic sealed data, stable IDs, immutable ordered objects, controller lifecycle, and builder signatures.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Geometry unit tests across resize scale rotate pivot and containment"><span>Geometry unit tests for local/world conversion, all handles, layout resize versus transform scale, pivots, negative/invalid inputs, rotated corners/AABB, and finite containment.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Snapping deterministic and benchmark tests"><span>Assert targets are computed on commit/configuration changes and not during pointer frames; cover incremental invalidation, grid/canvas/object/angle snapping, priority, ties, exclusion, zoom-scaled tolerance, locks, release thresholds, and 100/1k/10k p95 benchmarks.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="One completed gesture equals one undo action tests"><span>Hundreds of pointer updates produce zero history entries until pointer-up and exactly one afterward; cancel/no-op produce none; move/resize/scale/rotate each restore exact before/after geometry.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Undo package adapter tests"><span>Undo/redo availability, redo clearing after a new edit, history limits, action descriptions/events, add/remove/reorder/data edits, composite multi-object action ordering, and snap-index invalidation on apply/undo/redo. Pin behavior rather than trusting README-only APIs.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Widget gesture tests for all input modes"><span>Widget tests for select/clear, move, resize, scale, rotate, cancellation, clipping, z-order, locked/hidden states, object hit policy, viewport gestures, and handle customization.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Keyboard focus semantics and text scale tests"><span>Keyboard movement/delete hooks, focus visibility, semantic selected/locked labels, 200% text scale for default labels, and 44×44 touch affordances where practical.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Rebuild isolation performance tests"><span>Assert transient motion rebuilds the active object and guide overlay rather than the whole scene. Benchmark representative arbitrary widgets.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Example builds across Flutter targets"><span>Analyze/test package; build example web and macOS; run Android/iOS smoke builds before claiming all-platform support.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Consumer parity tests and canonical task check"><span>Screenshot Builder export/interaction parity, Sketch artboard/layout/snapping parity, dogfood visual QA, dependency-boundary check, and canonical <code>task check</code>.</span></label></li>
+    </ul>
+    <div class="notes"><label for="test-notes">Test notes</label><textarea id="test-notes" data-note="Test notes"></textarea></div>
+  </section>
+
+  <section class="risk" data-section="Risks and Seams to Watch">
+    <div class="section-head"><h2>Risks and Seams to Watch</h2><div class="tools"><label>Status <select data-status="Risks and Seams to Watch"><option selected>Accepted with mitigations</option><option>Needs mitigation</option><option>Defer risky work</option><option>Reject</option></select></label></div></div>
+    <ul class="review">
+      <li><label><input type="checkbox" checked data-item="Gesture ownership conflict between viewport and object transforms"><span><strong>Gesture ownership:</strong> viewport pan/zoom and object transform recognizers can conflict across mouse, touch, stylus, and trackpad. Phase 0 must prove supported composition before custom pointer arbitration.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Rotation makes containment resize snapping and hit testing non-axis-aligned"><span><strong>Rotation:</strong> containment, local-axis resize, snapping, hit testing, and handle placement become oriented geometry. Do not fake them with only an AABB beyond the explicitly scoped movement case.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Two external state APIs could create competing truth"><span><strong>State duplication:</strong> shipping both mutable controller state and parent-controlled object lists too early can create reconciliation loops. V1 recommendation is controller-only.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Default and object override resolution must remain deterministic"><span><strong>Policy resolution:</strong> canvas defaults apply first and nullable object overrides replace explicit fields. Tests must prevent accidental merging rules or repeated object boilerplate.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Snap cache invalidation must follow every committed geometry source"><span><strong>Cached snapping:</strong> programmatic edits, gesture commits, add/remove, and configuration changes must invalidate the correct index entries. Drafts never mutate stable targets.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Undo package executes Change during add"><span><strong>History execution timing:</strong> <code>ChangeStack.add()</code> executes immediately. Committed geometry must therefore stay unchanged during dragging; only the visual draft moves, and pointer-up adds/applies the action once.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Undo package grouping API is not the canvas composition model"><span><strong>Grouped edits:</strong> released <code>addGroup()</code> applies/undoes members in forward order and is not atomic. Use one canvas-owned composite action for multi-object gestures and keep package types private.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Generic customization can become a flag-heavy editor framework"><span><strong>API sprawl:</strong> use builders/delegates and typed capability objects. Refuse sidebar, domain model, persistence, and tool-catalogue flags.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Widget interactions inside editable objects conflict with canvas selection"><span><strong>Child input:</strong> buttons, text fields, scrollables, and gestures inside arbitrary widgets need an explicit edit-versus-interact hit-test policy.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Third party source license and released-main divergence"><span><strong>Source provenance:</strong> package/repository versions and licenses can diverge. Pin commits, verify authoritative licenses, retain notices, and prefer dependencies over copied code.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Migration could accidentally move Desy domain state into the package"><span><strong>Extraction seam:</strong> registry IDs, knobs, artboards, layouts, text styles, image bytes, and export policy remain host data. Only reusable geometry/interaction crosses the boundary.</span></label></li>
+    </ul>
+    <div class="notes"><label for="risk-notes">Risk notes</label><textarea id="risk-notes" data-note="Risk notes"></textarea></div>
+  </section>
+
+  <section data-section="Open Decisions">
+    <div class="section-head"><h2>Open Decisions</h2><div class="tools"><label>Status <select data-status="Open Decisions"><option selected>Use recommended defaults</option><option>Answer before implementation</option><option>Defer</option></select></label></div></div>
+    <ol>
+      <li>Final package and public widget names.</li>
+      <li>Whether a controller-less <code>objects + onObjectChanged</code> convenience constructor belongs in V1 or waits until the controller API proves stable.</li>
+      <li>Approve canvas-level minimum-size and capability defaults with optional per-object overrides, instead of requiring policy declarations on every object.</li>
+      <li>Approve a required builder for arbitrary <code>T</code> plus <code>ObjectCanvas&lt;Widget&gt;.widgets</code> as the sensible default-rendering constructor.</li>
+      <li>Confirm that <code>CanvasActionEvent</code> is the primary semantic callback for commit/undo/redo, while <code>onObjectChanged</code> remains an optional per-object projection.</li>
+      <li>Choose the default in-memory history limit; recommendation: 100 completed document actions, configurable and clearable.</li>
+      <li>How users switch direct handles between layout resize and transform scale: controller tool, per-object policy, modifier, or multiple handles.</li>
+      <li>Whether V1 selection may contain multiple IDs while only one object transforms, or whether full multi-object bounds/rotation ships immediately.</li>
+      <li>Which released dependency, if any, owns rotation and rotated resize. Phase 0 must produce the recommendation.</li>
+      <li>Whether capture/export later belongs in a companion package or a render-only API; it is excluded from this core plan.</li>
+    </ol>
+    <div class="notes"><label for="open-notes">Open-decision notes</label><textarea id="open-notes" data-note="Open-decision notes"></textarea></div>
+  </section>
+
+  <section data-section="Export Review">
+    <div class="section-head"><h2>Export Review</h2><span class="muted">Generates a response you can send back to Codex.</span></div>
+    <div class="actions"><button id="export">Generate and copy review</button><button id="select-all" type="button">Approve all checkboxes</button></div>
+    <div class="notes"><label for="output">Review instruction</label><textarea id="output" class="export" readonly></textarea></div>
+  </section>
+</main>
+<script>
+  const output=document.querySelector('#output');
+  document.querySelector('#select-all').addEventListener('click',()=>document.querySelectorAll('input[type=checkbox]').forEach(x=>x.checked=true));
+  document.querySelector('#export').addEventListener('click',async()=>{
+    const lines=['Proceed with the reusable Flutter object canvas package plan, with this review:',''];
+    document.querySelectorAll('[data-status]').forEach(s=>lines.push(`${s.dataset.status}: ${s.value}`));
+    lines.push('','Decisions:');
+    document.querySelectorAll('input[type=radio]:checked').forEach(r=>lines.push(`- ${r.name}: ${r.value}`));
+    const included=[...document.querySelectorAll('input[type=checkbox]:checked')].map(x=>x.dataset.item).filter(Boolean);
+    const excluded=[...document.querySelectorAll('input[type=checkbox]:not(:checked)')].map(x=>x.dataset.item).filter(Boolean);
+    lines.push('','Approved/included:',...included.map(x=>`- ${x}`));
+    if(excluded.length)lines.push('','Changed/rejected:',...excluded.map(x=>`- ${x}`));
+    const notes=[...document.querySelectorAll('textarea[data-note]')].filter(x=>x.value.trim()).map(x=>`${x.dataset.note}: ${x.value.trim()}`);
+    if(notes.length)lines.push('','Notes:',...notes.map(x=>`- ${x}`));
+    output.value=lines.join('\n');output.focus();output.select();
+    try{await navigator.clipboard.writeText(output.value)}catch(_){document.execCommand('copy')}
+  });
+</script>
+</body>
+</html>

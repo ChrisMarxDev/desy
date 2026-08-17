@@ -65,13 +65,11 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     for (final entry in entries) {
       final motion = entry.source as DesyMotionEntry;
       final duration = motion.duration;
-      if (duration != null && duration > longestDeclaredDuration) {
+      if (duration > longestDeclaredDuration) {
         longestDeclaredDuration = duration;
       }
     }
-    final globalDuration = longestDeclaredDuration == Duration.zero
-        ? DesyMotionPlaybackController.defaultDuration
-        : longestDeclaredDuration;
+    final globalDuration = longestDeclaredDuration;
     _globalMotionDuration = globalDuration;
     _motionPlayback = DesyMotionPlaybackController(
       vsync: this,
@@ -129,9 +127,28 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
             style: Theme.of(context).textTheme.labelSmall,
           ),
           const SizedBox(height: 4),
-          Text(
-            _title(folder, atomKind, atomRoot),
-            style: Theme.of(context).textTheme.displaySmall,
+          Text.rich(
+            key: const ValueKey('atlas-headline'),
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: _title(folder, atomKind, atomRoot),
+                  style: Theme.of(context).textTheme.displaySmall,
+                ),
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.baseline,
+                  baseline: TextBaseline.alphabetic,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 10),
+                    child: Text(
+                      '${entries.length} entries',
+                      key: const ValueKey('atlas-entry-count'),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           if ((_motionPlayback, _globalMotionDuration) case (
             final playback?,
@@ -159,12 +176,6 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
             onChanged: (value) => session.atlasQuery.value = value,
             hintText: 'Search',
           ),
-          const SizedBox(height: 18),
-          Text(
-            '${entries.length} entries',
-            style: Theme.of(context).textTheme.labelSmall,
-          ),
-          const SizedBox(height: 10),
           Expanded(
             child: folderId == null
                 ? _ComponentsAtlasSections(

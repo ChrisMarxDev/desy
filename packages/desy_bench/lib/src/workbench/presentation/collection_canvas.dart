@@ -4,18 +4,32 @@
 import 'dart:math' as math;
 
 import 'package:desy_design_system/desy_design_system.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../registry.dart';
 import '../workbench_annotation.dart';
 import '../widget_preview.dart';
 import 'desy_drag_box.dart';
+import 'workbench_control_sheet.dart';
 
 const _minimumBoxExtent = 8.0;
 const _canvasExtent = 100000.0;
+const _canvasEdgePadding = 1024.0;
+const _minimumCanvasZoom = .5;
+const _maximumCanvasZoom = 2.5;
 const _labelGap = 6.0;
 const _labelHeight = 28.0;
 const _trailingSpace = 56.0;
+
+class _CanvasSelectModeIntent extends Intent {
+  const _CanvasSelectModeIntent();
+}
+
+class _CanvasAnnotateModeIntent extends Intent {
+  const _CanvasAnnotateModeIntent();
+}
 
 /// One immutable, registry-derived item shown in a [DesyCollectionCanvas].
 ///
@@ -26,21 +40,52 @@ class DesyCanvasSceneItem<T> {
     required this.id,
     required this.name,
     required this.value,
-    required this.previewBuilder,
+    this.previewBuilder,
+    this.previewSurfaceBuilder,
     this.initialSize = const Size(320, 240),
     this.initialRect,
-  });
+    this.geometryResolver,
+    this.draggable = true,
+    this.ignoreChildPointer = false,
+    this.itemKey,
+    this.frameKey,
+    this.contentKey,
+    this.labelKey,
+    this.resizeHandleKeyPrefix,
+    this.onGeometryChanged,
+    this.onSelected,
+  }) : assert(previewBuilder != null || previewSurfaceBuilder != null);
 
   final String id;
   final String name;
   final T value;
-  final DesyCanvasPreviewBuilder<T> previewBuilder;
+  final DesyCanvasPreviewBuilder<T>? previewBuilder;
+  final DesyCanvasPreviewSurfaceBuilder<T>? previewSurfaceBuilder;
   final Size initialSize;
   final Rect? initialRect;
+  final DesyDragBoxGeometryResolver? geometryResolver;
+  final bool draggable;
+  final bool ignoreChildPointer;
+  final Key? itemKey;
+  final Key? frameKey;
+  final Key? contentKey;
+  final Key? labelKey;
+  final String? resizeHandleKeyPrefix;
+  final ValueChanged<DesyDragBoxGeometry>? onGeometryChanged;
+  final VoidCallback? onSelected;
 }
 
 typedef DesyCanvasPreviewBuilder<T> =
     Widget Function(BuildContext context, T value);
+
+typedef DesyCanvasPreviewSurfaceBuilder<T> =
+    Widget Function(
+      BuildContext context,
+      T value,
+      DesyDragBoxGeometry geometry,
+      VoidCallback onSelect,
+      ValueChanged<DesyDragBoxGeometry> onChanged,
+    );
 
 /// Builds the host-specific controls for one selected scene item.
 ///
@@ -64,6 +109,15 @@ class DesyCollectionCanvas<T> extends StatefulWidget {
     this.badgeLabel,
     this.itemNoun = 'items',
     this.keyPrefix = 'collection-canvas',
+    this.toolbar,
+    this.showInspectorDrawer = true,
+    this.initialSelectedItemId,
+    this.clearSelectionOnCanvasTap = true,
+    this.geometryRevision = 0,
+    this.onItemSelected,
+    this.zoomDockKeyPrefix = 'collection-canvas',
+    this.initialZoom = 1,
+    this.zoomRevision = 0,
   });
 
   final DesyTheme theme;
@@ -74,6 +128,15 @@ class DesyCollectionCanvas<T> extends StatefulWidget {
   final String? badgeLabel;
   final String itemNoun;
   final String keyPrefix;
+  final Widget? toolbar;
+  final bool showInspectorDrawer;
+  final String? initialSelectedItemId;
+  final bool clearSelectionOnCanvasTap;
+  final int geometryRevision;
+  final ValueChanged<DesyCanvasSceneItem<T>>? onItemSelected;
+  final String zoomDockKeyPrefix;
+  final double initialZoom;
+  final int zoomRevision;
 
   @override
   State<DesyCollectionCanvas<T>> createState() =>
@@ -84,13 +147,31 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
   final _geometries = <String, DesyDragBoxGeometry>{};
   final _paintOrder = <String>[];
   final _zoomController = TransformationController();
+  int? _blankCanvasPointer;
   String? _selectedId;
   var _zoom = 1.0;
 
   @override
   void initState() {
     super.initState();
+    _selectedId = widget.initialSelectedItemId;
+    _setZoomValue(widget.initialZoom);
     _zoomController.addListener(_handleZoomChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant DesyCollectionCanvas<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.geometryRevision != widget.geometryRevision) {
+      _geometries.clear();
+    }
+    if (oldWidget.zoomRevision != widget.zoomRevision) {
+      _setZoomValue(widget.initialZoom);
+    }
+    if (oldWidget.initialSelectedItemId != widget.initialSelectedItemId &&
+        widget.initialSelectedItemId != null) {
+      _selectedId = widget.initialSelectedItemId;
+    }
   }
 
   @override
@@ -116,20 +197,39 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
         final background =
             widget.theme.previewBackgroundColor ??
             context.theme.colors.background;
+        final canvasBorderColor = context.theme.colors.border.withValues(
+          alpha: .72,
+        );
+        final workspaceBackground = Color.alphaBlend(
+          context.theme.colors.mutedForeground.withValues(alpha: .08),
+          context.theme.colors.background,
+        );
         final stage = SizedBox(
           width: _canvasSize(constraints).width,
           height: _canvasSize(constraints).height,
           child: CustomPaint(
             painter: _CollectionCanvasGridPainter(background: background),
+            foregroundPainter: _CollectionCanvasBorderPainter(
+              color: canvasBorderColor,
+            ),
             child: Stack(
               key: ValueKey('${widget.keyPrefix}-stage'),
               fit: StackFit.expand,
               clipBehavior: Clip.none,
               children: [
                 Positioned.fill(
-                  child: GestureDetector(
+                  child: Listener(
                     behavior: HitTestBehavior.opaque,
-                    onTap: _clearSelection,
+                    onPointerDown: _beginBlankCanvasPan,
+                    onPointerMove: _updateBlankCanvasPan,
+                    onPointerUp: _endBlankCanvasPan,
+                    onPointerCancel: _endBlankCanvasPan,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: widget.clearSelectionOnCanvasTap
+                          ? _clearSelection
+                          : null,
+                    ),
                   ),
                 ),
                 for (final id in _paintOrder)
@@ -153,93 +253,139 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
             .clamp(280.0, 360.0)
             .toDouble();
         final inspection = DesyWorkbenchInspectionHost.maybeOf(context);
-        return ColoredBox(
-          color: background,
-          child: Stack(
-            children: [
-              InteractiveViewer(
-                key: ValueKey('${widget.keyPrefix}-viewport'),
-                transformationController: _zoomController,
-                constrained: false,
-                boundaryMargin: const EdgeInsets.all(_canvasExtent),
-                minScale: .25,
-                maxScale: 2.5,
-                trackpadScrollCausesScale: false,
-                child: stage,
-              ),
-              Positioned(
-                top: 16,
-                left: 20,
-                child: _CollectionCanvasHeader(
-                  title: widget.title,
-                  badgeLabel: widget.badgeLabel,
-                  description: widget.description,
-                  itemCount: widget.items.length,
-                  itemNoun: widget.itemNoun,
-                  onResetView: _resetView,
-                ),
-              ),
-              Positioned(
-                right: 12,
-                bottom: 12,
-                child: _CollectionCanvasZoomDock(
-                  zoom: _zoom,
-                  onZoomOut: () => _setZoom(_zoom - .15),
-                  onZoomIn: () => _setZoom(_zoom + .15),
-                ),
-              ),
-              if (inspection?.onToggleInspection case final onToggle?)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 12,
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: _CollectionCanvasActionBar(
-                      keyPrefix: widget.keyPrefix,
-                      annotating: inspection!.inspectionActive,
-                      onSelect: inspection.inspectionActive
-                          ? onToggle
-                          : _clearSelection,
-                      onAnnotate: onToggle,
+        final canvas = DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(color: canvasBorderColor),
+          ),
+          child: ColoredBox(
+            key: ValueKey('${widget.keyPrefix}-workspace'),
+            color: workspaceBackground,
+            child: Stack(
+              children: [
+                Listener(
+                  key: ValueKey('${widget.keyPrefix}-viewport'),
+                  onPointerSignal: _handlePointerSignal,
+                  onPointerPanZoomStart: _handleTrackpadStart,
+                  onPointerPanZoomUpdate: _handleTrackpadUpdate,
+                  onPointerPanZoomEnd: _handleTrackpadEnd,
+                  child: AnimatedBuilder(
+                    animation: _zoomController,
+                    child: OverflowBox(
+                      alignment: Alignment.topLeft,
+                      minWidth: 0,
+                      maxWidth: double.infinity,
+                      minHeight: 0,
+                      maxHeight: double.infinity,
+                      child: stage,
+                    ),
+                    builder: (context, child) => Transform(
+                      alignment: Alignment.topLeft,
+                      transform: _zoomController.value,
+                      child: child,
                     ),
                   ),
                 ),
-              Positioned(
-                top: 0,
-                right: 0,
-                bottom: 0,
-                width: drawerWidth,
-                child: IgnorePointer(
-                  ignoring: selected == null,
-                  child: AnimatedSlide(
-                    key: ValueKey('${widget.keyPrefix}-inspector-drawer'),
-                    offset: selected == null
-                        ? const Offset(1.1, 0)
-                        : Offset.zero,
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOutCubic,
-                    child: AnimatedOpacity(
-                      opacity: selected == null ? 0 : 1,
-                      duration: const Duration(milliseconds: 120),
-                      child: _CollectionCanvasInspectorDrawer(
-                        closeKey: ValueKey(
-                          '${widget.keyPrefix}-close-inspector',
-                        ),
-                        onClose: _clearSelection,
-                        child: selected == null
-                            ? const SizedBox.shrink()
-                            : widget.detailsBuilder(context, selected),
+                Positioned(
+                  top: widget.toolbar == null ? 16 : 12,
+                  left: widget.toolbar == null ? 20 : 12,
+                  child:
+                      widget.toolbar ??
+                      _CollectionCanvasHeader(
+                        title: widget.title,
+                        badgeLabel: widget.badgeLabel,
+                        description: widget.description,
+                        itemCount: widget.items.length,
+                        itemNoun: widget.itemNoun,
+                        onResetView: _resetView,
+                      ),
+                ),
+                Positioned(
+                  right: 12,
+                  bottom: 12,
+                  child: _CollectionCanvasZoomDock(
+                    keyPrefix: widget.zoomDockKeyPrefix,
+                    zoom: _zoom,
+                    onZoomOut: () => _setZoom(_zoom - .15),
+                    onZoomIn: () => _setZoom(_zoom + .15),
+                  ),
+                ),
+                if (inspection?.onToggleInspection case final onToggle?)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 12,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: _CollectionCanvasActionBar(
+                        keyPrefix: widget.keyPrefix,
+                        annotating: inspection!.inspectionActive,
+                        onSelect: () => _enterSelectMode(inspection),
+                        onAnnotate: onToggle,
                       ),
                     ),
                   ),
-                ),
+                if (widget.showInspectorDrawer)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                    width: drawerWidth,
+                    child: DesyWorkbenchControlSheet(
+                      key: ValueKey('${widget.keyPrefix}-inspector-drawer'),
+                      visible: selected != null,
+                      closeKey: ValueKey('${widget.keyPrefix}-close-inspector'),
+                      onClose: _clearSelection,
+                      child: selected == null
+                          ? const SizedBox.shrink()
+                          : widget.detailsBuilder(context, selected),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+        if (inspection?.onToggleInspection == null) return canvas;
+        return Shortcuts(
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.digit1, meta: true):
+                _CanvasSelectModeIntent(),
+            SingleActivator(LogicalKeyboardKey.digit1, control: true):
+                _CanvasSelectModeIntent(),
+            SingleActivator(LogicalKeyboardKey.digit2, meta: true):
+                _CanvasAnnotateModeIntent(),
+            SingleActivator(LogicalKeyboardKey.digit2, control: true):
+                _CanvasAnnotateModeIntent(),
+          },
+          child: Actions(
+            actions: {
+              _CanvasSelectModeIntent: CallbackAction<_CanvasSelectModeIntent>(
+                onInvoke: (_) {
+                  _enterSelectMode(inspection!);
+                  return null;
+                },
               ),
-            ],
+              _CanvasAnnotateModeIntent:
+                  CallbackAction<_CanvasAnnotateModeIntent>(
+                    onInvoke: (_) {
+                      _enterAnnotateMode(inspection!);
+                      return null;
+                    },
+                  ),
+            },
+            child: canvas,
           ),
         );
       },
     );
+  }
+
+  void _enterSelectMode(DesyWorkbenchInspectionHost inspection) {
+    if (inspection.inspectionActive) inspection.onToggleInspection!();
+    _clearSelection();
+  }
+
+  void _enterAnnotateMode(DesyWorkbenchInspectionHost inspection) {
+    if (!inspection.inspectionActive) inspection.onToggleInspection!();
   }
 
   DesyCanvasSceneItem<T>? get _selectedItem => _itemForId(_selectedId);
@@ -298,6 +444,8 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
         ..remove(item.id)
         ..add(item.id);
     });
+    item.onSelected?.call();
+    widget.onItemSelected?.call(item);
   }
 
   void _clearSelection() {
@@ -307,30 +455,117 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
 
   void _updateGeometry(String id, DesyDragBoxGeometry geometry) {
     setState(() => _geometries[id] = geometry);
+    _itemForId(id)?.onGeometryChanged?.call(geometry);
   }
 
   void _setZoom(double value) {
-    final zoom = value.clamp(.25, 2.5).toDouble();
+    final zoom = value.clamp(_minimumCanvasZoom, _maximumCanvasZoom).toDouble();
     final matrix = _zoomController.value;
     _zoomController.value = Matrix4.identity()
       ..setTranslationRaw(matrix.storage[12], matrix.storage[13], 0)
       ..scaleByDouble(zoom, zoom, 1, 1);
   }
 
+  void _setZoomValue(double value) {
+    _zoom = value.clamp(_minimumCanvasZoom, _maximumCanvasZoom).toDouble();
+    _zoomController.value = Matrix4.identity()
+      ..scaleByDouble(_zoom, _zoom, 1, 1);
+  }
+
+  _TrackpadGesture? _trackpadGesture;
+
+  void _beginBlankCanvasPan(PointerDownEvent event) {
+    if (event.kind != PointerDeviceKind.trackpad) {
+      _blankCanvasPointer = event.pointer;
+    }
+  }
+
+  void _updateBlankCanvasPan(PointerMoveEvent event) {
+    if (event.pointer == _blankCanvasPointer) _panCanvasBy(event.delta);
+  }
+
+  void _endBlankCanvasPan(PointerEvent event) {
+    if (event.pointer == _blankCanvasPointer) _blankCanvasPointer = null;
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent) return;
+    GestureBinding.instance.pointerSignalResolver.register(event, (event) {
+      if (event is PointerScrollEvent) _panCanvasBy(-event.scrollDelta);
+    });
+  }
+
+  void _handleTrackpadStart(PointerPanZoomStartEvent event) {
+    _trackpadGesture = _TrackpadGesture(
+      pointer: event.pointer,
+      scale: _zoomController.value.getMaxScaleOnAxis(),
+      sceneFocalPoint: _zoomController.toScene(event.localPosition),
+    );
+  }
+
+  void _handleTrackpadUpdate(PointerPanZoomUpdateEvent event) {
+    final gesture = _trackpadGesture;
+    if (gesture == null || gesture.pointer != event.pointer) return;
+    final scale = (gesture.scale * event.scale)
+        .clamp(_minimumCanvasZoom, _maximumCanvasZoom)
+        .toDouble();
+    final focalPoint = event.localPosition + event.pan;
+    _zoomController.value = Matrix4.identity()
+      ..setTranslationRaw(
+        focalPoint.dx - gesture.sceneFocalPoint.dx * scale,
+        focalPoint.dy - gesture.sceneFocalPoint.dy * scale,
+        0,
+      )
+      ..scaleByDouble(scale, scale, 1, 1);
+  }
+
+  void _handleTrackpadEnd(PointerPanZoomEndEvent event) {
+    if (_trackpadGesture?.pointer == event.pointer) _trackpadGesture = null;
+  }
+
+  void _panCanvasBy(Offset delta) {
+    final matrix = _zoomController.value.clone();
+    _zoomController.value = matrix
+      ..setTranslationRaw(
+        matrix.storage[12] + delta.dx,
+        matrix.storage[13] + delta.dy,
+        0,
+      );
+  }
+
   void _resetView() => _zoomController.value = Matrix4.identity();
 
   Size _canvasSize(BoxConstraints constraints) {
-    var width = constraints.maxWidth;
-    var height = constraints.maxHeight;
+    var width = constraints.maxWidth + _canvasEdgePadding * 2;
+    var height = constraints.maxHeight + _canvasEdgePadding * 2;
     for (final geometry in _geometries.values) {
-      width = math.max(width, geometry.rect.right + _trailingSpace);
+      width = math.max(
+        width,
+        geometry.rect.right + _canvasEdgePadding + _trailingSpace,
+      );
       height = math.max(
         height,
-        geometry.rect.bottom + _labelGap + _labelHeight + _trailingSpace,
+        geometry.rect.bottom +
+            _labelGap +
+            _labelHeight +
+            _canvasEdgePadding +
+            _trailingSpace,
       );
     }
     return Size(width, height);
   }
+}
+
+class _TrackpadGesture {
+  const _TrackpadGesture({
+    required this.pointer,
+    required this.scale,
+    required this.sceneFocalPoint,
+  });
+
+  final int pointer;
+  final double scale;
+  final Offset sceneFocalPoint;
 }
 
 class _CollectionCanvasActionBar extends StatelessWidget {
@@ -377,7 +612,7 @@ class _CollectionCanvasActionBar extends StatelessWidget {
                   : DesyButtonVariant.primary,
               mainAxisSize: MainAxisSize.min,
               semanticsLabel: 'Select canvas items',
-              semanticsTooltip: 'Select canvas items',
+              semanticsTooltip: 'Select canvas items (Command 1)',
               onPress: onSelect,
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
@@ -385,6 +620,11 @@ class _CollectionCanvasActionBar extends StatelessWidget {
                   Icon(DesyIcons.crosshair, size: 15),
                   SizedBox(width: 6),
                   Text('Select'),
+                  SizedBox(width: 8),
+                  DesyKeyboardShortcutLabel(
+                    keys: ['⌘', '1'],
+                    semanticLabel: 'Keyboard shortcut: Command 1',
+                  ),
                 ],
               ),
             ),
@@ -398,7 +638,7 @@ class _CollectionCanvasActionBar extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               semanticsLabel: annotating
                   ? 'Stop annotating canvas widgets'
-                  : 'Annotate canvas widgets',
+                  : 'Annotate canvas widgets (Command 2)',
               semanticsTooltip: annotating
                   ? 'Stop annotating canvas widgets'
                   : 'Annotate canvas widgets',
@@ -409,6 +649,11 @@ class _CollectionCanvasActionBar extends StatelessWidget {
                   Icon(DesyIcons.messageSquare, size: 15),
                   SizedBox(width: 6),
                   Text('Annotate'),
+                  SizedBox(width: 8),
+                  DesyKeyboardShortcutLabel(
+                    keys: ['⌘', '2'],
+                    semanticLabel: 'Keyboard shortcut: Command 2',
+                  ),
                 ],
               ),
             ),
@@ -440,90 +685,64 @@ class _CollectionCanvasItem<T> extends StatelessWidget {
   final ValueChanged<DesyDragBoxGeometry> onChanged;
 
   @override
-  Widget build(BuildContext context) => DesyDragBox(
-    geometry: geometry,
-    clampingRect: const Rect.fromLTRB(
-      -_canvasExtent,
-      -_canvasExtent,
-      _canvasExtent,
-      _canvasExtent,
-    ),
-    constraints: const BoxConstraints(
-      minWidth: _minimumBoxExtent,
-      minHeight: _minimumBoxExtent,
-    ),
-    frameKey: ValueKey('$keyPrefix-frame-${item.id}'),
-    contentKey: ValueKey('$keyPrefix-content-${item.id}'),
-    resizeHandleKeyPrefix: '$keyPrefix-resize-${item.id}',
-    selected: selected,
-    ignoreChildPointer: true,
-    onSelect: onSelect,
-    onChanged: onChanged,
-    outsideFrameDecoration: BoxDecoration(
-      border: Border.all(
-        color: context.theme.colors.desy.signal.withValues(
-          alpha: selected ? .9 : .28,
-        ),
-        width: selected ? 1.5 : 1,
+  Widget build(BuildContext context) => KeyedSubtree(
+    key: item.itemKey,
+    child: DesyDragBox(
+      geometry: geometry,
+      clampingRect: const Rect.fromLTRB(
+        -_canvasExtent,
+        -_canvasExtent,
+        _canvasExtent,
+        _canvasExtent,
       ),
-    ),
-    outsideFrameInset: selected ? 2 : 1,
-    label: DesyDragBoxLabel(
-      key: ValueKey('$keyPrefix-selection-size-${item.id}'),
-      size: geometry.rect.size,
-      identifier: item.name,
-      selected: selected,
-    ),
-    child: Semantics(
-      container: true,
-      selected: selected,
-      label: 'Select ${item.name}',
-      child: Center(
-        child: DesyWidgetPreview(
-          theme: theme,
-          builder: (context) => item.previewBuilder(context, item.value),
-        ),
+      constraints: const BoxConstraints(
+        minWidth: _minimumBoxExtent,
+        minHeight: _minimumBoxExtent,
       ),
-    ),
-  );
-}
-
-class _CollectionCanvasInspectorDrawer extends StatelessWidget {
-  const _CollectionCanvasInspectorDrawer({
-    required this.closeKey,
-    required this.onClose,
-    required this.child,
-  });
-
-  final Key closeKey;
-  final VoidCallback onClose;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: context.theme.colors.background,
-      border: Border(left: BorderSide(color: context.theme.colors.border)),
-    ),
-    child: Column(
-      children: [
-        SizedBox(
-          height: 48,
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: DesyButton.icon(
-              key: closeKey,
-              variant: DesyButtonVariant.ghost,
-              size: DesyButtonSize.md,
-              onPress: onClose,
-              semanticsLabel: 'Collapse details sidebar',
-              semanticsTooltip: 'Collapse details sidebar',
-              child: const Icon(DesyIcons.panelRightClose, size: 18),
-            ),
+      frameKey: item.frameKey ?? ValueKey('$keyPrefix-frame-${item.id}'),
+      contentKey: item.contentKey ?? ValueKey('$keyPrefix-content-${item.id}'),
+      resizeHandleKeyPrefix:
+          item.resizeHandleKeyPrefix ?? '$keyPrefix-resize-${item.id}',
+      selected: selected,
+      draggable: item.draggable,
+      ignoreChildPointer: item.ignoreChildPointer,
+      onSelect: onSelect,
+      onChanged: onChanged,
+      geometryResolver: item.geometryResolver,
+      outsideFrameDecoration: BoxDecoration(
+        border: Border.all(
+          color: context.theme.colors.desy.signal.withValues(
+            alpha: selected ? .9 : .28,
           ),
+          width: selected ? 1.5 : 1,
         ),
-        Expanded(child: child),
-      ],
+      ),
+      outsideFrameInset: selected ? 2 : 1,
+      label: DesyDragBoxLabel(
+        key: item.labelKey ?? ValueKey('$keyPrefix-selection-size-${item.id}'),
+        size: geometry.rect.size,
+        identifier: item.name,
+        selected: selected,
+      ),
+      child: Semantics(
+        container: true,
+        selected: selected,
+        label: 'Select ${item.name}',
+        child:
+            item.previewSurfaceBuilder?.call(
+              context,
+              item.value,
+              geometry,
+              onSelect,
+              onChanged,
+            ) ??
+            Center(
+              child: DesyWidgetPreview(
+                theme: theme,
+                builder: (context) => item.previewBuilder!(context, item.value),
+              ),
+            ),
+      ),
     ),
   );
 }
@@ -599,11 +818,13 @@ class _CollectionCanvasHeader extends StatelessWidget {
 
 class _CollectionCanvasZoomDock extends StatelessWidget {
   const _CollectionCanvasZoomDock({
+    required this.keyPrefix,
     required this.zoom,
     required this.onZoomOut,
     required this.onZoomIn,
   });
 
+  final String keyPrefix;
   final double zoom;
   final VoidCallback onZoomOut;
   final VoidCallback onZoomIn;
@@ -621,25 +842,29 @@ class _CollectionCanvasZoomDock extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           DesyButton.icon(
-            key: const ValueKey('collection-canvas-zoom-out'),
+            key: ValueKey('$keyPrefix-zoom-out'),
             variant: DesyButtonVariant.ghost,
             size: DesyButtonSize.xs,
             onPress: onZoomOut,
             semanticsLabel: 'Zoom out',
             child: const Icon(DesyIcons.minus, size: 14),
           ),
-          SizedBox(
-            width: 42,
-            child: Text(
-              '${(zoom * 100).round()}%',
-              textAlign: TextAlign.center,
-              style: context.theme.typography.body.xs.copyWith(
-                fontWeight: FontWeight.w700,
+          Semantics(
+            key: ValueKey('$keyPrefix-zoom-level'),
+            label: 'Zoom ${(zoom * 100).round()} percent',
+            child: SizedBox(
+              width: 42,
+              child: Text(
+                '${(zoom * 100).round()}%',
+                textAlign: TextAlign.center,
+                style: context.theme.typography.body.xs.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
           DesyButton.icon(
-            key: const ValueKey('collection-canvas-zoom-in'),
+            key: ValueKey('$keyPrefix-zoom-in'),
             variant: DesyButtonVariant.ghost,
             size: DesyButtonSize.xs,
             onPress: onZoomIn,
@@ -676,4 +901,27 @@ class _CollectionCanvasGridPainter extends CustomPainter {
   @override
   bool shouldRepaint(_CollectionCanvasGridPainter oldDelegate) =>
       oldDelegate.background != background;
+}
+
+class _CollectionCanvasBorderPainter extends CustomPainter {
+  const _CollectionCanvasBorderPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width < 1 || size.height < 1) return;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    canvas.drawRect(
+      Rect.fromLTWH(.5, .5, size.width - 1, size.height - 1),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CollectionCanvasBorderPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

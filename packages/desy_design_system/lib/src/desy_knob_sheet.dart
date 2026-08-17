@@ -4,6 +4,7 @@ import 'package:forui/forui.dart';
 import 'desy_button.dart';
 import 'desy_design_system_scope.dart';
 import 'desy_icons.dart';
+import 'desy_select.dart';
 import 'desy_switch.dart';
 import 'desy_text_field.dart';
 import 'desy_tile.dart';
@@ -62,8 +63,8 @@ class DesyKnobSegment {
   ///
   /// Prefer Desy's standard knob rows: [DesyTextValueKnobRow],
   /// [DesyTextKnobRow], [DesyBooleanKnobRow], [DesyNumericKnobRow],
-  /// [DesyDateTimeKnobRow], [DesyColorKnobRow], [DesyInstanceKnobRow], or
-  /// [DesyKnobRow]. A detail
+  /// [DesyChoiceKnobRow], [DesyDateTimeKnobRow], [DesyColorKnobRow],
+  /// [DesyInstanceKnobRow], or [DesyKnobRow]. A detail
   /// extension may also supply one of its own self-contained widgets here;
   /// keep it visually aligned with the surrounding knob rows.
   final List<Widget> children;
@@ -416,6 +417,65 @@ class DesyTextValueKnobRow extends StatelessWidget {
           fontWeight: FontWeight.w600,
         ),
       ),
+    ),
+  );
+}
+
+/// A finite string property rendered through Desy's dropdown control.
+class DesyChoiceKnobRow extends StatelessWidget {
+  /// Creates a string-choice knob row.
+  const DesyChoiceKnobRow({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.options,
+    this.onChanged,
+    this.description,
+    this.controlKey,
+  }) : assert(options.length > 0);
+
+  /// The property name.
+  final String label;
+
+  /// Optional usage guidance.
+  final String? description;
+
+  /// The currently selected option.
+  final String value;
+
+  /// Legal values and visible labels, in dropdown order.
+  final List<String> options;
+
+  /// Receives a selected legal value, or disables the dropdown when null.
+  final ValueChanged<String>? onChanged;
+
+  /// Optional stable key for the dropdown control.
+  final Key? controlKey;
+
+  @override
+  Widget build(BuildContext context) => DesyKnobRow(
+    label: label,
+    description: description,
+    expandControl: true,
+    control: DesySelect<String>.rich(
+      key: controlKey,
+      size: DesySelectSize.sm,
+      enabled: onChanged != null,
+      control: DesySelectControl.lifted(
+        value: value,
+        onChange: (next) {
+          if (next != null) onChanged?.call(next);
+        },
+      ),
+      format: (current) => current,
+      children: [
+        for (final option in options)
+          DesySelectItem.item(
+            key: ValueKey('choice-knob-option-$label-$option'),
+            value: option,
+            title: Text(option),
+          ),
+      ],
     ),
   );
 }

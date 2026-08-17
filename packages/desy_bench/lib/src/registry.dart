@@ -796,6 +796,7 @@ class DesyRegistryValidator {
             }
             break;
           case DesyKnobKind.string:
+          case DesyKnobKind.choice:
           case DesyKnobKind.number:
           case DesyKnobKind.boolean:
           case DesyKnobKind.dateTime:
@@ -1246,7 +1247,8 @@ final class DesyMotionChild {
 }
 
 /// Builds a motion treatment around its supplied child specimen.
-typedef DesyMotionBuilder = Widget Function(BuildContext context, Widget child);
+typedef DesyMotionBuilder =
+    Widget Function(BuildContext context, Widget child, Duration duration);
 
 /// Builds a transition between two real consumer widgets.
 ///
@@ -1254,7 +1256,12 @@ typedef DesyMotionBuilder = Widget Function(BuildContext context, Widget child);
 /// ownership of the visual transition and can read [DesyMotionPlaybackScope]
 /// for the scrubbed timeline.
 typedef DesyMotionTransitionBuilder =
-    Widget Function(BuildContext context, Widget first, Widget second);
+    Widget Function(
+      BuildContext context,
+      Widget first,
+      Widget second,
+      Duration duration,
+    );
 
 /// A named motion primitive and a live consumer-owned animation specimen.
 class DesyMotionEntry {
@@ -1262,7 +1269,7 @@ class DesyMotionEntry {
   DesyMotionEntry({
     required this.id,
     required this.name,
-    this.duration,
+    required this.duration,
     required this.curve,
     required this.builder,
     required DesyMotionChild child,
@@ -1271,6 +1278,13 @@ class DesyMotionEntry {
     this.intent = 'Motion',
     this.description,
   }) : children = List.unmodifiable([child, ...alternatives]) {
+    if (duration <= Duration.zero) {
+      throw ArgumentError.value(
+        duration,
+        'duration',
+        'A motion duration must be greater than zero.',
+      );
+    }
     final seenIds = <String>{};
     for (final entry in children) {
       if (entry.id.trim().isEmpty) {
@@ -1296,10 +1310,11 @@ class DesyMotionEntry {
   /// Human-readable name.
   final String name;
 
-  /// Optional typed duration used by this motion.
+  /// Intended duration for one forward pass of this motion.
   ///
-  /// When omitted, synchronized motion surfaces use their global duration.
-  final Duration? duration;
+  /// Desy uses this as the initial detail playback duration and passes it to
+  /// the consumer builders so the preview reflects the declared treatment.
+  final Duration duration;
 
   /// Typed curve used by the consumer.
   final Curve curve;
@@ -1329,18 +1344,35 @@ class DesyMotionEntry {
 
   /// Builds the default motion preview for simple registry surfaces.
   Widget buildDefault(BuildContext context) =>
-      builder(context, defaultChild.build(context));
+      builder(context, defaultChild.build(context), duration);
 
   /// Builds [child] with the consumer-owned motion treatment.
-  Widget build(BuildContext context, Widget child) => builder(context, child);
+  ///
+  /// [previewDuration] lets the detail playback control supply a local
+  /// override without changing the immutable declared [duration].
+  Widget build(
+    BuildContext context,
+    Widget child, {
+    Duration? previewDuration,
+  }) => builder(context, child, previewDuration ?? duration);
 
   /// Builds a consumer-owned transition from [first] to [second].
   ///
   /// A regular one-child treatment remains useful when no transition was
   /// declared, so the fallback animates the incoming child.
-  Widget buildTransition(BuildContext context, Widget first, Widget second) =>
-      transitionBuilder?.call(context, first, second) ??
-      builder(context, second);
+  Widget buildTransition(
+    BuildContext context,
+    Widget first,
+    Widget second, {
+    Duration? previewDuration,
+  }) =>
+      transitionBuilder?.call(
+        context,
+        first,
+        second,
+        previewDuration ?? duration,
+      ) ??
+      builder(context, second, previewDuration ?? duration);
 
   /// Optional display metadata for motion-oriented surfaces.
   final String intent;
@@ -1349,10 +1381,7 @@ class DesyMotionEntry {
   final String? description;
 
   /// Concise display value.
-  String get displayValue => switch (duration) {
-    final duration? => '${duration.inMilliseconds} ms · $curve',
-    null => 'Global duration · $curve',
-  };
+  String get displayValue => '${duration.inMilliseconds} ms · $curve';
 }
 
 /// A consumer-owned icon glyph rendered by Flutter's real icon widget.
@@ -1588,6 +1617,9 @@ enum DesyKnobKind {
   /// A free-form text value.
   string,
 
+  /// One value from a finite ordered list of strings.
+  choice,
+
   /// A finite numeric value with an explicit presentation range.
   number,
 
@@ -1745,11 +1777,11 @@ final class KnobDefinition<T extends Object> {
   /// Inclusive upper bound for a numeric knob.
   final double? maximum;
 
-  /// Registry-scoped instance IDs legal in this composition slot.
+  /// Legal values for a finite choice or component-instance composition slot.
   ///
-  /// Widget-instance knobs use this as an explicit legal-slot allow-list so a
-  /// swap picker offers only meaningful choices; empty means any registered
-  /// instance is allowed.
+  /// Choice knobs require a non-empty list. Widget-instance knobs use this as
+  /// an explicit legal-slot allow-list so a swap picker offers only meaningful
+  /// choices; for those knobs, empty means any registered instance is allowed.
   final List<String> options;
 }
 
@@ -1865,6 +1897,17 @@ abstract interface class KnobScope {
     required String initial,
   });
 
+  /// Declares a finite string choice rendered as a dropdown.
+  ///
+  /// When [initial] is omitted, the first declared option is selected.
+  Knob<String> choice(
+    String id, {
+    String? name,
+    String? description,
+    required List<String> options,
+    String? initial,
+  });
+
   /// Declares a numeric knob and returns its typed handle.
   Knob<double> number(
     String id, {
@@ -1942,6 +1985,55 @@ final class DeclarationKnobScope implements KnobScope {
       description: description,
     ),
   );
+
+  @override
+  Knob<String> choice(
+    String id, {
+    String? name,
+    String? description,
+    required List<String> options,
+    String? initial,
+  }) {
+    if (options.isEmpty) {
+      throw ArgumentError.value(
+        options,
+        'options',
+        'A choice knob must declare at least one option.',
+      );
+    }
+    if (options.any((option) => option.isEmpty)) {
+      throw ArgumentError.value(
+        options,
+        'options',
+        'Choice knob options must not be empty.',
+      );
+    }
+    if (options.toSet().length != options.length) {
+      throw ArgumentError.value(
+        options,
+        'options',
+        'Choice knob options must be unique.',
+      );
+    }
+    final selected = initial ?? options.first;
+    if (!options.contains(selected)) {
+      throw ArgumentError.value(
+        selected,
+        'initial',
+        'A choice knob initial value must be one of its options.',
+      );
+    }
+    return _register(
+      KnobDefinition(
+        id: id,
+        name: name ?? _humanize(id),
+        kind: DesyKnobKind.choice,
+        initial: selected,
+        description: description,
+        options: options,
+      ),
+    );
+  }
 
   @override
   Knob<double> number(
@@ -2153,6 +2245,15 @@ final class ResolvedKnobScope implements KnobScope {
     String? name,
     String? description,
     required String initial,
+  }) => _resolve(id);
+
+  @override
+  Knob<String> choice(
+    String id, {
+    String? name,
+    String? description,
+    required List<String> options,
+    String? initial,
   }) => _resolve(id);
 
   @override
@@ -2565,6 +2666,11 @@ final class DesyComponent<K> extends DesyRegistryComponent {
           setting.value,
           argumentName: 'instances[$instanceId]',
         );
+        _validateChoiceOption(
+          setting.definition,
+          setting.value,
+          argumentName: 'instances[$instanceId]',
+        );
       }
       overrides[instanceId] = resolved;
     }
@@ -2751,6 +2857,7 @@ final class DesyComponent<K> extends DesyRegistryComponent {
           }
           yield* current.values;
         case DesyKnobKind.string:
+        case DesyKnobKind.choice:
         case DesyKnobKind.number:
         case DesyKnobKind.boolean:
         case DesyKnobKind.dateTime:
@@ -3123,6 +3230,8 @@ Object _toSettingValue(KnobDefinition<Object> definition, Object value) {
   switch (definition.kind) {
     case DesyKnobKind.string:
       if (value is String) return value;
+    case DesyKnobKind.choice:
+      if (value is String && definition.options.contains(value)) return value;
     case DesyKnobKind.number:
       if (value is num) {
         final number = value.toDouble();
@@ -3187,6 +3296,21 @@ Object _toSettingValue(KnobDefinition<Object> definition, Object value) {
     definition.id,
     'Expected a ${definition.kind.name} knob value.',
   );
+}
+
+void _validateChoiceOption(
+  KnobDefinition<Object> definition,
+  Object value, {
+  required String argumentName,
+}) {
+  if (definition.kind != DesyKnobKind.choice) return;
+  if (value is! String || !definition.options.contains(value)) {
+    throw ArgumentError.value(
+      value,
+      argumentName,
+      'Choice knob values must be included in its options.',
+    );
+  }
 }
 
 void _validateWidgetInstanceOption(

@@ -7,6 +7,62 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('prototype demos remain interactive inside their drag frames', (
+    tester,
+  ) async {
+    var taps = 0;
+    final session = DesyWorkbenchSession(
+      registry: DesyRegistry(
+        name: 'Interactive prototype',
+        themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+        prototypes: [
+          DesyPrototypeSession(
+            id: 'prototype.interactive',
+            name: 'Interactive direction',
+            prototypes: [
+              DesyPrototype(
+                id: 'prototype.interactive.demo',
+                name: 'Tap demo',
+                builder: (_) => GestureDetector(
+                  key: const ValueKey('interactive-prototype-control'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => taps++,
+                  child: const SizedBox(
+                    width: 180,
+                    height: 80,
+                    child: Center(child: Text('Tap prototype')),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    addTearDown(session.dispose);
+
+    await tester.pumpWidget(
+      _PrototypeHarness(
+        child: DesyPrototypesScreen(
+          session: session,
+          prototypeSession: session.registry.prototypes.single,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('interactive-prototype-control')),
+    );
+    await tester.pump();
+
+    expect(taps, 1);
+    expect(
+      find.byKey(const ValueKey('prototypes-canvas-inspector')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets(
     'prototype sessions use canvas drag boxes and prototype-specific details',
     (tester) async {

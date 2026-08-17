@@ -84,7 +84,9 @@ class DesySidebar extends StatelessWidget {
 /// component browser between its file tree and preview grid. Labels are
 /// non-interactive by default; [onLabelPress] is reserved for a label that is
 /// also a meaningful root destination, such as opening the component Atlas.
-class DesySidebarSection extends StatelessWidget {
+/// A collapsible section gives disclosure its own leading control so those
+/// existing label and action behaviors remain independent.
+class DesySidebarSection extends StatefulWidget {
   /// Creates a sidebar section.
   const DesySidebarSection({
     super.key,
@@ -95,6 +97,8 @@ class DesySidebarSection extends StatelessWidget {
     this.actionSemanticsLabel,
     this.onActionPress,
     this.onLabelPress,
+    this.collapsible = false,
+    this.initiallyExpanded = true,
   });
 
   /// The concise section name shown above its items.
@@ -117,8 +121,23 @@ class DesySidebarSection extends StatelessWidget {
   /// Leave this null for ordinary organizational section labels.
   final VoidCallback? onLabelPress;
 
+  /// Whether the section exposes a leading expand/collapse control.
+  final bool collapsible;
+
+  /// Whether a collapsible section starts expanded.
+  final bool initiallyExpanded;
+
   /// The items belonging to this section.
   final List<Widget> children;
+
+  @override
+  State<DesySidebarSection> createState() => _DesySidebarSectionState();
+}
+
+class _DesySidebarSectionState extends State<DesySidebarSection> {
+  late bool _expanded = widget.initiallyExpanded;
+
+  void _toggleExpanded() => setState(() => _expanded = !_expanded);
 
   @override
   Widget build(BuildContext context) {
@@ -147,8 +166,8 @@ class DesySidebarSection extends StatelessWidget {
     final style = styleDelta(baseStyle);
     final labelContent = Row(
       children: [
-        Text(label),
-        if (count case final value?) ...[
+        Text(widget.label),
+        if (widget.count case final value?) ...[
           const SizedBox(width: 7),
           Text(
             '$value',
@@ -157,38 +176,91 @@ class DesySidebarSection extends StatelessWidget {
         ],
       ],
     );
+    final label = Semantics(
+      key: ValueKey('sidebar-section-label-${widget.label}'),
+      container: widget.onLabelPress != null,
+      header: true,
+      button: widget.onLabelPress != null,
+      label: widget.onLabelPress == null ? null : widget.label,
+      excludeSemantics: widget.onLabelPress != null,
+      onTap: widget.onLabelPress,
+      child: widget.onLabelPress == null
+          ? labelContent
+          : MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: FTappable(
+                style: style.tappableStyle,
+                focusedOutlineStyle: style.focusedOutlineStyle,
+                onPress: widget.onLabelPress,
+                child: labelContent,
+              ),
+            ),
+    );
+    final sectionLabel = widget.collapsible
+        ? Row(
+            children: [
+              Semantics(
+                key: ValueKey('sidebar-section-toggle-${widget.label}'),
+                container: true,
+                button: true,
+                expanded: _expanded,
+                label: '${_expanded ? 'Collapse' : 'Expand'} ${widget.label}',
+                excludeSemantics: true,
+                onTap: _toggleExpanded,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: FTappable(
+                    style: style.tappableStyle,
+                    focusedOutlineStyle: style.focusedOutlineStyle,
+                    onPress: _toggleExpanded,
+                    builder: (_, variants, child) => IconTheme(
+                      data: style.actionStyle.resolve(variants),
+                      child: child!,
+                    ),
+                    child: SizedBox.square(
+                      dimension: 20,
+                      child: Icon(
+                        _expanded
+                            ? DesyIcons.chevronDown
+                            : DesyIcons.chevronRight,
+                        size: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Expanded(child: label),
+            ],
+          )
+        : label;
+    final sectionChildren = widget.collapsible
+        ? [
+            Offstage(
+              key: ValueKey('sidebar-section-body-${widget.label}'),
+              offstage: !_expanded,
+              child: Column(
+                spacing: style.childrenSpacing,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: widget.children,
+              ),
+            ),
+          ]
+        : widget.children;
 
     return FSidebarGroup(
       style: styleDelta,
-      label: Semantics(
-        key: onLabelPress == null
-            ? null
-            : ValueKey('sidebar-section-label-$label'),
-        container: onLabelPress != null,
-        header: true,
-        button: onLabelPress != null,
-        label: onLabelPress == null ? null : label,
-        excludeSemantics: onLabelPress != null,
-        onTap: onLabelPress,
-        child: onLabelPress == null
-            ? labelContent
-            : FTappable(
-                style: style.tappableStyle,
-                focusedOutlineStyle: style.focusedOutlineStyle,
-                onPress: onLabelPress,
-                child: labelContent,
-              ),
-      ),
-      action: action == null
+      label: sectionLabel,
+      action: widget.action == null
           ? null
           : Semantics(
               button: true,
-              label: actionSemanticsLabel,
-              excludeSemantics: actionSemanticsLabel != null,
-              child: action!,
+              label: widget.actionSemanticsLabel,
+              excludeSemantics: widget.actionSemanticsLabel != null,
+              child: widget.action!,
             ),
-      onActionPress: onActionPress,
-      children: children,
+      onActionPress: widget.onActionPress,
+      children: sectionChildren,
     );
   }
 }

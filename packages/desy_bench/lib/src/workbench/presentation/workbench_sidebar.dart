@@ -95,6 +95,7 @@ class DesyWorkbenchSidebar extends StatelessWidget {
           DesySidebarSection(
             key: const ValueKey('sidebar-section-registry'),
             label: 'Registry',
+            collapsible: true,
             children: [
               DesySidebarItem(
                 key: const ValueKey('registry-atlas-nav'),
@@ -112,6 +113,7 @@ class DesyWorkbenchSidebar extends StatelessWidget {
               key: const ValueKey('sidebar-section-prototypes'),
               label: 'Prototypes',
               count: session.registry.allPrototypes.length,
+              collapsible: true,
               children: [
                 for (final prototypeSession in session.registry.allPrototypes)
                   DesySidebarItem(
@@ -132,6 +134,7 @@ class DesyWorkbenchSidebar extends StatelessWidget {
             DesySidebarSection(
               key: const ValueKey('sidebar-section-tools'),
               label: 'Tools',
+              collapsible: true,
               children: [
                 for (final extension in extensions)
                   DesySidebarItem(
@@ -152,6 +155,7 @@ class DesyWorkbenchSidebar extends StatelessWidget {
             DesySidebarSection(
               key: const ValueKey('sidebar-section-atoms'),
               label: 'Atoms',
+              collapsible: true,
               children: _atomItems(context, currentLocation),
             ),
           if (componentCount > 0)
@@ -575,6 +579,7 @@ class _ComponentsSidebarSectionState extends State<_ComponentsSidebarSection> {
     key: const ValueKey('sidebar-section-components'),
     label: 'Components',
     count: widget.entryCount,
+    collapsible: true,
     onLabelPress: widget.onOpenAtlas,
     action: widget.sections.isEmpty
         ? null

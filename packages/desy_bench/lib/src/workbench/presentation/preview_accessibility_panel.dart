@@ -21,7 +21,7 @@ List<DesyKnobSegment> buildPreviewEnvironmentSegments({
     title: 'CANVAS',
     children: [
       DesyKnobRow(
-        label: 'Preview frame',
+        label: 'Canvas size',
         expandControl: true,
         control: DesySelect<_PreviewFrame>.rich(
           key: const ValueKey('preview-frame-select'),

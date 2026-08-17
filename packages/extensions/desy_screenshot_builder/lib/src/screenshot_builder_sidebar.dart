@@ -617,6 +617,13 @@ class _ScreenshotKnobControl extends StatelessWidget {
       value: value as String,
       onChanged: onChanged,
     ),
+    DesyKnobKind.choice => DesyChoiceKnobRow(
+      label: definition.name,
+      description: definition.description,
+      value: value as String,
+      options: definition.options,
+      onChanged: onChanged,
+    ),
     DesyKnobKind.number => DesyNumericKnobRow(
       label: definition.name,
       description: definition.description,

@@ -34,6 +34,13 @@ void main() {
         initial: 'Atlas',
       ),
       KnobDefinition(
+        id: 'visibility',
+        name: 'Visibility',
+        kind: DesyKnobKind.choice,
+        initial: 'Automatic',
+        options: const ['Automatic', 'Enabled', 'Disabled'],
+      ),
+      KnobDefinition(
         id: 'width',
         name: 'Width',
         kind: DesyKnobKind.number,
@@ -80,13 +87,15 @@ void main() {
         data: FTheme.neutral.light.desktop,
         child: MaterialApp(
           home: Scaffold(
-            body: SizedBox(
-              width: 420,
-              child: DesyComponentKnobPanel(
-                registry: registry,
-                knobs: knobs,
-                values: const {},
-                onChanged: (_, _) {},
+            body: SingleChildScrollView(
+              child: SizedBox(
+                width: 420,
+                child: DesyComponentKnobPanel(
+                  registry: registry,
+                  knobs: knobs,
+                  values: const {},
+                  onChanged: (_, _) {},
+                ),
               ),
             ),
           ),
@@ -97,6 +106,7 @@ void main() {
 
     expect(find.byType(DesyBooleanKnobRow), findsOneWidget);
     expect(find.byType(DesyTextKnobRow), findsOneWidget);
+    expect(find.byType(DesyChoiceKnobRow), findsOneWidget);
     expect(find.byType(DesyNumericKnobRow), findsOneWidget);
     expect(find.byType(DesyColorKnobRow), findsOneWidget);
     expect(find.byType(DesyDateTimeKnobRow), findsOneWidget);
@@ -106,6 +116,53 @@ void main() {
     expect(find.text('Visible copy.'), findsOneWidget);
     expect(find.text('Event'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('choice knobs render a dropdown and emit legal strings', (
+    tester,
+  ) async {
+    String? changed;
+    final component = DesyComponent(
+      id: 'visibility.label',
+      name: 'Visibility label',
+      knobs: (k) => (
+        visibility: k.choice(
+          'visibility',
+          options: const ['Automatic', 'Enabled', 'Disabled'],
+        ),
+      ),
+      build: (context, knobs) => Text(knobs.visibility.value),
+    );
+    final registry = DesyRegistry(
+      name: 'Choice knob',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [component],
+    );
+
+    await tester.pumpWidget(
+      FTheme(
+        data: FTheme.neutral.light.desktop,
+        child: MaterialApp(
+          home: Scaffold(
+            body: DesyComponentKnobPanel(
+              registry: registry,
+              knobs: component.knobDefinitions,
+              values: const {},
+              onChanged: (_, value) => changed = value as String,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('choice-knob-select-visibility')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Enabled').last);
+    await tester.pumpAndSettle();
+
+    expect(changed, 'Enabled');
   });
 
   testWidgets('date-time knobs emit typed edits and preserve UTC time', (

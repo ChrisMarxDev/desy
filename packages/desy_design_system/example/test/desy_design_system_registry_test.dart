@@ -13,7 +13,7 @@ void main() {
     expect(desyDesignSystemRegistry.allColors, hasLength(9));
     expect(desyDesignSystemRegistry.allFonts, hasLength(4));
     expect(desyDesignSystemRegistry.allMeasurements, hasLength(9));
-    expect(desyDesignSystemRegistry.allMotion, hasLength(2));
+    expect(desyDesignSystemRegistry.allMotion, hasLength(5));
     expect(desyDesignSystemRegistry.allEffects, hasLength(1));
     expect(desyDesignSystemRegistry.allIcons, hasLength(29));
     expect(desyDesignSystemRegistry.atomKinds, DesyAtomKind.values);
@@ -45,6 +45,7 @@ void main() {
       desyDesignSystemRegistry.allComponents.map((component) => component.id),
       unorderedEquals({
         'desy.component.accordion',
+        'desy.component.all-knobs',
         'desy.component.badge',
         'desy.component.button',
         'desy.component.boolean-knob-row',
@@ -53,6 +54,7 @@ void main() {
         'desy.component.chat-composer',
         'desy.component.chat-message',
         'desy.component.chat-thread',
+        'desy.component.choice-knob-row',
         'desy.component.color-knob-row',
         'desy.component.date-time-knob-row',
         'desy.component.dialog',
@@ -117,9 +119,9 @@ void main() {
     expect(knobSheet.knobDefinitions.map((definition) => definition.id), [
       'title',
       'caption',
+      'density',
       'cornerRadius',
       'clipContent',
-      'showLabel',
       'scheduledAt',
       'surfaceColor',
       'instance',
@@ -134,6 +136,7 @@ void main() {
       knobSheet.knobDefinitions.map((definition) => definition.kind).toSet(),
       {
         DesyKnobKind.string,
+        DesyKnobKind.choice,
         DesyKnobKind.number,
         DesyKnobKind.boolean,
         DesyKnobKind.dateTime,
@@ -153,6 +156,62 @@ void main() {
       knobSheet.valuesFor('scheduled-custom'),
       containsPair('surfaceColor', const Color(0x80336699)),
     );
+    expect(knobSheet.valuesFor('roomy'), containsPair('density', 'Spacious'));
+  });
+
+  test('dogfood uses choice knobs for finite select and tri-state values', () {
+    final select = desyDesignSystemRegistry.allComponents.singleWhere(
+      (component) => component.id == 'desy.component.select',
+    );
+    final choiceRow = desyDesignSystemRegistry.allComponents.singleWhere(
+      (component) => component.id == 'desy.component.choice-knob-row',
+    );
+
+    final theme = select.knobDefinitions.singleWhere(
+      (definition) => definition.id == 'theme',
+    );
+    final value = choiceRow.knobDefinitions.singleWhere(
+      (definition) => definition.id == 'value',
+    );
+
+    expect(theme.kind, DesyKnobKind.choice);
+    expect(theme.initial, 'Workbench light');
+    expect(theme.options, [
+      'Workbench light',
+      'Workbench dark',
+      'Follow system',
+    ]);
+    expect(value.kind, DesyKnobKind.choice);
+    expect(value.options, ['Automatic', 'Enabled', 'Disabled']);
+  });
+
+  test('all-knobs specimen tracks every available knob kind', () {
+    final component = desyDesignSystemRegistry.allComponents.singleWhere(
+      (component) => component.id == 'desy.component.all-knobs',
+    );
+
+    expect(component.knobDefinitions.map((definition) => definition.id), [
+      'title',
+      'status',
+      'inset',
+      'enabled',
+      'scheduledAt',
+      'accent',
+      'leading',
+      'supporting',
+      'onActivate',
+    ]);
+    expect(
+      component.knobDefinitions.map((definition) => definition.kind).toSet(),
+      DesyKnobKind.values.toSet(),
+    );
+    expect(component.instanceIds, ['default', 'ready', 'blocked']);
+    expect(component.valuesFor('ready'), containsPair('status', 'Ready'));
+    expect(
+      component.valuesFor('ready'),
+      containsPair('supporting', ['desy.component.shortcut-label.single-key']),
+    );
+    expect(component.valuesFor('blocked'), containsPair('enabled', false));
   });
 
   test('color knob row declares a typed color control', () {

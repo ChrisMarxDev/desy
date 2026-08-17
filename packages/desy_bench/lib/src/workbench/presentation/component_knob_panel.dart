@@ -60,6 +60,14 @@ class DesyComponentKnobPanel extends StatelessWidget {
               value: values[knob.id] as String? ?? knob.initial as String,
               onChanged: (value) => onChanged(knob, value),
             ),
+            DesyKnobKind.choice => DesyChoiceKnobRow(
+              label: knob.name,
+              description: knob.description,
+              value: values[knob.id] as String? ?? knob.initial as String,
+              options: knob.options,
+              controlKey: ValueKey('choice-knob-select-${knob.id}'),
+              onChanged: (value) => onChanged(knob, value),
+            ),
             DesyKnobKind.number => DesyNumericKnobRow(
               label: knob.name,
               description: knob.description,

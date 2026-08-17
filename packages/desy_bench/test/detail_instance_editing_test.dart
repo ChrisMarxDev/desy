@@ -8,19 +8,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('device viewers start full size and remain movable', (
+  testWidgets('component previews keep popup menus interactive', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(1400, 1100));
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final component = DesyStaticComponent(
-      id: 'device-preview',
-      name: 'Device preview',
-      instances: {'default': (_) => const SizedBox.expand()},
+      id: 'menu',
+      name: 'Menu',
+      instances: {
+        'default': (_) => PopupMenuButton<String>(
+          key: const ValueKey('component-menu-trigger'),
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'inspect', child: Text('Inspect action')),
+          ],
+          child: const Text('Open menu'),
+        ),
+      },
     );
     final registry = DesyRegistry(
-      name: 'Device preview',
+      name: 'Interactive preview',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
       components: [component],
     );
@@ -41,58 +49,104 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final controls = tester.widgetList<DesyKnobSheet>(
-      find.byType(DesyKnobSheet),
-    );
-    expect(
-      controls.map((sheet) => sheet.segments.map((segment) => segment.title)),
-      [
-        ['COMPONENT'],
-        ['CANVAS', 'ACCESSIBILITY', 'IMAGE'],
-      ],
-    );
-    expect(find.text(component.id), findsOneWidget);
-
-    session.selectPreviewDevice(DesyDevicePreset.iPhone15Pro);
+    await tester.tap(find.byKey(const ValueKey('component-menu-trigger')));
     await tester.pumpAndSettle();
 
-    final artboard = find.byKey(const ValueKey('detail-artboard'));
-    expect(tester.getSize(artboard), DesyDevicePreset.iPhone15Pro.screenSize);
-
-    final resizeHandle = find.byKey(
-      const ValueKey('detail-resize-default-bottomRight'),
-    );
-    await tester.drag(resizeHandle, const Offset(40, 0));
-    await tester.pumpAndSettle();
-    final resized = tester.getSize(artboard);
-    expect(
-      resized.width,
-      greaterThan(DesyDevicePreset.iPhone15Pro.screenSize.width),
-    );
-    expect(
-      tester
-          .widget<DesyDragBoxLabel>(
-            find.byKey(const ValueKey('detail-selection-size')),
-          )
-          .size,
-      resized,
-    );
-
-    final before = tester.getTopLeft(artboard);
-    final gesture = await tester.startGesture(
-      before + const Offset(64, 64),
-      kind: PointerDeviceKind.mouse,
-    );
-    await gesture.moveBy(const Offset(48, 24));
-    await gesture.up();
-    await tester.pumpAndSettle();
-
-    final afterMove = tester.getTopLeft(artboard);
-    expect(afterMove.dx, greaterThan(before.dx));
-    expect(afterMove.dy, greaterThan(before.dy));
+    expect(find.text('Inspect action'), findsOneWidget);
   });
 
-  testWidgets('device viewer fits the detail viewport and supports zoom', (
+  testWidgets(
+    'size presets start full size, resize freely, and remain movable',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1400, 1100));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final component = DesyStaticComponent(
+        id: 'device-preview',
+        name: 'Device preview',
+        instances: {'default': (_) => const SizedBox.expand()},
+      );
+      final registry = DesyRegistry(
+        name: 'Device preview',
+        themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+        components: [component],
+      );
+      final entry = registry.resolve(component.id)!;
+      final session = DesyWorkbenchSession(registry: registry)
+        ..prepareEntry(entry);
+      addTearDown(session.dispose);
+
+      await tester.pumpWidget(
+        FTheme(
+          data: FTheme.neutral.light.desktop,
+          child: MaterialApp(
+            home: Scaffold(
+              body: DesyDetailScreen(session: session, entry: entry),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final controls = tester.widgetList<DesyKnobSheet>(
+        find.byType(DesyKnobSheet),
+      );
+      expect(
+        controls.map((sheet) => sheet.segments.map((segment) => segment.title)),
+        [
+          ['COMPONENT'],
+          ['CANVAS', 'ACCESSIBILITY', 'IMAGE'],
+        ],
+      );
+      expect(find.text(component.id), findsOneWidget);
+
+      session.selectPreviewDevice(DesyDevicePreset.iPhone15Pro);
+      await tester.pumpAndSettle();
+
+      final artboard = find.byKey(const ValueKey('detail-artboard'));
+      expect(tester.getSize(artboard), DesyDevicePreset.iPhone15Pro.screenSize);
+
+      final resizeHandle = find.byKey(
+        const ValueKey('detail-resize-default-bottomRight'),
+      );
+      await tester.drag(resizeHandle, const Offset(40, 0));
+      await tester.pumpAndSettle();
+      final resized = tester.getSize(artboard);
+      expect(
+        resized.width,
+        greaterThan(DesyDevicePreset.iPhone15Pro.screenSize.width),
+      );
+      expect(
+        resized.height,
+        DesyDevicePreset.iPhone15Pro.screenSize.height,
+        reason: 'a named size does not lock the artboard aspect ratio',
+      );
+      expect(
+        tester
+            .widget<DesyDragBoxLabel>(
+              find.byKey(const ValueKey('detail-selection-size')),
+            )
+            .size,
+        resized,
+      );
+
+      final before = tester.getTopLeft(artboard);
+      final gesture = await tester.startGesture(
+        before + const Offset(64, 64),
+        kind: PointerDeviceKind.mouse,
+      );
+      await gesture.moveBy(const Offset(48, 24));
+      await gesture.moveBy(const Offset(1, 1));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      final afterMove = tester.getTopLeft(artboard);
+      expect(afterMove.dx, greaterThan(before.dx));
+      expect(afterMove.dy, greaterThan(before.dy));
+    },
+  );
+
+  testWidgets('device-sized artboard starts unscaled and supports zoom', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1050, 700));
@@ -129,14 +183,14 @@ void main() {
     await tester.pumpAndSettle();
 
     final zoomLevel = find.byKey(const ValueKey('detail-canvas-zoom-level'));
-    final fittedLabel = tester.widget<Semantics>(zoomLevel).properties.label!;
-    expect(fittedLabel, isNot('Zoom 100 percent'));
+    final initialLabel = tester.widget<Semantics>(zoomLevel).properties.label!;
+    expect(initialLabel, 'Zoom 100 percent');
 
     await tester.tap(find.byKey(const ValueKey('detail-canvas-zoom-in')));
     await tester.pumpAndSettle();
     expect(
       tester.widget<Semantics>(zoomLevel).properties.label,
-      isNot(fittedLabel),
+      isNot(initialLabel),
     );
   });
 

@@ -21,6 +21,12 @@ class DesyWorkbenchOpenIntent extends Intent {
   final String location;
 }
 
+class DesyWorkbenchCanvasModeIntent extends Intent {
+  const DesyWorkbenchCanvasModeIntent(this.annotate);
+
+  final bool annotate;
+}
+
 /// Central keyboard bindings for every ShellRoute descendant.
 ///
 /// Modifier shortcuts leave native text editing alone while providing a stable
@@ -32,66 +38,105 @@ class DesyWorkbenchShortcuts extends StatelessWidget {
     required this.tree,
     required this.onNavigate,
     required this.child,
+    this.onSelectCanvasMode,
+    this.onAnnotateCanvasMode,
   });
 
   final Uri location;
   final DesyWorkbenchNavigationTree tree;
   final ValueChanged<String> onNavigate;
   final Widget child;
+  final VoidCallback? onSelectCanvasMode;
+  final VoidCallback? onAnnotateCanvasMode;
 
   @override
-  Widget build(BuildContext context) => Shortcuts(
-    shortcuts: {
-      const SingleActivator(LogicalKeyboardKey.digit1, meta: true):
-          const DesyWorkbenchOpenIntent(DesyWorkbenchRoutes.atlasPath),
-      const SingleActivator(LogicalKeyboardKey.digit1, control: true):
-          const DesyWorkbenchOpenIntent(DesyWorkbenchRoutes.atlasPath),
-      const SingleActivator(LogicalKeyboardKey.digit2, meta: true):
-          const DesyWorkbenchOpenIntent(DesyWorkbenchRoutes.componentsPath),
-      const SingleActivator(LogicalKeyboardKey.digit2, control: true):
-          const DesyWorkbenchOpenIntent(DesyWorkbenchRoutes.componentsPath),
-      const SingleActivator(LogicalKeyboardKey.arrowDown, alt: true):
-          const DesyWorkbenchTraverseIntent(DesyWorkbenchTraversal.next),
-      const SingleActivator(LogicalKeyboardKey.arrowUp, alt: true):
-          const DesyWorkbenchTraverseIntent(DesyWorkbenchTraversal.previous),
-      const SingleActivator(LogicalKeyboardKey.arrowRight, alt: true):
-          const DesyWorkbenchTraverseIntent(DesyWorkbenchTraversal.firstChild),
-      const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true):
-          const DesyWorkbenchTraverseIntent(DesyWorkbenchTraversal.parent),
-      const SingleActivator(LogicalKeyboardKey.escape):
-          const DesyWorkbenchOpenIntent(DesyWorkbenchRoutes.atlasPath),
-    },
-    child: Actions(
-      actions: {
-        DesyWorkbenchOpenIntent: CallbackAction<DesyWorkbenchOpenIntent>(
-          onInvoke: (intent) {
-            onNavigate(intent.location);
-            return null;
-          },
+  Widget build(BuildContext context) {
+    final canvasModesAvailable =
+        onSelectCanvasMode != null && onAnnotateCanvasMode != null;
+    return Shortcuts(
+      shortcuts: {
+        const SingleActivator(
+          LogicalKeyboardKey.digit1,
+          meta: true,
+        ): canvasModesAvailable
+            ? const DesyWorkbenchCanvasModeIntent(false)
+            : const DesyWorkbenchOpenIntent(DesyWorkbenchRoutes.atlasPath),
+        const SingleActivator(
+          LogicalKeyboardKey.digit1,
+          control: true,
+        ): canvasModesAvailable
+            ? const DesyWorkbenchCanvasModeIntent(false)
+            : const DesyWorkbenchOpenIntent(DesyWorkbenchRoutes.atlasPath),
+        const SingleActivator(
+          LogicalKeyboardKey.digit2,
+          meta: true,
+        ): canvasModesAvailable
+            ? const DesyWorkbenchCanvasModeIntent(true)
+            : const DesyWorkbenchOpenIntent(DesyWorkbenchRoutes.componentsPath),
+        const SingleActivator(
+          LogicalKeyboardKey.digit2,
+          control: true,
+        ): canvasModesAvailable
+            ? const DesyWorkbenchCanvasModeIntent(true)
+            : const DesyWorkbenchOpenIntent(DesyWorkbenchRoutes.componentsPath),
+        const SingleActivator(LogicalKeyboardKey.arrowDown, alt: true):
+            const DesyWorkbenchTraverseIntent(DesyWorkbenchTraversal.next),
+        const SingleActivator(LogicalKeyboardKey.arrowUp, alt: true):
+            const DesyWorkbenchTraverseIntent(DesyWorkbenchTraversal.previous),
+        const SingleActivator(
+          LogicalKeyboardKey.arrowRight,
+          alt: true,
+        ): const DesyWorkbenchTraverseIntent(
+          DesyWorkbenchTraversal.firstChild,
         ),
-        DesyWorkbenchTraverseIntent:
-            CallbackAction<DesyWorkbenchTraverseIntent>(
-              onInvoke: (intent) {
-                final destination = switch (intent.direction) {
-                  DesyWorkbenchTraversal.next => tree.adjacent(
-                    location,
-                    forward: true,
-                  ),
-                  DesyWorkbenchTraversal.previous => tree.adjacent(
-                    location,
-                    forward: false,
-                  ),
-                  DesyWorkbenchTraversal.firstChild => tree.firstChild(
-                    location,
-                  ),
-                  DesyWorkbenchTraversal.parent => tree.parent(location),
-                };
-                if (destination != null) onNavigate(destination);
-                return null;
-              },
-            ),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true):
+            const DesyWorkbenchTraverseIntent(DesyWorkbenchTraversal.parent),
+        const SingleActivator(LogicalKeyboardKey.escape):
+            const DesyWorkbenchOpenIntent(DesyWorkbenchRoutes.atlasPath),
       },
-      child: child,
-    ),
-  );
+      child: Actions(
+        actions: {
+          DesyWorkbenchOpenIntent: CallbackAction<DesyWorkbenchOpenIntent>(
+            onInvoke: (intent) {
+              onNavigate(intent.location);
+              return null;
+            },
+          ),
+          DesyWorkbenchTraverseIntent:
+              CallbackAction<DesyWorkbenchTraverseIntent>(
+                onInvoke: (intent) {
+                  final destination = switch (intent.direction) {
+                    DesyWorkbenchTraversal.next => tree.adjacent(
+                      location,
+                      forward: true,
+                    ),
+                    DesyWorkbenchTraversal.previous => tree.adjacent(
+                      location,
+                      forward: false,
+                    ),
+                    DesyWorkbenchTraversal.firstChild => tree.firstChild(
+                      location,
+                    ),
+                    DesyWorkbenchTraversal.parent => tree.parent(location),
+                  };
+                  if (destination != null) onNavigate(destination);
+                  return null;
+                },
+              ),
+          DesyWorkbenchCanvasModeIntent:
+              CallbackAction<DesyWorkbenchCanvasModeIntent>(
+                onInvoke: (intent) {
+                  if (intent.annotate) {
+                    onAnnotateCanvasMode?.call();
+                  } else {
+                    onSelectCanvasMode?.call();
+                  }
+                  return null;
+                },
+              ),
+        },
+        child: child,
+      ),
+    );
+  }
 }

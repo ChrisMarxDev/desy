@@ -83,7 +83,7 @@ class DesyFittedPreview extends StatelessWidget {
 
   final Widget child;
 
-  static const _maximumLogicalSize = Size(1024, 768);
+  static const _maximumLogicalSize = Size.square(460);
 
   @override
   Widget build(BuildContext context) => FittedBox(
@@ -165,11 +165,14 @@ class DesyContentSizeProbe extends StatelessWidget {
 
   final Widget child;
 
+  // Probe beyond the self-sizing frame ceiling so large intrinsic content can
+  // be distinguished from a widget that greedily fills every loose pass. The
+  // canvas controller clamps the reported intrinsic size to 460 × 460.
+  static const _measurementCap = Size(1024, 768);
+
   @override
-  Widget build(BuildContext context) => _DesyContentSizeProbeBox(
-    onNaturalSize: onNaturalSize,
-    child: child,
-  );
+  Widget build(BuildContext context) =>
+      _DesyContentSizeProbeBox(onNaturalSize: onNaturalSize, child: child);
 }
 
 class _DesyContentSizeProbeBox extends SingleChildRenderObjectWidget {
@@ -183,7 +186,7 @@ class _DesyContentSizeProbeBox extends SingleChildRenderObjectWidget {
   @override
   RenderObject createRenderObject(BuildContext context) =>
       _RenderContentSizeProbe(
-        DesyFittedPreview._maximumLogicalSize,
+        DesyContentSizeProbe._measurementCap,
         onNaturalSize,
       );
 

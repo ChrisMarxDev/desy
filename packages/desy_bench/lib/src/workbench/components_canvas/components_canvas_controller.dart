@@ -248,8 +248,9 @@ class DesyComponentsCanvasController with BeaconController {
 
   static const _snapEngine = DesySnapEngine();
 
-  static const _autoFitMaximumSize = Size(1024, 768);
+  static const _autoFitMeasurementCap = Size(1024, 768);
   static const _minimumAutoFitExtent = 8.0;
+  static const _maximumAutoFitExtent = 460.0;
 
   /// The live interaction state for one existing node.
   ///
@@ -601,22 +602,24 @@ class DesyComponentsCanvasController with BeaconController {
   /// already reflects the widget under the current theme and text scale. A
   /// widget that filled the loose measurement pass has no intrinsic size;
   /// those stay at the placeholder so full-bleed components do not explode.
+  /// Intrinsic content may size itself up to 460 × 460 logical pixels; larger
+  /// preferred sizes clamp there instead of dominating the canvas.
   void fitToContent(String nodeId, Size size) {
     if (_manuallySized.contains(nodeId) || _externallySized.contains(nodeId)) {
       return;
     }
     final node = nodes.value[nodeId];
     if (node == null || node.parentLayoutId != null) return;
-    if (size.width >= _autoFitMaximumSize.width ||
-        size.height >= _autoFitMaximumSize.height) {
+    if (size.width >= _autoFitMeasurementCap.width ||
+        size.height >= _autoFitMeasurementCap.height) {
       return;
     }
-    final width = size.width < _minimumAutoFitExtent
-        ? _minimumAutoFitExtent
-        : size.width;
-    final height = size.height < _minimumAutoFitExtent
-        ? _minimumAutoFitExtent
-        : size.height;
+    final width = size.width
+        .clamp(_minimumAutoFitExtent, _maximumAutoFitExtent)
+        .toDouble();
+    final height = size.height
+        .clamp(_minimumAutoFitExtent, _maximumAutoFitExtent)
+        .toDouble();
     final rect = node.rect;
     final candidate = Rect.fromLTWH(rect.left, rect.top, width, height);
     final parentArtboard = node.parentArtboardId == null
