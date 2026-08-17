@@ -34,6 +34,7 @@
       <div class="card"><h3>Package name</h3><label><input type="radio" name="package-name" value="object_canvas (recommended)" checked> <code>object_canvas</code> — recommended working name</label><br><label><input type="radio" name="package-name" value="flutter_object_canvas"> <code>flutter_object_canvas</code></label><br><label><input type="radio" name="package-name" value="canvas_objects"> <code>canvas_objects</code></label></div>
       <div class="card"><h3>State API</h3><label><input type="radio" name="state-api" value="Controller-only V1 (recommended)" checked> Controller-only V1 — one source of truth</label><br><label><input type="radio" name="state-api" value="Controller plus objects convenience constructor"> Add <code>objects + onObjectChanged</code> convenience immediately</label></div>
       <div class="card"><h3>Undo model</h3><label><input type="radio" name="undo-model" value="One CanvasAction per completed interaction backed by undo ChangeStack (recommended)" checked> One <code>CanvasAction</code> per completed interaction, backed by <code>undo</code></label><br><label><input type="radio" name="undo-model" value="Host-owned history only"> Emit actions but keep history entirely host-owned</label></div>
+      <div class="card"><h3>Action payload</h3><label><input type="radio" name="action-payload" value="Typed reversible field patches (recommended)" checked> Store only changed fields as exact old/new patches</label><br><label><input type="radio" name="action-payload" value="Complete before and after object snapshots"> Store complete before/after objects</label><br><label><input type="radio" name="action-payload" value="Arithmetic deltas only"> Store arithmetic deltas only</label></div>
       <div class="card"><h3>Object policy defaults</h3><label><input type="radio" name="object-defaults" value="Canvas-level defaults with optional per-object overrides (recommended)" checked> Canvas-level defaults; object overrides only for exceptions</label><br><label><input type="radio" name="object-defaults" value="All constraints and capabilities declared per object"> Require policy on every object</label></div>
       <div class="card"><h3>Generic rendering</h3><label><input type="radio" name="rendering" value="Required generic builder plus typed Widget convenience constructor (recommended)" checked> Required builder for arbitrary data; <code>.widgets</code> convenience for <code>Widget</code> data</label><br><label><input type="radio" name="rendering" value="Require builder in every constructor"> Always require a builder</label></div>
       <div class="card"><h3>Selection scope</h3><label><input type="radio" name="selection" value="Set-backed selection, single-object transforms in V1 (recommended)" checked> Set-backed selection; single-object transforms in V1</label><br><label><input type="radio" name="selection" value="Full multi-selection transforms in V1"> Full multi-selection transforms in V1</label></div>
@@ -175,11 +176,29 @@ ObjectCanvas&lt;Widget&gt;.widgets(
   CanvasActionKind get kind;
 }
 
+final class CanvasValuePatch&lt;V&gt; {
+  final V before;
+  final V after;
+}
+
+final class CanvasGeometryPatch {
+  final CanvasValuePatch&lt;Offset&gt;? position;
+  final CanvasValuePatch&lt;Size&gt;? size;
+  final CanvasValuePatch&lt;double&gt;? rotation;
+  final CanvasValuePatch&lt;double&gt;? scale;
+  final CanvasValuePatch&lt;Alignment&gt;? pivot;
+
+  CanvasObjectGeometry applyTo(CanvasObjectGeometry current);
+  CanvasObjectGeometry revertOn(CanvasObjectGeometry current);
+}
+
 final class CanvasTransformAction&lt;T&gt; extends CanvasAction&lt;T&gt; {
   final String objectId;
-  final CanvasObjectGeometry before;
-  final CanvasObjectGeometry after;
+  final CanvasGeometryPatch patch;
   final CanvasTransformKind transform; // move | resize | scale | rotate
+
+  void apply(CanvasActionTarget&lt;T&gt; target);
+  void revert(CanvasActionTarget&lt;T&gt; target);
 }
 
 // Pointer down: capture `before`.
@@ -187,11 +206,13 @@ final class CanvasTransformAction&lt;T&gt; extends CanvasAction&lt;T&gt; {
 // Pointer up: create and perform exactly one action.
 controller.perform(CanvasTransformAction(
   objectId: 'hero-image',
-  before: gestureStartGeometry,
-  after: finalSnappedGeometry,
+  patch: CanvasGeometryPatch.between(
+    gestureStartGeometry,
+    finalSnappedGeometry,
+  ),
   transform: CanvasTransformKind.resize,
 ));</code></pre>
-    <p class="muted"><code>CanvasHistory</code> adapts each typed action to one <code>undo.Change</code>. Because <code>ChangeStack.add()</code> executes immediately, gesture frames stay in separate draft state and only pointer-up adds/applies the action. Undo applies its <code>before</code> snapshot; redo applies <code>after</code>. A no-op gesture creates no action. Selection, hover, camera movement, and snap-guide state are view state and never enter document history.</p>
+    <p class="muted"><code>CanvasHistory</code> adapts each typed action to one <code>undo.Change</code>. Because <code>ChangeStack.add()</code> executes immediately, gesture frames stay in separate draft state and only pointer-up adds/applies the action. The patch contains exact old/new values only for fields that changed: apply writes each <code>after</code>; revert writes each <code>before</code>. This avoids complete object snapshots and floating-point drift from repeatedly adding/subtracting arithmetic deltas. A no-op patch creates no action. Selection, hover, camera movement, and snap-guide state never enter document history.</p>
     <div class="notes"><label for="api-notes">API notes</label><textarea id="api-notes" data-note="API notes" placeholder="Rename types, change callback frequency, add/remove controller methods, or alter size/scale semantics."></textarea></div>
   </section>
 
@@ -222,7 +243,7 @@ Pure geometry seam
   CanvasTransformEngine ─ CanvasSnapEngine ─ CanvasSceneIndex
   No widget data, registry, persistence, file IO, editor panels, or theme dependency</pre>
     <div class="grid">
-      <div class="card"><h3>Model layer</h3><p>Immutable objects, actions, and validation. Geometry stores position, real layout size, radians, positive transform scale, and pivot. Canvas-level defaults provide minimum size and capabilities; nullable per-object policy fields override only true exceptions. Each document edit is represented by a typed action with stable metadata and complete before/after values.</p></div>
+      <div class="card"><h3>Model layer</h3><p>Immutable objects, reversible patches, actions, and validation. Geometry stores position, real layout size, radians, positive transform scale, and pivot. Canvas-level defaults provide minimum size and capabilities; nullable per-object policy fields override only true exceptions. Each action stores only its changed fields, with exact old/new values sufficient for deterministic apply/revert.</p></div>
       <div class="card"><h3>Controller layer</h3><p>Owns lifecycle, unique-ID validation, paint order, selection, view state, and history. During a gesture it updates only object-scoped drafts. At gesture end it creates one typed <code>CanvasAction</code>; the history adapter uses <code>undo.ChangeStack</code> to apply, undo, or redo that action through the same document mutation path.</p></div>
       <div class="card"><h3>Geometry layer</h3><p>Pure deterministic operations for local/world transforms, rotated corners, axis-aligned visual bounds, containment, handle deltas, resize versus scale, and snapping. No BuildContext or host data.</p></div>
       <div class="card"><h3>Widget layer</h3><p>Composes Flutter's supported camera/gesture primitives and the selected transform dependency. It renders only inside the canvas and exposes builders for content and visual chrome.</p></div>
@@ -241,8 +262,8 @@ Pure geometry seam
       <li><label><input type="checkbox" checked data-item="Gesture start snapshots geometry and the precomputed snap index"><span>Gesture start snapshots the selected geometry and takes an immutable view of the already-built snap index, excluding active objects.</span></label></li>
       <li><label><input type="checkbox" checked data-item="Pointer updates query precomputed snap targets"><span>Pointer updates derive only the active draft's proposed anchors, then query and rank nearby cached targets. Transform constraints and boundary policy run on that proposal; screen-pixel tolerances use current viewport scale.</span></label></li>
       <li><label><input type="checkbox" checked data-item="Only the active object and guide overlay rebuild during interaction"><span>Only the active object-scoped listenable and guide overlay rebuild during interaction; the committed collection stays referentially stable.</span></label></li>
-      <li><label><input type="checkbox" checked data-item="Gesture end creates exactly one undoable action"><span>Gesture end compares start and final geometry. If changed, it creates exactly one <code>CanvasTransformAction</code> and adds one package <code>Change</code>; that call applies the final geometry, updates the snap index, and clears drafts/guides. Cancel or no-op creates no history entry.</span></label></li>
-      <li><label><input type="checkbox" checked data-item="Undo and redo replay the same typed action"><span><code>undo()</code> applies the action's before snapshot; <code>redo()</code> applies its after snapshot. Both use the same document replacement/index invalidation path and publish an action event with its phase.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Gesture end creates exactly one reversible patch action"><span>Gesture end compares start and final geometry and builds a patch containing only changed fields. If non-empty, it creates exactly one <code>CanvasTransformAction</code> and adds one package <code>Change</code>; that call applies the patch, updates the snap index, and clears drafts/guides. Cancel or no-op creates no history entry.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Undo and redo replay the same typed reversible patch"><span><code>undo()</code> calls <code>action.revert()</code> to write exact old field values; <code>redo()</code> calls <code>action.apply()</code> to write exact new field values. Both use the same document/index invalidation path and publish an action event with its phase.</span></label></li>
       <li><label><input type="checkbox" checked data-item="Host edits arbitrary data through an undoable controller action"><span>Host property editors call <code>updateData</code>, which creates one <code>CanvasDataAction</code>. The canvas applies/undoes the typed value without interpreting image, text, registry, or application fields.</span></label></li>
     </ol>
     <div class="notes"><label for="flow-notes">Flow notes</label><textarea id="flow-notes" data-note="Logic and data-flow notes"></textarea></div>
@@ -293,7 +314,7 @@ Pure geometry seam
     <div class="section-head"><h2>Touched Files and Classes</h2><div class="tools"><label>Status <select data-status="Touched Files and Classes"><option selected>Approved</option><option>Needs revision</option><option>Partially approved</option><option>Rejected</option></select></label></div></div>
     <table><thead><tr><th>Use</th><th>Path</th><th>Classes / change</th><th>Phase</th></tr></thead><tbody>
       <tr><td><input type="checkbox" checked data-item="Create packages/object_canvas package shell"></td><td><code>packages/object_canvas/pubspec.yaml</code><br><code>lib/object_canvas.dart</code></td><td>Independent Flutter package with <code>undo: ^1.6.0</code>; no Desy/Forui/state-manager dependency; public barrel exports canvas-owned types rather than raw <code>undo</code> types.</td><td>1</td></tr>
-      <tr><td><input type="checkbox" checked data-item="Create immutable object and action model"></td><td><code>lib/src/model/*.dart</code><br><code>lib/src/history/canvas_action.dart</code></td><td><code>CanvasObject&lt;T&gt;</code>, geometry, canvas defaults, optional object overrides, viewport, typed transform/add/remove/reorder/data/compound actions, and action events.</td><td>1</td></tr>
+      <tr><td><input type="checkbox" checked data-item="Create immutable object patch and action model"></td><td><code>lib/src/model/*.dart</code><br><code>lib/src/history/canvas_patch.dart</code><br><code>canvas_action.dart</code></td><td><code>CanvasObject&lt;T&gt;</code>, geometry, defaults/overrides, <code>CanvasValuePatch&lt;V&gt;</code>, geometry/object patches, typed transform/add/remove/reorder/data/compound actions, apply/revert behavior, and action events.</td><td>1</td></tr>
       <tr><td><input type="checkbox" checked data-item="Create ObjectCanvasController and undo adapter"></td><td><code>lib/src/controller/object_canvas_controller.dart</code><br><code>lib/src/history/canvas_history.dart</code></td><td>Document/view state, focused gesture drafts, selection, ordering, coordinate conversion, <code>undo.ChangeStack</code> adaptation, observable undo/redo state, and shared action application.</td><td>1–2</td></tr>
       <tr><td><input type="checkbox" checked data-item="Create transform geometry seam"></td><td><code>lib/src/geometry/*.dart</code></td><td>Local/world transform, rotated corners/AABB, containment, layout resize, transform scale, rotation, handle math.</td><td>2</td></tr>
       <tr><td><input type="checkbox" checked data-item="Port and generalize snapping engine"></td><td><code>lib/src/snapping/*.dart</code></td><td>Strategy contract, sorted scene index, gesture session, locks, candidate ranking, grid/edge/object/angle built-ins, guide descriptors.</td><td>2</td></tr>
@@ -352,7 +373,7 @@ Pure geometry seam
       <li><label><input type="checkbox" checked data-item="API compile tests for generic mixed data and controller lifecycle"><span>API compile tests for generic sealed data, stable IDs, immutable ordered objects, controller lifecycle, and builder signatures.</span></label></li>
       <li><label><input type="checkbox" checked data-item="Geometry unit tests across resize scale rotate pivot and containment"><span>Geometry unit tests for local/world conversion, all handles, layout resize versus transform scale, pivots, negative/invalid inputs, rotated corners/AABB, and finite containment.</span></label></li>
       <li><label><input type="checkbox" checked data-item="Snapping deterministic and benchmark tests"><span>Assert targets are computed on commit/configuration changes and not during pointer frames; cover incremental invalidation, grid/canvas/object/angle snapping, priority, ties, exclusion, zoom-scaled tolerance, locks, release thresholds, and 100/1k/10k p95 benchmarks.</span></label></li>
-      <li><label><input type="checkbox" checked data-item="One completed gesture equals one undo action tests"><span>Hundreds of pointer updates produce zero history entries until pointer-up and exactly one afterward; cancel/no-op produce none; move/resize/scale/rotate each restore exact before/after geometry.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="One completed gesture equals one reversible patch action tests"><span>Hundreds of pointer updates produce zero history entries until pointer-up and exactly one afterward; cancel/no-op produce none; each transform patch contains only changed fields; apply/revert restore exact values across repeated undo/redo cycles.</span></label></li>
       <li><label><input type="checkbox" checked data-item="Undo package adapter tests"><span>Undo/redo availability, redo clearing after a new edit, history limits, action descriptions/events, add/remove/reorder/data edits, composite multi-object action ordering, and snap-index invalidation on apply/undo/redo. Pin behavior rather than trusting README-only APIs.</span></label></li>
       <li><label><input type="checkbox" checked data-item="Widget gesture tests for all input modes"><span>Widget tests for select/clear, move, resize, scale, rotate, cancellation, clipping, z-order, locked/hidden states, object hit policy, viewport gestures, and handle customization.</span></label></li>
       <li><label><input type="checkbox" checked data-item="Keyboard focus semantics and text scale tests"><span>Keyboard movement/delete hooks, focus visibility, semantic selected/locked labels, 200% text scale for default labels, and 44×44 touch affordances where practical.</span></label></li>
@@ -373,6 +394,8 @@ Pure geometry seam
       <li><label><input type="checkbox" checked data-item="Snap cache invalidation must follow every committed geometry source"><span><strong>Cached snapping:</strong> programmatic edits, gesture commits, add/remove, and configuration changes must invalidate the correct index entries. Drafts never mutate stable targets.</span></label></li>
       <li><label><input type="checkbox" checked data-item="Undo package executes Change during add"><span><strong>History execution timing:</strong> <code>ChangeStack.add()</code> executes immediately. Committed geometry must therefore stay unchanged during dragging; only the visual draft moves, and pointer-up adds/applies the action once.</span></label></li>
       <li><label><input type="checkbox" checked data-item="Undo package grouping API is not the canvas composition model"><span><strong>Grouped edits:</strong> released <code>addGroup()</code> applies/undoes members in forward order and is not atomic. Use one canvas-owned composite action for multi-object gestures and keep package types private.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Arithmetic transform deltas can accumulate floating point drift"><span><strong>Patch fidelity:</strong> do not implement undo as repeated <code>current + delta</code> / <code>current - delta</code>. Store exact old/new values for changed fields so repeated undo/redo returns bit-for-bit domain values and bypasses snapping/constraints.</span></label></li>
+      <li><label><input type="checkbox" checked data-item="Some action types necessarily retain domain values"><span><strong>Irreducible payloads:</strong> undoing remove must retain the removed object, and undoing arbitrary <code>T</code> replacement must retain old/new references. Immutable domain data avoids deep copying; custom host actions can provide a smaller reversible representation when needed.</span></label></li>
       <li><label><input type="checkbox" checked data-item="Generic customization can become a flag-heavy editor framework"><span><strong>API sprawl:</strong> use builders/delegates and typed capability objects. Refuse sidebar, domain model, persistence, and tool-catalogue flags.</span></label></li>
       <li><label><input type="checkbox" checked data-item="Widget interactions inside editable objects conflict with canvas selection"><span><strong>Child input:</strong> buttons, text fields, scrollables, and gestures inside arbitrary widgets need an explicit edit-versus-interact hit-test policy.</span></label></li>
       <li><label><input type="checkbox" checked data-item="Third party source license and released-main divergence"><span><strong>Source provenance:</strong> package/repository versions and licenses can diverge. Pin commits, verify authoritative licenses, retain notices, and prefer dependencies over copied code.</span></label></li>
@@ -389,6 +412,7 @@ Pure geometry seam
       <li>Approve canvas-level minimum-size and capability defaults with optional per-object overrides, instead of requiring policy declarations on every object.</li>
       <li>Approve a required builder for arbitrary <code>T</code> plus <code>ObjectCanvas&lt;Widget&gt;.widgets</code> as the sensible default-rendering constructor.</li>
       <li>Confirm that <code>CanvasActionEvent</code> is the primary semantic callback for commit/undo/redo, while <code>onObjectChanged</code> remains an optional per-object projection.</li>
+      <li>Confirm reversible field patches as the history payload: exact old/new values only for changed fields, with action-level <code>apply</code>/<code>revert</code>, rather than full object snapshots or arithmetic deltas.</li>
       <li>Choose the default in-memory history limit; recommendation: 100 completed document actions, configurable and clearable.</li>
       <li>How users switch direct handles between layout resize and transform scale: controller tool, per-object policy, modifier, or multiple handles.</li>
       <li>Whether V1 selection may contain multiple IDs while only one object transforms, or whether full multi-object bounds/rotation ships immediately.</li>

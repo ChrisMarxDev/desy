@@ -33,6 +33,9 @@ abstract final class DesyIcons {
   /// Select a precise point or widget on a canvas.
   static const IconData crosshair = FLucideIcons.crosshair;
 
+  /// Select and manipulate a canvas item.
+  static const IconData mousePointer = FLucideIcons.mousePointer2;
+
   /// A registry folder.
   static const IconData folder = FLucideIcons.folder;
 

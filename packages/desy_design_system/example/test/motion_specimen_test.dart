@@ -19,14 +19,19 @@ void main() {
     )!;
 
     expect(sidebar.source, isA<DesyMotionEntry>());
+    expect((sidebar.source as DesyMotionEntry).instances, isEmpty);
     expect((contentSwap.source as DesyMotionEntry).supportsTransition, isTrue);
+    expect(
+      (contentSwap.source as DesyMotionEntry).instances.map((id) => id.value),
+      ['desy.component.button.primary', 'desy.component.badge.outline'],
+    );
     expect(
       (screenNavigation.source as DesyMotionEntry).supportsTransition,
       isTrue,
     );
   });
 
-  testWidgets('dogfood motion exposes transition instance controls', (
+  testWidgets('dogfood motion keeps its declared transition instances fixed', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1100, 800));
@@ -50,25 +55,13 @@ void main() {
 
     expect(find.text('Inspect component'), findsOneWidget);
     expect(find.text('STABLE'), findsOneWidget);
-    final instanceMenu = find.byKey(
-      const ValueKey('motion-transition-instance-menu'),
-    );
-    expect(instanceMenu, findsOneWidget);
-    await tester.ensureVisible(instanceMenu);
-    await tester.tap(
-      find.descendant(of: instanceMenu, matching: find.byType(DesyButton)),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('Transition instances'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('motion-transition-instance-1')),
-      findsOneWidget,
+      find.byKey(const ValueKey('motion-transition-instance-menu')),
+      findsNothing,
     );
-    expect(
-      find.byKey(const ValueKey('motion-transition-instance-2')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('motion-specimen-select')), findsNothing);
+    expect(find.text('Inspect component'), findsOneWidget);
+    expect(find.text('STABLE'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 45));
     await tester.pump(const Duration(milliseconds: 16));

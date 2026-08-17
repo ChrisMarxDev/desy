@@ -192,6 +192,16 @@ void main() {
       tester.widget<Semantics>(zoomLevel).properties.label,
       isNot(initialLabel),
     );
+
+    final zoomOut = find.byKey(const ValueKey('detail-canvas-zoom-out'));
+    for (var count = 0; count < 8; count++) {
+      await tester.tap(zoomOut);
+      await tester.pumpAndSettle();
+    }
+    expect(
+      tester.widget<Semantics>(zoomLevel).properties.label,
+      'Zoom 50 percent',
+    );
   });
 
   testWidgets('selecting an instance binds its knobs to that viewer', (

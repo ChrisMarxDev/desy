@@ -34,6 +34,9 @@ includes:
   genui_example:
     taskfile: ./packages/extensions/desy_genui/example/Taskfile.yml
     dir: ./packages/extensions/desy_genui/example
+  goldens_prototype:
+    taskfile: ./packages/extensions/desy_goldens_prototype/Taskfile.yml
+    dir: ./packages/extensions/desy_goldens_prototype
   widget_workshop:
     taskfile: ./packages/extensions/desy_widget_workshop/Taskfile.yml
     dir: ./packages/extensions/desy_widget_workshop

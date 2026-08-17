@@ -15,11 +15,6 @@ void main() {
       duration: const Duration(milliseconds: 280),
       curve: Curves.linear,
       builder: _motionBuilder,
-      child: const DesyMotionChild.widget(
-        id: 'square',
-        name: 'Square',
-        builder: _emptyBuilder,
-      ),
     );
 
     expect(entry.duration, const Duration(milliseconds: 280));
@@ -55,18 +50,6 @@ void main() {
                 child: child,
               );
             },
-            child: const DesyMotionChild.widget(
-              id: 'square',
-              name: 'Square',
-              builder: _motionTestChild,
-            ),
-            alternatives: const [
-              DesyMotionChild.widget(
-                id: 'wide-square',
-                name: 'Wide square',
-                builder: _motionTestChild,
-              ),
-            ],
           ),
         ],
       );
@@ -90,9 +73,10 @@ void main() {
         find.byKey(const ValueKey('motion-playhead-thermometer')),
         findsOneWidget,
       );
+      expect(find.byType(FlutterLogo), findsOneWidget);
       expect(
         find.byKey(const ValueKey('motion-specimen-select')),
-        findsOneWidget,
+        findsNothing,
       );
       final durationField = find.byKey(
         const ValueKey('motion-global-duration'),
@@ -165,11 +149,6 @@ void main() {
           },
         );
       },
-      child: const DesyMotionChild.widget(
-        id: 'square',
-        name: 'Square',
-        builder: _motionTestChild,
-      ),
     );
     final registry = DesyRegistry(
       name: 'Global motion test',
@@ -300,13 +279,8 @@ void _press(WidgetTester tester, ValueKey<String> key) {
 
 Widget _wrap(BuildContext context, Widget child) => child;
 
-Widget _emptyBuilder(BuildContext context) => const SizedBox.shrink();
-
 Widget _motionBuilder(BuildContext context, Widget child, Duration duration) =>
     child;
-
-Widget _motionTestChild(BuildContext context) =>
-    const SizedBox(width: 120, height: 52);
 
 class _TestHarness extends StatelessWidget {
   const _TestHarness({required this.child});

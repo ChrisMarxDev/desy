@@ -276,12 +276,33 @@ class DesyRegistry {
             ),
       ]);
 
+  /// Every registry widget that can be inserted into a widget-instance slot.
+  ///
+  /// This is derived from the consumer registry at read time: named component
+  /// instances retain their production builders and typed icon entries become
+  /// real [Icon] widgets. Composition controls use this one inventory rather
+  /// than maintaining a separate picker catalogue.
+  List<DesyRegisteredWidgetInstance> get allComponentInstancesWithIcons =>
+      List.unmodifiable([
+        for (final instance in allComponentInstances)
+          DesyRegisteredWidgetInstance.component(instance),
+        for (final icon in allIcons) DesyRegisteredWidgetInstance.icon(icon),
+      ]);
+
   /// Widget resolver used by component builders that expose instance swaps.
   DesyWidgetResolver get widgetBuilder => DesyWidgetResolver(this);
 
   /// Finds a component instance by its registry-scoped stable ID.
   DesyRegisteredComponentInstance? resolveComponentInstance(String id) {
     for (final instance in allComponentInstances) {
+      if (instance.id == id) return instance;
+    }
+    return null;
+  }
+
+  /// Finds a component instance or typed icon that can fill a widget slot.
+  DesyRegisteredWidgetInstance? resolveWidgetInstance(String id) {
+    for (final instance in allComponentInstancesWithIcons) {
       if (instance.id == id) return instance;
     }
     return null;
@@ -754,10 +775,8 @@ class DesyRegistryValidator {
       add(id, 'extension');
     }
     for (final motion in registry.allMotion) {
-      for (final child in motion.children) {
-        final instance = child.instanceId;
-        if (instance == null ||
-            registry.resolveComponentInstance(instance.value) != null) {
+      for (final instance in motion.instances) {
+        if (registry.resolveComponentInstance(instance.value) != null) {
           continue;
         }
         issues.add(
@@ -765,7 +784,7 @@ class DesyRegistryValidator {
             id: instance.value,
             severity: DesyRegistryValidationSeverity.warning,
             message:
-                'Motion "${motion.id}" specimen "${child.id}" references '
+                'Motion "${motion.id}" references '
                 'unknown component instance "${instance.value}".',
           ),
         );
@@ -820,14 +839,14 @@ class DesyRegistryValidator {
         }
       }
       for (final entry in contextsByReference.entries) {
-        if (registry.resolveComponentInstance(entry.key) == null) {
+        if (registry.resolveWidgetInstance(entry.key) == null) {
           issues.add(
             DesyRegistryValidationIssue(
               id: entry.key,
               severity: DesyRegistryValidationSeverity.warning,
               message:
                   'Component "${component.id}" ${entry.value.join(' and ')} '
-                  'references unknown component instance "${entry.key}".',
+                  'references unknown registered widget "${entry.key}".',
             ),
           );
         }
@@ -1198,54 +1217,6 @@ class DesyNumericEntry {
       builder?.call(context) ?? Text(displayValue, textAlign: TextAlign.center);
 }
 
-/// A named child specimen shown within a [DesyMotionEntry].
-///
-/// A child can be a simple consumer-owned widget or an instance already
-/// declared by the registry. The latter keeps motion experiments on the same
-/// real-widget source of truth as every other workbench preview.
-final class DesyMotionChild {
-  /// Creates a widget child supplied directly by the consumer.
-  const DesyMotionChild.widget({
-    required this.id,
-    required this.name,
-    required DesyPrimitiveBuilder builder,
-  }) : _builder = builder,
-       instanceId = null;
-
-  /// Creates a child backed by a registered component instance.
-  const DesyMotionChild.instance({
-    required this.id,
-    required this.name,
-    required DesyInstanceId this.instanceId,
-  }) : _builder = null;
-
-  /// Stable ID used by the motion-detail specimen switcher.
-  final String id;
-
-  /// Human-readable child label shown by the motion controls.
-  final String name;
-
-  final DesyPrimitiveBuilder? _builder;
-
-  /// Registered component instance used by [DesyMotionChild.instance].
-  final DesyInstanceId? instanceId;
-
-  /// Whether this child resolves through the consumer registry.
-  bool get isRegisteredInstance => instanceId != null;
-
-  /// Builds the declared real widget.
-  Widget build(BuildContext context, {DesyWidgetResolver? widgets}) {
-    final builder = _builder;
-    if (builder != null) return builder(context);
-    final instance = instanceId!;
-    if (widgets != null) return widgets.resolve(context, instance);
-    return buildDesyMissingRegistryWidget(
-      registryName: 'Motion specimen',
-      instanceId: instance.value,
-    );
-  }
-}
-
 /// Builds a motion treatment around its supplied child specimen.
 typedef DesyMotionBuilder =
     Widget Function(BuildContext context, Widget child, Duration duration);
@@ -1272,12 +1243,11 @@ class DesyMotionEntry {
     required this.duration,
     required this.curve,
     required this.builder,
-    required DesyMotionChild child,
-    List<DesyMotionChild> alternatives = const [],
+    List<DesyInstanceId> instances = const [],
     this.transitionBuilder,
     this.intent = 'Motion',
     this.description,
-  }) : children = List.unmodifiable([child, ...alternatives]) {
+  }) : instances = List.unmodifiable(instances) {
     if (duration <= Duration.zero) {
       throw ArgumentError.value(
         duration,
@@ -1286,19 +1256,19 @@ class DesyMotionEntry {
       );
     }
     final seenIds = <String>{};
-    for (final entry in children) {
-      if (entry.id.trim().isEmpty) {
+    for (final instance in this.instances) {
+      if (instance.value.trim().isEmpty) {
         throw ArgumentError.value(
-          entry.id,
-          'child.id',
-          'A motion child needs a non-empty ID.',
+          instance,
+          'instances',
+          'A motion instance needs a non-empty ID.',
         );
       }
-      if (!seenIds.add(entry.id)) {
+      if (!seenIds.add(instance.value)) {
         throw ArgumentError.value(
-          entry.id,
-          'alternatives',
-          'Motion child IDs must be unique within "$id".',
+          instance,
+          'instances',
+          'Motion instance IDs must be unique within "$id".',
         );
       }
     }
@@ -1328,23 +1298,41 @@ class DesyMotionEntry {
   /// Whether this motion offers a two-widget transition preview.
   bool get supportsTransition => transitionBuilder != null;
 
-  /// Real widget specimens that can be swapped in the motion-detail controls.
+  /// Registry-owned instances used by this animation, in display order.
   ///
-  /// The first child is the default used by compact previews such as Atlas.
-  final List<DesyMotionChild> children;
+  /// These are declaration data, not a user-selectable preview control. When
+  /// no instances are declared, Desy supplies two Flutter-logo containers so
+  /// every motion remains inspectable.
+  final List<DesyInstanceId> instances;
 
-  /// The child used when a surface does not expose specimen controls.
-  DesyMotionChild get defaultChild => children.first;
-
-  /// Finds a declared child by its stable local ID.
-  DesyMotionChild childForId(String id) => children.firstWhere(
-    (child) => child.id == id,
-    orElse: () => defaultChild,
-  );
+  /// Builds the registry-declared instances, or Desy's two fallback specimens.
+  List<Widget> buildInstances(
+    BuildContext context, {
+    DesyWidgetResolver? widgets,
+  }) {
+    if (instances.isEmpty) {
+      return const [
+        _DesyMotionFallbackSpecimen.first(),
+        _DesyMotionFallbackSpecimen.second(),
+      ];
+    }
+    return [
+      for (final instance in instances)
+        widgets?.resolve(context, instance) ??
+            buildDesyMissingRegistryWidget(
+              registryName: 'Motion instance',
+              instanceId: instance.value,
+            ),
+    ];
+  }
 
   /// Builds the default motion preview for simple registry surfaces.
-  Widget buildDefault(BuildContext context) =>
-      builder(context, defaultChild.build(context), duration);
+  Widget buildDefault(BuildContext context, {DesyWidgetResolver? widgets}) =>
+      builder(
+        context,
+        buildInstances(context, widgets: widgets).first,
+        duration,
+      );
 
   /// Builds [child] with the consumer-owned motion treatment.
   ///
@@ -1382,6 +1370,36 @@ class DesyMotionEntry {
 
   /// Concise display value.
   String get displayValue => '${duration.inMilliseconds} ms · $curve';
+}
+
+class _DesyMotionFallbackSpecimen extends StatelessWidget {
+  const _DesyMotionFallbackSpecimen._(this.color, {super.key});
+
+  const _DesyMotionFallbackSpecimen.first()
+    : this._(
+        const Color(0xFF54C5F8),
+        key: const ValueKey('motion-fallback-first'),
+      );
+
+  const _DesyMotionFallbackSpecimen.second()
+    : this._(
+        const Color(0xFF7257D9),
+        key: const ValueKey('motion-fallback-second'),
+      );
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 116,
+    height: 116,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: const FlutterLogo(size: 56, style: FlutterLogoStyle.markOnly),
+  );
 }
 
 /// A consumer-owned icon glyph rendered by Flutter's real icon widget.
@@ -1777,11 +1795,11 @@ final class KnobDefinition<T extends Object> {
   /// Inclusive upper bound for a numeric knob.
   final double? maximum;
 
-  /// Legal values for a finite choice or component-instance composition slot.
+  /// Legal values for a finite choice or preferred widget-slot choices.
   ///
   /// Choice knobs require a non-empty list. Widget-instance knobs use this as
-  /// an explicit legal-slot allow-list so a swap picker offers only meaningful
-  /// choices; for those knobs, empty means any registered instance is allowed.
+  /// a preferred section at the top of the picker; the complete registry
+  /// inventory remains available below it.
   final List<String> options;
 }
 
@@ -1799,7 +1817,7 @@ final class Knob<T extends Object> {
   KnobSetting<T> call(T value) => KnobSetting(definition, value);
 }
 
-/// A typed handle that selects a registered component instance by stable ID.
+/// A typed handle that selects a registered widget by stable ID.
 final class WidgetInstanceKnob {
   const WidgetInstanceKnob._(this.definition, this.value, this.widget);
 
@@ -1817,7 +1835,7 @@ final class WidgetInstanceKnob {
       KnobSetting(definition, DesyInstanceId(registeredInstanceId));
 }
 
-/// A typed handle selecting multiple registered component instances.
+/// A typed handle selecting multiple registered widgets.
 final class WidgetInstancesKnob {
   const WidgetInstancesKnob._(this.definition, this.value, this.widgets);
 
@@ -1944,7 +1962,7 @@ abstract interface class KnobScope {
     required Color initial,
   });
 
-  /// Declares a component-instance knob and returns its typed handle.
+  /// Declares a widget-instance knob and returns its typed handle.
   WidgetInstanceKnob widgetInstance(
     String id, {
     String? name,
@@ -1953,7 +1971,7 @@ abstract interface class KnobScope {
     List<String> options = const [],
   });
 
-  /// Declares an ordered multi-instance knob and returns its typed handle.
+  /// Declares an ordered multi-widget knob and returns its typed handle.
   WidgetInstancesKnob widgetInstances(
     String id, {
     String? name,
@@ -2122,15 +2140,6 @@ final class DeclarationKnobScope implements KnobScope {
         'Widget-instance knob options must be unique.',
       );
     }
-    if (initial.isNotEmpty &&
-        options.isNotEmpty &&
-        !options.contains(initial)) {
-      throw ArgumentError.value(
-        initial,
-        'initial',
-        'A widget-instance knob initial value must be one of its options.',
-      );
-    }
     final definition = KnobDefinition(
       id: id,
       name: name ?? _humanize(id),
@@ -2155,12 +2164,7 @@ final class DeclarationKnobScope implements KnobScope {
     List<String> initial = const [],
     List<String> options = const [],
   }) {
-    _validateInstanceIds(
-      initial,
-      options,
-      initialArgumentName: 'initial',
-      optionKind: 'Widget-instances',
-    );
+    _validateInstanceIds(options, optionKind: 'Widget-instances');
     final definition = KnobDefinition(
       id: id,
       name: name ?? _humanize(id),
@@ -2661,11 +2665,6 @@ final class DesyComponent<K> extends DesyRegistryComponent {
             '${setting.definition.id} more than once.',
           );
         }
-        _validateWidgetInstanceOption(
-          setting.definition,
-          setting.value,
-          argumentName: 'instances[$instanceId]',
-        );
         _validateChoiceOption(
           setting.definition,
           setting.value,
@@ -2973,7 +2972,7 @@ final class DesyStaticComponent extends DesyRegistryComponent {
   Iterable<DesyInstanceId> referencesFor(String instanceId) => const [];
 }
 
-/// Resolves registered component instances for instance-swap slots without
+/// Resolves registered widget instances for instance-swap slots without
 /// applying the selected theme twice. Runtime guards also cover live edits not
 /// present at startup, rendering a diagnostic for unresolved IDs.
 final class DesyWidgetResolver {
@@ -3020,11 +3019,11 @@ final class DesyWidgetResolver {
           _surfaceChildBuilder,
         );
 
-  /// Builds the component instance identified by registry-scoped [value].
+  /// Builds the registered widget identified by registry-scoped [value].
   Widget build(BuildContext context, String value) =>
       _build(context, DesyInstanceId(value));
 
-  /// Builds the component instance identified by a typed [id].
+  /// Builds the registered widget identified by a typed [id].
   Widget resolve(BuildContext context, DesyInstanceId id) =>
       _build(context, id);
 
@@ -3036,6 +3035,8 @@ final class DesyWidgetResolver {
       }
       return builder(context, id.value);
     }
+    final icon = _iconFor(id);
+    if (icon != null) return icon.build(context);
     if (_ancestors.contains(id.value)) {
       return _problem('Cyclic registry instance: ${id.value}');
     }
@@ -3058,6 +3059,13 @@ final class DesyWidgetResolver {
       ),
       events: events,
     );
+  }
+
+  DesyIconEntry? _iconFor(DesyInstanceId id) {
+    for (final icon in registry.allIcons) {
+      if (icon.id == id.value) return icon;
+    }
+    return null;
   }
 
   // Component IDs may themselves contain dots (for example a namespaced
@@ -3208,6 +3216,42 @@ class DesyRegisteredComponentInstance {
       .buildInstance(context, instanceId, widgets ?? registry.widgetBuilder);
 }
 
+/// A component instance or icon entry that can fill a widget-instance knob.
+///
+/// It deliberately keeps the original registry declaration attached instead
+/// of copying widget builders into a picker-specific model.
+class DesyRegisteredWidgetInstance {
+  /// Wraps a named component instance.
+  const DesyRegisteredWidgetInstance.component(this.componentInstance)
+    : iconEntry = null;
+
+  /// Wraps a typed icon entry, which resolves as Flutter's real [Icon].
+  const DesyRegisteredWidgetInstance.icon(this.iconEntry)
+    : componentInstance = null;
+
+  /// The underlying component instance, when this is a component candidate.
+  final DesyRegisteredComponentInstance? componentInstance;
+
+  /// The underlying icon entry, when this is an icon candidate.
+  final DesyIconEntry? iconEntry;
+
+  /// Stable ID used by widget-instance knobs.
+  String get id => componentInstance?.id ?? iconEntry!.id;
+
+  /// Human-readable label in a composition picker.
+  String get name => componentInstance?.name ?? iconEntry!.name;
+
+  /// Optional visual glyph for a picker row.
+  IconData? get icon => componentInstance?.component.icon ?? iconEntry?.icon;
+
+  /// Optional consumer-authored usage guidance.
+  String? get description =>
+      componentInstance?.component.description ?? iconEntry?.description;
+
+  /// Whether this candidate resolves to a typed icon primitive.
+  bool get isIcon => iconEntry != null;
+}
+
 String _humanize(String id) {
   final words = id.split(RegExp('[-_]'));
   return words
@@ -3252,39 +3296,19 @@ Object _toSettingValue(KnobDefinition<Object> definition, Object value) {
       if (value is int) return Color(value);
     case DesyKnobKind.widgetInstance:
       if (value is DesyInstanceId) {
-        _validateWidgetInstanceOption(
-          definition,
-          value,
-          argumentName: definition.id,
-        );
         return value;
       }
       if (value is String) {
         final id = DesyInstanceId(value);
-        _validateWidgetInstanceOption(
-          definition,
-          id,
-          argumentName: definition.id,
-        );
         return id;
       }
     case DesyKnobKind.widgetInstances:
       if (value is DesyInstanceIds) {
-        _validateWidgetInstanceOption(
-          definition,
-          value,
-          argumentName: definition.id,
-        );
         return value;
       }
       if (value is Iterable && value.every((item) => item is String)) {
         final ids = DesyInstanceIds(
           value.cast<String>().map(DesyInstanceId.new),
-        );
-        _validateWidgetInstanceOption(
-          definition,
-          ids,
-          argumentName: definition.id,
         );
         return ids;
       }
@@ -3313,53 +3337,12 @@ void _validateChoiceOption(
   }
 }
 
-void _validateWidgetInstanceOption(
-  KnobDefinition<Object> definition,
-  Object value, {
-  required String argumentName,
-}) {
-  if ((definition.kind != DesyKnobKind.widgetInstance &&
-          definition.kind != DesyKnobKind.widgetInstances) ||
-      definition.options.isEmpty) {
-    return;
-  }
-  final ids = switch (value) {
-    DesyInstanceId(scope: DesyInstanceScope.registry) => [value.value],
-    DesyInstanceIds() => [
-      for (final id in value.values)
-        if (id.scope == DesyInstanceScope.registry) id.value,
-    ],
-    _ => const <String>[],
-  };
-  final illegal = ids.where((id) => !definition.options.contains(id)).toList();
-  if (illegal.isNotEmpty) {
-    throw ArgumentError.value(
-      illegal,
-      argumentName,
-      'Widget-instance knob values must be included in its options.',
-    );
-  }
-}
-
-void _validateInstanceIds(
-  List<String> initial,
-  List<String> options, {
-  required String initialArgumentName,
-  required String optionKind,
-}) {
+void _validateInstanceIds(List<String> options, {required String optionKind}) {
   if (options.toSet().length != options.length) {
     throw ArgumentError.value(
       options,
       'options',
       '$optionKind knob options must be unique.',
-    );
-  }
-  final illegal = initial.where((id) => !options.contains(id)).toList();
-  if (options.isNotEmpty && illegal.isNotEmpty) {
-    throw ArgumentError.value(
-      illegal,
-      initialArgumentName,
-      '$optionKind knob initial values must be included in its options.',
     );
   }
 }

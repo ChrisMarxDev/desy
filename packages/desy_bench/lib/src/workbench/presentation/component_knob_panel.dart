@@ -406,13 +406,13 @@ class _ComponentInstanceKnob extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final instance = registry.resolveComponentInstance(selected);
+    final instance = registry.resolveWidgetInstance(selected);
     return DesyInstanceKnobRow(
       label: definition.name,
       description: definition.description,
       instanceName: instance?.name ?? selected,
       controlKey: ValueKey('instance-swap-current-${definition.id}'),
-      prefix: Icon(instance?.component.icon ?? DesyIcons.component),
+      prefix: Icon(instance?.icon ?? DesyIcons.component),
       onPress: () => _openPicker(context),
     );
   }
@@ -492,18 +492,10 @@ class _InstancesPickerState extends State<_InstancesPicker> {
 
   @override
   Widget build(BuildContext context) {
-    Iterable<DesyRegisteredComponentInstance> all =
-        widget.registry.allComponentInstances;
-    if (widget.definition.options.isNotEmpty) {
-      all = all.where(
-        (option) => widget.definition.options.contains(option.id),
-      );
-    }
-    final query = _query.toLowerCase();
-    final options = all.where(
-      (option) =>
-          option.name.toLowerCase().contains(query) ||
-          option.id.toLowerCase().contains(query),
+    final options = _matchingWidgetInstances(widget.registry, _query);
+    final preferred = _preferredWidgetInstances(
+      options,
+      widget.definition.options,
     );
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -527,22 +519,33 @@ class _InstancesPickerState extends State<_InstancesPicker> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
+                    if (preferred.isNotEmpty) ...[
+                      const _InstancePickerSection('Preferred'),
+                      for (final option in preferred) ...[
+                        _InstanceOptionTile(
+                          key: ValueKey(
+                            'instance-multi-preferred-${option.id}',
+                          ),
+                          option: option,
+                          selected: _selected.contains(option.id),
+                          onPress: () => setState(() {
+                            if (_selected.contains(option.id)) {
+                              _selected.remove(option.id);
+                            } else {
+                              _selected.add(option.id);
+                            }
+                          }),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      const SizedBox(height: 12),
+                    ],
+                    const _InstancePickerSection('All instances'),
                     for (final option in options) ...[
-                      DesyTile(
+                      _InstanceOptionTile(
                         key: ValueKey('instance-multi-option-${option.id}'),
-                        prefix: Icon(
-                          option.component.icon ?? DesyIcons.component,
-                        ),
-                        title: Text(
-                          option.name,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        suffix: Icon(
-                          _selected.contains(option.id)
-                              ? DesyIcons.check
-                              : DesyIcons.plus,
-                          size: 14,
-                        ),
+                        option: option,
+                        selected: _selected.contains(option.id),
                         onPress: () => setState(() {
                           if (_selected.contains(option.id)) {
                             _selected.remove(option.id);
@@ -586,18 +589,11 @@ class _InstancePickerState extends State<_InstancePicker> {
 
   @override
   Widget build(BuildContext context) {
-    Iterable<DesyRegisteredComponentInstance> all =
-        widget.registry.allComponentInstances;
-    if (widget.definition.options.isNotEmpty) {
-      all = all.where(
-        (option) => widget.definition.options.contains(option.id),
-      );
-    }
-    final options = all.where((option) {
-      final query = _query.toLowerCase();
-      return (option.name.toLowerCase().contains(query) ||
-          option.id.toLowerCase().contains(query));
-    }).toList();
+    final options = _matchingWidgetInstances(widget.registry, _query);
+    final preferred = _preferredWidgetInstances(
+      options,
+      widget.definition.options,
+    );
     return Padding(
       padding: const EdgeInsets.all(20),
       child: SizedBox(
@@ -620,16 +616,23 @@ class _InstancePickerState extends State<_InstancePicker> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
+                    if (preferred.isNotEmpty) ...[
+                      const _InstancePickerSection('Preferred'),
+                      for (final option in preferred) ...[
+                        _InstanceOptionTile(
+                          key: ValueKey('instance-swap-preferred-${option.id}'),
+                          option: option,
+                          onPress: () => Navigator.of(context).pop(option.id),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      const SizedBox(height: 12),
+                    ],
+                    const _InstancePickerSection('All instances'),
                     for (final option in options) ...[
-                      DesyTile(
+                      _InstanceOptionTile(
                         key: ValueKey('instance-swap-option-${option.id}'),
-                        prefix: Icon(
-                          option.component.icon ?? DesyIcons.component,
-                        ),
-                        title: Text(
-                          option.name,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        option: option,
                         onPress: () => Navigator.of(context).pop(option.id),
                       ),
                       const SizedBox(height: 8),
@@ -643,4 +646,67 @@ class _InstancePickerState extends State<_InstancePicker> {
       ),
     );
   }
+}
+
+List<DesyRegisteredWidgetInstance> _matchingWidgetInstances(
+  DesyRegistry registry,
+  String query,
+) {
+  final normalizedQuery = query.trim().toLowerCase();
+  return registry.allComponentInstancesWithIcons.where((option) {
+    return normalizedQuery.isEmpty ||
+        option.name.toLowerCase().contains(normalizedQuery) ||
+        option.id.toLowerCase().contains(normalizedQuery);
+  }).toList();
+}
+
+List<DesyRegisteredWidgetInstance> _preferredWidgetInstances(
+  List<DesyRegisteredWidgetInstance> options,
+  List<String> preferredIds,
+) => [
+  for (final id in preferredIds)
+    for (final option in options)
+      if (option.id == id) option,
+];
+
+class _InstancePickerSection extends StatelessWidget {
+  const _InstancePickerSection(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(label, style: Theme.of(context).textTheme.labelLarge),
+  );
+}
+
+class _InstanceOptionTile extends StatelessWidget {
+  const _InstanceOptionTile({
+    super.key,
+    required this.option,
+    required this.onPress,
+    this.selected,
+  });
+
+  final DesyRegisteredWidgetInstance option;
+  final VoidCallback onPress;
+  final bool? selected;
+
+  @override
+  Widget build(BuildContext context) => DesyTile(
+    prefix: Icon(option.icon ?? DesyIcons.component),
+    title: Text(option.name, overflow: TextOverflow.ellipsis),
+    subtitle: option.description == null
+        ? null
+        : Text(
+            option.description!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+    suffix: selected == null
+        ? null
+        : Icon(selected! ? DesyIcons.check : DesyIcons.plus, size: 14),
+    onPress: onPress,
+  );
 }

@@ -1,0 +1,29 @@
+name: desy_goldens_prototype
+description: Throwaway headless golden runner prototype for the Desy dogfood registry.
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: ^3.8.0
+  flutter: '>=3.29.0'
+
+resolution: workspace
+
+dependencies:
+  crypto: ^3.0.7
+  desy_bench:
+    path: ../../desy_bench
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  desy_design_system:
+    path: ../../desy_design_system
+  desy_design_system_example:
+    path: ../../desy_design_system/example
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

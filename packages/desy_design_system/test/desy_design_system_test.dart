@@ -133,6 +133,36 @@ void main() {
     );
   });
 
+  testWidgets(
+    'single-line hints stay centered and focus keeps field geometry',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: DesyDesignSystemScope(
+            theme: DesyDesignSystemTheme.light,
+            child: Center(
+              child: SizedBox(
+                width: 280,
+                child: DesyTextField(hintText: 'Search'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final chrome = find.byType(AnimatedContainer);
+      final beforeFocus = tester.getSize(chrome);
+      expect(
+        tester.getCenter(find.text('Search')).dy,
+        closeTo(tester.getCenter(chrome).dy, 2),
+      );
+
+      await tester.tap(find.byType(TextField));
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(tester.getSize(chrome), beforeFocus);
+    },
+  );
+
   testWidgets('agent chat uses Desy message roles and submits native text', (
     tester,
   ) async {

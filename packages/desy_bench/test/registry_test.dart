@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:desy_bench/desy_bench.dart';
+import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -691,7 +692,7 @@ void main() {
     final issue = registry.validate().single;
     expect(
       issue.message,
-      contains('unknown component instance "status.missing"'),
+      contains('unknown registered widget "status.missing"'),
     );
     expect(issue.severity, DesyRegistryValidationSeverity.warning);
   });
@@ -719,26 +720,25 @@ void main() {
   });
 
   test(
-    'component declaration rejects widget-instance values outside options',
+    'widget-instance options are preferred, not a legal-slot allow-list',
     () {
-      expect(
-        () => DesyComponent(
-          id: 'card',
-          name: 'Card',
-          knobs: (k) => (
-            trailing: k.widgetInstance(
-              'trailing',
-              initial: 'status.clear',
-              options: const ['status.clear'],
-            ),
+      final component = DesyComponent(
+        id: 'card',
+        name: 'Card',
+        knobs: (k) => (
+          trailing: k.widgetInstance(
+            'trailing',
+            initial: 'status.clear',
+            options: const ['status.clear'],
           ),
-          build: (context, knobs) => knobs.trailing.widget,
-          instances: (knobs) => {
-            'delayed': [knobs.trailing('status.delayed')],
-          },
         ),
-        throwsArgumentError,
+        build: (context, knobs) => knobs.trailing.widget,
+        instances: (knobs) => {
+          'delayed': [knobs.trailing('status.delayed')],
+        },
       );
+
+      expect(component.referencesFor('delayed').single.value, 'status.delayed');
     },
   );
 
@@ -809,56 +809,57 @@ void main() {
     );
   });
 
-  testWidgets('live knob values respect types and widget-instance options', (
-    tester,
-  ) async {
-    final component = DesyComponent(
-      id: 'card',
-      name: 'Card',
-      knobs: (k) => (
-        title: k.string('title', initial: 'Activity'),
-        trailing: k.widgetInstance(
-          'trailing',
-          initial: 'status.clear',
-          options: const ['status.clear'],
+  testWidgets(
+    'live knob values respect types without restricting widget instances',
+    (tester) async {
+      final component = DesyComponent(
+        id: 'card',
+        name: 'Card',
+        knobs: (k) => (
+          title: k.string('title', initial: 'Activity'),
+          trailing: k.widgetInstance(
+            'trailing',
+            initial: 'status.clear',
+            options: const ['status.clear'],
+          ),
         ),
-      ),
-      build: (context, knobs) => Text(knobs.title.value),
-      instances: (knobs) => const <String, List<KnobSettingBase>>{},
-    );
-    final registry = DesyRegistry(
-      name: 'Live values',
-      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-      components: [
-        DesyStaticComponent(
-          id: 'status',
-          name: 'Status',
-          instances: {'clear': _emptyPreview, 'delayed': _emptyPreview},
+        build: (context, knobs) => Text(knobs.title.value),
+        instances: (knobs) => const <String, List<KnobSettingBase>>{},
+      );
+      final registry = DesyRegistry(
+        name: 'Live values',
+        themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+        components: [
+          DesyStaticComponent(
+            id: 'status',
+            name: 'Status',
+            instances: {'clear': _emptyPreview, 'delayed': _emptyPreview},
+          ),
+          component,
+        ],
+      );
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: SizedBox(key: ValueKey('context')),
         ),
-        component,
-      ],
-    );
-    await tester.pumpWidget(
-      const Directionality(
-        textDirection: TextDirection.ltr,
-        child: SizedBox(key: ValueKey('context')),
-      ),
-    );
-    final context = tester.element(find.byKey(const ValueKey('context')));
+      );
+      final context = tester.element(find.byKey(const ValueKey('context')));
 
-    expect(
-      () => component.buildWithValues(context, const {
-        'trailing': 'status.delayed',
-      }, widgets: registry.widgetBuilder),
-      throwsArgumentError,
-    );
-    expect(
-      () => component.buildWithValues(context, const {
-        'title': false,
-      }, widgets: registry.widgetBuilder),
-      throwsArgumentError,
-    );
-  });
+      expect(
+        () => component.buildWithValues(context, const {
+          'trailing': 'status.delayed',
+        }, widgets: registry.widgetBuilder),
+        returnsNormally,
+      );
+      expect(
+        () => component.buildWithValues(context, const {
+          'title': false,
+        }, widgets: registry.widgetBuilder),
+        throwsArgumentError,
+      );
+    },
+  );
 
   test('component declaration rejects overrides from another component', () {
     final other = DesyComponent(
@@ -1221,6 +1222,34 @@ void main() {
     expect(resolved?.component, same(instance.component));
   });
 
+  test(
+    'widget swap inventory derives component instances and icon entries',
+    () {
+      final registry = DesyRegistry(
+        name: 'Swap inventory',
+        themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+        components: [
+          DesyStaticComponent(
+            id: 'status',
+            name: 'Status',
+            instances: {'clear': _emptyPreview},
+          ),
+        ],
+        icons: const [
+          DesyIconEntry(id: 'icon.search', name: 'Search', icon: Icons.search),
+        ],
+      );
+
+      final candidates = registry.allComponentInstancesWithIcons;
+
+      expect(candidates.map((candidate) => candidate.id), [
+        'status.clear',
+        'icon.search',
+      ]);
+      expect(registry.resolveWidgetInstance('icon.search')?.isIcon, isTrue);
+    },
+  );
+
   testWidgets('registry widget builder resolves an instance-swap ID', (
     tester,
   ) async {
@@ -1250,6 +1279,30 @@ void main() {
     );
 
     expect(find.text('Delayed'), findsOneWidget);
+  });
+
+  testWidgets('registry widget builder resolves typed icons for widget slots', (
+    tester,
+  ) async {
+    final registry = DesyRegistry(
+      name: 'Resolved icon swap',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      icons: const [
+        DesyIconEntry(id: 'icon.search', name: 'Search', icon: Icons.search),
+      ],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Builder(
+          builder: (context) =>
+              registry.widgetBuilder.build(context, 'icon.search'),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.search), findsOneWidget);
   });
 }
 

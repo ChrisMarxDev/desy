@@ -99,6 +99,7 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     final query = session.atlasQuery.watch(context);
     final theme = session.activeTheme;
     final fontSampleText = session.fontSampleText.watch(context);
+    final widgets = session.registry.widgetBuilder;
     final folder = _folderFor(folderId);
     final atomKind = folderId == null
         ? null
@@ -185,12 +186,14 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
                     ],
                     sections: _componentSections(entries),
                     theme: theme,
+                    widgets: widgets,
                     motionPlayback: _motionPlayback,
                     onOpen: widget.onOpen,
                   )
                 : _AtlasEntryGrid(
                     entries: entries,
                     theme: theme,
+                    widgets: widgets,
                     motionPlayback: _motionPlayback,
                     onOpen: widget.onOpen,
                   ),
@@ -339,6 +342,7 @@ class _ComponentsAtlasSections extends StatelessWidget {
     required this.rootEntries,
     required this.sections,
     required this.theme,
+    required this.widgets,
     required this.motionPlayback,
     required this.onOpen,
   });
@@ -346,6 +350,7 @@ class _ComponentsAtlasSections extends StatelessWidget {
   final List<DesyRegistryEntry> rootEntries;
   final List<_AtlasFolderSection> sections;
   final DesyTheme theme;
+  final DesyWidgetResolver widgets;
   final DesyMotionPlaybackController? motionPlayback;
   final ValueChanged<DesyRegistryEntry> onOpen;
 
@@ -357,6 +362,7 @@ class _ComponentsAtlasSections extends StatelessWidget {
         _AtlasEntriesSliver(
           entries: rootEntries,
           theme: theme,
+          widgets: widgets,
           motionPlayback: motionPlayback,
           onOpen: onOpen,
           bottomPadding: 18,
@@ -372,6 +378,7 @@ class _ComponentsAtlasSections extends StatelessWidget {
           _AtlasEntriesSliver(
             entries: section.entries,
             theme: theme,
+            widgets: widgets,
             motionPlayback: motionPlayback,
             onOpen: onOpen,
             bottomPadding: 6,
@@ -423,12 +430,14 @@ class _AtlasEntryGrid extends StatelessWidget {
   const _AtlasEntryGrid({
     required this.entries,
     required this.theme,
+    required this.widgets,
     required this.motionPlayback,
     required this.onOpen,
   });
 
   final List<DesyRegistryEntry> entries;
   final DesyTheme theme;
+  final DesyWidgetResolver widgets;
   final DesyMotionPlaybackController? motionPlayback;
   final ValueChanged<DesyRegistryEntry> onOpen;
 
@@ -438,6 +447,7 @@ class _AtlasEntryGrid extends StatelessWidget {
       _AtlasEntriesSliver(
         entries: entries,
         theme: theme,
+        widgets: widgets,
         motionPlayback: motionPlayback,
         onOpen: onOpen,
         bottomPadding: 0,
@@ -450,6 +460,7 @@ class _AtlasEntriesSliver extends StatelessWidget {
   const _AtlasEntriesSliver({
     required this.entries,
     required this.theme,
+    required this.widgets,
     required this.motionPlayback,
     required this.onOpen,
     required this.bottomPadding,
@@ -457,6 +468,7 @@ class _AtlasEntriesSliver extends StatelessWidget {
 
   final List<DesyRegistryEntry> entries;
   final DesyTheme theme;
+  final DesyWidgetResolver widgets;
   final DesyMotionPlaybackController? motionPlayback;
   final ValueChanged<DesyRegistryEntry> onOpen;
   final double bottomPadding;
@@ -475,6 +487,7 @@ class _AtlasEntriesSliver extends StatelessWidget {
         (context, index) => _AtlasCard(
           entry: entries[index],
           theme: theme,
+          widgets: widgets,
           motionPlayback: motionPlayback,
           onOpen: () => onOpen(entries[index]),
         ),
@@ -488,12 +501,14 @@ class _AtlasCard extends StatelessWidget {
   const _AtlasCard({
     required this.entry,
     required this.theme,
+    required this.widgets,
     required this.motionPlayback,
     required this.onOpen,
   });
 
   final DesyRegistryEntry entry;
   final DesyTheme theme;
+  final DesyWidgetResolver widgets;
   final DesyMotionPlaybackController? motionPlayback;
   final VoidCallback onOpen;
 
@@ -553,8 +568,7 @@ class _AtlasCard extends StatelessWidget {
     return (context) => DesyMotionPlaybackScope(
       progress: playback.timeline,
       child: Builder(
-        builder: (context) =>
-            source.build(context, source.defaultChild.build(context)),
+        builder: (context) => source.buildDefault(context, widgets: widgets),
       ),
     );
   }

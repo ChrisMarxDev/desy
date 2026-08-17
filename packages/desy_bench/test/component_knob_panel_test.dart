@@ -374,7 +374,9 @@ void main() {
     );
   });
 
-  testWidgets('instance swaps honor a widget-slot allow-list', (tester) async {
+  testWidgets('instance swaps show preferred choices before all widgets', (
+    tester,
+  ) async {
     final registry = DesyRegistry(
       name: 'Restricted instance swaps',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
@@ -387,6 +389,9 @@ void main() {
             'delayed': (_) => const SizedBox(),
           },
         ),
+      ],
+      icons: const [
+        DesyIconEntry(id: 'icon.search', name: 'Search', icon: Icons.search),
       ],
     );
     final knob = KnobDefinition(
@@ -419,13 +424,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.byKey(const ValueKey('instance-swap-option-status.clear')),
+      find.byKey(const ValueKey('instance-swap-preferred-status.clear')),
       findsOneWidget,
     );
     expect(
       find.byKey(const ValueKey('instance-swap-option-status.delayed')),
-      findsNothing,
+      findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey('instance-swap-option-icon.search')),
+      findsOneWidget,
+    );
+    expect(find.text('Preferred'), findsOneWidget);
+    expect(find.text('All instances'), findsOneWidget);
   });
 
   testWidgets('multi-instance knobs select an ordered list of children', (

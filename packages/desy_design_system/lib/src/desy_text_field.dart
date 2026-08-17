@@ -114,6 +114,48 @@ class _DesyTextFieldState extends State<DesyTextField> {
         : _focused
         ? visual.signal
         : visual.divider;
+    final singleLine =
+        widget.maxLines == 1 &&
+        (widget.minLines == null || widget.minLines == 1);
+    final input = TextField(
+      controller: _controller,
+      focusNode: widget.focusNode,
+      autofocus: widget.autofocus,
+      enabled: widget.enabled,
+      keyboardType: widget.keyboardType,
+      textInputAction: widget.textInputAction,
+      maxLines: widget.maxLines,
+      minLines: widget.minLines,
+      textAlignVertical: TextAlignVertical.center,
+      enableInteractiveSelection: true,
+      style: context.theme.typography.body.sm.copyWith(
+        color: colors.foreground,
+        height: 1.25,
+      ),
+      cursorColor: visual.signal,
+      onChanged: widget.onChanged,
+      onSubmitted: widget.onSubmitted,
+      decoration: InputDecoration(
+        isCollapsed: true,
+        hintText: widget.hintText,
+        hintStyle: context.theme.typography.body.sm.copyWith(
+          color: colors.mutedForeground,
+          height: 1.25,
+        ),
+        prefixIcon: widget.prefixIcon,
+        prefixIconConstraints: const BoxConstraints(),
+        suffixIcon: widget.suffixIcon,
+        suffixIconConstraints: const BoxConstraints(),
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        disabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        errorBorder: InputBorder.none,
+        focusedErrorBorder: InputBorder.none,
+        filled: false,
+        contentPadding: EdgeInsets.zero,
+      ),
+    );
 
     return Material(
       type: MaterialType.transparency,
@@ -133,7 +175,7 @@ class _DesyTextFieldState extends State<DesyTextField> {
               color: widget.enabled ? visual.panel : visual.panelSubtle,
               border: Border.all(
                 color: borderColor,
-                width: _focused ? 1.5 : DesyDesignSystemTokens.hairline,
+                width: DesyDesignSystemTokens.hairline,
               ),
               borderRadius: BorderRadius.circular(
                 DesyDesignSystemTokens.radiusSm,
@@ -141,47 +183,19 @@ class _DesyTextFieldState extends State<DesyTextField> {
             ),
             padding: const EdgeInsets.symmetric(
               horizontal: DesyDesignSystemTokens.spaceMd,
-              vertical: DesyDesignSystemTokens.spaceSm,
+              vertical: 0,
             ),
-            child: TextField(
-              controller: _controller,
-              focusNode: widget.focusNode,
-              autofocus: widget.autofocus,
-              enabled: widget.enabled,
-              keyboardType: widget.keyboardType,
-              textInputAction: widget.textInputAction,
-              maxLines: widget.maxLines,
-              minLines: widget.minLines,
-              textAlignVertical: TextAlignVertical.center,
-              enableInteractiveSelection: true,
-              style: context.theme.typography.body.sm.copyWith(
-                color: colors.foreground,
-                height: 1.25,
-              ),
-              cursorColor: visual.signal,
-              onChanged: widget.onChanged,
-              onSubmitted: widget.onSubmitted,
-              decoration: InputDecoration(
-                isCollapsed: true,
-                hintText: widget.hintText,
-                hintStyle: context.theme.typography.body.sm.copyWith(
-                  color: colors.mutedForeground,
-                  height: 1.25,
-                ),
-                prefixIcon: widget.prefixIcon,
-                prefixIconConstraints: const BoxConstraints(),
-                suffixIcon: widget.suffixIcon,
-                suffixIconConstraints: const BoxConstraints(),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                filled: false,
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
+            child: singleLine
+                ? SizedBox(
+                    height: 44,
+                    child: Align(alignment: Alignment.centerLeft, child: input),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: DesyDesignSystemTokens.spaceSm,
+                    ),
+                    child: input,
+                  ),
           ),
         ),
       ),

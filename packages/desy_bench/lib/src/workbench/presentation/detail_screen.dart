@@ -64,9 +64,6 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
     with TickerProviderStateMixin {
   late final _DetailImageExportController _imageExportController;
   String _selectedVariantId = 'default';
-  String? _selectedMotionChildId;
-  String? _selectedMotionFirstInstanceId;
-  String? _selectedMotionSecondInstanceId;
   DesyMotionPlaybackController? _motionPlayback;
 
   DesyMotionEntry? get _motion => switch (widget.entry.source) {
@@ -96,27 +93,6 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
   void _initializeMotionPlayback() {
     final motion = _motion;
     if (motion == null) return;
-    _selectedMotionChildId = motion.defaultChild.id;
-    if (motion.supportsTransition) {
-      final declaredInstances = [
-        for (final child in motion.children)
-          if (child.instanceId case final instance?) instance.value,
-      ];
-      final availableInstances = [
-        for (final instance in widget.session.registry.allComponentInstances)
-          instance.id,
-      ];
-      _selectedMotionFirstInstanceId = declaredInstances.isNotEmpty
-          ? declaredInstances.first
-          : availableInstances.isEmpty
-          ? null
-          : availableInstances.first;
-      _selectedMotionSecondInstanceId = declaredInstances.length > 1
-          ? declaredInstances[1]
-          : availableInstances.length > 1
-          ? availableInstances[1]
-          : _selectedMotionFirstInstanceId;
-    }
     _motionPlayback = DesyMotionPlaybackController(
       vsync: this,
       duration: motion.duration,
@@ -240,28 +216,23 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
       progress: playback.progress,
       child: Builder(
         builder: (context) {
-          final fallback = motion
-              .childForId(_selectedMotionChildId ?? motion.defaultChild.id)
-              .build(context, widgets: widget.session.registry.widgetBuilder);
+          final specimens = motion.buildInstances(
+            context,
+            widgets: widget.session.registry.widgetBuilder,
+          );
+          final first = specimens.first;
+          final second = specimens.length > 1 ? specimens[1] : first;
           if (!motion.supportsTransition) {
             return motion.build(
               context,
-              fallback,
+              first,
               previewDuration: playback.duration,
             );
           }
           return motion.buildTransition(
             context,
-            _buildMotionInstance(
-              context,
-              _selectedMotionFirstInstanceId,
-              fallback,
-            ),
-            _buildMotionInstance(
-              context,
-              _selectedMotionSecondInstanceId,
-              fallback,
-            ),
+            first,
+            second,
             previewDuration: playback.duration,
           );
         },
@@ -269,16 +240,7 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
     );
   }
 
-  Widget _buildMotionInstance(
-    BuildContext context,
-    String? instanceId,
-    Widget fallback,
-  ) => instanceId == null
-      ? fallback
-      : widget.session.registry.widgetBuilder.build(context, instanceId);
-
   Widget _buildMotionControls() {
-    final motion = _motion!;
     return DesyMotionPlaybackControls(
       controller: _motionPlayback!,
       compact: true,
@@ -288,21 +250,6 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
         _motionPlayback!.setDuration(duration);
         setState(() {});
       },
-      specimenChildren: motion.supportsTransition ? const [] : motion.children,
-      selectedSpecimenChildId: _selectedMotionChildId ?? motion.defaultChild.id,
-      onSpecimenChildSelected: (id) {
-        if (id == _selectedMotionChildId) return;
-        setState(() => _selectedMotionChildId = id);
-      },
-      transitionInstances: motion.supportsTransition
-          ? widget.session.registry.allComponentInstances
-          : const [],
-      firstTransitionInstanceId: _selectedMotionFirstInstanceId,
-      secondTransitionInstanceId: _selectedMotionSecondInstanceId,
-      onFirstTransitionInstanceChanged: (id) =>
-          setState(() => _selectedMotionFirstInstanceId = id),
-      onSecondTransitionInstanceChanged: (id) =>
-          setState(() => _selectedMotionSecondInstanceId = id),
     );
   }
 

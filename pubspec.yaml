@@ -18,4 +18,5 @@ workspace:
   - packages/extensions/desy_screenshot_builder
   - packages/extensions/desy_genui
   - packages/extensions/desy_genui/example
+  - packages/extensions/desy_goldens_prototype
   - packages/extensions/desy_widget_workshop

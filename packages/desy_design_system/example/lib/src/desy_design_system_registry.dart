@@ -218,11 +218,6 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
       curve: Curves.easeOutCubic,
       description: 'Fades and eases a persistent sidebar into its workspace.',
       builder: _buildSidebarReveal,
-      child: const DesyMotionChild.widget(
-        id: 'signal-square',
-        name: 'Signal square',
-        builder: _buildSignalSquare,
-      ),
     ),
     DesyMotionEntry(
       id: 'desy.motion.navigation',
@@ -232,22 +227,9 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
       description: 'Sidebar width and similar spatial navigation changes.',
       builder: _buildMotionSpecimen,
       transitionBuilder: _buildMotionTransition,
-      child: const DesyMotionChild.widget(
-        id: 'signal-square',
-        name: 'Signal square',
-        builder: _buildSignalSquare,
-      ),
-      alternatives: const [
-        DesyMotionChild.instance(
-          id: 'primary-button',
-          name: 'Primary button',
-          instanceId: DesyInstanceId('desy.component.button.primary'),
-        ),
-        DesyMotionChild.instance(
-          id: 'outline-badge',
-          name: 'Outline badge',
-          instanceId: DesyInstanceId('desy.component.badge.outline'),
-        ),
+      instances: const [
+        DesyInstanceId('desy.component.button.primary'),
+        DesyInstanceId('desy.component.badge.outline'),
       ],
     ),
     DesyMotionEntry(
@@ -258,22 +240,9 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
       description: 'Crossfades two elements in one stable view without travel.',
       builder: _buildMotionSpecimen,
       transitionBuilder: _buildContentSwapTransition,
-      child: const DesyMotionChild.widget(
-        id: 'signal-square',
-        name: 'Signal square',
-        builder: _buildSignalSquare,
-      ),
-      alternatives: const [
-        DesyMotionChild.instance(
-          id: 'primary-button',
-          name: 'Primary button',
-          instanceId: DesyInstanceId('desy.component.button.primary'),
-        ),
-        DesyMotionChild.instance(
-          id: 'outline-badge',
-          name: 'Outline badge',
-          instanceId: DesyInstanceId('desy.component.badge.outline'),
-        ),
+      instances: const [
+        DesyInstanceId('desy.component.button.primary'),
+        DesyInstanceId('desy.component.badge.outline'),
       ],
     ),
     DesyMotionEntry(
@@ -285,22 +254,9 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
           'Fades and slides between destination screens while keeping the shell stable.',
       builder: _buildScreenReveal,
       transitionBuilder: _buildScreenNavigationTransition,
-      child: const DesyMotionChild.widget(
-        id: 'signal-square',
-        name: 'Signal square',
-        builder: _buildSignalSquare,
-      ),
-      alternatives: const [
-        DesyMotionChild.instance(
-          id: 'primary-button',
-          name: 'Primary button',
-          instanceId: DesyInstanceId('desy.component.button.primary'),
-        ),
-        DesyMotionChild.instance(
-          id: 'outline-badge',
-          name: 'Outline badge',
-          instanceId: DesyInstanceId('desy.component.badge.outline'),
-        ),
+      instances: const [
+        DesyInstanceId('desy.component.button.primary'),
+        DesyInstanceId('desy.component.badge.outline'),
       ],
     ),
     DesyMotionEntry(
@@ -311,22 +267,9 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
       description: 'A concise confirmation or newly revealed state.',
       builder: _buildMotionSpecimen,
       transitionBuilder: _buildMotionTransition,
-      child: const DesyMotionChild.widget(
-        id: 'signal-square',
-        name: 'Signal square',
-        builder: _buildSignalSquare,
-      ),
-      alternatives: const [
-        DesyMotionChild.instance(
-          id: 'outline-badge',
-          name: 'Outline badge',
-          instanceId: DesyInstanceId('desy.component.badge.outline'),
-        ),
-        DesyMotionChild.instance(
-          id: 'primary-button',
-          name: 'Primary button',
-          instanceId: DesyInstanceId('desy.component.button.primary'),
-        ),
+      instances: const [
+        DesyInstanceId('desy.component.badge.outline'),
+        DesyInstanceId('desy.component.button.primary'),
       ],
     ),
   ],
@@ -2280,8 +2223,6 @@ Widget _buildScreenNavigationTransition(
   Duration duration,
 ) => DesyMotionWidgetTransition(first: first, second: second, distance: 32);
 
-Widget _buildSignalSquare(BuildContext context) => const _SignalSquare();
-
 class _MotionSpecimen extends StatelessWidget {
   const _MotionSpecimen({required this.child});
 
@@ -2316,34 +2257,6 @@ class _MotionSpecimen extends StatelessWidget {
           );
         },
       ),
-    );
-  }
-}
-
-class _SignalSquare extends StatelessWidget {
-  const _SignalSquare();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.theme.colors;
-    return Container(
-      key: const ValueKey('dogfood-motion-specimen'),
-      width: 88,
-      height: 88,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: colors.desy.signal,
-        borderRadius: BorderRadius.circular(DesyDesignSystemTokens.radiusMd),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x332B1020),
-            offset: Offset(0, 12),
-            blurRadius: 24,
-            spreadRadius: -12,
-          ),
-        ],
-      ),
-      child: Icon(DesyIcons.sparkles, color: colors.primaryForeground),
     );
   }
 }

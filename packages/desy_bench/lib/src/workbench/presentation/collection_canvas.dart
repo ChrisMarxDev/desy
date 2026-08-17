@@ -207,44 +207,47 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
         final stage = SizedBox(
           width: _canvasSize(constraints).width,
           height: _canvasSize(constraints).height,
-          child: CustomPaint(
-            painter: _CollectionCanvasGridPainter(background: background),
-            foregroundPainter: _CollectionCanvasBorderPainter(
-              color: canvasBorderColor,
-            ),
-            child: Stack(
-              key: ValueKey('${widget.keyPrefix}-stage'),
-              fit: StackFit.expand,
-              clipBehavior: Clip.none,
-              children: [
-                Positioned.fill(
-                  child: Listener(
-                    behavior: HitTestBehavior.opaque,
-                    onPointerDown: _beginBlankCanvasPan,
-                    onPointerMove: _updateBlankCanvasPan,
-                    onPointerUp: _endBlankCanvasPan,
-                    onPointerCancel: _endBlankCanvasPan,
-                    child: GestureDetector(
+          child: ColoredBox(
+            color: background,
+            child: CustomPaint(
+              painter: _CollectionCanvasGridPainter(background: background),
+              foregroundPainter: _CollectionCanvasBorderPainter(
+                color: canvasBorderColor,
+              ),
+              child: Stack(
+                key: ValueKey('${widget.keyPrefix}-stage'),
+                fit: StackFit.expand,
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned.fill(
+                    child: Listener(
                       behavior: HitTestBehavior.opaque,
-                      onTap: widget.clearSelectionOnCanvasTap
-                          ? _clearSelection
-                          : null,
+                      onPointerDown: _beginBlankCanvasPan,
+                      onPointerMove: _updateBlankCanvasPan,
+                      onPointerUp: _endBlankCanvasPan,
+                      onPointerCancel: _endBlankCanvasPan,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: widget.clearSelectionOnCanvasTap
+                            ? _clearSelection
+                            : null,
+                      ),
                     ),
                   ),
-                ),
-                for (final id in _paintOrder)
-                  if (_itemForId(id) case final item?)
-                    _CollectionCanvasItem<T>(
-                      key: ValueKey('${widget.keyPrefix}-item-$id'),
-                      keyPrefix: widget.keyPrefix,
-                      theme: widget.theme,
-                      item: item,
-                      geometry: _geometries[id]!,
-                      selected: _selectedId == id,
-                      onSelect: () => _select(item),
-                      onChanged: (geometry) => _updateGeometry(id, geometry),
-                    ),
-              ],
+                  for (final id in _paintOrder)
+                    if (_itemForId(id) case final item?)
+                      _CollectionCanvasItem<T>(
+                        key: ValueKey('${widget.keyPrefix}-item-$id'),
+                        keyPrefix: widget.keyPrefix,
+                        theme: widget.theme,
+                        item: item,
+                        geometry: _geometries[id]!,
+                        selected: _selectedId == id,
+                        onSelect: () => _select(item),
+                        onChanged: (geometry) => _updateGeometry(id, geometry),
+                      ),
+                ],
+              ),
             ),
           ),
         );
@@ -461,6 +464,7 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
   void _setZoom(double value) {
     final zoom = value.clamp(_minimumCanvasZoom, _maximumCanvasZoom).toDouble();
     final matrix = _zoomController.value;
+    if ((zoom - _zoom).abs() >= .001) setState(() => _zoom = zoom);
     _zoomController.value = Matrix4.identity()
       ..setTranslationRaw(matrix.storage[12], matrix.storage[13], 0)
       ..scaleByDouble(zoom, zoom, 1, 1);
@@ -604,61 +608,69 @@ class _CollectionCanvasActionBar extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            DesyButton(
+            _CanvasModeButton(
               key: ValueKey('$keyPrefix-mode-select'),
-              size: DesyButtonSize.sm,
-              variant: annotating
-                  ? DesyButtonVariant.ghost
-                  : DesyButtonVariant.primary,
-              mainAxisSize: MainAxisSize.min,
-              semanticsLabel: 'Select canvas items',
-              semanticsTooltip: 'Select canvas items (Command 1)',
+              selected: !annotating,
+              label: 'Select canvas items',
+              shortcut: const ['⌘', '1'],
               onPress: onSelect,
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(DesyIcons.crosshair, size: 15),
-                  SizedBox(width: 6),
-                  Text('Select'),
-                  SizedBox(width: 8),
-                  DesyKeyboardShortcutLabel(
-                    keys: ['⌘', '1'],
-                    semanticLabel: 'Keyboard shortcut: Command 1',
-                  ),
-                ],
-              ),
+              icon: DesyIcons.mousePointer,
             ),
             const SizedBox(width: 2),
-            DesyButton(
+            _CanvasModeButton(
               key: ValueKey('$keyPrefix-mode-annotate'),
-              size: DesyButtonSize.sm,
-              variant: annotating
-                  ? DesyButtonVariant.primary
-                  : DesyButtonVariant.ghost,
-              mainAxisSize: MainAxisSize.min,
-              semanticsLabel: annotating
-                  ? 'Stop annotating canvas widgets'
-                  : 'Annotate canvas widgets (Command 2)',
-              semanticsTooltip: annotating
+              selected: annotating,
+              label: annotating
                   ? 'Stop annotating canvas widgets'
                   : 'Annotate canvas widgets',
+              shortcut: const ['⌘', '2'],
               onPress: onAnnotate,
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(DesyIcons.messageSquare, size: 15),
-                  SizedBox(width: 6),
-                  Text('Annotate'),
-                  SizedBox(width: 8),
-                  DesyKeyboardShortcutLabel(
-                    keys: ['⌘', '2'],
-                    semanticLabel: 'Keyboard shortcut: Command 2',
-                  ),
-                ],
-              ),
+              icon: DesyIcons.messageSquare,
             ),
           ],
         ),
+      ),
+    ),
+  );
+}
+
+/// One compact desktop tool with a visible shortcut and discoverable label.
+class _CanvasModeButton extends StatelessWidget {
+  const _CanvasModeButton({
+    super.key,
+    required this.selected,
+    required this.label,
+    required this.shortcut,
+    required this.icon,
+    required this.onPress,
+  });
+
+  final bool selected;
+  final String label;
+  final List<String> shortcut;
+  final IconData icon;
+  final VoidCallback onPress;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: label,
+    child: DesyButton(
+      size: DesyButtonSize.xs,
+      variant: selected ? DesyButtonVariant.primary : DesyButtonVariant.ghost,
+      mainAxisSize: MainAxisSize.min,
+      semanticsLabel: label,
+      semanticsTooltip: label,
+      onPress: onPress,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(height: 4),
+          DesyKeyboardShortcutLabel(
+            keys: shortcut,
+            semanticLabel: 'Keyboard shortcut: ${shortcut.join(' plus ')}',
+          ),
+        ],
       ),
     ),
   );
