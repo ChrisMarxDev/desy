@@ -8,7 +8,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('dogfood registry is valid and complete', () {
-    expect(desyDesignSystemRegistry.validate(), isEmpty);
+    final validation = desyDesignSystemRegistry.validate();
+    expect(
+      validation,
+      isEmpty,
+      reason: validation
+          .map((issue) => '${issue.id}: ${issue.message}')
+          .join('\n'),
+    );
     expect(desyDesignSystemRegistry.themes, hasLength(2));
     expect(desyDesignSystemRegistry.allColors, hasLength(9));
     expect(desyDesignSystemRegistry.allFonts, hasLength(4));
@@ -16,6 +23,22 @@ void main() {
     expect(desyDesignSystemRegistry.allMotion, hasLength(5));
     expect(desyDesignSystemRegistry.allEffects, hasLength(1));
     expect(desyDesignSystemRegistry.allIcons, hasLength(29));
+    expect(desyDesignSystemRegistry.systemProfile?.id, 'desy.system-profile');
+    expect(
+      desyDesignSystemRegistry.systemHeroAsset?.id,
+      'desy.asset.workspace.signature.primary',
+    );
+    expect(desyDesignSystemRegistry.allAssets.map((asset) => asset.id), [
+      'desy.asset.workspace.signature.primary',
+      'desy.asset.workspace.signature.signal',
+      'desy.asset.workspace.system-map',
+    ]);
+    expect(
+      desyDesignSystemRegistry
+          .asset('desy.asset.workspace.signature.primary')
+          ?.assetKey,
+      'web/favicon.png',
+    );
     expect(desyDesignSystemRegistry.atomKinds, DesyAtomKind.values);
     expect(desyDesignSystemRegistry.allPrototypes, hasLength(2));
     expect(
@@ -39,6 +62,12 @@ void main() {
     expect(
       desyDesignSystemRegistry.resolve('desy.icon.shapes')?.path,
       'Atoms / Icons',
+    );
+    expect(
+      desyDesignSystemRegistry
+          .resolve('desy.asset.workspace.signature.primary')
+          ?.path,
+      'Atoms / Assets',
     );
 
     expect(
@@ -99,14 +128,10 @@ void main() {
     }
   });
 
-  test('dogfood registry exposes a JSON-ready agent catalogue', () {
-    expect(desyDesignSystemRegistry.catalogConfig?.id, 'desy.design-system');
+  test('dogfood registry exposes a JSON-ready complete snapshot', () {
+    expect(desyDesignSystemRegistry.identity?.id, 'desy.design-system');
     expect(
-      desyDesignSystemRegistry.catalogComponents,
-      desyDesignSystemRegistry.allComponents,
-    );
-    expect(
-      () => jsonEncode(DesyCatalogueExport(desyDesignSystemRegistry).toJson()),
+      () => jsonEncode(DesyRegistrySnapshot(desyDesignSystemRegistry).toJson()),
       returnsNormally,
     );
   });

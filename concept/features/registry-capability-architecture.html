@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Desy registry capability architecture</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<main class="shell">
+  <nav><a href="index.html">← Planned features</a><span>Impact 5 · Complexity 4 · Yield 1.25</span></nav>
+
+  <section class="hero">
+    <div class="eyebrow">Architecture · one declaration, several execution contexts</div>
+    <h1>Make the registry the kernel, not the workbench the container.</h1>
+    <p class="lede">A consumer should declare its Flutter design system once, then let the workbench, screenshot tools, golden tests, catalogue exporters, GenUI adapters, and a future server-driven runtime consume that same live graph. Desy should separate the registry contract from every capability without pretending the widget-returning registry is serializable or runnable in a plain Dart VM.</p>
+    <div class="flow"><strong>Consumer widgets</strong><span>→</span><strong>one DesyRegistry</strong><span>→</span><strong>live Flutter tools + derived portable artifacts</strong></div>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>Reason and user value</h2>
+      <p>Desy already captures stable identities, real widget builders, themes, typed parameters, named instances, scenarios, composition references, and events. Reusing that declaration can remove repeated setup across visual testing, documentation, agent UI, and application runtimes while guaranteeing that rendered output still uses production widgets.</p>
+    </article>
+    <article class="card">
+      <h2>Decision</h2>
+      <p><strong>Extract a Flutter-native registry kernel and keep capabilities optional.</strong> Add optional protocol-neutral <code>DesyRegistryIdentity(id, version)</code> to name that one registry for portable artifacts, replacing agent-specific <code>DesyCatalogConfig</code>. Offer a cohesive workbench and CLI experience on top, but do not make the workbench package own every runtime.</p>
+    </article>
+  </section>
+
+  <section class="card full">
+    <h2>Where the current coupling comes from</h2>
+    <table>
+      <thead><tr><th>Current edge</th><th>What is legitimate</th><th>What should change</th></tr></thead>
+      <tbody>
+        <tr><td><code>desy_bench</code> owns <code>DesyRegistry</code></td><td>The registry needs Flutter types such as <code>Widget</code>, <code>BuildContext</code>, <code>Color</code>, <code>Size</code>, and consumer theme wrappers.</td><td>Registry-only consumers currently inherit workbench routing, persistence, window, preview, and Desy scaffold dependencies. Move declarations, validation, resolution, and protocol-neutral snapshots to <code>desy_core</code>.</td></tr>
+        <tr><td><code>desy_genui</code> depends on <code>desy_bench</code></td><td>It correctly builds real widgets from the registry and keeps GenUI/A2UI types in an adapter package.</td><td>It should depend on the registry kernel, not the desktop workbench. The portable catalogue export should no longer live under a workbench <code>experimental</code> path.</td></tr>
+        <tr><td>Golden prototype depends on <code>desy_bench</code></td><td>Its plan uses only registry validation, themes, components, instances, scenarios, and widget resolution.</td><td>A product golden package should depend on the registry kernel plus <code>flutter_test</code>, never the workbench application.</td></tr>
+        <tr><td>Screenshot Builder uses a workbench extension</td><td>It needs routed screen context, active theme, Desy controls, canvas UI, and lifecycle.</td><td>Keep this dependency. It is a true interactive workbench extension rather than evidence that all capabilities belong in core.</td></tr>
+        <tr><td>Dogfood registry lives in the example app</td><td>The example is the canonical executable and currently exports the registry as an importable library.</td><td>Keep this while dogfooding. Recommend a separate consumer integration package only when several applications or tools need the same registry across package boundaries.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card full accent">
+    <h2>Recommended dependency structure</h2>
+    <pre><code>consumer production widgets + themes
+  ↓
+consumer_desy                         // one small consumer-owned integration library
+  exports the one DesyRegistry
+  ↓                 ↓                 ↓
+desy_bench       desy_goldens     desy_genui / future desy_sdui
+interactive UI   flutter_test     compiler + client runtime
+  ↓
+desy_screenshot_builder
+workbench extension
+
+All capability packages depend on:
+desy_core                             // Flutter-native contracts, validation, resolution
+
+Flutter command runner                // starts the configured Flutter test entrypoint
+  → may be wrapped by a shell launcher later
+  → never imports or reflects over the registry itself</code></pre>
+    <p>The arrows describe consumption, not ownership. The consumer continues to own the production widgets, theme wrappers, and registry. Desy packages provide typed ways to inspect, compile, render, or test that graph.</p>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2><code>desy_core</code></h2>
+      <ul>
+        <li><code>DesyRegistry</code>, themes, typed atom lanes, components, knob definitions, instances, scenarios, events, and widget resolver.</li>
+        <li>Immutable construction, stable-ID validation, cycle checks, and canonical ordering helpers.</li>
+        <li>An optional <code>DesyRegistryIdentity</code> and deterministic, callback-free registry snapshot/digest for tools that need portable metadata.</li>
+        <li>Flutter SDK dependency only where practical; no routing, persistence, Forui, window management, workbench state, GenUI, HTTP, or test runner.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <h2><code>desy_bench</code></h2>
+      <ul>
+        <li>The cohesive local design workspace, Registry Spine, preview shell, routing, session state, and extension hosts.</li>
+        <li>Depends on <code>desy_core</code> and Desy's private scaffold package.</li>
+        <li>May present results from optional capabilities through adapters, but does not implement their engines.</li>
+        <li>Remains useful with only a minimal registry and no advanced packages.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <h2>Capability packages</h2>
+      <ul>
+        <li><code>desy_goldens</code>: automatic plan, Flutter test harness, comparison, and receipts.</li>
+        <li><code>desy_genui</code>: schema compiler, A2UI/GenUI adapter, action bridge, and client surface.</li>
+        <li><code>desy_screenshot_builder</code>: interactive workbench extension.</li>
+        <li>A future docs/CMS exporter: static registry facts and examples, not a CMS product.</li>
+        <li>A future <code>desy_sdui</code>: validated client manifest runtime only after a real application proves its requirements.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <h2>Flutter command runner</h2>
+      <ul>
+        <li>Runs through Flutter’s supported headless test boundary, forwards output and exit codes, and locates receipts.</li>
+        <li>Provides commands such as <code>desy goldens verify</code> and <code>desy catalog build</code>.</li>
+        <li>Does not dynamically load consumer libraries, copy registry data, or become a second plugin registry.</li>
+        <li>Uses the widget-test engine for headless registry execution and rendering.</li>
+      </ul>
+    </article>
+  </section>
+
+  <section class="card full">
+    <h2>One consumer setup, not one giant package</h2>
+    <pre><code>// package:acme_desy/acme_desy.dart
+final acmeRegistry = DesyRegistry(
+  name: 'Acme',
+  identity: const DesyRegistryIdentity(
+    id: 'acme.design-system',
+    version: '1.0.0',
+  ), // Optional: required only for portable artifacts.
+  themes: [...],
+  components: [...],
+);
+
+// tool/desy_driver_test.dart — one compile-time Flutter bridge
+void main() =&gt; runDesyToolchain(registry: acmeRegistry);</code></pre>
+    <p>The API names are conceptual. The important boundary is one type-checked import anchor, not one target per component or capability. The CLI can scaffold and invoke this bridge, but it cannot eliminate the bridge: Dart has no safe runtime mechanism for a command package to import an arbitrary consumer symbol, and the registry itself requires Flutter.</p>
+    <p>Consumers with one app may keep the registry beside that app. Teams sharing one design system across several apps should place the declaration in a narrow integration package that depends on their production component packages and <code>desy_core</code>. Desy should recommend this shape without requiring a package split for small projects.</p>
+  </section>
+
+  <section class="card full">
+    <h2>Two outputs from one source</h2>
+    <table>
+      <thead><tr><th>Form</th><th>Contains</th><th>Used by</th></tr></thead>
+      <tbody>
+        <tr><td>Live <code>DesyRegistry</code></td><td>Real widget/theme builders, typed runtime values, resolvers, scenarios, and callbacks.</td><td>Workbench previews, Screenshot Builder, golden rendering, GenUI/SDUI client rendering.</td></tr>
+        <tr><td>Derived registry snapshot</td><td>Stable IDs, names, descriptions, schemas, legal values/slots, examples, versions, sources, and a deterministic digest—never widgets or callbacks.</td><td>Backend compatibility checks, agent prompts, static documentation, catalogue search, CMS integration tooling, and receipts.</td></tr>
+      </tbody>
+    </table>
+    <p>The snapshot is a generated artifact, not a second declaration. A backend can understand what the shipped client supports, but only the client containing the live registry can turn a component ID into a Flutter widget.</p>
+  </section>
+
+  <section class="card full accent">
+    <h2>Server-driven UI boundary</h2>
+    <div class="flow"><strong>registry snapshot + digest</strong><span>→</span><strong>trusted server composer</strong><span>→</span><strong>versioned surface manifest</strong><span>→</span><strong>client validation</strong><span>→</span><strong>live registry resolution</strong></div>
+    <ol>
+      <li>The application ships production widgets and the live registry. No server downloads Dart or widget code.</li>
+      <li>A build step publishes the callback-free capability snapshot to the server.</li>
+      <li>The server returns a declarative tree or protocol message containing component IDs, literal typed values, legal child references, and named actions.</li>
+      <li>The client checks schema version, registry/catalog digest, maximum depth/node count, allowed components, every value constraint, every slot, and every action binding before rendering.</li>
+      <li>The client resolves nodes through the shipped registry and applies the real theme once around the surface.</li>
+      <li>The host application maps allow-listed action IDs to authenticated business behavior. Desy never accepts remote callbacks, arbitrary Dart, navigation commands, URLs, or application services.</li>
+    </ol>
+    <p>GenUI/A2UI is the best current proving ground because the repository already has a compiler and client renderer. A separate product-controlled SDUI protocol should not be invented until GenUI exposes a concrete missing requirement.</p>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>What blogging and CMS reuse means</h2>
+      <p>Desy can export design-system capability and resolve trusted content blocks to real widgets. It should not become a content database, publishing workflow, router, SEO system, rich-text format, or media pipeline. A CMS adapter owns content schemas and maps its finite block vocabulary to registered component IDs and values.</p>
+    </article>
+    <article class="card">
+      <h2>What “out of the box” means</h2>
+      <p>The workbench should offer a polished default experience and surface installed extensions. The CLI should offer a consistent command family. Neither should force every consumer to ship golden tooling, GenUI runtimes, server protocols, CMS adapters, or their transitive dependencies.</p>
+    </article>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>Scope</h2>
+      <ul>
+        <li>Extract and stabilize the Flutter-native <code>desy_core</code> package.</li>
+        <li>Replace <code>DesyCatalogConfig</code> with optional generic <code>DesyRegistryIdentity</code> and define one deterministic portable snapshot/digest contract.</li>
+        <li>Derive every capability from every registered component; reserve any future delivery-only redaction for outside the registry and never a parallel component inventory.</li>
+        <li>Define one scaffoldable consumer Flutter bridge for CLI commands.</li>
+        <li>Migrate GenUI and goldens away from workbench dependencies.</li>
+        <li>Document which packages run in plain Dart, headless Flutter tests, interactive Flutter apps, and external servers.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <h2>Non-goals</h2>
+      <ul>
+        <li>No pure-Dart rewrite of widget-returning registry contracts.</li>
+        <li>No dynamic plugin discovery or reflection over consumer libraries.</li>
+        <li>No single serialized representation that must serve goldens, A2UI, CMS content, and local prototypes.</li>
+        <li>No requirement that every registry opt into remote or generated UI.</li>
+        <li>No workbench dependency on every optional capability.</li>
+        <li>No server, account, hosting platform, remote code loading, or business-action framework in the architecture slice.</li>
+      </ul>
+    </article>
+  </section>
+
+  <section class="card full">
+    <h2>Implementation sketch</h2>
+    <ol>
+      <li><strong>Freeze the seam.</strong> Inventory every public registry type used outside workbench presentation and add dependency-boundary tests.</li>
+      <li><strong>Extract without redesign.</strong> Move registry declarations, validation, resolution, and the neutral missing-instance fallback to <code>desy_core</code>. Keep compatibility exports from <code>desy_bench</code> during migration; move no workbench routing, extension host, or Desy-owned scaffold UI.</li>
+      <li><strong>Move portable derivation.</strong> Replace <code>DesyCatalogConfig</code> with optional <code>DesyRegistryIdentity</code>; then replace the workbench-owned experimental catalogue export with a canonical snapshot builder and digest beside the registry kernel. Do not add capability-specific fields for goldens, CMS, or protocols.</li>
+      <li><strong>Migrate proven consumers.</strong> Point <code>desy_goldens_prototype</code> and <code>desy_genui</code> at <code>desy_core</code>. Keep Screenshot Builder on the workbench extension interface.</li>
+      <li><strong>Productize command execution.</strong> Evolve the golden prototype's two-process shell into a Flutter command family that invokes one configured <code>flutter test</code> bridge and writes typed receipts under <code>.dart_tool</code>. Do not present it as a <code>dart run</code> command.</li>
+      <li><strong>Prove external reuse.</strong> Generate a static catalogue artifact and run the GenUI client from the same dogfood registry. Confirm identical IDs and digests across both outputs.</li>
+      <li><strong>Gate SDUI.</strong> Only start a separate runtime spike when one real application supplies transport, compatibility, offline, action, and security requirements not already answered by GenUI.</li>
+    </ol>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>Acceptance criteria</h2>
+      <ul>
+        <li>A minimal consumer registry still launches the workbench unchanged.</li>
+        <li>GenUI and golden packages no longer depend on workbench routing or scaffold UI.</li>
+        <li>Every generated artifact carries one canonical registry identity/version and digest.</li>
+        <li>Adding a component automatically affects goldens and catalogue exports without another target declaration.</li>
+        <li>The CLI can run from a terminal but all registry evaluation and rendering occurs inside Flutter.</li>
+        <li>An optional capability can be removed without changing the registry's widget inventory.</li>
+      </ul>
+    </article>
+    <article class="card">
+      <h2>Open questions</h2>
+      <ul>
+        <li>How should a host report a missing identity when a selected portable capability requires one: a direct compile error, or a CLI setup hint that can scaffold it?</li>
+        <li>Does the CLI scaffold one generic Flutter bridge or one test bridge per capability package?</li>
+        <li>Which metadata is a universal component fact, and which belongs only in sparse GenUI, golden, documentation, or SDUI policy?</li>
+        <li>Should compatibility exports remain in <code>desy_bench</code> for one release or require a coordinated breaking migration?</li>
+        <li>What first production application would justify reviving the parked SDUI runtime?</li>
+      </ul>
+    </article>
+  </section>
+
+  <section class="card full accent">
+    <h2>Do or don’t?</h2>
+    <p><strong>Do the registry-kernel extraction; do not build the universal platform yet.</strong> Impact 5/5, complexity 4/5, risk 3/5. GenUI and goldens already provide two registry-only consumers, so the smaller dependency boundary is earned rather than speculative. The main risk is turning a useful seam into a plugin framework or serialized widget language. Keep capabilities explicit, Flutter-native where widgets are involved, and portable only at the derived metadata/manifest boundary.</p>
+  </section>
+
+  <footer>Decision: one live Flutter registry, one optional consumer integration library, several narrow capability packages, and a CLI that orchestrates Flutter rather than replacing it.</footer>
+</main>
+</body>
+</html>

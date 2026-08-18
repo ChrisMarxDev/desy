@@ -11,12 +11,14 @@ resolution: workspace
 
 dependencies:
   crypto: ^3.0.7
-  desy_bench:
-    path: ../../desy_bench
+  desy_core:
+    path: ../../desy_core
   flutter:
     sdk: flutter
 
 dev_dependencies:
+  desy_bench:
+    path: ../../desy_bench
   desy_design_system:
     path: ../../desy_design_system
   desy_design_system_example:

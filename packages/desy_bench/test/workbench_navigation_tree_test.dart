@@ -21,11 +21,13 @@ void main() {
       extensions: const [],
     );
     final locations = _destinations(tree.roots);
-    final registryRoot = tree.roots.firstWhere((node) => node.id == 'registry');
-    expect(
-      registryRoot.children.firstWhere((node) => node.id == 'atlas').label,
-      'All components',
-    );
+    final apps = tree.roots.firstWhere((node) => node.id == 'apps');
+    final home = apps.children.firstWhere((node) => node.id == 'home');
+    expect(apps.label, 'Apps');
+    expect(apps.location, isNull);
+    expect(home.label, 'Home');
+    expect(home.location, DesyWorkbenchRoutes.homePath);
+    expect(home.children, isEmpty);
 
     expect(
       locations,
@@ -141,6 +143,36 @@ void main() {
       _destinations(tree.roots),
       contains(DesyWorkbenchRoutes.prototype('prototype.homepage')),
     );
+  });
+
+  test('workspace extensions are grouped with Home under Apps', () {
+    final registry = DesyRegistry(
+      name: 'Extensions',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+    );
+    final extension = DesyWorkspaceExtension.builder(
+      id: 'screenshots',
+      name: 'Screenshot builder',
+      builder: (_, _) => const SizedBox(),
+    );
+
+    final tree = DesyWorkbenchNavigationTree.fromRegistry(
+      registry,
+      extensions: [extension],
+    );
+    final apps = tree.roots.firstWhere((node) => node.id == 'apps');
+    final extensionNode = apps.children.firstWhere(
+      (node) => node.id == 'extension.screenshots',
+    );
+
+    expect(apps.children.firstWhere((node) => node.id == 'home').label, 'Home');
+    expect(extensionNode.label, 'Screenshot builder');
+    expect(
+      extensionNode.location,
+      DesyWorkbenchRoutes.workspaceExtension('screenshots'),
+    );
+    expect(extensionNode.children, isEmpty);
+    expect(tree.roots.any((node) => node.id == 'tools'), isFalse);
   });
 }
 

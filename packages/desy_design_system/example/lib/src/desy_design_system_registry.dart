@@ -1,3 +1,5 @@
+// ignore_for_file: unused_element
+
 import 'package:desy_bench/desy_bench.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:flutter/material.dart';
@@ -29,11 +31,37 @@ const _missingTileSuffixInstanceId =
 /// gallery or inventory model.
 final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
   name: 'Desy Design System',
-  catalogConfig: const DesyCatalogConfig(
+  identity: const DesyRegistryIdentity(
     id: 'desy.design-system',
     version: '0.2-experimental',
-    description:
-        'Workbench controls and foundations available to agent-built Desy surfaces.',
+  ),
+  systemProfile: DesySystemProfile(
+    id: 'desy.system-profile',
+    summary:
+        'A local-first workbench for inspecting real Flutter design systems.',
+    purpose:
+        'Desy keeps the consumer registry, production widgets, and design decisions visible in one trustworthy place.',
+    heroAssetId: 'desy.asset.workspace.signature.primary',
+    principles: const [
+      DesySystemPrinciple(
+        id: 'desy.principle.real-widgets',
+        title: 'Show the real widget',
+        guidance:
+            'Every preview renders consumer production code under its real theme.',
+      ),
+      DesySystemPrinciple(
+        id: 'desy.principle.one-registry',
+        title: 'One declared source',
+        guidance:
+            'Components, atoms, prototypes, and extensions resolve from one immutable registry.',
+      ),
+      DesySystemPrinciple(
+        id: 'desy.principle.optional-depth',
+        title: 'Useful before complete',
+        guidance:
+            'Advanced metadata stays optional, while every declaration can gain richer tools.',
+      ),
+    ],
   ),
   themes: [
     DesyTheme(
@@ -288,6 +316,28 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
       ],
     ),
   ],
+  assets: [
+    DesyAssetEntry(
+      id: 'desy.asset.workspace.signature.primary',
+      fileName: 'desy-primary-mark.png',
+      assetKey: 'web/favicon.png',
+      description: 'Use as the compact primary signature on quiet surfaces.',
+    ),
+    DesyAssetEntry(
+      id: 'desy.asset.workspace.signature.signal',
+      fileName: 'desy-mark-192.png',
+      assetKey: 'web/icons/Icon-192.png',
+      description:
+          'Use in small, signal-led product and documentation moments.',
+    ),
+    DesyAssetEntry(
+      id: 'desy.asset.workspace.system-map',
+      fileName: 'desy-mark-512.png',
+      assetKey: 'web/icons/Icon-512.png',
+      description:
+          'Use as large-format Desy imagery in an introduction or guide.',
+    ),
+  ],
   customAtoms: [
     DesyCustomAtom(
       id: 'desy.atom.gradient.ribbon',
@@ -338,6 +388,134 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
     _shortcutComponent,
   ],
 );
+
+Widget _buildWorkspaceSignature(BuildContext context) =>
+    const _DesyWorkspaceSignature();
+
+Widget _buildSignalWorkspaceSignature(BuildContext context) =>
+    const _DesyWorkspaceSignature(signal: true);
+
+class _DesyWorkspaceSignature extends StatelessWidget {
+  const _DesyWorkspaceSignature({this.signal = false});
+
+  final bool signal;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final accent = signal ? const Color(0xFFFF2871) : colors.primary;
+    return Semantics(
+      label: signal
+          ? 'Desy workspace signature with signal accent'
+          : 'Desy workspace signature',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: accent,
+              borderRadius: BorderRadius.circular(
+                DesyDesignSystemTokens.radiusMd,
+              ),
+            ),
+            child: SizedBox.square(
+              dimension: 54,
+              child: Icon(
+                DesyIcons.layoutGrid,
+                color: signal ? Colors.white : colors.onPrimary,
+                size: 30,
+              ),
+            ),
+          ),
+          const SizedBox(width: DesyDesignSystemTokens.spaceSm),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('desy', style: Theme.of(context).textTheme.headlineMedium),
+              Text(
+                signal ? 'inspection workspace' : 'design workbench',
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Widget _buildRegistrySpineMap(BuildContext context) =>
+    const _RegistrySpineMap();
+
+class _RegistrySpineMap extends StatelessWidget {
+  const _RegistrySpineMap();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      label: 'Registry spine map',
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _node(
+              context,
+              label: 'DECLARED REGISTRY',
+              color: colors.primary,
+              foreground: colors.onPrimary,
+            ),
+            _connector(context),
+            Row(
+              children: [
+                Expanded(child: _node(context, label: 'ATLAS')),
+                const SizedBox(width: 10),
+                Expanded(child: _node(context, label: 'DETAILS')),
+                const SizedBox(width: 10),
+                Expanded(child: _node(context, label: 'TOOLS')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _connector(BuildContext context) => Container(
+    width: 1,
+    height: 24,
+    color: Theme.of(context).colorScheme.outlineVariant,
+  );
+
+  Widget _node(
+    BuildContext context, {
+    required String label,
+    Color? color,
+    Color? foreground,
+  }) => Container(
+    alignment: Alignment.center,
+    constraints: const BoxConstraints(minHeight: 48),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: color ?? Theme.of(context).colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(DesyDesignSystemTokens.radiusMd),
+      border: color == null
+          ? Border.all(color: Theme.of(context).colorScheme.outlineVariant)
+          : null,
+    ),
+    child: Text(
+      label,
+      textAlign: TextAlign.center,
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        color: foreground,
+        fontWeight: FontWeight.w700,
+        letterSpacing: .6,
+      ),
+    ),
+  );
+}
 
 final _sampleComponent = DesyComponent(
   id: 'desy.component.sample',
@@ -893,7 +1071,6 @@ final _catalogueCardComponent = _component(
   icon: DesyIcons.component,
   source: 'package:desy_design_system/src/desy_catalogue_card.dart',
   knobs: (k) => (
-    path: k.string('path', name: 'Path', initial: 'Actions'),
     identifier: k.string(
       'identifier',
       name: 'Identifier',
@@ -912,14 +1089,12 @@ final _catalogueCardComponent = _component(
   ),
   build: (context, knobs) => _buildCatalogueCard(
     context,
-    path: knobs.path.value,
     identifier: knobs.identifier.value,
     actionLabel: knobs.actionLabel.value,
     showAction: knobs.showAction.value,
   ),
   instances: (knobs) => {
     'default': [
-      knobs.path('Actions'),
       knobs.identifier('desy.component.button'),
       knobs.actionLabel('Inspect'),
       knobs.showAction(true),
@@ -978,12 +1153,10 @@ final _progressTrailComponent = _component(
 
 Widget _buildCatalogueCard(
   BuildContext context, {
-  required String path,
   required String identifier,
   required String actionLabel,
   required bool showAction,
 }) => DesyCatalogueCard(
-  path: path,
   identifier: identifier,
   preview: Center(
     child: showAction
@@ -1579,23 +1752,13 @@ final _sidebarComponent = _component(
   knobs: (k) => (
     title: k.string('title', name: 'Product title', initial: 'DESY BENCH'),
     showAtoms: k.boolean('showAtoms', name: 'Show Atoms', initial: true),
-    previewGrid: k.boolean(
-      'previewGrid',
-      name: 'Component preview grid',
-      initial: false,
-    ),
   ),
   build: (context, knobs) => _SidebarSpecimen(
     title: knobs.title.value,
     showAtoms: knobs.showAtoms.value,
-    previewGrid: knobs.previewGrid.value,
   ),
   instances: (knobs) => {
-    'default': [
-      knobs.title('DESY BENCH'),
-      knobs.showAtoms(true),
-      knobs.previewGrid(false),
-    ],
+    'default': [knobs.title('DESY BENCH'), knobs.showAtoms(true)],
   },
 );
 
@@ -1615,11 +1778,6 @@ final _sidebarSectionComponent = _component(
       name: 'Show view action',
       initial: true,
     ),
-    previewGrid: k.boolean(
-      'previewGrid',
-      name: 'Preview grid mode',
-      initial: false,
-    ),
     opensAtlas: k.boolean(
       'opensAtlas',
       name: 'Label opens Atlas',
@@ -1632,7 +1790,6 @@ final _sidebarSectionComponent = _component(
     label: knobs.label.value,
     showCount: knobs.showCount.value,
     showAction: knobs.showAction.value,
-    previewGrid: knobs.previewGrid.value,
     opensAtlas: knobs.opensAtlas.value,
     collapsible: knobs.collapsible.value,
   ),
@@ -1641,7 +1798,6 @@ final _sidebarSectionComponent = _component(
       knobs.label('Components'),
       knobs.showCount(true),
       knobs.showAction(true),
-      knobs.previewGrid(false),
       knobs.opensAtlas(true),
       knobs.collapsible(true),
     ],
@@ -1653,7 +1809,6 @@ Widget _buildSidebarSection(
   required String label,
   required bool showCount,
   required bool showAction,
-  required bool previewGrid,
   required bool opensAtlas,
   required bool collapsible,
 }) => DesySidebar(
@@ -1661,15 +1816,8 @@ Widget _buildSidebarSection(
     DesySidebarSection(
       label: label,
       count: showCount ? 16 : null,
-      action: showAction
-          ? Icon(
-              previewGrid ? DesyIcons.folderTree : DesyIcons.layoutGrid,
-              size: 15,
-            )
-          : null,
-      actionSemanticsLabel: previewGrid
-          ? 'Use component file tree'
-          : 'Use component preview grid',
+      action: showAction ? const Icon(DesyIcons.folderTree, size: 15) : null,
+      actionSemanticsLabel: 'Show complete hierarchy',
       onActionPress: showAction ? () {} : null,
       onLabelPress: opensAtlas ? () {} : null,
       collapsible: collapsible,
@@ -2103,15 +2251,10 @@ class _ResizeDividerSpecimenState extends State<_ResizeDividerSpecimen> {
 }
 
 class _SidebarSpecimen extends StatelessWidget {
-  const _SidebarSpecimen({
-    required this.title,
-    required this.showAtoms,
-    required this.previewGrid,
-  });
+  const _SidebarSpecimen({required this.title, required this.showAtoms});
 
   final String title;
   final bool showAtoms;
-  final bool previewGrid;
 
   @override
   Widget build(BuildContext context) => DesySidebar(
@@ -2121,18 +2264,15 @@ class _SidebarSpecimen extends StatelessWidget {
     ),
     children: [
       const DesySidebarSection(
-        label: 'Workspace',
+        label: 'Apps',
         children: [
-          DesySidebarItem.screen(
+          DesySidebarItem(
             icon: Icon(DesyIcons.layoutGrid),
-            label: Text('Atlas'),
+            label: Text('Home'),
             selected: true,
           ),
-          DesySidebarItem.screen(
-            icon: Icon(DesyIcons.boxes),
-            label: Text('Sketch'),
-          ),
-          DesySidebarItem.screen(
+          DesySidebarItem(icon: Icon(DesyIcons.boxes), label: Text('Sketch')),
+          DesySidebarItem(
             icon: Icon(DesyIcons.sparkles),
             label: Text('AI prompts'),
           ),
@@ -2141,6 +2281,7 @@ class _SidebarSpecimen extends StatelessWidget {
       if (showAtoms)
         const DesySidebarSection(
           label: 'Atoms',
+          collapsible: true,
           children: [
             DesySidebarItem(
               icon: Icon(DesyIcons.palette),
@@ -2152,14 +2293,7 @@ class _SidebarSpecimen extends StatelessWidget {
       DesySidebarSection(
         label: 'Components',
         count: 16,
-        action: Icon(
-          previewGrid ? DesyIcons.folderTree : DesyIcons.layoutGrid,
-          size: 15,
-        ),
-        actionSemanticsLabel: previewGrid
-            ? 'Use component file tree'
-            : 'Use component preview grid',
-        onActionPress: () {},
+        collapsible: true,
         children: const [
           DesySidebarItem(
             icon: Icon(DesyIcons.folder),

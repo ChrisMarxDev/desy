@@ -22,7 +22,7 @@ a parallel implementation.
 
 Desy prescribes a small, typed design-system structure so it can provide
 purpose-built tools for Colors, Fonts, Icons, Measurements, Motion, Effects,
-and knobless Custom atoms.
+Assets, and knobless Custom atoms.
 Each lane is an optional, separate `DesyRegistry` parameter. A consumer opts in
 by supplying entries and an empty lane is absent from the workbench.
 
@@ -120,7 +120,10 @@ responsive artboards.
 
 Atoms is a built-in workbench section derived from typed `DesyRegistry`
 parameters, not a consumer-declared folder. Its known lanes are Colors, Fonts,
-Icons, Measurements, Motion, Effects, and Custom. Custom atoms are named,
+Icons, Measurements, Motion, Effects, Assets, and Custom. Each asset is a
+packaged image declared by stable ID, filename, Flutter asset key, and a short
+usage description; Desy derives its preview and handoff actions from those
+bundle bytes. Custom atoms are named,
 knobless real-widget instances for foundational visuals that do not fit a
 specialized lane; they remain one built-in lane rather than consumer-declared
 sidebar branches. Desy may give each typed lane specialized treatment; it never
@@ -131,8 +134,9 @@ objects. Gradients and other paint recipes consume those colors and belong to
 their appropriate typed treatment contract rather than the Colors lane; text
 specimens are `DesyTypographyEntry` values;
 numeric foundations are `DesyNumericEntry` values; motion uses
-`DesyMotionEntry`; effects use `DesyEffectEntry`; and glyphs use
-`DesyIconEntry`. Every entry may still render a consumer-owned widget. Empty
+`DesyMotionEntry`; effects use `DesyEffectEntry`; glyphs use `DesyIconEntry`;
+and assets use `DesyAssetEntry` with optional `DesyAssetFamily` relationships.
+Every entry may still render a consumer-owned widget. Empty
 lanes are omitted, and when all lanes are empty the entire Atoms sidebar section
 is omitted.
 
@@ -192,6 +196,10 @@ to the core workbench. An extension declares a screen and receives a read-only
 context containing the active consumer registry, preview theme, and Desy
 helpers for rendering or resolving declared artifacts. Extensions do not own a
 second registry, mutate core routing, or depend on hidden workbench state.
+
+The optional Brand Guide is one such read-only extension. It assembles the
+active registry and optional brand narrative into a guideline; it does not
+introduce a second token, component, or asset inventory.
 
 The workbench owns discovery, navigation, lifecycle, and the surrounding
 Forui shell; the extension owns only its screen content and explicit local

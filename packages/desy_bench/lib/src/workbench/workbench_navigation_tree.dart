@@ -35,14 +35,20 @@ class DesyWorkbenchNavigationTree {
 
     return DesyWorkbenchNavigationTree([
       DesyWorkbenchNavigationNode(
-        id: 'registry',
-        label: 'Registry',
+        id: 'apps',
+        label: 'Apps',
         children: [
           const DesyWorkbenchNavigationNode(
-            id: 'atlas',
-            label: 'All components',
-            location: DesyWorkbenchRoutes.atlasPath,
+            id: 'home',
+            label: 'Home',
+            location: DesyWorkbenchRoutes.homePath,
           ),
+          for (final extension in extensions)
+            DesyWorkbenchNavigationNode(
+              id: 'extension.${extension.id}',
+              label: extension.name,
+              location: DesyWorkbenchRoutes.workspaceExtension(extension.id),
+            ),
         ],
       ),
       if (registry.allPrototypes.isNotEmpty)
@@ -55,19 +61,6 @@ class DesyWorkbenchNavigationTree {
                 id: 'prototype.${prototypeSession.id}',
                 label: prototypeSession.name,
                 location: DesyWorkbenchRoutes.prototype(prototypeSession.id),
-              ),
-          ],
-        ),
-      if (extensions.isNotEmpty)
-        DesyWorkbenchNavigationNode(
-          id: 'tools',
-          label: 'Tools',
-          children: [
-            for (final extension in extensions)
-              DesyWorkbenchNavigationNode(
-                id: 'tool.${extension.id}',
-                label: extension.name,
-                location: DesyWorkbenchRoutes.workspaceExtension(extension.id),
               ),
           ],
         ),

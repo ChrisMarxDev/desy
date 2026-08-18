@@ -5,11 +5,13 @@
 | Concern | Authoritative declaration | Key rule |
 | --- | --- | --- |
 | Theme context | `DesyTheme` | Wrap previews with the real consumer theme. |
+| System context | Registry `systemProfile` + `DesySystemProfile` | Keep authored purpose, principles, hero reference, and links optional; derive inventory and status facts. |
 | Component structure | `DesyComponent.path` | Use a validated slash path; Desy derives the file tree from the flat component list. |
 | Colors and treatments | Registry `colors` + `DesyColorEntry` | Swatches, gradients, and custom color widgets use the built-in Colors lane. |
 | Typography | Registry `fonts` + `DesyTypographyEntry` | Resolve a real consumer text style and specimen. |
 | Measurements | Registry `measurements` + `DesyNumericEntry` | Use `kind`, `unit`, and `axis`; do not infer semantics from strings. |
 | Motion and effects | Registry `motion`/`effects` + typed entries | Keep the consumer-owned live specimen. |
+| Assets | Registry `assets`/`assetFamilies` + typed entries | Keep every asset independently addressable; families relate variants without becoming a second inventory. |
 | Custom atoms | Registry `customAtoms` + `DesyCustomAtom` | Declare only named static widget instances; Desy previews the first declared instance. |
 | Components | `DesyComponent` | Build the production widget and declare optional contracts, states, and knobs. |
 | Reusable variants | `DesyComponentInstance` | Store stable preset values; resolve through the owning component. |

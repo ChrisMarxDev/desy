@@ -45,7 +45,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('atlas-search')), findsOneWidget);
-    expect(find.text('ACTIONS'), findsWidgets);
+    expect(find.text('COMPONENTS'), findsOneWidget);
+    final headline = tester.widget<Text>(
+      find.byKey(const ValueKey('atlas-headline')),
+    );
+    expect(headline.textSpan?.toPlainText(), startsWith('Actions'));
     expect(find.text('Primary button'), findsWidgets);
     semantics.dispose();
   });

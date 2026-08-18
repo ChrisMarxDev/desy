@@ -2,7 +2,9 @@ part of 'screenshot_builder_extension.dart';
 
 class _ScreenshotSidebar extends StatelessWidget {
   const _ScreenshotSidebar({
-    required this.scene,
+    required this.canvas,
+    required this.layers,
+    required this.backgroundColor,
     required this.extension,
     required this.selectedTheme,
     required this.exporting,
@@ -11,9 +13,15 @@ class _ScreenshotSidebar extends StatelessWidget {
     required this.onAdd,
     required this.onPickImage,
     required this.onExport,
+    required this.onCanvasSizeChanged,
+    required this.onThemeChanged,
+    required this.onBackgroundChanged,
+    required this.onToggleHidden,
   });
 
-  final DesyScreenshotSceneController scene;
+  final ObjectCanvasController<DesyScreenshotLayer> canvas;
+  final List<DesyScreenshotLayer> layers;
+  final Color? backgroundColor;
   final DesyWorkspaceExtensionContext extension;
   final DesyTheme selectedTheme;
   final bool exporting;
@@ -22,6 +30,11 @@ class _ScreenshotSidebar extends StatelessWidget {
   final ValueChanged<_PalettePayload> onAdd;
   final VoidCallback onPickImage;
   final VoidCallback onExport;
+  final ValueChanged<Size> onCanvasSizeChanged;
+  final void Function(String themeId, {Color? defaultBackground})
+  onThemeChanged;
+  final ValueChanged<Color?> onBackgroundChanged;
+  final ValueChanged<String> onToggleHidden;
 
   @override
   Widget build(BuildContext context) => ColoredBox(
@@ -69,17 +82,25 @@ class _ScreenshotSidebar extends StatelessWidget {
               ),
               DesyTabEntry(
                 label: const Text('Scene', key: ValueKey('scene-tab')),
-                child: _ScenePanel(scene: scene),
+                child: _ScenePanel(
+                  canvas: canvas,
+                  layers: layers,
+                  onToggleHidden: onToggleHidden,
+                ),
               ),
               DesyTabEntry(
                 label: const Text('Page', key: ValueKey('page-tab')),
                 child: _PagePanel(
-                  scene: scene,
+                  canvas: canvas,
+                  backgroundColor: backgroundColor,
                   extension: extension,
                   selectedTheme: selectedTheme,
                   exporting: exporting,
                   status: status,
                   onExport: onExport,
+                  onCanvasSizeChanged: onCanvasSizeChanged,
+                  onThemeChanged: onThemeChanged,
+                  onBackgroundChanged: onBackgroundChanged,
                 ),
               ),
             ],
@@ -292,13 +313,19 @@ class _PaletteTile extends StatelessWidget {
 }
 
 class _ScenePanel extends StatelessWidget {
-  const _ScenePanel({required this.scene});
+  const _ScenePanel({
+    required this.canvas,
+    required this.layers,
+    required this.onToggleHidden,
+  });
 
-  final DesyScreenshotSceneController scene;
+  final ObjectCanvasController<DesyScreenshotLayer> canvas;
+  final List<DesyScreenshotLayer> layers;
+  final ValueChanged<String> onToggleHidden;
 
   @override
   Widget build(BuildContext context) {
-    final topFirst = scene.layers.reversed.toList(growable: false);
+    final topFirst = layers.reversed.toList(growable: false);
     return ListView(
       key: const ValueKey('screenshot-scene-panel'),
       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -317,11 +344,11 @@ class _ScenePanel extends StatelessWidget {
                   ),
                 ),
               ),
-              Text('${scene.layers.length}'),
+              Text('${layers.length}'),
             ],
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         if (topFirst.isEmpty)
           Padding(
             padding: const EdgeInsets.all(24),
@@ -333,7 +360,12 @@ class _ScenePanel extends StatelessWidget {
             ),
           )
         else
-          for (final layer in topFirst) _LayerRow(layer: layer, scene: scene),
+          for (final layer in topFirst)
+            _LayerRow(
+              layer: layer,
+              canvas: canvas,
+              onToggleHidden: onToggleHidden,
+            ),
       ],
     );
   }
@@ -341,16 +373,31 @@ class _ScenePanel extends StatelessWidget {
 
 class _ScreenshotLayerInspector extends StatelessWidget {
   const _ScreenshotLayerInspector({
-    required this.scene,
+    required this.canvas,
+    required this.selectedLayer,
     required this.extension,
+    required this.onSetKnob,
+    required this.onSetText,
+    required this.onSetTextTypography,
+    required this.onSetTextColor,
+    required this.onToggleHidden,
   });
 
-  final DesyScreenshotSceneController scene;
+  final ObjectCanvasController<DesyScreenshotLayer> canvas;
+  final DesyScreenshotLayer? selectedLayer;
   final DesyWorkspaceExtensionContext extension;
+  final void Function(String id, String knobId, Object value) onSetKnob;
+  final void Function(String id, String value) onSetText;
+  final void Function(String id, String? typographyId) onSetTextTypography;
+  final void Function(String id, String? colorId) onSetTextColor;
+  final ValueChanged<String> onToggleHidden;
 
   @override
   Widget build(BuildContext context) {
-    final layer = scene.selectedLayer;
+    final layer = selectedLayer;
+    final imageSize = layer is DesyScreenshotImageLayer
+        ? canvas.geometryFor(layer.id).paintBounds.size
+        : null;
     return ColoredBox(
       key: const ValueKey('screenshot-layer-inspector'),
       color: context.theme.colors.background,
@@ -398,19 +445,25 @@ class _ScreenshotLayerInspector extends StatelessWidget {
                     ],
                   ),
                 ),
-                _SelectedLayerActions(layer: layer, scene: scene),
+                _SelectedLayerActions(
+                  layer: layer,
+                  canvas: canvas,
+                  onToggleHidden: onToggleHidden,
+                ),
                 const SizedBox(height: 8),
                 switch (layer) {
                   final DesyScreenshotWidgetLayer widgetLayer =>
                     _WidgetInspector(
                       layer: widgetLayer,
-                      scene: scene,
                       registry: extension.registry,
+                      onSetKnob: onSetKnob,
                     ),
                   final DesyScreenshotTextLayer textLayer => _TextInspector(
                     layer: textLayer,
-                    scene: scene,
                     registry: extension.registry,
+                    onSetText: onSetText,
+                    onSetTypography: onSetTextTypography,
+                    onSetColor: onSetTextColor,
                   ),
                   final DesyScreenshotImageLayer imageLayer => DesyKnobSheet(
                     segments: [
@@ -424,7 +477,7 @@ class _ScreenshotLayerInspector extends StatelessWidget {
                           DesyTextValueKnobRow(
                             label: 'Size',
                             value:
-                                '${scene.rectFor(imageLayer.id).width.round()} × ${scene.rectFor(imageLayer.id).height.round()}',
+                                '${imageSize!.width.round()} × ${imageSize.height.round()}',
                           ),
                         ],
                       ),
@@ -439,10 +492,15 @@ class _ScreenshotLayerInspector extends StatelessWidget {
 }
 
 class _LayerRow extends StatelessWidget {
-  const _LayerRow({required this.layer, required this.scene});
+  const _LayerRow({
+    required this.layer,
+    required this.canvas,
+    required this.onToggleHidden,
+  });
 
   final DesyScreenshotLayer layer;
-  final DesyScreenshotSceneController scene;
+  final ObjectCanvasController<DesyScreenshotLayer> canvas;
+  final ValueChanged<String> onToggleHidden;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -452,13 +510,15 @@ class _LayerRow extends StatelessWidget {
         Expanded(
           child: DesyButton(
             key: ValueKey('select-layer-${layer.id}'),
-            selected: scene.selectedId == layer.id,
-            variant: scene.selectedId == layer.id
+            selected: canvas.selectedObjectIds.contains(layer.id),
+            variant: canvas.selectedObjectIds.contains(layer.id)
                 ? DesyButtonVariant.secondary
                 : DesyButtonVariant.ghost,
             size: DesyButtonSize.sm,
             mainAxisAlignment: MainAxisAlignment.start,
-            onPress: () => scene.select(layer.id),
+            onPress: layer.hidden
+                ? null
+                : () => canvas.setSelectedObjects([layer.id]),
             child: Text(
               layer.name,
               maxLines: 1,
@@ -474,7 +534,7 @@ class _LayerRow extends StatelessWidget {
           semanticsLabel: layer.hidden
               ? 'Show ${layer.name}'
               : 'Hide ${layer.name}',
-          onPress: () => scene.toggleHidden(layer.id),
+          onPress: () => onToggleHidden(layer.id),
           child: Text(layer.hidden ? 'Show' : 'Hide'),
         ),
       ],
@@ -483,10 +543,15 @@ class _LayerRow extends StatelessWidget {
 }
 
 class _SelectedLayerActions extends StatelessWidget {
-  const _SelectedLayerActions({required this.layer, required this.scene});
+  const _SelectedLayerActions({
+    required this.layer,
+    required this.canvas,
+    required this.onToggleHidden,
+  });
 
   final DesyScreenshotLayer layer;
-  final DesyScreenshotSceneController scene;
+  final ObjectCanvasController<DesyScreenshotLayer> canvas;
+  final ValueChanged<String> onToggleHidden;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -500,7 +565,7 @@ class _SelectedLayerActions extends StatelessWidget {
           size: DesyButtonSize.xs,
           variant: DesyButtonVariant.outline,
           mainAxisSize: MainAxisSize.min,
-          onPress: () => scene.moveBackward(layer.id),
+          onPress: () => canvas.moveObjectsBackward([layer.id]),
           child: const Text('Backward'),
         ),
         DesyButton(
@@ -508,7 +573,7 @@ class _SelectedLayerActions extends StatelessWidget {
           size: DesyButtonSize.xs,
           variant: DesyButtonVariant.outline,
           mainAxisSize: MainAxisSize.min,
-          onPress: () => scene.moveForward(layer.id),
+          onPress: () => canvas.moveObjectsForward([layer.id]),
           child: const Text('Forward'),
         ),
         DesyButton(
@@ -516,7 +581,7 @@ class _SelectedLayerActions extends StatelessWidget {
           size: DesyButtonSize.xs,
           variant: DesyButtonVariant.outline,
           mainAxisSize: MainAxisSize.min,
-          onPress: () => scene.toggleHidden(layer.id),
+          onPress: () => onToggleHidden(layer.id),
           child: Text(layer.hidden ? 'Show' : 'Hide'),
         ),
         DesyButton(
@@ -524,7 +589,7 @@ class _SelectedLayerActions extends StatelessWidget {
           size: DesyButtonSize.xs,
           variant: DesyButtonVariant.destructive,
           mainAxisSize: MainAxisSize.min,
-          onPress: () => scene.remove(layer.id),
+          onPress: () => canvas.removeObjects([layer.id]),
           child: const Text('Delete'),
         ),
       ],
@@ -535,13 +600,13 @@ class _SelectedLayerActions extends StatelessWidget {
 class _WidgetInspector extends StatelessWidget {
   const _WidgetInspector({
     required this.layer,
-    required this.scene,
     required this.registry,
+    required this.onSetKnob,
   });
 
   final DesyScreenshotWidgetLayer layer;
-  final DesyScreenshotSceneController scene;
   final DesyRegistry registry;
+  final void Function(String id, String knobId, Object value) onSetKnob;
 
   @override
   Widget build(BuildContext context) {
@@ -558,18 +623,6 @@ class _WidgetInspector extends StatelessWidget {
           title: 'WIDGET',
           children: [
             DesyTextValueKnobRow(label: 'Instance', value: instance.name),
-            DesyNumericKnobRow(
-              key: const ValueKey('widget-scale-control'),
-              label: 'Scale',
-              description:
-                  'Changes the visual size without replacing real widget constraints.',
-              value: scene.scaleFor(layer.id),
-              unit: '×',
-              step: .1,
-              minimum: .1,
-              maximum: 2,
-              onChanged: (value) => scene.setWidgetScale(layer.id, value),
-            ),
           ],
         ),
         if (instance.component.knobDefinitions.isNotEmpty)
@@ -581,7 +634,7 @@ class _WidgetInspector extends StatelessWidget {
                   registry: registry,
                   definition: knob,
                   value: layer.knobValues[knob.id] ?? knob.initial,
-                  onChanged: (value) => scene.setKnob(layer.id, knob.id, value),
+                  onChanged: (value) => onSetKnob(layer.id, knob.id, value),
                 ),
             ],
           ),
@@ -814,13 +867,17 @@ class _ScreenshotKnobControl extends StatelessWidget {
 class _TextInspector extends StatelessWidget {
   const _TextInspector({
     required this.layer,
-    required this.scene,
     required this.registry,
+    required this.onSetText,
+    required this.onSetTypography,
+    required this.onSetColor,
   });
 
   final DesyScreenshotTextLayer layer;
-  final DesyScreenshotSceneController scene;
   final DesyRegistry registry;
+  final void Function(String id, String value) onSetText;
+  final void Function(String id, String? typographyId) onSetTypography;
+  final void Function(String id, String? colorId) onSetColor;
 
   @override
   Widget build(BuildContext context) => DesyKnobSheet(
@@ -832,7 +889,7 @@ class _TextInspector extends StatelessWidget {
             key: const ValueKey('text-content-control'),
             label: 'Content',
             value: layer.text,
-            onChanged: (value) => scene.setText(layer.id, value),
+            onChanged: (value) => onSetText(layer.id, value),
           ),
           if (registry.allFonts.isEmpty)
             const DesyTextValueKnobRow(
@@ -847,7 +904,7 @@ class _TextInspector extends StatelessWidget {
                 key: const ValueKey('text-style-control'),
                 control: DesySelectControl.lifted(
                   value: layer.typographyId,
-                  onChange: (value) => scene.setTextTypography(layer.id, value),
+                  onChange: (value) => onSetTypography(layer.id, value),
                 ),
                 format: (id) => registry.allFonts
                     .firstWhere((entry) => entry.id == id)
@@ -875,7 +932,7 @@ class _TextInspector extends StatelessWidget {
                 key: const ValueKey('text-color-control'),
                 control: DesySelectControl.lifted(
                   value: layer.colorId,
-                  onChange: (value) => scene.setTextColor(layer.id, value),
+                  onChange: (value) => onSetColor(layer.id, value),
                 ),
                 format: (id) => registry.allColors
                     .firstWhere((entry) => entry.id == id)
@@ -907,29 +964,39 @@ class _TextInspector extends StatelessWidget {
 
 class _PagePanel extends StatelessWidget {
   const _PagePanel({
-    required this.scene,
+    required this.canvas,
+    required this.backgroundColor,
     required this.extension,
     required this.selectedTheme,
     required this.exporting,
     required this.status,
     required this.onExport,
+    required this.onCanvasSizeChanged,
+    required this.onThemeChanged,
+    required this.onBackgroundChanged,
   });
 
   static const transparentId = '__transparent__';
   static const themeBackgroundId = '__theme_background__';
 
-  final DesyScreenshotSceneController scene;
+  final ObjectCanvasController<DesyScreenshotLayer> canvas;
+  final Color? backgroundColor;
   final DesyWorkspaceExtensionContext extension;
   final DesyTheme selectedTheme;
   final bool exporting;
   final String? status;
   final VoidCallback onExport;
+  final ValueChanged<Size> onCanvasSizeChanged;
+  final void Function(String themeId, {Color? defaultBackground})
+  onThemeChanged;
+  final ValueChanged<Color?> onBackgroundChanged;
 
   String get _backgroundId {
-    final background = scene.backgroundColor;
-    if (background == null) return transparentId;
+    if (backgroundColor == null) return transparentId;
     for (final entry in extension.registry.allColors) {
-      if (entry.color.toARGB32() == background.toARGB32()) return entry.id;
+      if (entry.color.toARGB32() == backgroundColor!.toARGB32()) {
+        return entry.id;
+      }
     }
     return themeBackgroundId;
   }
@@ -954,9 +1021,9 @@ class _PagePanel extends StatelessWidget {
             child: _DimensionField(
               key: const ValueKey('page-width-control'),
               label: 'Width',
-              value: scene.canvasSize.width.round(),
-              onChanged: (value) => scene.setCanvasSize(
-                Size(value.toDouble(), scene.canvasSize.height),
+              value: canvas.canvasSize.width.round(),
+              onChanged: (value) => onCanvasSizeChanged(
+                Size(value.toDouble(), canvas.canvasSize.height),
               ),
             ),
           ),
@@ -965,9 +1032,9 @@ class _PagePanel extends StatelessWidget {
             child: _DimensionField(
               key: const ValueKey('page-height-control'),
               label: 'Height',
-              value: scene.canvasSize.height.round(),
-              onChanged: (value) => scene.setCanvasSize(
-                Size(scene.canvasSize.width, value.toDouble()),
+              value: canvas.canvasSize.height.round(),
+              onChanged: (value) => onCanvasSizeChanged(
+                Size(canvas.canvasSize.width, value.toDouble()),
               ),
             ),
           ),
@@ -984,7 +1051,7 @@ class _PagePanel extends StatelessWidget {
             final theme = extension.registry.themes.firstWhere(
               (theme) => theme.id == id,
             );
-            scene.setTheme(id, defaultBackground: theme.previewBackgroundColor);
+            onThemeChanged(id, defaultBackground: theme.previewBackgroundColor);
           },
         ),
         format: (id) => extension.registry.themes
@@ -1004,14 +1071,14 @@ class _PagePanel extends StatelessWidget {
           onChange: (id) {
             if (id == null) return;
             if (id == transparentId) {
-              scene.setBackgroundColor(null);
+              onBackgroundChanged(null);
               return;
             }
             if (id == themeBackgroundId) {
-              scene.setBackgroundColor(selectedTheme.previewBackgroundColor);
+              onBackgroundChanged(selectedTheme.previewBackgroundColor);
               return;
             }
-            scene.setBackgroundColor(
+            onBackgroundChanged(
               extension.registry.allColors
                   .firstWhere((entry) => entry.id == id)
                   .color,
@@ -1073,7 +1140,7 @@ class _PagePanel extends StatelessWidget {
       ],
       const SizedBox(height: 18),
       Text(
-        'Exports exactly ${scene.canvasSize.width.round()} × ${scene.canvasSize.height.round()} pixels. Scene state is discarded when this workbench session ends.',
+        'Exports exactly ${canvas.canvasSize.width.round()} × ${canvas.canvasSize.height.round()} pixels. Scene state is discarded when this workbench session ends.',
         style: context.theme.typography.body.sm.copyWith(
           color: context.theme.colors.mutedForeground,
           height: 1.4,
@@ -1108,8 +1175,8 @@ class _DimensionField extends StatelessWidget {
         onChanged: (input) {
           final parsed = int.tryParse(input.trim());
           if (parsed != null &&
-              parsed >= DesyScreenshotSceneController.minimumCanvasExtent &&
-              parsed <= DesyScreenshotSceneController.maximumCanvasExtent) {
+              parsed >= _ScreenshotBuilderScreenState._minimumCanvasExtent &&
+              parsed <= _ScreenshotBuilderScreenState._maximumCanvasExtent) {
             onChanged(parsed);
           }
         },

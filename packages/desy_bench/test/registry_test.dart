@@ -99,40 +99,126 @@ void main() {
     expect(theme.id, 'sample.light');
   });
 
-  test('asset entries retain typed image, GIF, video, and audio resources', () {
-    const provider = AssetImage('assets/logo.png');
-    const image = DesyAssetEntry.image(
+  test('asset entries retain only bundled file handoff data', () {
+    const asset = DesyAssetEntry(
       id: 'asset.logo',
-      name: 'Logo',
-      image: provider,
-      semanticLabel: 'Company logo',
-    );
-    const gif = DesyAssetEntry.gif(
-      id: 'asset.loading',
-      name: 'Loading',
-      image: AssetImage('assets/loading.gif'),
-    );
-    final video = DesyAssetEntry.video(
-      id: 'asset.intro',
-      name: 'Introduction',
-      source: Uri.parse('assets/video/intro.mp4'),
-    );
-    final audio = DesyAssetEntry.audio(
-      id: 'asset.confirmation',
-      name: 'Confirmation',
-      source: Uri.parse('assets/audio/confirmation.wav'),
+      fileName: 'logo.svg',
+      assetKey: 'assets/logo.svg',
+      description: 'Use in product headers.',
     );
 
-    expect(image.image, same(provider));
-    expect(image.kind, DesyAssetKind.image);
-    expect(image.semanticLabel, 'Company logo');
-    expect(image.fit, BoxFit.contain);
-    expect(gif.kind, DesyAssetKind.gif);
-    expect(gif.image, isA<AssetImage>());
-    expect(video.kind, DesyAssetKind.video);
-    expect(video.displayValue, 'assets/video/intro.mp4');
-    expect(audio.kind, DesyAssetKind.audio);
-    expect(audio.group, 'Sounds');
+    expect(asset.id, 'asset.logo');
+    expect(asset.fileName, 'logo.svg');
+    expect(asset.assetKey, 'assets/logo.svg');
+    expect(asset.description, 'Use in product headers.');
+    expect(asset.mimeType, 'image/svg+xml');
+  });
+
+  test('system profile remains optional, immutable, and registry-linked', () {
+    final principles = <DesySystemPrinciple>[
+      const DesySystemPrinciple(
+        id: 'principle.real-widgets',
+        title: 'Real widgets',
+        guidance: 'Render production Flutter widgets.',
+      ),
+    ];
+    final links = <DesySystemLink>[
+      DesySystemLink(
+        id: 'link.docs',
+        label: 'Documentation',
+        uri: Uri.parse('https://example.com/docs'),
+        role: DesySystemLinkRole.documentation,
+      ),
+    ];
+    final profile = DesySystemProfile(
+      id: 'system.profile',
+      summary: 'One live system.',
+      purpose: 'Keep product UI coherent.',
+      heroAssetId: 'asset.hero',
+      principles: principles,
+      links: links,
+    );
+    final registry = DesyRegistry(
+      name: 'Profiled',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      systemProfile: profile,
+      assets: [
+        const DesyAssetEntry(
+          id: 'asset.hero',
+          fileName: 'hero.png',
+          assetKey: 'assets/hero.png',
+          description: 'Use in the system introduction.',
+        ),
+      ],
+    );
+
+    principles.clear();
+    links.clear();
+
+    expect(registry.systemProfile, same(profile));
+    expect(profile.principles, hasLength(1));
+    expect(profile.links, hasLength(1));
+    expect(registry.systemHeroAsset?.id, 'asset.hero');
+    expect(registry.validate(), isEmpty);
+    expect(() => profile.principles.clear(), throwsUnsupportedError);
+  });
+
+  test('assets form a typed lane from immutable bundled declarations', () {
+    const primary = DesyAssetEntry(
+      id: 'asset.logo.primary',
+      fileName: 'logo-primary.png',
+      assetKey: 'assets/logo-primary.png',
+      description: 'Use on quiet surfaces.',
+    );
+    final registry = DesyRegistry(
+      name: 'Assets',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      assets: const [primary],
+    );
+
+    expect(registry.atomKinds, [DesyAtomKind.assets]);
+    expect(registry.hasAtoms, isTrue);
+    expect(
+      registry.entriesForAtom(DesyAtomKind.assets).single.path,
+      'Atoms / Assets',
+    );
+    expect(registry.resolve(primary.id)?.atomKind, DesyAtomKind.assets);
+    expect(registry.asset(primary.id), same(primary));
+    expect(primary.mimeType, 'image/png');
+    expect(registry.validate(), isEmpty);
+  });
+
+  test('profile and asset relationships report missing references', () {
+    final registry = DesyRegistry(
+      name: 'Missing asset links',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      systemProfile: DesySystemProfile(
+        id: 'profile',
+        heroAssetId: 'asset.missing-hero',
+      ),
+    );
+
+    expect(
+      registry.validate().map((issue) => (issue.id, issue.severity)),
+      contains(('asset.missing-hero', DesyRegistryValidationSeverity.warning)),
+    );
+  });
+
+  test('assets infer standard image download MIME types', () {
+    const png = DesyAssetEntry(
+      id: 'asset.png',
+      fileName: 'sample.png',
+      assetKey: 'assets/sample.png',
+      description: 'Sample.',
+    );
+    const jpeg = DesyAssetEntry(
+      id: 'asset.jpeg',
+      fileName: 'sample.jpeg',
+      assetKey: 'assets/sample.jpeg',
+      description: 'Sample.',
+    );
+    expect(png.mimeType, 'image/png');
+    expect(jpeg.mimeType, 'image/jpeg');
   });
 
   testWidgets('icon entries resolve through the built-in Icons lane', (
@@ -887,13 +973,12 @@ void main() {
     );
   });
 
-  test('experimental catalogue export is derived without widget builders', () {
+  test('registry snapshot is derived without widget builders', () {
     final registry = DesyRegistry(
       name: 'Exported system',
-      catalogConfig: const DesyCatalogConfig(
+      identity: const DesyRegistryIdentity(
         id: 'example.design-system',
         version: '1.0.0',
-        description: 'Example agent catalogue.',
       ),
       themes: [
         DesyTheme(id: 'light', name: 'Light', wrap: (_, child) => child),
@@ -949,15 +1034,15 @@ void main() {
       ],
     );
 
-    final export = DesyCatalogueExport(registry).toJson();
+    final export = DesyRegistrySnapshot(registry).toJson();
     final components = export['components']! as List<Object?>;
     final component = components.single! as Map<String, Object?>;
 
-    expect(export['schemaVersion'], '0.2-experimental');
-    expect(export['catalog'], {
+    expect(export['schemaVersion'], 'desy-registry-snapshot/0.1');
+    expect(export['registry'], {
       'id': 'example.design-system',
       'version': '1.0.0',
-      'description': 'Example agent catalogue.',
+      'name': 'Exported system',
     });
     final primitives = export['primitives']! as Map<String, Object?>;
     expect(primitives['icons'], [
@@ -1009,44 +1094,44 @@ void main() {
     expect(() => jsonEncode(export), returnsNormally);
   });
 
-  test('catalogue export is opt-in and honors component policy', () {
-    final themes = const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)];
-    final disabled = DesyRegistry(name: 'Local only', themes: themes);
+  test(
+    'portable registry snapshot requires identity and includes every component',
+    () {
+      final themes = const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)];
+      final disabled = DesyRegistry(name: 'Local only', themes: themes);
 
-    expect(DesyCatalogueExport(disabled).isEnabled, isFalse);
-    expect(
-      () => DesyCatalogueExport(disabled).toJson(),
-      throwsA(isA<StateError>()),
-    );
+      expect(
+        () => DesyRegistrySnapshot(disabled).toJson(),
+        throwsA(isA<StateError>()),
+      );
 
-    final enabled = DesyRegistry(
-      name: 'Agent ready',
-      themes: themes,
-      catalogConfig: const DesyCatalogConfig(id: 'agent-ready', version: '1'),
-      components: [
-        DesyStaticComponent(
-          id: 'visible',
-          name: 'Visible',
-          instances: {'default': (_) => const SizedBox()},
-        ),
-        DesyStaticComponent(
-          id: 'internal',
-          name: 'Internal',
-          catalogConfig: const DesyComponentCatalogConfig(include: false),
-          instances: {'default': (_) => const SizedBox()},
-        ),
-      ],
-    );
+      final enabled = DesyRegistry(
+        name: 'Agent ready',
+        themes: themes,
+        identity: const DesyRegistryIdentity(id: 'agent-ready', version: '1'),
+        components: [
+          DesyStaticComponent(
+            id: 'visible',
+            name: 'Visible',
+            instances: {'default': (_) => const SizedBox()},
+          ),
+          DesyStaticComponent(
+            id: 'internal',
+            name: 'Internal',
+            instances: {'default': (_) => const SizedBox()},
+          ),
+        ],
+      );
 
-    final components =
-        DesyCatalogueExport(enabled).toJson()['components']! as List<Object?>;
-    expect(enabled.catalogComponents.map((component) => component.id), [
-      'visible',
-    ]);
-    expect(components.map((item) => (item! as Map<String, Object?>)['id']), [
-      'visible',
-    ]);
-  });
+      final components =
+          DesyRegistrySnapshot(enabled).toJson()['components']!
+              as List<Object?>;
+      expect(components.map((item) => (item! as Map<String, Object?>)['id']), [
+        'visible',
+        'internal',
+      ]);
+    },
+  );
 
   testWidgets('multi-instance knobs resolve real widgets in selected order', (
     tester,

@@ -96,6 +96,18 @@ void dispose() {
 }
 ```
 
+For host UI that starts from application data, let the controller create and
+place the canvas object:
+
+```dart
+controller.addObjectData(
+  id: 'hero',
+  data: ImageElement(bytes),
+  size: const Size(360, 240),
+  center: dropPointInCanvasCoordinates,
+);
+```
+
 Render the finite canvas. The builder receives the typed object and its current
 preview geometry:
 

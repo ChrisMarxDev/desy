@@ -59,7 +59,6 @@ void main() {
       find.byKey(const ValueKey('screenshot-layer-inspector-content')),
       findsOneWidget,
     );
-    expect(find.byKey(const ValueKey('widget-scale-control')), findsOneWidget);
     expect(find.text('Label'), findsWidgets);
     expect(find.byKey(const ValueKey('layer-forward')), findsOneWidget);
     expect(find.byKey(const ValueKey('layer-hide')), findsOneWidget);

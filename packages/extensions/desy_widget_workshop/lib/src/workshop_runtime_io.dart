@@ -218,9 +218,12 @@ class _IoWorkshopRuntime extends DesyWorkshopRuntime {
     final workbenchAnnotationContext = agentBrief.annotations.isEmpty
         ? 'The user did not commit any global workbench annotations.'
         : [
-            'The user committed these global workbench annotations:',
-            for (final annotation in agentBrief.annotations)
-              ..._workbenchAnnotationContextLines(annotation),
+            'The user committed these global workbench annotations as JSON:',
+            '```json',
+            const JsonEncoder.withIndent(
+              '  ',
+            ).convert(DesyAnnotationBatch(agentBrief.annotations).toJson()),
+            '```',
             'Apply every relevant annotation. Treat source evidence as a strong target and do not silently reinterpret an ambiguous target.',
           ].join('\n');
     return '''You are working in a Flutter repository that consumes Desy. Use the Workshop to iterate on proposals and, when requested, move the selected direction into the consumer's actual design system.
@@ -247,26 +250,6 @@ Then briefly summarize the proposals and actual design-system files that changed
     return registryId == null
         ? '  - Prototype component ${component.id}: ${component.title} — ${component.description}'
         : '  - Registry component instance: $registryId';
-  }
-
-  List<String> _workbenchAnnotationContextLines(
-    DesyWorkbenchAnnotation annotation,
-  ) {
-    final target = annotation.target;
-    return [
-      '${annotation.id}. ${annotation.comment}',
-      '   Screen: ${target.screenId}',
-      if (target.inspectionContext case final context?)
-        '   Target context: ${context.kind} ${context.artifactId}${context.label == null ? '' : ' — ${context.label}'}',
-      '   Widget: ${target.displayLabel}',
-      if (target.sourceLocation case final location?)
-        '   Source: ${location.reference}',
-      if (target.widgetKey case final key?) '   Flutter key: $key',
-      '   Attachment: ${annotation.attachment.name}',
-      '   Widget type: ${target.widgetType}',
-      '   Fallback ancestry: ${target.widgetPath}',
-      '   Fallback local bounds: left ${target.bounds.left.toStringAsFixed(1)}, top ${target.bounds.top.toStringAsFixed(1)}, width ${target.bounds.width.toStringAsFixed(1)}, height ${target.bounds.height.toStringAsFixed(1)}',
-    ];
   }
 
   void _handleCodexEvent(String line) {

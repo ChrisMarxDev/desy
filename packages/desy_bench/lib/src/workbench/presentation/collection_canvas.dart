@@ -117,7 +117,6 @@ class DesyCollectionCanvas<T> extends StatefulWidget {
     this.onItemSelected,
     this.zoomDockKeyPrefix = 'collection-canvas',
     this.initialZoom = 1,
-    this.zoomRevision = 0,
   });
 
   final DesyTheme theme;
@@ -136,7 +135,6 @@ class DesyCollectionCanvas<T> extends StatefulWidget {
   final ValueChanged<DesyCanvasSceneItem<T>>? onItemSelected;
   final String zoomDockKeyPrefix;
   final double initialZoom;
-  final int zoomRevision;
 
   @override
   State<DesyCollectionCanvas<T>> createState() =>
@@ -165,9 +163,6 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
     if (oldWidget.geometryRevision != widget.geometryRevision) {
       _geometries.clear();
     }
-    if (oldWidget.zoomRevision != widget.zoomRevision) {
-      _setZoomValue(widget.initialZoom);
-    }
     if (oldWidget.initialSelectedItemId != widget.initialSelectedItemId &&
         widget.initialSelectedItemId != null) {
       _selectedId = widget.initialSelectedItemId;
@@ -183,7 +178,7 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
   }
 
   void _handleZoomChanged() {
-    final zoom = _zoomController.value.getMaxScaleOnAxis();
+    final zoom = _zoomFromMatrix(_zoomController.value);
     if (!mounted || (zoom - _zoom).abs() < .001) return;
     setState(() => _zoom = zoom);
   }
@@ -267,6 +262,10 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
               children: [
                 Listener(
                   key: ValueKey('${widget.keyPrefix}-viewport'),
+                  // The stage can visibly overflow this viewport after a
+                  // zoom or pan. Navigation remains available over the full
+                  // viewport, not just the transformed child's layout bounds.
+                  behavior: HitTestBehavior.opaque,
                   onPointerSignal: _handlePointerSignal,
                   onPointerPanZoomStart: _handleTrackpadStart,
                   onPointerPanZoomUpdate: _handleTrackpadUpdate,
@@ -502,7 +501,7 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
   void _handleTrackpadStart(PointerPanZoomStartEvent event) {
     _trackpadGesture = _TrackpadGesture(
       pointer: event.pointer,
-      scale: _zoomController.value.getMaxScaleOnAxis(),
+      scale: _zoomFromMatrix(_zoomController.value),
       sceneFocalPoint: _zoomController.toScene(event.localPosition),
     );
   }
@@ -538,6 +537,13 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
   }
 
   void _resetView() => _zoomController.value = Matrix4.identity();
+
+  /// Extracts the visible 2D scale. [Matrix4.getMaxScaleOnAxis] includes the
+  /// untouched Z axis, which stays at 1 and would falsely report 100%.
+  double _zoomFromMatrix(Matrix4 matrix) => math.sqrt(
+    matrix.storage[0] * matrix.storage[0] +
+        matrix.storage[1] * matrix.storage[1],
+  );
 
   Size _canvasSize(BoxConstraints constraints) {
     var width = constraints.maxWidth + _canvasEdgePadding * 2;

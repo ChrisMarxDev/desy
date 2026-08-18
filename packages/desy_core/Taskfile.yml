@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  analyze:
+    desc: Analyze the reusable Desy core package.
+    cmds:
+      - flutter analyze
+
+  test:
+    desc: Run Desy core package tests.
+    cmds:
+      - flutter test
+
+  format:
+    desc: Format Desy core source and tests.
+    cmds:
+      - dart format lib test

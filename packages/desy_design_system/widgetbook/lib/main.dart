@@ -581,10 +581,6 @@ WidgetbookFolder _surfacesDirectory() => WidgetbookFolder(
         WidgetbookUseCase(
           name: 'playground',
           builder: (context) {
-            final path = context.knobs.string(
-              label: 'Path',
-              initialValue: 'Actions',
-            );
             final identifier = context.knobs.string(
               label: 'Identifier',
               initialValue: 'desy.component.button',
@@ -601,7 +597,6 @@ WidgetbookFolder _surfacesDirectory() => WidgetbookFolder(
               width: 300,
               height: 250,
               child: DesyCatalogueCard(
-                path: path,
                 identifier: identifier,
                 preview: Center(
                   child: showAction

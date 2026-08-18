@@ -109,7 +109,7 @@ void main() {
     expect(value, 'Components');
   });
 
-  testWidgets('native text field owns the shared bordered field chrome', (
+  testWidgets('native text field owns its shared bordered field chrome', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -121,12 +121,22 @@ void main() {
       ),
     );
 
-    final container = tester.widget<AnimatedContainer>(
-      find.byType(AnimatedContainer),
+    final decoration = tester
+        .widget<TextField>(find.byType(TextField))
+        .decoration!;
+    final enabledBorder = decoration.enabledBorder! as OutlineInputBorder;
+    final focusedBorder = decoration.focusedBorder! as OutlineInputBorder;
+    final errorBorder = decoration.errorBorder! as OutlineInputBorder;
+
+    expect(decoration.fillColor, DesyVisualColors.light.panel);
+    expect(enabledBorder.borderSide.color, DesyVisualColors.light.divider);
+    expect(focusedBorder.borderSide.color, DesyVisualColors.light.signal);
+    expect(
+      errorBorder.borderSide.color,
+      DesyDesignSystemFoundation.themeData(
+        DesyDesignSystemTheme.light,
+      ).colors.destructive,
     );
-    final decoration = container.decoration! as BoxDecoration;
-    expect(decoration.color, DesyVisualColors.light.panel);
-    expect(decoration.border, isNotNull);
     expect(
       tester.widget<TextField>(find.byType(TextField)).textAlignVertical,
       TextAlignVertical.center,
@@ -150,7 +160,7 @@ void main() {
         ),
       );
 
-      final chrome = find.byType(AnimatedContainer);
+      final chrome = find.byType(InputDecorator);
       final beforeFocus = tester.getSize(chrome);
       expect(
         tester.getCenter(find.text('Search')).dy,
@@ -162,6 +172,22 @@ void main() {
       expect(tester.getSize(chrome), beforeFocus);
     },
   );
+
+  testWidgets('text fields can center their empty-state hint', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: DesyTextField(hintText: 'Search', textAlign: TextAlign.center),
+        ),
+      ),
+    );
+
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).textAlign,
+      TextAlign.center,
+    );
+  });
 
   testWidgets('agent chat uses Desy message roles and submits native text', (
     tester,
@@ -596,7 +622,7 @@ void main() {
   });
 
   testWidgets(
-    'catalogue card closes the preview bay with muted path metadata',
+    'catalogue card gives the preview bay full height above its identifier',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -607,7 +633,6 @@ void main() {
                 width: 280,
                 height: 236,
                 child: DesyCatalogueCard(
-                  path: 'Actions',
                   identifier: 'desy.component.button',
                   preview: Center(child: Text('Preview')),
                 ),
@@ -617,14 +642,9 @@ void main() {
         ),
       );
 
-      final path = tester.widget<SelectableText>(
-        find.byKey(const ValueKey('desy-catalogue-card-path')),
-      );
       expect(
-        path.style?.color,
-        DesyDesignSystemFoundation.themeData(
-          DesyDesignSystemTheme.light,
-        ).colors.mutedForeground,
+        find.byKey(const ValueKey('desy-catalogue-card-path')),
+        findsNothing,
       );
       expect(
         tester
@@ -843,6 +863,11 @@ void main() {
         Tristate.isTrue,
       );
       expect(find.byIcon(DesyIcons.chevronDown), findsOneWidget);
+      expect(
+        tester.getCenter(toggle).dx,
+        greaterThan(tester.getCenter(find.text('Atoms')).dx),
+        reason: 'section disclosures share the trailing edge with tree nodes',
+      );
 
       await tester.tap(toggle);
       await tester.pumpAndSettle();

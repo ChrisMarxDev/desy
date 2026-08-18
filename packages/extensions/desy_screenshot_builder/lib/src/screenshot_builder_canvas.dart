@@ -3,7 +3,8 @@ part of 'screenshot_builder_extension.dart';
 class _CanvasViewport extends StatelessWidget {
   const _CanvasViewport({
     super.key,
-    required this.scene,
+    required this.canvas,
+    required this.backgroundColor,
     required this.extension,
     required this.selectedTheme,
     required this.dropActive,
@@ -14,7 +15,8 @@ class _CanvasViewport extends StatelessWidget {
     required this.onZoomOut,
   });
 
-  final DesyScreenshotSceneController scene;
+  final ObjectCanvasController<DesyScreenshotLayer> canvas;
+  final Color? backgroundColor;
   final DesyWorkspaceExtensionContext extension;
   final DesyTheme selectedTheme;
   final bool dropActive;
@@ -41,57 +43,50 @@ class _CanvasViewport extends StatelessWidget {
                       : viewportSize.center(Offset.zero);
                   onAcceptPalette(
                     details.data,
-                    scene.canvas.viewportController.toScene(viewportPosition),
+                    canvas.viewportController.toScene(viewportPosition),
                   );
                 },
                 builder: (context, candidates, rejected) => Stack(
                   children: [
                     Positioned.fill(
-                      child: selectedTheme.wrap(
-                        context,
-                        ObjectCanvas<DesyScreenshotLayer>(
-                          key: const ValueKey('screenshot-object-canvas'),
-                          controller: scene.canvas,
-                          minScale: .1,
-                          maxScale: 4,
-                          viewportBoundaryMargin: const EdgeInsets.all(2400),
-                          style: ObjectCanvasStyle(
-                            viewportColor: context.theme.colors.desy.canvas,
-                            canvasColor:
-                                scene.backgroundColor ?? Colors.transparent,
-                            selectionColor: context.theme.colors.desy.signal,
-                            guideColor: context.theme.colors.desy.signal,
-                            marqueeFillColor: context
-                                .theme
-                                .colors
-                                .desy
-                                .signalSurface
-                                .withValues(alpha: .24),
-                            marqueeStrokeColor:
-                                context.theme.colors.desy.signal,
-                          ),
-                          underlayBuilder: scene.backgroundColor == null
-                              ? (context, controller) =>
-                                    const _TransparentGrid()
-                              : null,
-                          overlayBuilder: (context, controller) =>
-                              IgnorePointer(
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: context.theme.colors.desy.divider,
-                                    ),
-                                  ),
-                                ),
+                      child: ObjectCanvas<DesyScreenshotLayer>(
+                        key: const ValueKey('screenshot-object-canvas'),
+                        controller: canvas,
+                        minScale: .1,
+                        maxScale: 4,
+                        viewportBoundaryMargin: const EdgeInsets.all(2400),
+                        style: ObjectCanvasStyle(
+                          viewportColor: context.theme.colors.desy.canvas,
+                          canvasColor: backgroundColor ?? Colors.transparent,
+                          selectionColor: context.theme.colors.desy.signal,
+                          guideColor: context.theme.colors.desy.signal,
+                          marqueeFillColor: context
+                              .theme
+                              .colors
+                              .desy
+                              .signalSurface
+                              .withValues(alpha: .24),
+                          marqueeStrokeColor: context.theme.colors.desy.signal,
+                        ),
+                        underlayBuilder: backgroundColor == null
+                            ? (context, controller) => const _TransparentGrid()
+                            : null,
+                        overlayBuilder: (context, controller) => IgnorePointer(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: context.theme.colors.desy.divider,
                               ),
-                          objectVisibility: (object) => !object.data.hidden,
-                          semanticLabelBuilder: (object) => object.data.name,
-                          objectBuilder: (context, object) => IgnorePointer(
-                            child: _ScreenshotLayerContent(
-                              object: object,
-                              registry: extension.registry,
-                              scene: scene,
                             ),
+                          ),
+                        ),
+                        objectVisibility: (object) => !object.data.hidden,
+                        semanticLabelBuilder: (object) => object.data.name,
+                        objectBuilder: (context, object) => IgnorePointer(
+                          child: _ScreenshotLayerContent(
+                            object: object,
+                            registry: extension.registry,
+                            selectedTheme: selectedTheme,
                           ),
                         ),
                       ),
@@ -120,7 +115,7 @@ class _CanvasViewport extends StatelessWidget {
             top: 16,
             right: 16,
             child: _CanvasToolbar(
-              transform: scene.canvas.viewportController,
+              transform: canvas.viewportController,
               onFit: onFit,
               onZoomIn: onZoomIn,
               onZoomOut: onZoomOut,
@@ -245,12 +240,12 @@ class _ScreenshotLayerContent extends StatelessWidget {
   const _ScreenshotLayerContent({
     required this.object,
     required this.registry,
-    required this.scene,
+    required this.selectedTheme,
   });
 
   final CanvasObject<DesyScreenshotLayer> object;
   final DesyRegistry registry;
-  final DesyScreenshotSceneController scene;
+  final DesyTheme selectedTheme;
 
   DesyScreenshotLayer get layer => object.data;
 
@@ -278,29 +273,15 @@ class _ScreenshotLayerContent extends StatelessWidget {
     if (instance == null) {
       return Center(child: Text('Missing ${widgetLayer.instanceId}'));
     }
-    Widget buildRealWidget() => Builder(
-      builder: (context) => instance.component.buildWithValues(
-        context,
-        widgetLayer.knobValues,
-        widgets: registry.widgetBuilder,
-      ),
-    );
-    if (widgetLayer.awaitingNaturalSize) {
-      return OverflowBox(
-        alignment: Alignment.topLeft,
-        minWidth: 0,
-        minHeight: 0,
-        maxWidth: double.infinity,
-        maxHeight: double.infinity,
-        child: _MeasureSize(
-          onChange: (size) => scene.setNaturalWidgetSize(widgetLayer.id, size),
-          child: buildRealWidget(),
+    return selectedTheme.wrap(
+      context,
+      Builder(
+        builder: (context) => instance.component.buildWithValues(
+          context,
+          widgetLayer.knobValues,
+          widgets: registry.widgetBuilder,
         ),
-      );
-    }
-    return SizedBox.fromSize(
-      size: object.geometry.size,
-      child: buildRealWidget(),
+      ),
     );
   }
 
@@ -313,9 +294,14 @@ class _ScreenshotLayerContent extends StatelessWidget {
     for (final entry in registry.allColors) {
       if (entry.id == textLayer.colorId) color = entry;
     }
-    final text =
-        typography?.builder(context, textLayer.text) ??
-        Text(textLayer.text, style: Theme.of(context).textTheme.bodyMedium);
+    final text = selectedTheme.wrap(
+      context,
+      Builder(
+        builder: (context) =>
+            typography?.builder(context, textLayer.text) ??
+            Text(textLayer.text, style: Theme.of(context).textTheme.bodyMedium),
+      ),
+    );
     return Align(
       alignment: Alignment.topLeft,
       child: ClipRect(
@@ -365,37 +351,4 @@ class _TransparentGridPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _TransparentGridPainter oldDelegate) =>
       oldDelegate.light != light || oldDelegate.dark != dark;
-}
-
-class _MeasureSize extends SingleChildRenderObjectWidget {
-  const _MeasureSize({required this.onChange, required super.child});
-
-  final ValueChanged<Size> onChange;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _RenderMeasureSize(onChange);
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    covariant _RenderMeasureSize renderObject,
-  ) {
-    renderObject.onChange = onChange;
-  }
-}
-
-class _RenderMeasureSize extends RenderProxyBox {
-  _RenderMeasureSize(this.onChange);
-
-  ValueChanged<Size> onChange;
-  Size? _reported;
-
-  @override
-  void performLayout() {
-    super.performLayout();
-    if (_reported == size) return;
-    _reported = size;
-    WidgetsBinding.instance.addPostFrameCallback((_) => onChange(size));
-  }
 }

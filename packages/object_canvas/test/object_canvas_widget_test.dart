@@ -94,6 +94,34 @@ void main() {
     expect(builds, {'a': 2, 'b': 2});
   });
 
+  testWidgets('changing the object builder updates rendered content', (
+    tester,
+  ) async {
+    final controller = _widgetController();
+
+    Widget host(String label) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: SizedBox(
+        width: 500,
+        height: 400,
+        child: ObjectCanvas<Widget>(
+          controller: controller,
+          objectBuilder: (context, object) => Text('$label-${object.id}'),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(host('before'));
+    expect(find.text('before-a'), findsOneWidget);
+    expect(find.text('before-b'), findsOneWidget);
+
+    await tester.pumpWidget(host('after'));
+    expect(find.text('after-a'), findsOneWidget);
+    expect(find.text('after-b'), findsOneWidget);
+    expect(find.text('before-a'), findsNothing);
+    expect(find.text('before-b'), findsNothing);
+  });
+
   testWidgets('dragging one selected object moves the complete selection', (
     tester,
   ) async {

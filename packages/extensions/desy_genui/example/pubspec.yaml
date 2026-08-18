@@ -11,8 +11,6 @@ resolution: workspace
 
 dependencies:
   a2ui_core: ^0.1.0
-  desy_bench:
-    path: ../../../desy_bench
   desy_design_system:
     path: ../../../desy_design_system
   desy_design_system_example:

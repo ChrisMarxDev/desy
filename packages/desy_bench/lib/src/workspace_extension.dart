@@ -4,7 +4,7 @@ import 'registry.dart';
 import 'workbench/workbench_annotation.dart';
 import 'workspace_focus.dart';
 
-/// An optional, typed screen mounted below Workspace in Desy Bench.
+/// An optional, typed screen exposed as a top-level destination in Desy Bench.
 ///
 /// Extensions are deliberately UI-only at this boundary. Desy owns routing and
 /// the workbench shell, while an extension supplies one screen derived from
@@ -13,7 +13,7 @@ abstract class DesyWorkspaceExtension {
   /// Creates a custom extension through a small typed declaration.
   ///
   /// [icon] is optional. When omitted, Desy uses a neutral Lucide icon in the
-  /// Workspace sidebar so an extension never needs to declare presentation
+  /// workbench sidebar so an extension never needs to declare presentation
   /// metadata merely to become navigable.
   factory DesyWorkspaceExtension.builder({
     required String id,
@@ -38,7 +38,7 @@ abstract class DesyWorkspaceExtension {
   /// Stable route-safe identifier for this extension.
   String get id;
 
-  /// Human-readable label used in Workspace navigation.
+  /// Human-readable label used in top-level workbench navigation.
   String get name;
 
   /// Optional icon used by Desy's navigation shell.

@@ -228,6 +228,42 @@ void main() {
       expect(controller.objects.map((object) => object.id), ['a', 'b']);
     });
 
+    test('addObjectData centers and clamps initial geometry', () {
+      final controller = ObjectCanvasController<String>(
+        canvasSize: const Size(200, 120),
+        defaults: const CanvasObjectDefaults(
+          constraints: CanvasObjectConstraints(minSize: Size(20, 20)),
+        ),
+      );
+
+      controller.addObjectData(
+        id: 'a',
+        data: 'payload',
+        size: const Size(60, 40),
+      );
+
+      expect(controller.requireObject('a').data, 'payload');
+      expect(
+        controller.requireObject('a').geometry.layoutBounds,
+        const Rect.fromLTWH(70, 40, 60, 40),
+      );
+      expect(controller.selectedObjectIds, {'a'});
+
+      controller.addObjectData(
+        id: 'b',
+        data: 'dropped',
+        size: const Size(500, 80),
+        center: const Offset(260, 100),
+        select: false,
+      );
+
+      expect(
+        controller.requireObject('b').geometry.layoutBounds,
+        const Rect.fromLTWH(0, 40, 200, 80),
+      );
+      expect(controller.selectedObjectIds, {'a'});
+    });
+
     test('z-order helpers preserve runs and are undoable', () {
       final controller = ObjectCanvasController<String>(
         canvasSize: const Size(800, 600),

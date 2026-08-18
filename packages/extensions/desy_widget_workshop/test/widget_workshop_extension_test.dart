@@ -89,7 +89,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byKey(const ValueKey('registry-atlas-nav')));
+    await tester.tap(find.byKey(const ValueKey('registry-home-nav')));
     await tester.pumpAndSettle();
     await tester.tap(
       find.byKey(const ValueKey('sidebar-session-widget-workshop')),

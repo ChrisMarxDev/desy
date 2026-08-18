@@ -1,25 +1,20 @@
 version: '3'
 
 tasks:
-  run:
-    desc: Open the interactive dogfood goldens prototype.
-    cmds:
-      - dart run bin/desy_goldens_prototype.dart
-
   plan:
     desc: Derive the complete dogfood golden plan without comparing images.
     cmds:
-      - dart run bin/desy_goldens_prototype.dart plan
+      - flutter test test/dogfood_goldens_test.dart --dart-define=DESY_GOLDEN_MODE=plan
 
   verify:
     desc: Verify every derived dogfood golden without mutation.
     cmds:
-      - dart run bin/desy_goldens_prototype.dart verify
+      - flutter test test/dogfood_goldens_test.dart --dart-define=DESY_GOLDEN_MODE=verify
 
   update:
     desc: Explicitly generate or update every derived dogfood baseline.
     cmds:
-      - dart run bin/desy_goldens_prototype.dart update --accept
+      - flutter test --update-goldens test/dogfood_goldens_test.dart --dart-define=DESY_GOLDEN_MODE=update
 
   analyze:
     desc: Analyze the isolated dogfood goldens prototype.
@@ -29,4 +24,4 @@ tasks:
   format:
     desc: Format the isolated dogfood goldens prototype.
     cmds:
-      - dart format bin lib test
+      - dart format lib test

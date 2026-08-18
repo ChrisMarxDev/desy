@@ -10,13 +10,9 @@ class DesyCatalogueCard extends StatelessWidget {
   /// Creates a catalogue card.
   const DesyCatalogueCard({
     super.key,
-    required this.path,
     required this.identifier,
     required this.preview,
   });
-
-  /// The concise registry path shown as low-emphasis orientation metadata.
-  final String path;
 
   /// The stable registry identity shown below the preview region.
   final String identifier;
@@ -39,23 +35,9 @@ class DesyCatalogueCard extends StatelessWidget {
                 DesyDesignSystemTokens.spaceMd,
                 DesyDesignSystemTokens.spaceMd,
                 DesyDesignSystemTokens.spaceMd,
-                DesyDesignSystemTokens.spaceSm,
+                DesyDesignSystemTokens.spaceMd,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SelectableText(
-                    path,
-                    key: const ValueKey('desy-catalogue-card-path'),
-                    style: typeface.xs2.copyWith(
-                      color: colors.mutedForeground,
-                      letterSpacing: .4,
-                    ),
-                  ),
-                  const SizedBox(height: DesyDesignSystemTokens.spaceSm),
-                  Expanded(child: preview),
-                ],
-              ),
+              child: preview,
             ),
           ),
           ColoredBox(

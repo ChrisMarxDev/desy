@@ -1,6 +1,9 @@
 version: '3'
 
 includes:
+  core:
+    taskfile: ./packages/desy_core/Taskfile.yml
+    dir: ./packages/desy_core
   object_canvas:
     taskfile: ./packages/object_canvas/Taskfile.yml
     dir: ./packages/object_canvas
@@ -10,15 +13,9 @@ includes:
   bench:
     taskfile: ./packages/desy_bench/Taskfile.yml
     dir: ./packages/desy_bench
-  ide:
-    taskfile: ./packages/desy_ide/Taskfile.yml
-    dir: ./packages/desy_ide
-  overlay:
-    taskfile: ./packages/desy_overlay/Taskfile.yml
-    dir: ./packages/desy_overlay
-  agent_annotations:
-    taskfile: ./packages/extensions/desy_agent_annotations/Taskfile.yml
-    dir: ./packages/extensions/desy_agent_annotations
+  brand_guide:
+    taskfile: ./packages/extensions/desy_brand_guide/Taskfile.yml
+    dir: ./packages/extensions/desy_brand_guide
   design_system:
     taskfile: ./packages/desy_design_system/Taskfile.yml
     dir: ./packages/desy_design_system
@@ -69,12 +66,12 @@ tasks:
     cmds:
       - task: object_canvas:test
       - task: object_canvas_example:test
+      - task: core:test
       - task: bench:test
-      - task: agent_annotations:test
+      - task: brand_guide:test
       - task: design_system:test
       - task: dogfood:test
       - task: widgetbook:test
-      - task: overlay:test
       - task: screenshot_builder:test
       - task: genui:test
       - task: genui_example:test
@@ -88,7 +85,6 @@ tasks:
       - task: test
       - task: dogfood:build:web
       - task: widgetbook:build:web
-      - task: overlay:build:example:web
       - task: genui_example:build:web
       - task: object_canvas_example:build:web
 

@@ -19,7 +19,8 @@ task goldens_prototype:update
 task goldens_prototype:verify
 ```
 
-Run `task goldens_prototype:run` for the small interactive terminal shell.
+Each task invokes `flutter test` directly—the Flutter test process is the
+headless command runner because it imports and renders the real registry.
 `verify` never writes baselines. `update` is the only command that passes
 Flutter's explicit golden-update flag.
 

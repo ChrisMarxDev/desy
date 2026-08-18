@@ -157,17 +157,17 @@ printf '%s\\n' \\
       expect(submittedPrompts, contains('Theme: Light (dogfood.light)'));
       expect(
         submittedPrompts,
-        contains('The user committed these global workbench annotations'),
-      );
-      expect(submittedPrompts, contains('Make the label 10 percent larger.'));
-      expect(submittedPrompts, contains('Attachment: attached'));
-      expect(submittedPrompts, contains('lib/src/continue_button.dart:42:7'));
-      expect(
-        submittedPrompts,
         contains(
-          'Target context: Workshop candidate homepage.focused — Focused homepage',
+          'The user committed these global workbench annotations as JSON',
         ),
       );
+      expect(submittedPrompts, contains('Make the label 10 percent larger.'));
+      expect(submittedPrompts, contains('"attachment": "attached"'));
+      expect(
+        submittedPrompts,
+        contains('"path": "lib/src/continue_button.dart"'),
+      );
+      expect(submittedPrompts, contains('"id": "homepage.focused"'));
       expect(submittedPrompts, contains('it is not an edit boundary'));
       expect(submittedPrompts, contains("consumer's actual design system"));
       expect(submittedPrompts, contains('Do not infer a chosen direction'));

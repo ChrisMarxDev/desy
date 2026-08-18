@@ -36,7 +36,8 @@ void main() {
       find.byKey(const ValueKey('workbench-configuration-error')),
       findsNothing,
     );
-    expect(find.text('REGISTRY'), findsOneWidget);
+    expect(find.text('REGISTRY'), findsNothing);
+    expect(find.text('Home'), findsOneWidget);
   });
 
   testWidgets(

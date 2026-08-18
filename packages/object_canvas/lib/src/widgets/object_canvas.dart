@@ -170,7 +170,6 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
   Offset? _rotationPivot;
   double? _rotationStartAngle;
   final Map<String, _CanvasObjectItem<T>> _objectItems = {};
-  int _rendererRevision = 0;
 
   ObjectCanvasController<T> get controller => widget.controller;
 
@@ -189,14 +188,6 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
       oldWidget.controller.detachRenderBoundary(_renderBoundaryKey);
       controller.addListener(_onControllerChanged);
       controller.attachRenderBoundary(_renderBoundaryKey);
-      _rendererRevision++;
-    }
-    if (!identical(oldWidget.objectBuilder, widget.objectBuilder) ||
-        !identical(
-          oldWidget.semanticLabelBuilder,
-          widget.semanticLabelBuilder,
-        )) {
-      _rendererRevision++;
     }
   }
 
@@ -222,7 +213,8 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
     _objectItems.removeWhere((id, item) => !currentIds.contains(id));
     return _ObjectCanvasModel<T>(
       controller: controller,
-      rendererRevision: _rendererRevision,
+      objectBuilder: widget.objectBuilder,
+      semanticLabelBuilder: widget.semanticLabelBuilder,
       snapshots: snapshots,
       child: Focus(
         focusNode: _focusNode,
@@ -309,6 +301,7 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
     BuildContext context,
     _CanvasObjectSnapshot<T> snapshot,
     Widget content,
+    ObjectCanvasSemanticLabelBuilder<T>? semanticLabelBuilder,
   ) {
     final view = snapshot.object;
     final geometry = view.geometry;
@@ -325,9 +318,7 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
           ..rotateZ(geometry.rotation)
           ..scaleByDouble(geometry.scale, geometry.scale, 1, 1),
         child: Semantics(
-          label:
-              widget.semanticLabelBuilder?.call(view) ??
-              'Canvas object ${view.id}',
+          label: semanticLabelBuilder?.call(view) ?? 'Canvas object ${view.id}',
           selected: snapshot.selected,
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
@@ -1076,14 +1067,19 @@ class _CanvasObjectItem<T> extends StatelessWidget {
   final _CanvasObjectContent<T> content;
 
   @override
-  Widget build(BuildContext context) => owner._buildObject(
-    context,
-    _ObjectCanvasModel.snapshotOf<T>(
+  Widget build(BuildContext context) {
+    const aspect = _CanvasObjectAspect.wrapper;
+    final model = _ObjectCanvasModel.of<T>(
       context,
-      _CanvasObjectDependency(objectId, _CanvasObjectAspect.wrapper),
-    ),
-    content,
-  );
+      _CanvasObjectDependency(objectId, aspect),
+    );
+    return owner._buildObject(
+      context,
+      model.snapshotFor(objectId),
+      content,
+      model.semanticLabelBuilder,
+    );
+  }
 }
 
 class _CanvasObjectContent<T> extends StatelessWidget {
@@ -1094,11 +1090,11 @@ class _CanvasObjectContent<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final snapshot = _ObjectCanvasModel.snapshotOf<T>(
+    final model = _ObjectCanvasModel.of<T>(
       context,
       _CanvasObjectDependency(objectId, _CanvasObjectAspect.content),
     );
-    return owner.widget.objectBuilder(context, snapshot.object);
+    return model.objectBuilder(context, model.snapshotFor(objectId).object);
   }
 }
 
@@ -1123,16 +1119,18 @@ class _CanvasObjectDependency {
 class _ObjectCanvasModel<T> extends InheritedModel<_CanvasObjectDependency> {
   const _ObjectCanvasModel({
     required this.controller,
-    required this.rendererRevision,
+    required this.objectBuilder,
+    required this.semanticLabelBuilder,
     required this.snapshots,
     required super.child,
   });
 
   final ObjectCanvasController<T> controller;
-  final int rendererRevision;
+  final ObjectCanvasObjectBuilder<T> objectBuilder;
+  final ObjectCanvasSemanticLabelBuilder<T>? semanticLabelBuilder;
   final Map<String, _CanvasObjectSnapshot<T>> snapshots;
 
-  static _CanvasObjectSnapshot<S> snapshotOf<S>(
+  static _ObjectCanvasModel<S> of<S>(
     BuildContext context,
     _CanvasObjectDependency dependency,
   ) {
@@ -1141,15 +1139,20 @@ class _ObjectCanvasModel<T> extends InheritedModel<_CanvasObjectDependency> {
       aspect: dependency,
     );
     assert(model != null, 'Canvas object must be below its canvas model.');
-    final snapshot = model!.snapshots[dependency.objectId];
-    assert(snapshot != null, 'Unknown canvas object ${dependency.objectId}.');
+    return model!;
+  }
+
+  _CanvasObjectSnapshot<T> snapshotFor(String objectId) {
+    final snapshot = snapshots[objectId];
+    assert(snapshot != null, 'Unknown canvas object $objectId.');
     return snapshot!;
   }
 
   @override
   bool updateShouldNotify(_ObjectCanvasModel<T> oldWidget) {
     if (!identical(controller, oldWidget.controller) ||
-        rendererRevision != oldWidget.rendererRevision ||
+        !identical(objectBuilder, oldWidget.objectBuilder) ||
+        !identical(semanticLabelBuilder, oldWidget.semanticLabelBuilder) ||
         snapshots.length != oldWidget.snapshots.length) {
       return true;
     }
@@ -1163,11 +1166,18 @@ class _ObjectCanvasModel<T> extends InheritedModel<_CanvasObjectDependency> {
     _ObjectCanvasModel<T> oldWidget,
     Set<_CanvasObjectDependency> dependencies,
   ) {
-    if (!identical(controller, oldWidget.controller) ||
-        rendererRevision != oldWidget.rendererRevision) {
+    if (!identical(controller, oldWidget.controller)) {
       return true;
     }
     return dependencies.any((dependency) {
+      if (dependency.aspect == _CanvasObjectAspect.content &&
+          !identical(objectBuilder, oldWidget.objectBuilder)) {
+        return true;
+      }
+      if (dependency.aspect == _CanvasObjectAspect.wrapper &&
+          !identical(semanticLabelBuilder, oldWidget.semanticLabelBuilder)) {
+        return true;
+      }
       final current = snapshots[dependency.objectId];
       final previous = oldWidget.snapshots[dependency.objectId];
       return switch (dependency.aspect) {

@@ -1,6 +1,7 @@
 import 'package:desy_bench/desy_bench.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:desy_design_system_example/desy_design_system_example.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -77,10 +78,11 @@ void main() {
     await tester.pumpWidget(DesyBenchApp(registry: desyDesignSystemRegistry));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('REGISTRY'), findsOneWidget);
-    expect(find.text('All components'), findsOneWidget);
+    expect(find.text('REGISTRY'), findsNothing);
+    expect(find.text('Apps'), findsOneWidget);
+    expect(find.text('Home'), findsOneWidget);
     expect(find.text('Sketch'), findsNothing);
-    expect(find.text('Prototypes'), findsOneWidget);
+    expect(find.text('Prototypes'), findsWidgets);
     expect(find.text('JSON prototypes'), findsNothing);
     expect(
       find.byKey(const ValueKey('sidebar-section-label-Components')),
@@ -111,6 +113,75 @@ void main() {
     expect(find.text('Review sheet'), findsOneWidget);
     expect(find.text('Annotation ledger'), findsOneWidget);
     expect(find.text('Focused queue'), findsOneWidget);
+  });
+
+  testWidgets('annotation review can be cancelled with Escape', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(DesyBenchApp(registry: desyDesignSystemRegistry));
+    await tester.pumpAndSettle();
+
+    tester
+        .widget<DesySidebarItem>(
+          find.byKey(
+            const ValueKey(
+              'prototype-session-desy.prototype-session.annotation-inbox',
+            ),
+          ),
+        )
+        .onPress!
+        .call();
+    await tester.pumpAndSettle();
+
+    const dialogKey = ValueKey('annotation-review-dialog-reviewSheet');
+    expect(find.byKey(dialogKey), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('annotation-cancel-reviewSheet')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('annotation-cancel-reviewSheet')),
+        matching: find.text('Esc'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(dialogKey), findsNothing);
+  });
+
+  testWidgets('dogfood exposes its approved brand assets', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(DesyBenchApp(registry: desyDesignSystemRegistry));
+    await tester.pumpAndSettle();
+
+    tester
+        .widget<DesySidebarItem>(
+          find.byKey(ValueKey('sidebar-folder-${DesyAtomKind.assets.id}')),
+        )
+        .onPress!
+        .call();
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('assets-screen')), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey('asset-card-desy.asset.workspace.signature.primary'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('asset-card-desy.asset.workspace.system-map')),
+      findsOneWidget,
+    );
+    expect(find.text('desy-primary-mark.png'), findsOneWidget);
+    expect(find.text('Download image'), findsWidgets);
   });
 
   testWidgets('switch Atlas preview keeps its label horizontal', (
@@ -173,6 +244,7 @@ void main() {
       ),
     );
     expect(shortcutOption, findsOneWidget);
+    await tester.ensureVisible(shortcutOption);
     await tester.tap(shortcutOption);
     await tester.pumpAndSettle();
 

@@ -1,4 +1,4 @@
-import 'package:desy_bench/desy_bench.dart';
+import 'package:desy_core/desy_core.dart';
 import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
 

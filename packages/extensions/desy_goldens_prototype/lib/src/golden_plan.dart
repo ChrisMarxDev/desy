@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
-import 'package:desy_bench/desy_bench.dart';
+import 'package:desy_core/desy_core.dart';
 import 'package:flutter/widgets.dart';
 
 /// The registered form rendered by one automatically derived golden case.
@@ -208,8 +208,8 @@ final class DesyGoldenPrototypePlan {
     'schemaVersion': 'desy-goldens-prototype/0.1',
     'registry': {
       'name': registry.name,
-      'catalogId': registry.catalogConfig?.id,
-      'catalogVersion': registry.catalogConfig?.version,
+      'id': registry.identity?.id,
+      'version': registry.identity?.version,
     },
     'digest': digest,
     'caseCount': cases.length,
@@ -224,8 +224,8 @@ String _canonicalJson(
   'schemaVersion': 'desy-goldens-prototype/0.1',
   'registry': {
     'name': registry.name,
-    'catalogId': registry.catalogConfig?.id,
-    'catalogVersion': registry.catalogConfig?.version,
+    'id': registry.identity?.id,
+    'version': registry.identity?.version,
   },
   'cases': [for (final goldenCase in cases) goldenCase.toJson()],
 });

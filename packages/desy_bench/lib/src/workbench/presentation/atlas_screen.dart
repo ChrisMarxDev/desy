@@ -6,6 +6,7 @@ import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
 
 import 'motion_playback_controls.dart';
+import 'component_overview.dart';
 import '../../motion_playback.dart';
 import '../../registry.dart';
 import '../widget_preview.dart';
@@ -105,6 +106,22 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
         ? null
         : session.registry.atomKindForId(folderId!);
     final atomRoot = folderId == DesyAtomKind.rootId;
+
+    if (atomKind == null && !atomRoot) {
+      final components = folder?.allComponents ?? session.registry.components;
+      return _ComponentsAtlas(
+        title: folder?.name ?? 'Components',
+        pathPrefix: folder?.path ?? '/',
+        components: components,
+        registry: session.registry,
+        theme: theme,
+        query: query,
+        onQueryChanged: (value) => session.atlasQuery.value = value,
+        onOpen: (component) =>
+            widget.onOpen(session.registry.resolve(component.id)!),
+      );
+    }
+
     final entries = _entriesFor(folder, atomKind, atomRoot, query);
 
     if (entries.isNotEmpty &&
@@ -178,25 +195,13 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
             hintText: 'Search',
           ),
           Expanded(
-            child: folderId == null
-                ? _ComponentsAtlasSections(
-                    rootEntries: [
-                      for (final entry in entries)
-                        if (entry.folderIds.isEmpty) entry,
-                    ],
-                    sections: _componentSections(entries),
-                    theme: theme,
-                    widgets: widgets,
-                    motionPlayback: _motionPlayback,
-                    onOpen: widget.onOpen,
-                  )
-                : _AtlasEntryGrid(
-                    entries: entries,
-                    theme: theme,
-                    widgets: widgets,
-                    motionPlayback: _motionPlayback,
-                    onOpen: widget.onOpen,
-                  ),
+            child: _AtlasEntryGrid(
+              entries: entries,
+              theme: theme,
+              widgets: widgets,
+              motionPlayback: _motionPlayback,
+              onOpen: widget.onOpen,
+            ),
           ),
         ],
       ),
@@ -218,7 +223,7 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
         ? session.registry.allEntries.where(
             (entry) => entry.component != null || entry.folderIds.isEmpty,
           )
-        : _entriesInFolderTree(folder);
+        : _directEntriesInFolder(folder);
     return candidates.where((entry) {
       return (normalized.isEmpty ||
           entry.name.toLowerCase().contains(normalized) ||
@@ -244,11 +249,10 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     return null;
   }
 
-  List<DesyRegistryEntry> _entriesInFolderTree(DesyComponentGroup folder) {
-    return session.registry.allEntries
-        .where((entry) => entry.folderIds.contains(folder.path))
-        .toList(growable: false);
-  }
+  List<DesyRegistryEntry> _directEntriesInFolder(DesyComponentGroup folder) => [
+    for (final component in folder.components)
+      session.registry.resolve(component.id)!,
+  ];
 
   List<DesyRegistryEntry> _entriesForDestination(String? id) {
     if (id == null) return const [];
@@ -261,47 +265,7 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     final atomKind = session.registry.atomKindForId(id);
     if (atomKind != null) return session.registry.entriesForAtom(atomKind);
     final folder = _folderFor(id);
-    return folder == null ? const [] : _entriesInFolderTree(folder);
-  }
-
-  List<_AtlasFolderSection> _componentSections(
-    List<DesyRegistryEntry> visibleEntries,
-  ) {
-    final entriesById = {
-      for (final entry in visibleEntries)
-        if (entry.component != null) entry.id: entry,
-    };
-    final sections = <_AtlasFolderSection>[];
-    for (final group in session.registry.componentGroups) {
-      _appendVisibleSection(group, 0, entriesById, sections);
-    }
-    return sections;
-  }
-
-  void _appendVisibleSection(
-    DesyComponentGroup group,
-    int depth,
-    Map<String, DesyRegistryEntry> entriesById,
-    List<_AtlasFolderSection> sections,
-  ) {
-    final directEntries = [
-      for (final component in group.components) ?entriesById[component.id],
-    ];
-    final childSections = <_AtlasFolderSection>[];
-    for (final child in group.children) {
-      _appendVisibleSection(child, depth + 1, entriesById, childSections);
-    }
-    if (directEntries.isEmpty && childSections.isEmpty) return;
-    sections
-      ..add(
-        _AtlasFolderSection(
-          path: group.path,
-          name: group.name,
-          depth: depth,
-          entries: directEntries,
-        ),
-      )
-      ..addAll(childSections);
+    return folder == null ? const [] : _directEntriesInFolder(folder);
   }
 
   String _eyebrow(
@@ -312,9 +276,7 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
       ? 'ATOMS / ${atomKind.label.toUpperCase()}'
       : atomRoot
       ? 'ATOMS'
-      : folder == null
-      ? 'CATALOGUE'
-      : folder.name.toUpperCase();
+      : 'COMPONENTS';
 
   String _title(
     DesyComponentGroup? folder,
@@ -323,104 +285,90 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
   ) => atomKind?.label ?? (atomRoot ? 'Atoms' : folder?.name ?? 'Components');
 }
 
-class _AtlasFolderSection {
-  const _AtlasFolderSection({
-    required this.path,
-    required this.name,
-    required this.depth,
-    required this.entries,
-  });
-
-  final String path;
-  final String name;
-  final int depth;
-  final List<DesyRegistryEntry> entries;
-}
-
-class _ComponentsAtlasSections extends StatelessWidget {
-  const _ComponentsAtlasSections({
-    required this.rootEntries,
-    required this.sections,
+class _ComponentsAtlas extends StatelessWidget {
+  const _ComponentsAtlas({
+    required this.title,
+    required this.pathPrefix,
+    required this.components,
+    required this.registry,
     required this.theme,
-    required this.widgets,
-    required this.motionPlayback,
+    required this.query,
+    required this.onQueryChanged,
     required this.onOpen,
   });
 
-  final List<DesyRegistryEntry> rootEntries;
-  final List<_AtlasFolderSection> sections;
+  final String title;
+  final String pathPrefix;
+  final List<DesyRegistryComponent> components;
+  final DesyRegistry registry;
   final DesyTheme theme;
-  final DesyWidgetResolver widgets;
-  final DesyMotionPlaybackController? motionPlayback;
-  final ValueChanged<DesyRegistryEntry> onOpen;
-
-  @override
-  Widget build(BuildContext context) => CustomScrollView(
-    key: const ValueKey('atlas-component-sections'),
-    slivers: [
-      if (rootEntries.isNotEmpty)
-        _AtlasEntriesSliver(
-          entries: rootEntries,
-          theme: theme,
-          widgets: widgets,
-          motionPlayback: motionPlayback,
-          onOpen: onOpen,
-          bottomPadding: 18,
-        ),
-      for (final (index, section) in sections.indexed) ...[
-        SliverToBoxAdapter(
-          child: _AtlasFolderHeading(
-            section: section,
-            first: rootEntries.isEmpty && index == 0,
-          ),
-        ),
-        if (section.entries.isNotEmpty)
-          _AtlasEntriesSliver(
-            entries: section.entries,
-            theme: theme,
-            widgets: widgets,
-            motionPlayback: motionPlayback,
-            onOpen: onOpen,
-            bottomPadding: 6,
-          ),
-      ],
-      const SliverToBoxAdapter(child: SizedBox(height: 28)),
-    ],
-  );
-}
-
-class _AtlasFolderHeading extends StatelessWidget {
-  const _AtlasFolderHeading({required this.section, required this.first});
-
-  final _AtlasFolderSection section;
-  final bool first;
+  final String query;
+  final ValueChanged<String> onQueryChanged;
+  final ValueChanged<DesyRegistryComponent> onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final style = switch (section.depth) {
-      0 => textTheme.headlineSmall,
-      1 => textTheme.titleLarge,
-      2 => textTheme.titleMedium,
-      _ => textTheme.titleSmall,
-    };
-    final topSpacing = first
-        ? 2.0
-        : switch (section.depth) {
-            0 => 28.0,
-            1 => 20.0,
-            2 => 16.0,
-            _ => 14.0,
-          };
+    final normalized = query.trim().toLowerCase();
+    final visibleComponents = components
+        .where((component) {
+          return normalized.isEmpty ||
+              component.name.toLowerCase().contains(normalized) ||
+              component.id.toLowerCase().contains(normalized);
+        })
+        .toList(growable: false);
+
     return Padding(
-      padding: EdgeInsets.only(top: topSpacing, bottom: 10),
-      child: Semantics(
-        header: true,
-        child: Text(
-          section.name,
-          key: ValueKey('atlas-folder-heading-${section.path}'),
-          style: style,
-        ),
+      key: const ValueKey('atlas-content-padding'),
+      padding: const EdgeInsets.fromLTRB(28, 28, 28, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('COMPONENTS', style: Theme.of(context).textTheme.labelSmall),
+          const SizedBox(height: 4),
+          Text.rich(
+            key: const ValueKey('atlas-headline'),
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: title,
+                  style: Theme.of(context).textTheme.displaySmall,
+                ),
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.baseline,
+                  baseline: TextBaseline.alphabetic,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 10),
+                    child: Text(
+                      '${visibleComponents.length} entries',
+                      key: const ValueKey('atlas-entry-count'),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          DesyTextField(
+            key: const ValueKey('atlas-search'),
+            value: query,
+            onChanged: onQueryChanged,
+            hintText: 'Search',
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 20),
+              child: DesyComponentOverview(
+                components: visibleComponents,
+                registry: registry,
+                theme: theme,
+                pathPrefix: pathPrefix,
+                onOpen: onOpen,
+                emptyMessage: 'No components match this search.',
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -443,7 +391,11 @@ class _AtlasEntryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => CustomScrollView(
+    key: const ValueKey('atlas-entry-grid'),
     slivers: [
+      const SliverToBoxAdapter(
+        child: SizedBox(key: ValueKey('atlas-scroll-top-padding'), height: 20),
+      ),
       _AtlasEntriesSliver(
         entries: entries,
         theme: theme,
@@ -523,12 +475,12 @@ class _AtlasCard extends StatelessWidget {
       onTap: onOpen,
       child: GestureDetector(
         key: ValueKey('atlas-card-${entry.id}'),
-        // Selectable metadata owns pointer gestures over its text. Taps on the
-        // remaining card surface keep the established open-entry behaviour.
+        // The selectable identifier owns pointer gestures over its text. Taps
+        // on the remaining card surface keep the established open-entry
+        // behaviour.
         excludeFromSemantics: true,
         onTap: onOpen,
         child: DesyCatalogueCard(
-          path: entry.component?.path ?? entry.path,
           identifier: entry.id,
           preview: ClipRect(
             child: DesyWidgetPreview(

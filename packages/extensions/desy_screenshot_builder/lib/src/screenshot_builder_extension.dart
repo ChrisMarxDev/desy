@@ -8,12 +8,11 @@ import 'package:desy_design_system/desy_design_system.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:object_canvas/object_canvas.dart';
 
 import 'screenshot_export.dart';
-import 'screenshot_scene.dart';
 
+part 'screenshot_builder_layers.dart';
 part 'screenshot_builder_canvas.dart';
 part 'screenshot_builder_sidebar.dart';
 
@@ -59,9 +58,15 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
   static const _sidebarMaximum = 440.0;
   static const _inspectorMinimum = 340.0;
   static const _inspectorMaximum = 480.0;
+  static const _minimumCanvasExtent = 64.0;
+  static const _maximumCanvasExtent = 8192.0;
+  static const _minimumLayerExtent = 24.0;
+  static const _defaultCanvasSize = Size(1200, 630);
+  static const _defaultWidgetSize = Size(240, 120);
+  static const _defaultTextSize = Size(360, 96);
 
   final _viewportKey = GlobalKey(debugLabel: 'screenshot-canvas-viewport');
-  late final DesyScreenshotSceneController _scene;
+  late final ObjectCanvasController<DesyScreenshotLayer> _canvas;
 
   var _sidebarWidth = 360.0;
   var _inspectorWidth = 360.0;
@@ -71,45 +76,62 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
   var _exporting = false;
   var _viewportSize = Size.zero;
   var _hasInitialFit = false;
+  var _themeId = '';
+  var _nextLayer = 0;
+  Color? _backgroundColor;
   String? _status;
 
   DesyWorkspaceExtensionContext get extension => widget.extension;
 
   DesyTheme get selectedTheme {
     for (final theme in extension.registry.themes) {
-      if (theme.id == _scene.themeId) return theme;
+      if (theme.id == _themeId) return theme;
     }
     return extension.activeTheme;
   }
 
+  List<DesyScreenshotLayer> get layers => [
+    for (final object in _canvas.objects) object.data,
+  ];
+
+  DesyScreenshotLayer? get selectedLayer =>
+      _canvas.selectedObjects.firstOrNull?.data;
+
   @override
   void initState() {
     super.initState();
-    _scene = DesyScreenshotSceneController(
-      themeId: extension.activeTheme.id,
-      backgroundColor: extension.activeTheme.previewBackgroundColor,
-    )..addListener(_handleSceneChange);
+    _themeId = extension.activeTheme.id;
+    _backgroundColor = extension.activeTheme.previewBackgroundColor;
+    _canvas = ObjectCanvasController<DesyScreenshotLayer>(
+      canvasSize: _defaultCanvasSize,
+      defaults: const CanvasObjectDefaults(
+        constraints: CanvasObjectConstraints(
+          minSize: Size.square(_minimumLayerExtent),
+          maxSize: Size.square(_maximumCanvasExtent),
+        ),
+      ),
+    )..addListener(_handleCanvasChange);
     WidgetsBinding.instance.addPostFrameCallback((_) => _fitCanvas());
   }
 
   @override
   void dispose() {
-    _scene
-      ..removeListener(_handleSceneChange)
+    _canvas
+      ..removeListener(_handleCanvasChange)
       ..dispose();
     super.dispose();
   }
 
-  void _handleSceneChange() {
+  void _handleCanvasChange() {
     if (mounted) setState(() {});
   }
 
   void _addPaletteItem(_PalettePayload payload, {Offset? position}) {
     switch (payload) {
       case _WidgetPalettePayload(:final instance):
-        _scene.addWidget(instance, position: position);
+        _addWidgetLayer(instance, position: position);
       case _TextPalettePayload():
-        _scene.addText(
+        _addTextLayer(
           position: position,
           typographyId: extension.registry.allFonts.firstOrNull?.id,
           colorId: _defaultTextColorId(),
@@ -120,7 +142,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
   String? _defaultTextColorId() {
     final colors = extension.registry.allColors;
     if (colors.isEmpty) return null;
-    final background = _scene.backgroundColor ?? Colors.white;
+    final background = _backgroundColor ?? Colors.white;
     final backgroundLuminance = background.computeLuminance();
     DesyColorEntry best = colors.first;
     var bestContrast = 0.0;
@@ -198,7 +220,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
       }
       final naturalSize = await _imageSize(bytes);
       if (!mounted) return;
-      _scene.addImage(
+      _addImageLayer(
         bytes: bytes,
         name: file.name.isEmpty ? 'Image' : file.name,
         naturalSize: naturalSize,
@@ -255,7 +277,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
     });
     try {
       await WidgetsBinding.instance.endOfFrame;
-      final bytes = await _scene.canvas.renderPng();
+      final bytes = await _canvas.renderPng();
       final location = await saveDesyScreenshot(bytes);
       if (!mounted) return;
       setState(() => _status = 'Saved PNG to $location');
@@ -271,13 +293,13 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
     final renderObject = _viewportKey.currentContext?.findRenderObject();
     if (renderObject is! RenderBox) return null;
     final viewportPosition = renderObject.globalToLocal(globalPosition);
-    return _scene.canvas.viewportController.toScene(viewportPosition);
+    return _canvas.viewportController.toScene(viewportPosition);
   }
 
   void _fitCanvas() {
     if (_viewportSize.isEmpty) return;
     const inset = 56.0;
-    final canvas = _scene.canvasSize;
+    final canvas = _canvas.canvasSize;
     final scale = math
         .min(
           (_viewportSize.width - inset).clamp(1, double.infinity) /
@@ -288,7 +310,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
         .clamp(.1, 4.0);
     final horizontal = (_viewportSize.width - canvas.width * scale) / 2;
     final vertical = (_viewportSize.height - canvas.height * scale) / 2;
-    _scene.canvas.viewportController.value = Matrix4.identity()
+    _canvas.viewportController.value = Matrix4.identity()
       ..translateByDouble(horizontal, vertical, 0, 1)
       ..scaleByDouble(scale, scale, 1, 1);
     _hasInitialFit = true;
@@ -296,7 +318,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
 
   void _zoom(double factor) {
     if (_viewportSize.isEmpty) return;
-    final transform = _scene.canvas.viewportController;
+    final transform = _canvas.viewportController;
     final current = transform.value.getMaxScaleOnAxis();
     final next = (current * factor).clamp(.1, 4.0);
     final viewportCenter = _viewportSize.center(Offset.zero);
@@ -305,6 +327,179 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
       ..translateByDouble(viewportCenter.dx, viewportCenter.dy, 0, 1)
       ..scaleByDouble(next, next, 1, 1)
       ..translateByDouble(-sceneCenter.dx, -sceneCenter.dy, 0, 1);
+  }
+
+  String _addWidgetLayer(
+    DesyRegisteredComponentInstance instance, {
+    Offset? position,
+  }) {
+    final declaredSize = instance.component.defaultSize;
+    final id = _newLayerId('widget');
+    _addLayer(
+      DesyScreenshotWidgetLayer(
+        id: id,
+        name: '${instance.componentName} · ${instance.name}',
+        instanceId: instance.id,
+        knobValues: instance.component.valuesFor(instance.instanceId),
+      ),
+      size: declaredSize ?? _defaultWidgetSize,
+      position: position,
+    );
+    return id;
+  }
+
+  String _addImageLayer({
+    required Uint8List bytes,
+    required String name,
+    required Size naturalSize,
+    Offset? position,
+  }) {
+    final id = _newLayerId('image');
+    _addLayer(
+      DesyScreenshotImageLayer(id: id, name: name, bytes: bytes),
+      size: _fitInitialImageSize(naturalSize),
+      position: position,
+    );
+    return id;
+  }
+
+  String _addTextLayer({
+    String text = 'Your text',
+    String? typographyId,
+    String? colorId,
+    Offset? position,
+  }) {
+    final id = _newLayerId('text');
+    _addLayer(
+      DesyScreenshotTextLayer(
+        id: id,
+        name: 'Text',
+        text: text,
+        typographyId: typographyId,
+        colorId: colorId,
+      ),
+      size: _defaultTextSize,
+      position: position,
+    );
+    return id;
+  }
+
+  void _addLayer(
+    DesyScreenshotLayer layer, {
+    required Size size,
+    Offset? position,
+  }) {
+    _canvas.addObjectData(
+      id: layer.id,
+      data: layer,
+      size: size,
+      center: position,
+    );
+  }
+
+  void _setCanvasSize(Size size) {
+    _canvas.setCanvasSize(
+      Size(
+        size.width.clamp(_minimumCanvasExtent, _maximumCanvasExtent),
+        size.height.clamp(_minimumCanvasExtent, _maximumCanvasExtent),
+      ),
+    );
+  }
+
+  void _setTheme(String themeId, {Color? defaultBackground}) {
+    if (_themeId == themeId) return;
+    setState(() {
+      _themeId = themeId;
+      _backgroundColor = defaultBackground;
+    });
+  }
+
+  void _setBackgroundColor(Color? color) {
+    if (_backgroundColor == color) return;
+    setState(() => _backgroundColor = color);
+  }
+
+  void _setKnob(String id, String knobId, Object value) {
+    final layer = _layerById(id);
+    if (layer is! DesyScreenshotWidgetLayer) return;
+    final values = Map<String, Object>.of(layer.knobValues)..[knobId] = value;
+    _updateLayer(id, layer.copyWith(knobValues: values), label: 'Change knob');
+  }
+
+  void _setText(String id, String value) {
+    final layer = _layerById(id);
+    if (layer is! DesyScreenshotTextLayer || layer.text == value) return;
+    _updateLayer(id, layer.copyWith(text: value), label: 'Change text');
+  }
+
+  void _setTextTypography(String id, String? typographyId) {
+    final layer = _layerById(id);
+    if (layer is! DesyScreenshotTextLayer ||
+        layer.typographyId == typographyId) {
+      return;
+    }
+    _updateLayer(
+      id,
+      layer.copyWith(typographyId: typographyId),
+      label: 'Change text style',
+    );
+  }
+
+  void _setTextColor(String id, String? colorId) {
+    final layer = _layerById(id);
+    if (layer is! DesyScreenshotTextLayer || layer.colorId == colorId) return;
+    _updateLayer(
+      id,
+      layer.copyWith(colorId: colorId),
+      label: 'Change text color',
+    );
+  }
+
+  void _toggleHidden(String id) {
+    final layer = _layerById(id);
+    if (layer == null) return;
+    final nextHidden = !layer.hidden;
+    _updateLayer(id, layer.copyWith(hidden: nextHidden), label: 'Toggle layer');
+    if (nextHidden && _canvas.selectedObjectIds.contains(id)) {
+      _canvas.clearSelection();
+    }
+  }
+
+  DesyScreenshotLayer? _layerById(String id) {
+    for (final object in _canvas.objects) {
+      if (object.id == id) return object.data;
+    }
+    return null;
+  }
+
+  void _updateLayer(
+    String id,
+    DesyScreenshotLayer layer, {
+    required String label,
+  }) => _canvas.updateData([
+    CanvasDataValue(objectId: id, data: layer),
+  ], label: label);
+
+  String _newLayerId(String prefix) => '$prefix-${_nextLayer++}';
+
+  Size _fitInitialImageSize(Size naturalSize) {
+    if (naturalSize.isEmpty ||
+        !naturalSize.width.isFinite ||
+        !naturalSize.height.isFinite) {
+      return const Size(320, 240);
+    }
+    final maximum = Size(
+      _canvas.canvasSize.width * .6,
+      _canvas.canvasSize.height * .6,
+    );
+    final scale = math.min(
+      1,
+      math.min(
+        maximum.width / naturalSize.width,
+        maximum.height / naturalSize.height,
+      ),
+    );
+    return Size(naturalSize.width * scale, naturalSize.height * scale);
   }
 
   @override
@@ -316,7 +511,9 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 1120;
           final sidebar = _ScreenshotSidebar(
-            scene: _scene,
+            canvas: _canvas,
+            layers: layers,
+            backgroundColor: _backgroundColor,
             extension: extension,
             selectedTheme: selectedTheme,
             exporting: _exporting,
@@ -325,10 +522,20 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
             onAdd: _addPaletteItem,
             onPickImage: () => unawaited(_pickImage()),
             onExport: () => unawaited(_exportScreenshot()),
+            onCanvasSizeChanged: _setCanvasSize,
+            onThemeChanged: _setTheme,
+            onBackgroundChanged: _setBackgroundColor,
+            onToggleHidden: _toggleHidden,
           );
           final inspector = _ScreenshotLayerInspector(
-            scene: _scene,
+            canvas: _canvas,
+            selectedLayer: selectedLayer,
             extension: extension,
+            onSetKnob: _setKnob,
+            onSetText: _setText,
+            onSetTextTypography: _setTextTypography,
+            onSetTextColor: _setTextColor,
+            onToggleHidden: _toggleHidden,
           );
           final viewport = DropTarget(
             onDragEntered: (_) => setState(() => _dropActive = true),
@@ -336,7 +543,8 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
             onDragDone: (details) => unawaited(_handleFileDrop(details)),
             child: _CanvasViewport(
               key: _viewportKey,
-              scene: _scene,
+              canvas: _canvas,
+              backgroundColor: _backgroundColor,
               extension: extension,
               selectedTheme: selectedTheme,
               dropActive: _dropActive,
@@ -358,7 +566,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
           );
 
           if (compact) {
-            final hasSelection = _scene.selectedLayer != null;
+            final hasSelection = selectedLayer != null;
             final panelMaximum = (constraints.maxHeight * .34)
                 .clamp(180.0, 300.0)
                 .toDouble();

@@ -1,14 +1,14 @@
 import 'dart:convert';
 
 import 'package:a2ui_core/a2ui_core.dart' as a2ui;
-import 'package:desy_bench/desy_bench.dart';
+import 'package:desy_core/desy_core.dart';
 import 'package:desy_genui/desy_genui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genui/genui.dart';
 
 void main() {
-  test('compilation is opt-in and honors component catalog policy', () {
+  test('compilation requires identity and includes every component', () {
     final disabled = DesyRegistry(
       name: 'Disabled',
       themes: [_theme],
@@ -19,29 +19,32 @@ void main() {
       throwsA(isA<StateError>()),
     );
 
-    final registry = _registry(includeHidden: true);
+    final registry = _registry(includeAdditionalComponent: true);
     final compiled = DesyGenUiCatalog.compile(registry);
     expect(compiled.catalog.catalogId, 'dev.desy.test@2.0.0');
     expect(
       compiled.catalog.items.map((item) => item.name),
-      isNot(contains('test.hidden')),
+      contains('test.additional'),
     );
-    expect(compiled.catalog.systemPromptFragments, contains('Test catalog.'));
+    expect(
+      compiled.catalog.systemPromptFragments,
+      contains(
+        'Use only components declared by registry dev.desy.test. '
+        'Component IDs are surface-local. Child slots refer to those IDs.',
+      ),
+    );
   });
 
   test('compilation rejects structurally invalid or empty catalogs', () {
     final invalid = DesyRegistry(
       name: 'Invalid',
-      catalogConfig: const DesyCatalogConfig(id: '', version: '1'),
+      identity: const DesyRegistryIdentity(id: '', version: '1'),
       themes: [_theme],
       components: [_leafComponent()],
     );
     final empty = DesyRegistry(
       name: 'Empty',
-      catalogConfig: const DesyCatalogConfig(
-        id: 'dev.desy.empty',
-        version: '1',
-      ),
+      identity: const DesyRegistryIdentity(id: 'dev.desy.empty', version: '1'),
       themes: [_theme],
     );
 
@@ -244,27 +247,22 @@ const _theme = DesyTheme(id: 'light', name: 'Light', wrap: _wrapTheme);
 
 Widget _wrapTheme(BuildContext context, Widget child) => Material(child: child);
 
-DesyRegistry _registry({bool includeHidden = false}) {
+DesyRegistry _registry({bool includeAdditionalComponent = false}) {
   final leaf = _leafComponent();
   final action = _actionComponent();
   final panel = _panelComponent();
   return DesyRegistry(
     name: 'Test system',
-    catalogConfig: const DesyCatalogConfig(
-      id: 'dev.desy.test',
-      version: '2.0.0',
-      description: 'Test catalog.',
-    ),
+    identity: const DesyRegistryIdentity(id: 'dev.desy.test', version: '2.0.0'),
     themes: [_theme],
     components: [
       leaf,
       action,
       panel,
-      if (includeHidden)
+      if (includeAdditionalComponent)
         DesyStaticComponent(
-          id: 'test.hidden',
-          name: 'Hidden',
-          catalogConfig: const DesyComponentCatalogConfig(include: false),
+          id: 'test.additional',
+          name: 'Additional',
           instances: {'default': (_) => const SizedBox()},
         ),
     ],

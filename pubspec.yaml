@@ -8,15 +8,13 @@ environment:
 workspace:
   - packages/object_canvas
   - packages/object_canvas/example
+  - packages/desy_core
   - packages/desy_bench
-  - packages/desy_ide
   - packages/desy_design_system
   - packages/desy_design_system/example
   - packages/desy_design_system/widget_previewer
   - packages/desy_design_system/widgetbook
-  - packages/desy_overlay
-  - packages/desy_overlay/example
-  - packages/extensions/desy_agent_annotations
+  - packages/extensions/desy_brand_guide
   - packages/extensions/desy_screenshot_builder
   - packages/extensions/desy_genui
   - packages/extensions/desy_genui/example

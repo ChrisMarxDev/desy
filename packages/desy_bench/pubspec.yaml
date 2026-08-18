@@ -20,6 +20,8 @@ dependencies:
       url: https://github.com/ChrisMarxDev/desy.git
       path: packages/desy_design_system
       ref: main
+  desy_core:
+    path: ../desy_core
   device_preview: ^1.3.1
   file_selector: ^1.1.0
   flutter:
@@ -27,9 +29,9 @@ dependencies:
   flutter_box_transform: ^0.4.7
   go_router: ^17.3.0
   motor: ^1.1.0
-  shared_preferences: ^2.5.5
   state_beacon: ^3.1.1
   url_launcher: ^6.3.2
+  web: ^1.1.1
   window_manager: ^0.5.2
 
 dev_dependencies:

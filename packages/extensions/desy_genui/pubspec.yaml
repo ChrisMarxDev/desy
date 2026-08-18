@@ -11,8 +11,8 @@ resolution: workspace
 
 dependencies:
   crypto: ^3.0.7
-  desy_bench:
-    path: ../../desy_bench
+  desy_core:
+    path: ../../desy_core
   flutter:
     sdk: flutter
   genui: ^0.10.1

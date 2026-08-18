@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -329,6 +330,52 @@ class ObjectCanvasController<T> extends ChangeNotifier {
         ],
       ),
     );
+  }
+
+  /// Adds one application data object with canvas-owned initial placement.
+  ///
+  /// When [center] is supplied, the object is centered there in canvas
+  /// coordinates. Otherwise [position] is used as the desired top-left, falling
+  /// back to the canvas center. With [CanvasOverflow.deny], the initial bounds
+  /// are clamped inside the finite canvas.
+  void addObjectData({
+    required String id,
+    required T data,
+    required Size size,
+    Offset? position,
+    Offset? center,
+    CanvasObjectConstraints? constraints,
+    CanvasObjectCapabilities? capabilities,
+    int? atIndex,
+    bool select = true,
+  }) {
+    if (position != null && center != null) {
+      throw ArgumentError('Use either position or center, not both.');
+    }
+    final objectConstraints = constraints ?? defaults.constraints;
+    final fittedSize = _fitSizeForPlacement(
+      _constrainSize(size, objectConstraints),
+    );
+    final desiredPosition =
+        position ??
+        (center == null
+            ? Offset(
+                (_canvasSize.width - fittedSize.width) / 2,
+                (_canvasSize.height - fittedSize.height) / 2,
+              )
+            : center - fittedSize.center(Offset.zero));
+    final object = CanvasObject<T>(
+      id: id,
+      data: data,
+      geometry: CanvasObjectGeometry(
+        position: _placementPosition(desiredPosition, fittedSize),
+        size: fittedSize,
+      ),
+      constraints: constraints,
+      capabilities: capabilities,
+    );
+    addObjects([object], atIndex: atIndex);
+    if (select) setSelectedObjects([id]);
   }
 
   /// Removes [objectIds] as one undoable action.
@@ -724,18 +771,42 @@ class ObjectCanvasController<T> extends ChangeNotifier {
         'Geometry must be finite with scale > 0.',
       );
     }
-    final constrained = constraintsFor(id).constrain(value.size);
+    final constrained = _constrainSize(value.size, constraintsFor(id));
+    return value.copyWith(size: constrained);
+  }
+
+  Size _constrainSize(Size value, CanvasObjectConstraints constraints) {
+    final constrained = constraints.constrain(value);
     if (!constrained.width.isFinite ||
         !constrained.height.isFinite ||
         constrained.width <= 0 ||
         constrained.height <= 0) {
       throw ArgumentError.value(
-        value.size,
+        value,
         'geometry.size',
         'Size must be finite and positive.',
       );
     }
-    return value.copyWith(size: constrained);
+    return constrained;
+  }
+
+  Offset _placementPosition(Offset desiredPosition, Size size) {
+    if (_overflow != CanvasOverflow.deny) return desiredPosition;
+    return Offset(
+      desiredPosition.dx.clamp(0, math.max(0, _canvasSize.width - size.width)),
+      desiredPosition.dy.clamp(
+        0,
+        math.max(0, _canvasSize.height - size.height),
+      ),
+    );
+  }
+
+  Size _fitSizeForPlacement(Size size) {
+    if (_overflow != CanvasOverflow.deny) return size;
+    return Size(
+      math.min(size.width, _canvasSize.width),
+      math.min(size.height, _canvasSize.height),
+    );
   }
 
   void _validateDocument() {

@@ -6,6 +6,7 @@
 /// A component group remains a query value because the route must be nestable.
 /// Its value is the canonical component path, never its derived display label.
 abstract final class DesyWorkbenchRoutes {
+  static const homePath = '/home';
   static const atlasPath = '/atlas';
   static const canvasPath = '/canvas';
   static const sketchSegment = 'sketch';

@@ -48,11 +48,11 @@
     <section class="grid">
       <article class="card third">
         <h2>1. Catalog identity</h2>
-        <p>Add an optional registry-level <code>DesyCatalogConfig</code> containing a stable catalog ID, version, and optional description. Without it, Desy behaves exactly as it does today and exposes no catalog-generation surface.</p>
+        <p>Add optional registry-level <code>DesyRegistryIdentity</code> containing a stable registry ID and version. It names the one consumer registry for portable artifacts; without it, Desy remains a local-only workbench. A GenUI compiler requires this identity but does not create another catalogue declaration.</p>
       </article>
       <article class="card third">
         <h2>2. Derived components</h2>
-        <p>Include every representable registered component by default. Add optional component-level <code>DesyComponentCatalogConfig</code> only for exclusion, model-facing guidance, or future event overrides. Do not require repeated opt-in boilerplate.</p>
+        <p>Include every representable registered component. Use the ordinary component description as agent guidance. V1 has no component exclusion, alternate catalogue, or component-level agent declaration; the one registry is the full capability inventory.</p>
       </article>
       <article class="card third">
         <h2>3. Existing knobs</h2>
@@ -90,10 +90,9 @@
         <h2>Potential authoring shape</h2>
         <pre><code>final registry = DesyRegistry(
   name: 'Acme Design System',
-  catalogConfig: const DesyCatalogConfig(
-    id: 'https://design.acme.dev/a2ui/catalogs/acme/v1',
+  identity: const DesyRegistryIdentity(
+    id: 'acme.design-system',
     version: '1.0.0',
-    description: 'Trusted components available to Acme UI agents.',
   ),
   themes: [...],
   components: [
@@ -101,7 +100,6 @@
       id: 'acme.card',
       name: 'Card',
       description: 'Groups related content and actions.',
-      catalogConfig: const DesyComponentCatalogConfig(),
       knobs: (knobs) =&gt; (
         title: knobs.string(
           'title',
@@ -133,33 +131,25 @@
 
     <section class="grid">
       <article class="card">
-        <h2>Registry-level config</h2>
-        <pre><code>final class DesyCatalogConfig {
-  const DesyCatalogConfig({
+        <h2>Registry identity</h2>
+        <pre><code>final class DesyRegistryIdentity {
+  const DesyRegistryIdentity({
     required this.id,
     required this.version,
-    this.description,
   });
 
   final String id;
   final String version;
-  final String? description;
 }</code></pre>
-        <p>The protocol adapter may add a pinned A2UI version and fingerprint to its generated lock artifact. Those are export concerns and do not need to widen the base registry config initially.</p>
+        <p>This identifies the registry, not an agent-specific subset of it. The adapter may add a pinned A2UI version and fingerprint to its generated lock artifact. Those are export concerns and do not widen the registry declaration.</p>
       </article>
 
       <article class="card">
-        <h2>Component-level config</h2>
-        <pre><code>final class DesyComponentCatalogConfig {
-  const DesyComponentCatalogConfig({
-    this.include = true,
-    this.description,
-  });
-
-  final bool include;
-  final String? description;
-}</code></pre>
-        <p>Normal component description remains the default. The component config exists for the exceptions Desy cannot derive and should stay smaller than the component declaration it qualifies.</p>
+        <h2>One component inventory</h2>
+        <pre><code>DesyGenUiCatalog.compile(registry);
+// Compiles every registered component.
+// Desy declares no second agent-facing component list.</code></pre>
+        <p>Normal component descriptions remain the agent guidance and every registered component is included. If a future deployment needs to redact a capability, that belongs to a delivery boundary outside Desy and must never become a second registry or component declaration.</p>
       </article>
     </section>
 
@@ -387,7 +377,7 @@ onSubmitted: (text) =&gt; submitted.emit({'text': text});</code></pre>
   agent: GenUiAgentTarget(
     gateway: Uri.parse('https://api.acme.dev/agents'),
     agentId: 'support',
-    expectedCatalogId: registry.catalogConfig!.id,
+    expectedCatalogId: registry.identity!.id,
   ),
 );
 

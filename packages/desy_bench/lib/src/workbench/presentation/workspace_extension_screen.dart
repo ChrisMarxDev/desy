@@ -42,7 +42,7 @@ class DesyWorkspaceExtensionScreen extends StatelessWidget {
         workbenchAnnotations: annotations,
         pendingAgentRequest: pendingRequest,
         onPendingAgentRequestConsumed: session.consumePendingAgentRequest,
-        onExit: () => context.go(DesyWorkbenchRoutes.atlasPath),
+        onExit: () => context.go(DesyWorkbenchRoutes.homePath),
       ),
     );
   }

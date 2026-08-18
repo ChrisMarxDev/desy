@@ -371,6 +371,71 @@ void main() {
     );
   });
 
+  testWidgets('trackpad panning preserves the current canvas zoom', (
+    tester,
+  ) async {
+    const frameKey = ValueKey('persistent-zoom-frame');
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 640,
+          height: 480,
+          child: DesyCollectionCanvas<String>(
+            theme: theme,
+            title: 'Canvas',
+            keyPrefix: 'persistent-zoom',
+            zoomDockKeyPrefix: 'persistent-zoom',
+            detailsBuilder: (_, _) => const SizedBox.shrink(),
+            items: [
+              DesyCanvasSceneItem(
+                id: 'item',
+                name: 'Item',
+                value: 'item',
+                frameKey: frameKey,
+                previewBuilder: (_, _) => const ColoredBox(color: Colors.red),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final zoomOut = find.byKey(const ValueKey('persistent-zoom-zoom-out'));
+    final zoomLevel = find.byKey(const ValueKey('persistent-zoom-zoom-level'));
+    const zoomLabels = [
+      'Zoom 85 percent',
+      'Zoom 70 percent',
+      'Zoom 55 percent',
+      'Zoom 50 percent',
+    ];
+    for (final label in zoomLabels) {
+      await tester.tap(zoomOut);
+      await tester.pumpAndSettle();
+      expect(tester.widget<Semantics>(zoomLevel).properties.label, label);
+    }
+    expect(
+      tester.widget<Semantics>(zoomLevel).properties.label,
+      'Zoom 50 percent',
+    );
+
+    final trackpad = await tester.createGesture(
+      kind: PointerDeviceKind.trackpad,
+    );
+    final beforePan = tester.getTopLeft(find.byKey(frameKey));
+    const focalPoint = Offset(360, 300);
+    await trackpad.panZoomStart(focalPoint);
+    await trackpad.panZoomUpdate(focalPoint, pan: const Offset(56, 20));
+    await trackpad.up();
+    await tester.pump();
+
+    expect(tester.getTopLeft(find.byKey(frameKey)), isNot(beforePan));
+
+    expect(
+      tester.widget<Semantics>(zoomLevel).properties.label,
+      'Zoom 50 percent',
+    );
+  });
+
   testWidgets('collection canvas pans only when a mouse drag starts blank', (
     tester,
   ) async {

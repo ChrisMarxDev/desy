@@ -1,0 +1,109 @@
+part of 'screenshot_builder_extension.dart';
+
+// ignore_for_file: public_member_api_docs
+
+const _unchanged = Object();
+
+abstract class DesyScreenshotLayer {
+  DesyScreenshotLayer({
+    required this.id,
+    required this.name,
+    this.hidden = false,
+  });
+
+  final String id;
+  final String name;
+  final bool hidden;
+
+  String get kindLabel;
+
+  DesyScreenshotLayer copyWith({String? name, bool? hidden});
+}
+
+final class DesyScreenshotWidgetLayer extends DesyScreenshotLayer {
+  DesyScreenshotWidgetLayer({
+    required super.id,
+    required super.name,
+    required this.instanceId,
+    required Map<String, Object> knobValues,
+    super.hidden,
+  }) : knobValues = Map.unmodifiable(knobValues);
+
+  final String instanceId;
+  final Map<String, Object> knobValues;
+
+  @override
+  String get kindLabel => 'Widget';
+
+  @override
+  DesyScreenshotWidgetLayer copyWith({
+    String? name,
+    bool? hidden,
+    Map<String, Object>? knobValues,
+  }) => DesyScreenshotWidgetLayer(
+    id: id,
+    name: name ?? this.name,
+    instanceId: instanceId,
+    knobValues: knobValues ?? this.knobValues,
+    hidden: hidden ?? this.hidden,
+  );
+}
+
+final class DesyScreenshotImageLayer extends DesyScreenshotLayer {
+  DesyScreenshotImageLayer({
+    required super.id,
+    required super.name,
+    required this.bytes,
+    super.hidden,
+  });
+
+  final Uint8List bytes;
+
+  @override
+  String get kindLabel => 'Image';
+
+  @override
+  DesyScreenshotImageLayer copyWith({String? name, bool? hidden}) =>
+      DesyScreenshotImageLayer(
+        id: id,
+        name: name ?? this.name,
+        bytes: bytes,
+        hidden: hidden ?? this.hidden,
+      );
+}
+
+final class DesyScreenshotTextLayer extends DesyScreenshotLayer {
+  DesyScreenshotTextLayer({
+    required super.id,
+    required super.name,
+    required this.text,
+    this.typographyId,
+    this.colorId,
+    super.hidden,
+  });
+
+  final String text;
+  final String? typographyId;
+  final String? colorId;
+
+  @override
+  String get kindLabel => 'Text';
+
+  @override
+  DesyScreenshotTextLayer copyWith({
+    String? name,
+    bool? hidden,
+    String? text,
+    Object? typographyId = _unchanged,
+    Object? colorId = _unchanged,
+  }) => DesyScreenshotTextLayer(
+    id: id,
+    name: name ?? this.name,
+    text: text ?? this.text,
+    typographyId: identical(typographyId, _unchanged)
+        ? this.typographyId
+        : typographyId as String?,
+    colorId: identical(colorId, _unchanged) ? this.colorId : colorId as String?,
+    hidden: hidden ?? this.hidden,
+  );
+}

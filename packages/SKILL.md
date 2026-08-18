@@ -13,8 +13,8 @@ Use this guidance for work under `packages/`.
 - `desy_design_system` owns Desy's private, Forui-backed scaffold UI.
 - `desy_design_system/example` is the maintained dogfood executable and the
   public-contract integration proof.
-- `extensions/` and `desy_ide/` are optional experiments; do not make them a
-  required dependency of the core workbench path.
+- `extensions/` contains optional experiments; do not make them a required
+  dependency of the core workbench path.
 
 ## Registry and preview rules
 

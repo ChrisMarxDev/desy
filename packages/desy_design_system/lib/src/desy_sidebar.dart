@@ -80,11 +80,10 @@ class DesySidebar extends StatelessWidget {
 
 /// A named group of related sidebar items.
 ///
-/// A section may expose one small section-level action, such as switching a
-/// component browser between its file tree and preview grid. Labels are
+/// A section may expose one small section-level action. Labels are
 /// non-interactive by default; [onLabelPress] is reserved for a label that is
 /// also a meaningful root destination, such as opening the component Atlas.
-/// A collapsible section gives disclosure its own leading control so those
+/// A collapsible section gives disclosure its own trailing control so those
 /// existing label and action behaviors remain independent.
 class DesySidebarSection extends StatefulWidget {
   /// Creates a sidebar section.
@@ -196,41 +195,40 @@ class _DesySidebarSectionState extends State<DesySidebarSection> {
               ),
             ),
     );
+    final disclosure = Semantics(
+      key: ValueKey('sidebar-section-toggle-${widget.label}'),
+      container: true,
+      button: true,
+      expanded: _expanded,
+      label: '${_expanded ? 'Collapse' : 'Expand'} ${widget.label}',
+      excludeSemantics: true,
+      onTap: _toggleExpanded,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: FTappable(
+          style: style.tappableStyle,
+          focusedOutlineStyle: style.focusedOutlineStyle,
+          onPress: _toggleExpanded,
+          builder: (_, variants, child) => IconTheme(
+            data: style.actionStyle.resolve(variants),
+            child: child!,
+          ),
+          child: SizedBox.square(
+            dimension: 20,
+            child: Icon(
+              _expanded ? DesyIcons.chevronDown : DesyIcons.chevronRight,
+              size: 14,
+            ),
+          ),
+        ),
+      ),
+    );
     final sectionLabel = widget.collapsible
         ? Row(
             children: [
-              Semantics(
-                key: ValueKey('sidebar-section-toggle-${widget.label}'),
-                container: true,
-                button: true,
-                expanded: _expanded,
-                label: '${_expanded ? 'Collapse' : 'Expand'} ${widget.label}',
-                excludeSemantics: true,
-                onTap: _toggleExpanded,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: FTappable(
-                    style: style.tappableStyle,
-                    focusedOutlineStyle: style.focusedOutlineStyle,
-                    onPress: _toggleExpanded,
-                    builder: (_, variants, child) => IconTheme(
-                      data: style.actionStyle.resolve(variants),
-                      child: child!,
-                    ),
-                    child: SizedBox.square(
-                      dimension: 20,
-                      child: Icon(
-                        _expanded
-                            ? DesyIcons.chevronDown
-                            : DesyIcons.chevronRight,
-                        size: 14,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
               Expanded(child: label),
+              const SizedBox(width: 4),
+              disclosure,
             ],
           )
         : label;

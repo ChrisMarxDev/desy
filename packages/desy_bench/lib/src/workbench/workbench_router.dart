@@ -18,7 +18,9 @@ import '../registry.dart';
 import '../window_controls.dart';
 import '../workspace_extension.dart';
 import 'presentation/atlas_screen.dart';
+import 'presentation/assets_screen.dart';
 import 'presentation/detail_screen.dart';
+import 'presentation/home_screen.dart';
 import 'presentation/measures_screen.dart';
 import 'presentation/prototypes_screen.dart';
 import 'presentation/themes_screen.dart';
@@ -44,9 +46,16 @@ GoRouter createDesyWorkbenchRouter(
   DesyWorkbenchSession session, {
   DesyWindowControls? windowControls,
 }) => GoRouter(
-  initialLocation: DesyWorkbenchRoutes.atlasPath,
+  initialLocation: session.registry.systemProfile == null
+      ? DesyWorkbenchRoutes.atlasPath
+      : DesyWorkbenchRoutes.homePath,
   routes: [
-    GoRoute(path: '/', redirect: (_, _) => DesyWorkbenchRoutes.atlasPath),
+    GoRoute(
+      path: '/',
+      redirect: (_, _) => session.registry.systemProfile == null
+          ? DesyWorkbenchRoutes.atlasPath
+          : DesyWorkbenchRoutes.homePath,
+    ),
     ShellRoute(
       builder: (context, state, child) => DesyWorkbenchShell(
         session: session,
@@ -54,6 +63,19 @@ GoRouter createDesyWorkbenchRouter(
         child: child,
       ),
       routes: [
+        GoRoute(
+          path: DesyWorkbenchRoutes.homePath,
+          pageBuilder: (context, state) => _instantPage(
+            state,
+            DesyHomeScreen(
+              session: session,
+              onOpen: (entry) {
+                session.prepareEntry(entry);
+                context.go(DesyWorkbenchRoutes.entry(entry.id));
+              },
+            ),
+          ),
+        ),
         GoRoute(
           path: DesyWorkbenchRoutes.atlasPath,
           pageBuilder: (context, state) {
@@ -69,6 +91,9 @@ GoRouter createDesyWorkbenchRouter(
                   measurements: session.registry.measurements,
                 ),
               );
+            }
+            if (atomKind == DesyAtomKind.assets) {
+              return _instantPage(state, DesyAssetsScreen(session: session));
             }
             return _instantPage(
               state,

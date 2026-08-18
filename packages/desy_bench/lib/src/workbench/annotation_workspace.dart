@@ -51,6 +51,7 @@ class DesyAnnotationBatch {
 
   /// Stable, transport-neutral JSON representation.
   Map<String, Object?> toJson() => {
+    'schema': 'desy.annotation-batch.v1',
     'annotations': [for (final annotation in annotations) annotation.toJson()],
   };
 

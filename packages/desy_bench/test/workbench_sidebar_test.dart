@@ -36,6 +36,25 @@ void main() {
       ),
     );
 
+    expect(
+      tester
+          .widget<TextField>(
+            find.descendant(
+              of: find.byKey(const ValueKey('sidebar-search')),
+              matching: find.byType(TextField),
+            ),
+          )
+          .textAlign,
+      TextAlign.center,
+    );
+    expect(
+      tester.getCenter(find.text('Search registry')).dx,
+      closeTo(
+        tester.getCenter(find.byKey(const ValueKey('sidebar-search'))).dx,
+        2,
+      ),
+    );
+
     await tester.enterText(
       find.byKey(const ValueKey('sidebar-search')),
       'checkbox',
@@ -149,7 +168,7 @@ void main() {
     expect(iconFor('override.component').icon, FLucideIcons.anchor);
   });
 
-  testWidgets('sidebar uses flat sections and a component file tree', (
+  testWidgets('sidebar groups apps above the catalogue sections', (
     tester,
   ) async {
     String? destination;
@@ -179,6 +198,13 @@ void main() {
           ),
         ],
       ),
+      extensions: [
+        DesyWorkspaceExtension.builder(
+          id: 'extension.screenshot-builder',
+          name: 'Screenshot builder',
+          builder: (_, _) => const SizedBox(),
+        ),
+      ],
     );
     addTearDown(session.dispose);
 
@@ -200,8 +226,28 @@ void main() {
 
     expect(
       find.byKey(const ValueKey('sidebar-section-registry')),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('sidebar-section-apps')), findsOneWidget);
+    expect(find.byKey(const ValueKey('registry-home-nav')), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey('workspace-extension-extension.screenshot-builder'),
+      ),
       findsOneWidget,
     );
+    for (final key in [
+      'registry-home-nav',
+      'workspace-extension-extension.screenshot-builder',
+    ]) {
+      expect(
+        find.ancestor(
+          of: find.byKey(ValueKey(key)),
+          matching: find.byKey(const ValueKey('sidebar-section-apps')),
+        ),
+        findsOneWidget,
+      );
+    }
     expect(find.byKey(const ValueKey('registry-canvas-nav')), findsNothing);
     expect(find.byKey(const ValueKey('sidebar-section-atoms')), findsOneWidget);
     expect(
@@ -237,18 +283,34 @@ void main() {
       find.byKey(const ValueKey('sidebar-folder-divider-components')),
       findsNothing,
     );
-    expect(find.text('Registry'), findsWidgets);
+    expect(find.text('Registry'), findsNothing);
+    expect(find.text('Apps'), findsOneWidget);
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Tools'), findsNothing);
+    expect(find.text('Screenshot builder'), findsOneWidget);
     expect(find.text('Prototypes'), findsOneWidget);
     expect(find.text('Atoms'), findsOneWidget);
     expect(find.text('Components'), findsOneWidget);
     expect(find.text('Showcases'), findsNothing);
 
-    for (final label in ['Registry', 'Prototypes', 'Atoms', 'Components']) {
+    for (final label in ['Prototypes', 'Atoms', 'Components']) {
       expect(
         find.byKey(ValueKey('sidebar-section-toggle-$label')),
         findsOneWidget,
       );
     }
+    expect(
+      find.byKey(const ValueKey('sidebar-section-toggle-Registry')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('sidebar-section-toggle-Tools')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('sidebar-section-toggle-Apps')),
+      findsNothing,
+    );
 
     await tester.tap(
       find.byKey(const ValueKey('sidebar-section-toggle-Atoms')),
@@ -270,7 +332,11 @@ void main() {
     expect(find.byKey(const ValueKey('sidebar-folder-/buttons')), findsNothing);
     expect(
       find.byKey(const ValueKey('sidebar-components-view-toggle')),
-      findsOneWidget,
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('sidebar-components-preview-grid')),
+      findsNothing,
     );
 
     await tester.tap(
@@ -284,7 +350,7 @@ void main() {
     expect(
       tester
           .widget<DesySidebarItem>(
-            find.byKey(const ValueKey('registry-atlas-nav')),
+            find.byKey(const ValueKey('registry-home-nav')),
           )
           .opensScreen,
       isFalse,
@@ -315,6 +381,17 @@ void main() {
         .call();
     await tester.pump();
     expect(destination, '/prototypes/prototype.homepage');
+
+    tester
+        .widget<DesySidebarItem>(
+          find.byKey(
+            const ValueKey('workspace-extension-extension.screenshot-builder'),
+          ),
+        )
+        .onPress!
+        .call();
+    await tester.pump();
+    expect(destination, '/workspace/extension.screenshot-builder');
   });
 
   testWidgets('Components section label opens the Atlas root', (tester) async {

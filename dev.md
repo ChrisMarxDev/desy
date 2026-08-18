@@ -79,15 +79,15 @@ registered instance by its registry-scoped `componentId.instanceId`; resolution,
 cycle guards, and the missing-instance diagnostic are centralized in
 `DesyWidgetResolver`. Ask consumers only for information Desy cannot derive.
 
-### Agent catalogue derivation
+### Portable registry derivation
 
-Agent-facing catalogue metadata is opt-in on the same registry. Add a
-`DesyCatalogConfig(id: ..., version: ...)` to enable
-`DesyCatalogueExport`; omit it to keep a registry local-only. Components are
-included by default and may use `DesyComponentCatalogConfig(include: false)`
-or an agent-facing description override for exceptional cases. The export is a
-protocol-neutral, JSON-ready description—GenUI/A2UI adapters remain separate
-packages and continue to invoke the registry's real widget builders locally.
+Portable capabilities derive from the same complete registry. Add optional
+`DesyRegistryIdentity(id: ..., version: ...)` when a snapshot crosses a
+repository or process boundary; omit it for local-only workbench and golden
+use. `DesyRegistrySnapshot` contains every declared component—there is no
+agent-specific catalogue configuration or filtered component inventory.
+GenUI/A2UI adapters remain separate packages and continue to invoke the
+registry's real widget builders locally.
 The maintained GenUI adapter lives in `packages/extensions/desy_genui`.
 `DesyGenUiCatalog.compile(registry)` produces both an executable Flutter
 `Catalog` and a backend-safe schema/prompt/example artifact with a deterministic

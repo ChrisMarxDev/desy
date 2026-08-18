@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
-import 'package:desy_bench/desy_bench.dart';
+import 'package:desy_core/desy_core.dart';
 import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
 import 'package:json_schema_builder/json_schema_builder.dart';
@@ -17,12 +17,13 @@ final class DesyGenUiCatalog {
     required this.digest,
   });
 
-  /// Compiles the opt-in components in [registry] into GenUI catalog items.
+  /// Compiles every registered component in [registry] into GenUI catalog
+  /// items.
   factory DesyGenUiCatalog.compile(DesyRegistry registry) {
-    final config = registry.catalogConfig;
-    if (config == null) {
+    final identity = registry.identity;
+    if (identity == null) {
       throw StateError(
-        'Add DesyCatalogConfig to the registry before compiling GenUI.',
+        'Add DesyRegistryIdentity to the registry before compiling GenUI.',
       );
     }
     final structuralIssues = registry
@@ -37,19 +38,19 @@ final class DesyGenUiCatalog {
         '${structuralIssues.map((issue) => issue.message).join(' ')}',
       );
     }
-    if (registry.catalogComponents.isEmpty) {
+    if (registry.allComponents.isEmpty) {
       throw StateError(
-        'A GenUI catalog needs at least one included component.',
+        'A GenUI catalog needs at least one registered component.',
       );
     }
 
     final compiler = _Compiler(registry);
     final prompts = compiler.systemPromptFragments;
     final items = [
-      for (final component in registry.catalogComponents)
+      for (final component in registry.allComponents)
         compiler.catalogItem(component),
     ];
-    final catalogId = '${config.id}@${config.version}';
+    final catalogId = '${identity.id}@${identity.version}';
     final catalog = Catalog(
       items,
       catalogId: catalogId,
@@ -59,19 +60,18 @@ final class DesyGenUiCatalog {
       'schemaVersion': 'desy-genui-catalog/0.1',
       'protocol': {'name': 'A2UI', 'version': 'v0.9'},
       'catalog': {
-        'id': config.id,
-        'version': config.version,
+        'id': identity.id,
+        'version': identity.version,
         'catalogId': catalogId,
-        'description': ?config.description,
       },
       'capabilities': catalog.toCapabilitiesJson(),
       'fullSchema': catalog.fullSchema.value,
       'systemPromptFragments': prompts,
       'examples': {
-        for (final component in registry.catalogComponents)
+        for (final component in registry.allComponents)
           component.id: compiler.examplesFor(component),
       },
-      'desy': DesyCatalogueExport(registry).toJson(),
+      'desy': DesyRegistrySnapshot(registry).toJson(),
     };
     final encoded = jsonEncode(artifact);
     return DesyGenUiCatalog._(
@@ -105,17 +105,16 @@ final class _Compiler {
 
   final DesyRegistry registry;
 
-  Set<String> get _catalogComponentIds => {
-    for (final component in registry.catalogComponents) component.id,
+  Set<String> get _componentIds => {
+    for (final component in registry.allComponents) component.id,
   };
 
   List<String> get systemPromptFragments {
     final result = <String>[
-      ?registry.catalogConfig?.description,
-      'Use only components declared by catalog ${registry.catalogConfig!.id}. '
+      'Use only components declared by registry ${registry.identity!.id}. '
           'Component IDs are surface-local. Child slots refer to those IDs.',
     ];
-    for (final component in registry.catalogComponents) {
+    for (final component in registry.allComponents) {
       final description = _descriptionFor(component);
       if (description != null) result.add('${component.id}: $description');
     }
@@ -225,7 +224,7 @@ final class _Compiler {
     final allowedTypes = <String>{
       for (final option in knob.options)
         if (registry.resolveComponentInstance(option) case final instance?)
-          if (_catalogComponentIds.contains(instance.component.id))
+          if (_componentIds.contains(instance.component.id))
             instance.component.id,
     };
     if (!allowedTypes.contains(child.type)) {
@@ -285,14 +284,14 @@ final class _Compiler {
     final allowed = <String>{
       for (final option in knob.options)
         if (registry.resolveComponentInstance(option) case final instance?)
-          if (_catalogComponentIds.contains(instance.component.id))
+          if (_componentIds.contains(instance.component.id))
             instance.component.id,
     };
     return '$description Allowed component types: ${allowed.join(', ')}.';
   }
 
   String? _descriptionFor(DesyRegistryComponent component) =>
-      component.catalogConfig?.description ?? component.description;
+      component.description;
 
   List<List<Map<String, Object?>>> examplesFor(
     DesyRegistryComponent component,
@@ -350,8 +349,7 @@ final class _Compiler {
         case DesyKnobKind.widgetInstance:
           final id = value is DesyInstanceId ? value.value : value as String;
           final child = registry.resolveComponentInstance(id);
-          if (child == null ||
-              !_catalogComponentIds.contains(child.component.id)) {
+          if (child == null || !_componentIds.contains(child.component.id)) {
             continue;
           }
           final childId = '${surfaceId}_${knob.id}';
@@ -372,8 +370,7 @@ final class _Compiler {
           final childIds = <String>[];
           for (var index = 0; index < ids.length; index++) {
             final child = registry.resolveComponentInstance(ids[index]);
-            if (child == null ||
-                !_catalogComponentIds.contains(child.component.id)) {
+            if (child == null || !_componentIds.contains(child.component.id)) {
               continue;
             }
             final childId = '${surfaceId}_${knob.id}_$index';

@@ -99,6 +99,13 @@ class DesyWorkbenchInspectionContext {
 
   /// Optional concise name for the artifact.
   final String? label;
+
+  /// Transport-neutral artifact evidence.
+  Map<String, Object?> toJson() => {
+    'id': artifactId,
+    'kind': kind,
+    'label': ?label,
+  };
 }
 
 /// Marks an inspectable subtree with stable artifact context.
@@ -147,6 +154,13 @@ class DesyWorkbenchSourceLocation {
 
   /// Concise source reference for a human or coding agent.
   String get reference => '$sourcePath:$line:$column';
+
+  /// Transport-neutral source evidence.
+  Map<String, Object?> toJson() => {
+    'path': sourcePath,
+    'line': line,
+    'column': column,
+  };
 
   /// Parses Flutter inspector JSON without depending on private inspector
   /// objects in the persisted target model.
@@ -211,18 +225,28 @@ class DesyWorkbenchWidgetTarget {
   String get displayLabel => description.isEmpty ? widgetType : description;
 
   /// Transport-neutral evidence for storage and review exporters.
-  Map<String, Object?> toJson() => {
-    'screenId': screenId,
-    'widgetType': widgetType,
-    'description': description,
-    'widgetPath': widgetPath,
-    'sourcePath': sourceLocation?.sourcePath,
-    'sourceLine': sourceLocation?.line,
-    'sourceColumn': sourceLocation?.column,
-    'widgetKey': widgetKey,
-    'artifactId': inspectionContext?.artifactId,
-    'artifactKind': inspectionContext?.kind,
-    'artifactLabel': inspectionContext?.label,
+  ///
+  /// Bounds are a snapshot of the live inspection root. Callers exporting a
+  /// detached annotation should omit them because a rebuild invalidates that
+  /// geometry while leaving the durable widget, source, and artifact evidence.
+  Map<String, Object?> toJson({bool includeBounds = true}) => {
+    'screen': {'id': screenId},
+    'widget': {
+      'type': widgetType,
+      'description': description,
+      'path': widgetPath,
+      'key': ?widgetKey,
+    },
+    if (sourceLocation case final source?) 'source': source.toJson(),
+    if (inspectionContext case final artifact?) 'artifact': artifact.toJson(),
+    if (includeBounds)
+      'bounds': {
+        'coordinateSpace': 'workbenchInspectionRoot',
+        'left': bounds.left,
+        'top': bounds.top,
+        'width': bounds.width,
+        'height': bounds.height,
+      },
   };
 }
 
@@ -276,13 +300,17 @@ class DesyWorkbenchAnnotation {
     attachment: attachment,
   );
 
-  /// Transport-neutral annotation payload. Visual bounds are intentionally
-  /// excluded because they are invalid after navigation and hot reload.
+  /// Transport-neutral annotation payload with durable, nested target data.
+  ///
+  /// Attached annotations include their selection geometry. Detached notes
+  /// intentionally retain only durable target evidence after a rebuild.
   Map<String, Object?> toJson() => {
     'id': id,
-    'comment': comment,
+    'feedback': {'text': comment},
     'createdAt': createdAt.toIso8601String(),
     'attachment': attachment.name,
-    'target': target.toJson(),
+    'target': target.toJson(
+      includeBounds: attachment == DesyWorkbenchAnnotationAttachment.attached,
+    ),
   };
 }

@@ -506,7 +506,6 @@ class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
       // A preset supplies a first drag-box size only. It never scales the
       // preview or turns the component into a simulated device frame.
       initialZoom: 1,
-      zoomRevision: widget.device?.index ?? -1,
       items: [
         for (final (index, variant) in widget.variants.indexed)
           DesyCanvasSceneItem(

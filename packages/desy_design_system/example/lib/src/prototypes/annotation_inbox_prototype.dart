@@ -487,70 +487,88 @@ class _AnnotationReviewDialog extends StatelessWidget {
   final VoidCallback? onDelete;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(color: context.theme.colors.background),
-    child: Column(
-      children: [
-        Container(
-          height: 70,
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: context.theme.colors.desy.divider),
-            ),
-          ),
-          child: Row(
-            children: [
-              Text('Annotations', style: context.theme.typography.display.sm),
-              const SizedBox(width: 12),
-              _CountBadge(count: notes.length),
-              const Spacer(),
-              DesyButton.icon(
-                onPress: onClose,
-                size: DesyButtonSize.sm,
-                semanticsLabel: 'Close annotations',
-                child: const Icon(DesyIcons.x, size: 16),
+  Widget build(BuildContext context) => CallbackShortcuts(
+    bindings: {const SingleActivator(LogicalKeyboardKey.escape): onClose},
+    child: Focus(
+      autofocus: direction == _InboxDirection.reviewSheet,
+      child: DecoratedBox(
+        key: ValueKey('annotation-review-dialog-${direction.name}'),
+        decoration: BoxDecoration(color: context.theme.colors.background),
+        child: Column(
+          children: [
+            Container(
+              height: 70,
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: context.theme.colors.desy.divider),
+                ),
               ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(54, 34, 54, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(switch (direction) {
-                  _InboxDirection.reviewSheet =>
-                    'Review what to take to your agent',
-                  _InboxDirection.ledger => 'Scan and batch the review inbox',
-                  _InboxDirection.focusedQueue =>
-                    'Work through feedback with more context',
-                }, style: context.theme.typography.body.lg),
-                const SizedBox(height: 6),
-                Text(
-                  'Notes remain here as you move through the workbench. Select the ones you want to act on.',
-                  style: context.theme.typography.body.sm.copyWith(
-                    color: context.theme.colors.mutedForeground,
+              child: Row(
+                children: [
+                  Text(
+                    'Annotations',
+                    style: context.theme.typography.display.sm,
                   ),
-                ),
-                if (feedback != null) ...[
-                  const SizedBox(height: 16),
-                  _FeedbackNotice(message: feedback!),
+                  const SizedBox(width: 12),
+                  _CountBadge(count: notes.length),
+                  const Spacer(),
+                  DesyButton(
+                    key: ValueKey('annotation-cancel-${direction.name}'),
+                    onPress: onClose,
+                    variant: DesyButtonVariant.outline,
+                    size: DesyButtonSize.sm,
+                    mainAxisSize: MainAxisSize.min,
+                    semanticsLabel: 'Cancel annotations',
+                    suffix: const DesyKeyboardShortcutLabel(
+                      keys: ['Esc'],
+                      semanticLabel: 'Escape cancels annotations',
+                    ),
+                    child: const Text('Cancel'),
+                  ),
                 ],
-                const SizedBox(height: 24),
-                Expanded(child: _noteList(context)),
-                const SizedBox(height: 18),
-                _ActionBar(
-                  selectedCount: selected.length,
-                  onCopy: onCopy,
-                  onDelete: onDelete,
-                ),
-              ],
+              ),
             ),
-          ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(54, 34, 54, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(switch (direction) {
+                      _InboxDirection.reviewSheet =>
+                        'Review what to take to your agent',
+                      _InboxDirection.ledger =>
+                        'Scan and batch the review inbox',
+                      _InboxDirection.focusedQueue =>
+                        'Work through feedback with more context',
+                    }, style: context.theme.typography.body.lg),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Notes remain here as you move through the workbench. Select the ones you want to act on.',
+                      style: context.theme.typography.body.sm.copyWith(
+                        color: context.theme.colors.mutedForeground,
+                      ),
+                    ),
+                    if (feedback != null) ...[
+                      const SizedBox(height: 16),
+                      _FeedbackNotice(message: feedback!),
+                    ],
+                    const SizedBox(height: 24),
+                    Expanded(child: _noteList(context)),
+                    const SizedBox(height: 18),
+                    _ActionBar(
+                      selectedCount: selected.length,
+                      onCopy: onCopy,
+                      onDelete: onDelete,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     ),
   );
 
