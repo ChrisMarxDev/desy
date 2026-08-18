@@ -100,19 +100,13 @@ class _DesyResizeDividerState extends State<DesyResizeDivider> {
   Widget build(BuildContext context) {
     final vertical = widget.axis == Axis.vertical;
     final hitSize = DesyDesignSystemTokens.resizeDividerHitSize;
+    final lineColor = _active
+        ? context.theme.colors.desy.signal
+        : context.theme.colors.border;
     final line = SizedBox(
       width: vertical ? DesyDesignSystemTokens.hairline : double.infinity,
       height: vertical ? double.infinity : DesyDesignSystemTokens.hairline,
-      child: FDivider(
-        axis: widget.axis,
-        style: FDividerStyleDelta.delta(
-          color: _active
-              ? context.theme.colors.desy.signal
-              : context.theme.colors.border,
-          padding: const EdgeInsetsGeometryDelta.value(EdgeInsets.zero),
-          width: DesyDesignSystemTokens.hairline,
-        ),
-      ),
+      child: ColoredBox(color: lineColor),
     );
 
     return Semantics(

@@ -82,6 +82,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
+    final elementSurface = tester.widget<ColoredBox>(
+      find.descendant(
+        of: find.byKey(const ValueKey('object-canvas-object-widget-0')),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is ColoredBox && widget.color == Colors.transparent,
+        ),
+      ),
+    );
+    expect(elementSurface.color, Colors.transparent);
     expect(
       find.byKey(const ValueKey('screenshot-layer-inspector-content')),
       findsOneWidget,

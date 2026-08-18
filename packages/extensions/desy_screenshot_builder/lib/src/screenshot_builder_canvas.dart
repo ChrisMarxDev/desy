@@ -165,20 +165,23 @@ class _ScreenshotLayerContent extends StatelessWidget {
   DesyScreenshotLayer get layer => object.data;
 
   @override
-  Widget build(BuildContext context) => switch (layer) {
-    final DesyScreenshotWidgetLayer widgetLayer => _buildWidget(
-      context,
-      widgetLayer,
-    ),
-    final DesyScreenshotImageLayer imageLayer => Image.memory(
-      imageLayer.bytes,
-      fit: BoxFit.fill,
-      gaplessPlayback: true,
-      semanticLabel: imageLayer.name,
-    ),
-    final DesyScreenshotTextLayer textLayer => _buildText(context, textLayer),
-    _ => const SizedBox.shrink(),
-  };
+  Widget build(BuildContext context) => ColoredBox(
+    color: Colors.transparent,
+    child: switch (layer) {
+      final DesyScreenshotWidgetLayer widgetLayer => _buildWidget(
+        context,
+        widgetLayer,
+      ),
+      final DesyScreenshotImageLayer imageLayer => Image.memory(
+        imageLayer.bytes,
+        fit: BoxFit.fill,
+        gaplessPlayback: true,
+        semanticLabel: imageLayer.name,
+      ),
+      final DesyScreenshotTextLayer textLayer => _buildText(context, textLayer),
+      _ => const SizedBox.shrink(),
+    },
+  );
 
   Widget _buildWidget(
     BuildContext context,

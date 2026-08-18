@@ -37,7 +37,10 @@ void main() {
       final divider = find.byKey(const ValueKey('divider'));
       final line = find.descendant(
         of: divider,
-        matching: find.byType(FDivider),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is ColoredBox && widget.color == const Color(0xFFE4E4E7),
+        ),
       );
       expect(tester.getSize(divider), const Size(8, 200));
       expect(line, findsOneWidget);
@@ -84,7 +87,13 @@ void main() {
     );
 
     final divider = find.byKey(const ValueKey('divider'));
-    final line = find.descendant(of: divider, matching: find.byType(FDivider));
+    final line = find.descendant(
+      of: divider,
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is ColoredBox && widget.color == const Color(0xFFE4E4E7),
+      ),
+    );
     expect(tester.getSize(divider), const Size(200, 8));
     expect(line, findsOneWidget);
     expect(tester.getSize(line), const Size(200, 1));
