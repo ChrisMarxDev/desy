@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('Home lists every registered component and atom', (tester) async {
+  testWidgets('Home shows component previews without an atom text ledger', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final registry = DesyRegistry(
@@ -46,10 +48,9 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(
-      find.byKey(const ValueKey('home-atom-entry-acme.color.ink')),
-      findsOneWidget,
-    );
+    expect(find.text('ATOMS'), findsNothing);
+    expect(find.text('COLORS'), findsNothing);
+    expect(find.text('Ink'), findsNothing);
     expect(find.byKey(const ValueKey('consumer-hero')), findsNothing);
     expect(find.text('Clarity before decoration'), findsNothing);
     expect(find.byKey(const ValueKey('registry-home-nav')), findsOneWidget);

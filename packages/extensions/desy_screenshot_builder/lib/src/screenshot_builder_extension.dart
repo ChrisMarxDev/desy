@@ -64,7 +64,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
   static const _defaultCanvasSize = Size(1200, 630);
   static const _defaultWidgetSize = Size(240, 120);
   static const _defaultTextSize = Size(360, 96);
-  static const _minimumViewportZoom = .5;
+  static const _minimumViewportZoom = .25;
   static const _maximumViewportZoom = 2.5;
 
   final _viewportKey = GlobalKey(debugLabel: 'screenshot-canvas-viewport');
@@ -106,6 +106,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
     _canvas =
         ObjectCanvasController<DesyScreenshotLayer>(
             canvasSize: _defaultCanvasSize,
+            overflow: CanvasOverflow.show,
             defaults: const CanvasObjectDefaults(
               constraints: CanvasObjectConstraints(
                 minSize: Size.square(_minimumLayerExtent),

@@ -560,6 +560,35 @@ void main() {
     expect(find.descendant(of: boundary, matching: rotateHandle), findsNothing);
   });
 
+  testWidgets('object content is clipped to its drag box', (tester) async {
+    final controller = ObjectCanvasController<Widget>(
+      canvasSize: const Size(120, 80),
+      objects: [
+        CanvasObject<Widget>(
+          id: 'overflowing-content',
+          data: const OverflowBox(
+            maxWidth: 160,
+            maxHeight: 120,
+            child: SizedBox(width: 160, height: 120),
+          ),
+          geometry: const CanvasObjectGeometry(
+            position: Offset(20, 20),
+            size: Size(40, 30),
+          ),
+        ),
+      ],
+    );
+    await tester.pumpWidget(_host(controller));
+
+    final object = find.byKey(
+      const ValueKey('object-canvas-object-overflowing-content'),
+    );
+    final clip = find.descendant(of: object, matching: find.byType(ClipRect));
+
+    expect(clip, findsOneWidget);
+    expect(tester.getSize(clip), const Size(40, 30));
+  });
+
   testWidgets('overflow policy controls stage and object clipping', (
     tester,
   ) async {
@@ -684,6 +713,30 @@ void main() {
       controller.requireObject('b').geometry.position,
       const Offset(110, 70),
     );
+  });
+
+  testWidgets('command duplicate inserts selected objects with new ids', (
+    tester,
+  ) async {
+    final controller = _widgetController();
+    controller.selectObjects(['a']);
+    await tester.pumpWidget(_host(controller, autofocus: true));
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(controller.objects.map((object) => object.id), ['a', 'b', 'a copy']);
+    expect(
+      controller.requireObject('a copy').data,
+      same(controller.requireObject('a').data),
+    );
+    expect(controller.selectedObjectIds, {'a copy'});
+
+    controller.undo();
+    expect(controller.objects.map((object) => object.id), ['a', 'b']);
   });
 }
 

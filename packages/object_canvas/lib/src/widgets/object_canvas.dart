@@ -100,6 +100,7 @@ class ObjectCanvas<T> extends StatefulWidget {
     this.semanticLabelBuilder,
     this.objectVisibility,
     this.marqueeSelectionEnabled = true,
+    this.duplicateDataBuilder,
   });
 
   /// Creates a canvas whose application data is already a [Widget].
@@ -118,6 +119,7 @@ class ObjectCanvas<T> extends StatefulWidget {
     this.semanticLabelBuilder,
     this.objectVisibility,
     this.marqueeSelectionEnabled = true,
+    this.duplicateDataBuilder,
   }) : assert(T == Widget, 'ObjectCanvas.widgets requires T to be Widget.'),
        objectBuilder = ((context, object) => object.data as Widget);
 
@@ -162,6 +164,9 @@ class ObjectCanvas<T> extends StatefulWidget {
 
   /// Whether dragging empty canvas space draws a marquee selection rectangle.
   final bool marqueeSelectionEnabled;
+
+  /// Builds application-owned data for keyboard-duplicated objects.
+  final CanvasDuplicateDataBuilder<T>? duplicateDataBuilder;
 
   @override
   State<ObjectCanvas<T>> createState() => _ObjectCanvasState<T>();
@@ -352,7 +357,7 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
             onPanUpdate: capabilities.movable ? _onObjectMoveUpdate : null,
             onPanEnd: capabilities.movable ? (_) => _onObjectMoveEnd() : null,
             onPanCancel: capabilities.movable ? _onObjectMoveCancel : null,
-            child: content,
+            child: ClipRect(child: content),
           ),
         ),
       ),
@@ -1029,6 +1034,13 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
       }
       return KeyEventResult.handled;
     }
+    if (command && event.logicalKey == LogicalKeyboardKey.keyD) {
+      controller.duplicateObjects(
+        controller.selectedObjectIds.toList(),
+        dataBuilder: widget.duplicateDataBuilder,
+      );
+      return KeyEventResult.handled;
+    }
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       if (controller.hasActiveTransform) {
         controller.cancelTransform();
@@ -1055,9 +1067,9 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
         .where((id) => controller.capabilitiesFor(id).movable)
         .toList(growable: false);
     if (ids.isNotEmpty) {
-      controller.beginTransform(CanvasTransformKind.move, ids);
-      controller.previewMoveBy(delta, snap: false);
-      controller.commitTransform(
+      controller.moveObjectsBy(
+        ids,
+        delta,
         label: ids.length == 1 ? 'Nudge object' : 'Nudge objects',
       );
     }

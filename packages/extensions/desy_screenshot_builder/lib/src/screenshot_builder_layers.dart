@@ -17,7 +17,7 @@ abstract class DesyScreenshotLayer {
 
   String get kindLabel;
 
-  DesyScreenshotLayer copyWith({String? name, bool? hidden});
+  DesyScreenshotLayer copyWith({String? id, String? name, bool? hidden});
 }
 
 final class DesyScreenshotWidgetLayer extends DesyScreenshotLayer {
@@ -37,11 +37,12 @@ final class DesyScreenshotWidgetLayer extends DesyScreenshotLayer {
 
   @override
   DesyScreenshotWidgetLayer copyWith({
+    String? id,
     String? name,
     bool? hidden,
     Map<String, Object>? knobValues,
   }) => DesyScreenshotWidgetLayer(
-    id: id,
+    id: id ?? this.id,
     name: name ?? this.name,
     instanceId: instanceId,
     knobValues: knobValues ?? this.knobValues,
@@ -63,9 +64,9 @@ final class DesyScreenshotImageLayer extends DesyScreenshotLayer {
   String get kindLabel => 'Image';
 
   @override
-  DesyScreenshotImageLayer copyWith({String? name, bool? hidden}) =>
+  DesyScreenshotImageLayer copyWith({String? id, String? name, bool? hidden}) =>
       DesyScreenshotImageLayer(
-        id: id,
+        id: id ?? this.id,
         name: name ?? this.name,
         bytes: bytes,
         hidden: hidden ?? this.hidden,
@@ -93,6 +94,7 @@ final class DesyScreenshotTextLayer extends DesyScreenshotLayer {
 
   @override
   DesyScreenshotTextLayer copyWith({
+    String? id,
     String? name,
     bool? hidden,
     String? text,
@@ -100,7 +102,7 @@ final class DesyScreenshotTextLayer extends DesyScreenshotLayer {
     Object? colorId = _unchanged,
     TextAlign? textAlign,
   }) => DesyScreenshotTextLayer(
-    id: id,
+    id: id ?? this.id,
     name: name ?? this.name,
     text: text ?? this.text,
     typographyId: identical(typographyId, _unchanged)

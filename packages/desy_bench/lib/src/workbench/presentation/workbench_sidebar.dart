@@ -171,8 +171,14 @@ class DesyWorkbenchSidebar extends StatelessWidget {
       value: session.sidebarQuery.value,
       hintText: 'Search registry',
       textAlign: TextAlign.center,
+      prefixIcon: Icon(
+        DesyIcons.search,
+        key: const ValueKey('sidebar-search-icon'),
+        size: 16,
+        color: context.theme.colors.mutedForeground,
+      ),
       suffixIcon: query.isEmpty
-          ? null
+          ? const SizedBox.shrink()
           : DesyButton.icon(
               size: DesyButtonSize.xs,
               variant: DesyButtonVariant.ghost,
@@ -197,26 +203,7 @@ class DesyWorkbenchSidebar extends StatelessWidget {
             ],
             child: field,
           );
-    return Stack(
-      children: [
-        localizedField,
-        Positioned.directional(
-          textDirection: Directionality.of(context),
-          start: 14,
-          top: 0,
-          bottom: 0,
-          child: IgnorePointer(
-            child: ExcludeSemantics(
-              child: Icon(
-                DesyIcons.search,
-                size: 16,
-                color: context.theme.colors.mutedForeground,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
+    return localizedField;
   }
 
   List<Widget> _atomItems(BuildContext context, Uri location) => [

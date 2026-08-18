@@ -12,6 +12,14 @@ import '../model/canvas_object.dart';
 import '../model/canvas_policy.dart';
 import '../snapping/canvas_snap.dart';
 
+/// Builds a stable identifier for an object duplicate.
+typedef CanvasDuplicateIdBuilder<T> =
+    String Function(CanvasObject<T> object, int duplicateIndex);
+
+/// Builds application-owned data for an object duplicate.
+typedef CanvasDuplicateDataBuilder<T> =
+    T Function(CanvasObject<T> object, String duplicateId);
+
 /// Identifies the direct-manipulation gesture active on the canvas.
 enum CanvasTransformKind {
   /// Moves one or more objects in canvas coordinates.
@@ -391,6 +399,107 @@ class ObjectCanvasController<T> extends ChangeNotifier {
     }
     perform(CanvasRemoveAction<T>(objects: removed));
   }
+
+  /// Duplicates [objectIds] as one undoable insertion.
+  ///
+  /// By default the duplicate reuses the same application-owned [CanvasObject.data]
+  /// instance and receives a canvas-generated object id. Hosts whose data also
+  /// embeds object identity can provide [dataBuilder] to rewrite that payload.
+  List<CanvasObject<T>> duplicateObjects(
+    List<String> objectIds, {
+    CanvasDuplicateIdBuilder<T>? idBuilder,
+    CanvasDuplicateDataBuilder<T>? dataBuilder,
+    Offset offset = Offset.zero,
+    bool select = true,
+    String label = 'Duplicate objects',
+  }) {
+    final ids = _validatedObjectIds(objectIds);
+    if (ids.isEmpty) return const [];
+    final reservedIds = _objects.map((object) => object.id).toSet();
+    final duplicates = <CanvasObject<T>>[];
+    var duplicateIndex = 0;
+    for (final object in _objects) {
+      if (!ids.contains(object.id)) continue;
+      final duplicateId =
+          idBuilder?.call(object, duplicateIndex) ??
+          _nextDuplicateId(object.id, reservedIds);
+      if (duplicateId.isEmpty ||
+          reservedIds.contains(duplicateId) ||
+          duplicates.any((object) => object.id == duplicateId)) {
+        throw ArgumentError.value(
+          duplicateId,
+          'idBuilder',
+          'Duplicate object id',
+        );
+      }
+      reservedIds.add(duplicateId);
+      final geometry = object.geometry.copyWith(
+        position: _placementPosition(
+          object.geometry.position + offset,
+          object.geometry.size,
+        ),
+      );
+      duplicates.add(
+        object.copyWith(
+          id: duplicateId,
+          data: dataBuilder?.call(object, duplicateId) ?? object.data,
+          geometry: _normalizedGeometry(object.id, geometry),
+        ),
+      );
+      duplicateIndex++;
+    }
+    for (final duplicate in duplicates) {
+      _validateObject(duplicate);
+    }
+    perform(
+      CanvasAddAction<T>(
+        objects: [
+          for (var index = 0; index < duplicates.length; index++)
+            IndexedCanvasObject(
+              index: _objects.length + index,
+              object: duplicates[index],
+            ),
+        ],
+        label: label,
+      ),
+    );
+    if (select) {
+      setSelectedObjects(duplicates.map((object) => object.id).toList());
+    }
+    return List.unmodifiable(duplicates);
+  }
+
+  /// Moves [objectIds] by [delta] as one undoable transform action.
+  void moveObjectsBy(
+    List<String> objectIds,
+    Offset delta, {
+    bool snap = false,
+    String label = 'Move objects',
+  }) {
+    final ids = _validatedObjectIds(
+      objectIds,
+    ).where((id) => capabilitiesFor(id).movable).toList(growable: false);
+    if (ids.isEmpty || delta == Offset.zero) return;
+    beginTransform(CanvasTransformKind.move, ids);
+    previewMoveBy(delta, snap: snap);
+    commitTransform(label: label);
+  }
+
+  /// Moves the current selection by [delta] as one undoable transform action.
+  void moveSelectedObjectsBy(
+    Offset delta, {
+    bool snap = false,
+    String? label,
+  }) => moveObjectsBy(
+    _selectedIds.toList(growable: false),
+    delta,
+    snap: snap,
+    label:
+        label ??
+        (_selectedIds.length == 1
+            ? 'Move selected object'
+            : 'Move selected objects'),
+  );
 
   /// Replaces application data as one undoable action.
   void updateData(
@@ -868,6 +977,16 @@ class ObjectCanvasController<T> extends ChangeNotifier {
       requireObject(id);
     }
     return ids;
+  }
+
+  static String _nextDuplicateId(String sourceId, Set<String> reservedIds) {
+    final base = '$sourceId copy';
+    if (!reservedIds.contains(base)) return base;
+    var suffix = 2;
+    while (reservedIds.contains('$base $suffix')) {
+      suffix++;
+    }
+    return '$base $suffix';
   }
 
   static String _labelFor(CanvasTransformKind kind, int count) =>

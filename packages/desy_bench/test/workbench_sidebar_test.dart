@@ -54,6 +54,17 @@ void main() {
         2,
       ),
     );
+    final searchField = tester.getRect(
+      find.byKey(const ValueKey('sidebar-search')),
+    );
+    final searchIcon = tester.getRect(
+      find.byKey(const ValueKey('sidebar-search-icon')),
+    );
+    final searchHint = tester.getRect(find.text('Search registry'));
+    expect(searchIcon.center.dy, closeTo(searchField.center.dy, 1));
+    expect(searchHint.center.dx, closeTo(searchField.center.dx, 2));
+    expect(searchIcon.center.dx, lessThan(searchField.left + 48));
+    expect(searchIcon.right, lessThan(searchHint.left));
 
     await tester.enterText(
       find.byKey(const ValueKey('sidebar-search')),

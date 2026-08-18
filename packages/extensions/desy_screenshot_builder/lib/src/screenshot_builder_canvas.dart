@@ -55,6 +55,8 @@ class _CanvasViewport extends StatelessWidget {
                             _ScreenshotBuilderScreenState._maximumViewportZoom,
                         viewportBoundaryMargin: const EdgeInsets.all(2400),
                         marqueeSelectionEnabled: false,
+                        duplicateDataBuilder: (object, duplicateId) =>
+                            object.data.copyWith(id: duplicateId),
                         style: ObjectCanvasStyle(
                           viewportColor: context.theme.colors.desy.canvas,
                           canvasColor: backgroundColor ?? Colors.transparent,

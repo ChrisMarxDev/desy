@@ -264,6 +264,90 @@ void main() {
       expect(controller.selectedObjectIds, {'a'});
     });
 
+    test('duplicates objects with new ids and shared data by default', () {
+      final payload = Object();
+      final controller = ObjectCanvasController<Object>(
+        canvasSize: const Size(800, 600),
+        objects: [
+          CanvasObject<Object>(
+            id: 'a',
+            data: payload,
+            geometry: const CanvasObjectGeometry(
+              position: Offset(10, 10),
+              size: Size(40, 30),
+            ),
+          ),
+          CanvasObject<Object>(
+            id: 'b',
+            data: Object(),
+            geometry: const CanvasObjectGeometry(
+              position: Offset(100, 60),
+              size: Size(40, 30),
+            ),
+          ),
+        ],
+      );
+      controller.setSelectedObjects(['a']);
+
+      final duplicates = controller.duplicateObjects(['a']);
+
+      expect(duplicates.map((object) => object.id), ['a copy']);
+      expect(controller.objects.map((object) => object.id), [
+        'a',
+        'b',
+        'a copy',
+      ]);
+      expect(controller.requireObject('a copy').data, same(payload));
+      expect(
+        controller.requireObject('a copy').geometry,
+        controller.requireObject('a').geometry,
+      );
+      expect(controller.selectedObjectIds, {'a copy'});
+      expect(controller.lastActionEvent?.action.label, 'Duplicate objects');
+
+      controller.undo();
+      expect(controller.objects.map((object) => object.id), ['a', 'b']);
+      expect(controller.selectedObjectIds, isEmpty);
+    });
+
+    test('duplicates objects can rewrite application data', () {
+      final controller = _controller();
+
+      final duplicates = controller.duplicateObjects([
+        'a',
+      ], dataBuilder: (object, duplicateId) => '${object.data}->$duplicateId');
+
+      expect(duplicates.single.id, 'a copy');
+      expect(controller.requireObject('a copy').data, 'a->a copy');
+    });
+
+    test('moves selected objects as one undoable action', () {
+      final controller = _controller();
+      controller.setSelectedObjects(['a', 'b']);
+
+      controller.moveSelectedObjectsBy(const Offset(4, 6));
+
+      expect(
+        controller.requireObject('a').geometry.position,
+        const Offset(14, 16),
+      );
+      expect(
+        controller.requireObject('b').geometry.position,
+        const Offset(104, 66),
+      );
+      expect(controller.lastActionEvent?.action.label, 'Move selected objects');
+
+      controller.undo();
+      expect(
+        controller.requireObject('a').geometry.position,
+        const Offset(10, 10),
+      );
+      expect(
+        controller.requireObject('b').geometry.position,
+        const Offset(100, 60),
+      );
+    });
+
     test('z-order helpers preserve runs and are undoable', () {
       final controller = ObjectCanvasController<String>(
         canvasSize: const Size(800, 600),

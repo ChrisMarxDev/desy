@@ -306,6 +306,14 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
     _annotationFocusNode.unfocus();
   }
 
+  void _cancelAnnotation() {
+    setState(() {
+      _annotationTarget = null;
+      _annotationDraft = '';
+    });
+    _annotationFocusNode.unfocus();
+  }
+
   @override
   Widget build(BuildContext context) {
     final activeThemeIndex = widget.session.activeThemeIndex.watch(context);
@@ -517,6 +525,7 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
       onTargetSelected: _selectAnnotationTarget,
       onDraftChanged: (value) => setState(() => _annotationDraft = value),
       onCommit: _commitAnnotation,
+      onCancel: _cancelAnnotation,
       onDeleteAnnotations: widget.session.removeWorkbenchAnnotations,
       onOpenAnnotationPage: (annotation) {
         setState(() => _annotationInboxOpen = false);
@@ -838,6 +847,7 @@ class _WorkbenchInspectionLayer extends StatefulWidget {
     required this.onTargetSelected,
     required this.onDraftChanged,
     required this.onCommit,
+    required this.onCancel,
     required this.onDeleteAnnotations,
     required this.onOpenAnnotationPage,
     required this.inboxOpen,
@@ -859,6 +869,7 @@ class _WorkbenchInspectionLayer extends StatefulWidget {
   final ValueChanged<DesyWorkbenchWidgetTarget> onTargetSelected;
   final ValueChanged<String> onDraftChanged;
   final VoidCallback onCommit;
+  final VoidCallback onCancel;
   final ValueChanged<Iterable<int>> onDeleteAnnotations;
   final ValueChanged<DesyWorkbenchAnnotation> onOpenAnnotationPage;
   final bool inboxOpen;
@@ -1146,12 +1157,19 @@ class _WorkbenchInspectionLayerState extends State<_WorkbenchInspectionLayer> {
               alignment: Alignment.bottomCenter,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 560),
-                child: _WorkbenchAnnotationDock(
-                  target: target,
-                  draft: widget.annotationDraft,
-                  focusNode: widget.focusNode,
-                  onDraftChanged: widget.onDraftChanged,
-                  onCommit: widget.onCommit,
+                child: CallbackShortcuts(
+                  bindings: {
+                    const SingleActivator(LogicalKeyboardKey.escape):
+                        widget.onCancel,
+                  },
+                  child: _WorkbenchAnnotationDock(
+                    target: target,
+                    draft: widget.annotationDraft,
+                    focusNode: widget.focusNode,
+                    onDraftChanged: widget.onDraftChanged,
+                    onCommit: widget.onCommit,
+                    onCancel: widget.onCancel,
+                  ),
                 ),
               ),
             ),
@@ -1606,6 +1624,7 @@ class _WorkbenchAnnotationDock extends StatefulWidget {
     required this.focusNode,
     required this.onDraftChanged,
     required this.onCommit,
+    required this.onCancel,
   });
 
   final DesyWorkbenchWidgetTarget? target;
@@ -1613,6 +1632,7 @@ class _WorkbenchAnnotationDock extends StatefulWidget {
   final FocusNode focusNode;
   final ValueChanged<String> onDraftChanged;
   final VoidCallback onCommit;
+  final VoidCallback onCancel;
 
   @override
   State<_WorkbenchAnnotationDock> createState() =>
@@ -1694,6 +1714,25 @@ class _WorkbenchAnnotationDockState extends State<_WorkbenchAnnotationDock> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    DesyButton(
+                      key: const ValueKey('workbench-cancel-annotation'),
+                      size: DesyButtonSize.sm,
+                      variant: DesyButtonVariant.ghost,
+                      mainAxisSize: MainAxisSize.min,
+                      onPress: widget.onCancel,
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Cancel'),
+                          SizedBox(width: DesyDesignSystemTokens.spaceSm),
+                          DesyKeyboardShortcutLabel(
+                            keys: ['Esc'],
+                            semanticLabel: 'Escape cancels annotation',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: DesyDesignSystemTokens.spaceSm),
                     DesyButton(
                       key: const ValueKey('workbench-commit-annotation'),
                       size: DesyButtonSize.sm,

@@ -45,6 +45,13 @@ void main() {
       isFalse,
     );
     expect(
+      (tester.widget(find.byKey(const ValueKey('screenshot-object-canvas')))
+              as ObjectCanvas<dynamic>)
+          .controller
+          .overflow,
+      CanvasOverflow.show,
+    );
+    expect(
       find.byKey(const ValueKey('screenshot-canvas-zoom-level')),
       findsOneWidget,
     );
@@ -92,7 +99,20 @@ void main() {
     expect(find.text('Label'), findsWidgets);
     expect(find.byKey(const ValueKey('layer-forward')), findsOneWidget);
     expect(find.byKey(const ValueKey('layer-hide')), findsOneWidget);
+    expect(find.byKey(const ValueKey('layer-duplicate')), findsOneWidget);
     expect(find.byKey(const ValueKey('layer-delete')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('layer-duplicate')));
+    await tester.pumpAndSettle();
+    final canvas = tester.widget<ObjectCanvas<DesyScreenshotLayer>>(
+      find.byKey(const ValueKey('screenshot-object-canvas')),
+    );
+    expect(canvas.controller.objects, hasLength(2));
+    expect(canvas.controller.objects.last.id, isNot('widget-0'));
+    expect(
+      canvas.controller.objects.last.data.id,
+      canvas.controller.objects.last.id,
+    );
 
     await tester.tap(find.byKey(const ValueKey('scene-tab')));
     await tester.pumpAndSettle();

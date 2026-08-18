@@ -201,6 +201,40 @@ void main() {
       ),
       findsOneWidget,
     );
+    final cancelAnnotation = find.byKey(
+      const ValueKey('workbench-cancel-annotation'),
+    );
+    expect(cancelAnnotation, findsOneWidget);
+    expect(
+      find.descendant(of: cancelAnnotation, matching: find.text('Esc')),
+      findsOneWidget,
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey('workbench-annotation-input')),
+      'Discard this draft',
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('workbench-annotation-dock')),
+      findsNothing,
+    );
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey(
+          'prototypes-canvas-annotation.prototype.keyboard.session-mode-annotate',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('workbench-inspection-overlay')),
+      findsOneWidget,
+    );
+    await tester.tapAt(tester.getCenter(find.text('Prototype body')));
+    await tester.pumpAndSettle();
 
     await tester.enterText(
       find.byKey(const ValueKey('workbench-annotation-input')),

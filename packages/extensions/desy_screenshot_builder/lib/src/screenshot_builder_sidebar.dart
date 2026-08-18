@@ -588,6 +588,18 @@ class _SelectedLayerActions extends StatelessWidget {
           child: Text(layer.hidden ? 'Show' : 'Hide'),
         ),
         DesyButton(
+          key: const ValueKey('layer-duplicate'),
+          size: DesyButtonSize.xs,
+          variant: DesyButtonVariant.outline,
+          mainAxisSize: MainAxisSize.min,
+          onPress: () => canvas.duplicateObjects(
+            [layer.id],
+            dataBuilder: (object, duplicateId) =>
+                object.data.copyWith(id: duplicateId),
+          ),
+          child: const Text('Duplicate'),
+        ),
+        DesyButton(
           key: const ValueKey('layer-delete'),
           size: DesyButtonSize.xs,
           variant: DesyButtonVariant.destructive,

@@ -17,6 +17,8 @@ editor UI; the package owns canvas mechanics.
 - Disable marquee selection for hosts that use empty-space drags only for
   viewport gestures.
 - Move multiple selected objects as one undoable action.
+- Nudge selected objects with arrow keys or controller API.
+- Duplicate objects as one undoable insertion with new canvas ids.
 - Snap to canvas bounds, object edges and centers, grids, or custom targets.
 - Pan and zoom with Flutter's `InteractiveViewer` and
   `TransformationController`.

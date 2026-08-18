@@ -21,7 +21,6 @@ class DesyComponentOverview extends StatelessWidget {
     required this.onOpen,
     this.pathPrefix = '/',
     this.leadingSlivers = const [],
-    this.trailingSlivers = const [],
     this.emptyMessage = 'No components registered.',
   });
 
@@ -31,7 +30,6 @@ class DesyComponentOverview extends StatelessWidget {
   final ValueChanged<DesyRegistryComponent> onOpen;
   final String pathPrefix;
   final List<Widget> leadingSlivers;
-  final List<Widget> trailingSlivers;
   final String emptyMessage;
 
   @override
@@ -87,9 +85,7 @@ class DesyComponentOverview extends StatelessWidget {
               bottomPadding: 6,
             ),
         ],
-        ...trailingSlivers,
-        if (trailingSlivers.isEmpty)
-          const SliverToBoxAdapter(child: SizedBox(height: 28)),
+        const SliverToBoxAdapter(child: SizedBox(height: 28)),
       ],
     );
   }

@@ -94,6 +94,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      final previewBackground = find.descendant(
+        of: find.byKey(const ValueKey('detail-preview-background-default')),
+        matching: find.byType(ColoredBox),
+      );
+      expect(
+        tester.widget<ColoredBox>(previewBackground).color,
+        Colors.transparent,
+      );
+
       await tester.tap(
         find.byKey(const ValueKey('detail-instance-artboard-instance-hero')),
       );

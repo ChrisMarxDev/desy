@@ -583,15 +583,17 @@ class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          ColoredBox(
-            // Kept stable for tooling that targets the selected preset's
-            // viewport. This is an artboard background now, not a device screen.
-            key: widget.device == null
-                ? null
-                : ValueKey('detail-device-screen-${widget.device!.name}'),
-            color:
-                widget.theme.previewBackgroundColor ??
-                context.theme.colors.background,
+          KeyedSubtree(
+            key: ValueKey('detail-preview-background-${variant.id}'),
+            child: ColoredBox(
+              key: widget.device == null
+                  ? null
+                  : ValueKey('detail-device-screen-${widget.device!.name}'),
+              // A detail artboard must not invent a consumer background. The
+              // surrounding canvas remains visible until the real widget
+              // chooses to paint a surface of its own.
+              color: Colors.transparent,
+            ),
           ),
           Center(child: accessiblePreview),
         ],
