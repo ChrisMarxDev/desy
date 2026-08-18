@@ -1,0 +1,11 @@
+{
+  "name": "object_canvas example",
+  "short_name": "object_canvas",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f1f3f5",
+  "theme_color": "#2563eb",
+  "description": "Mixed-object example for object_canvas",
+  "orientation": "landscape-primary",
+  "prefer_related_applications": false
+}

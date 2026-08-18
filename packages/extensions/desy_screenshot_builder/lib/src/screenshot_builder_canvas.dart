@@ -2,12 +2,10 @@ part of 'screenshot_builder_extension.dart';
 
 class _CanvasViewport extends StatelessWidget {
   const _CanvasViewport({
+    super.key,
     required this.scene,
     required this.extension,
     required this.selectedTheme,
-    required this.boundaryKey,
-    required this.stageKey,
-    required this.transform,
     required this.dropActive,
     required this.onViewportSize,
     required this.onAcceptPalette,
@@ -16,14 +14,9 @@ class _CanvasViewport extends StatelessWidget {
     required this.onZoomOut,
   });
 
-  static const stageMargin = 320.0;
-
   final DesyScreenshotSceneController scene;
   final DesyWorkspaceExtensionContext extension;
   final DesyTheme selectedTheme;
-  final GlobalKey boundaryKey;
-  final GlobalKey stageKey;
-  final TransformationController transform;
   final bool dropActive;
   final ValueChanged<Size> onViewportSize;
   final void Function(_PalettePayload payload, Offset position) onAcceptPalette;
@@ -39,30 +32,85 @@ class _CanvasViewport extends StatelessWidget {
       return Stack(
         children: [
           Positioned.fill(
-            child: InteractiveViewer(
-              transformationController: transform,
-              constrained: false,
-              minScale: .1,
-              maxScale: 4,
-              boundaryMargin: const EdgeInsets.all(2400),
-              clipBehavior: Clip.hardEdge,
-              child: SizedBox(
-                width: scene.canvasSize.width + stageMargin * 2,
-                height: scene.canvasSize.height + stageMargin * 2,
-                child: Stack(
+            child: Builder(
+              builder: (viewportContext) => DragTarget<_PalettePayload>(
+                onAcceptWithDetails: (details) {
+                  final box = viewportContext.findRenderObject();
+                  final viewportPosition = box is RenderBox
+                      ? box.globalToLocal(details.offset)
+                      : viewportSize.center(Offset.zero);
+                  onAcceptPalette(
+                    details.data,
+                    scene.canvas.viewportController.toScene(viewportPosition),
+                  );
+                },
+                builder: (context, candidates, rejected) => Stack(
                   children: [
-                    Positioned(
-                      left: stageMargin,
-                      top: stageMargin,
-                      child: _ScreenshotStage(
-                        scene: scene,
-                        extension: extension,
-                        selectedTheme: selectedTheme,
-                        boundaryKey: boundaryKey,
-                        stageKey: stageKey,
-                        onAcceptPalette: onAcceptPalette,
+                    Positioned.fill(
+                      child: selectedTheme.wrap(
+                        context,
+                        ObjectCanvas<DesyScreenshotLayer>(
+                          key: const ValueKey('screenshot-object-canvas'),
+                          controller: scene.canvas,
+                          minScale: .1,
+                          maxScale: 4,
+                          viewportBoundaryMargin: const EdgeInsets.all(2400),
+                          style: ObjectCanvasStyle(
+                            viewportColor: context.theme.colors.desy.canvas,
+                            canvasColor:
+                                scene.backgroundColor ?? Colors.transparent,
+                            selectionColor: context.theme.colors.desy.signal,
+                            guideColor: context.theme.colors.desy.signal,
+                            marqueeFillColor: context
+                                .theme
+                                .colors
+                                .desy
+                                .signalSurface
+                                .withValues(alpha: .24),
+                            marqueeStrokeColor:
+                                context.theme.colors.desy.signal,
+                          ),
+                          underlayBuilder: scene.backgroundColor == null
+                              ? (context, controller) =>
+                                    const _TransparentGrid()
+                              : null,
+                          overlayBuilder: (context, controller) =>
+                              IgnorePointer(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: context.theme.colors.desy.divider,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          objectVisibility: (object) => !object.data.hidden,
+                          semanticLabelBuilder: (object) => object.data.name,
+                          objectBuilder: (context, object) => IgnorePointer(
+                            child: _ScreenshotLayerContent(
+                              object: object,
+                              registry: extension.registry,
+                              scene: scene,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
+                    if (candidates.isNotEmpty)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: context.theme.colors.desy.signalSurface
+                                  .withValues(alpha: .42),
+                              border: Border.all(
+                                color: context.theme.colors.desy.signal,
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -72,8 +120,7 @@ class _CanvasViewport extends StatelessWidget {
             top: 16,
             right: 16,
             child: _CanvasToolbar(
-              scene: scene,
-              transform: transform,
+              transform: scene.canvas.viewportController,
               onFit: onFit,
               onZoomIn: onZoomIn,
               onZoomOut: onZoomOut,
@@ -109,14 +156,12 @@ class _CanvasViewport extends StatelessWidget {
 
 class _CanvasToolbar extends StatefulWidget {
   const _CanvasToolbar({
-    required this.scene,
     required this.transform,
     required this.onFit,
     required this.onZoomIn,
     required this.onZoomOut,
   });
 
-  final DesyScreenshotSceneController scene;
   final TransformationController transform;
   final VoidCallback onFit;
   final VoidCallback onZoomIn;
@@ -196,138 +241,21 @@ class _CanvasToolbarState extends State<_CanvasToolbar> {
   }
 }
 
-class _ScreenshotStage extends StatelessWidget {
-  const _ScreenshotStage({
-    required this.scene,
-    required this.extension,
-    required this.selectedTheme,
-    required this.boundaryKey,
-    required this.stageKey,
-    required this.onAcceptPalette,
-  });
-
-  final DesyScreenshotSceneController scene;
-  final DesyWorkspaceExtensionContext extension;
-  final DesyTheme selectedTheme;
-  final GlobalKey boundaryKey;
-  final GlobalKey stageKey;
-  final void Function(_PalettePayload payload, Offset position) onAcceptPalette;
-
-  @override
-  Widget build(BuildContext context) => SizedBox.fromSize(
-    key: stageKey,
-    size: scene.canvasSize,
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x26000000),
-            blurRadius: 30,
-            offset: Offset(0, 12),
-          ),
-        ],
-        border: Border.all(color: context.theme.colors.desy.divider),
-      ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          if (scene.backgroundColor == null)
-            const Positioned.fill(child: _TransparentGrid()),
-          RepaintBoundary(
-            key: boundaryKey,
-            child: SizedBox.fromSize(
-              size: scene.canvasSize,
-              child: selectedTheme.wrap(
-                context,
-                Builder(
-                  builder: (previewContext) => ColoredBox(
-                    color: scene.backgroundColor ?? Colors.transparent,
-                    child: Stack(
-                      clipBehavior: Clip.hardEdge,
-                      children: [
-                        for (final layer in scene.layers)
-                          if (!layer.hidden)
-                            _ScreenshotLayerContent(
-                              key: ValueKey('screenshot-content-${layer.id}'),
-                              layer: layer,
-                              registry: extension.registry,
-                              scene: scene,
-                            ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: DragTarget<_PalettePayload>(
-              onAcceptWithDetails: (details) {
-                final box = stageKey.currentContext?.findRenderObject();
-                final local = box is RenderBox
-                    ? box.globalToLocal(details.offset)
-                    : scene.canvasSize.center(Offset.zero);
-                onAcceptPalette(details.data, local);
-              },
-              builder: (context, candidates, rejected) => GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTap: () => scene.select(null),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    for (final layer in scene.layers)
-                      if (!layer.hidden)
-                        _LayerSelectionFrame(
-                          key: ValueKey('screenshot-selection-${layer.id}'),
-                          layer: layer,
-                          scene: scene,
-                          stageKey: stageKey,
-                        ),
-                    if (candidates.isNotEmpty)
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: context.theme.colors.desy.signalSurface
-                                  .withValues(alpha: .42),
-                              border: Border.all(
-                                color: context.theme.colors.desy.signal,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
 class _ScreenshotLayerContent extends StatelessWidget {
   const _ScreenshotLayerContent({
-    super.key,
-    required this.layer,
+    required this.object,
     required this.registry,
     required this.scene,
   });
 
-  final DesyScreenshotLayer layer;
+  final CanvasObject<DesyScreenshotLayer> object;
   final DesyRegistry registry;
   final DesyScreenshotSceneController scene;
 
-  @override
-  Widget build(BuildContext context) => Positioned.fromRect(
-    rect: layer.rect,
-    child: IgnorePointer(child: _buildLayer(context)),
-  );
+  DesyScreenshotLayer get layer => object.data;
 
-  Widget _buildLayer(BuildContext context) => switch (layer) {
+  @override
+  Widget build(BuildContext context) => switch (layer) {
     final DesyScreenshotWidgetLayer widgetLayer => _buildWidget(
       context,
       widgetLayer,
@@ -370,18 +298,9 @@ class _ScreenshotLayerContent extends StatelessWidget {
         ),
       );
     }
-    final logicalSize = widgetLayer.logicalSize;
-    return OverflowBox(
-      alignment: Alignment.topLeft,
-      minWidth: logicalSize.width,
-      minHeight: logicalSize.height,
-      maxWidth: logicalSize.width,
-      maxHeight: logicalSize.height,
-      child: Transform.scale(
-        alignment: Alignment.topLeft,
-        scale: widgetLayer.scale,
-        child: SizedBox.fromSize(size: logicalSize, child: buildRealWidget()),
-      ),
+    return SizedBox.fromSize(
+      size: object.geometry.size,
+      child: buildRealWidget(),
     );
   }
 
@@ -406,132 +325,6 @@ class _ScreenshotLayerContent extends StatelessWidget {
                 colorFilter: ColorFilter.mode(color.color, BlendMode.srcIn),
                 child: text,
               ),
-      ),
-    );
-  }
-}
-
-class _LayerSelectionFrame extends StatefulWidget {
-  const _LayerSelectionFrame({
-    super.key,
-    required this.layer,
-    required this.scene,
-    required this.stageKey,
-  });
-
-  final DesyScreenshotLayer layer;
-  final DesyScreenshotSceneController scene;
-  final GlobalKey stageKey;
-
-  @override
-  State<_LayerSelectionFrame> createState() => _LayerSelectionFrameState();
-}
-
-class _LayerSelectionFrameState extends State<_LayerSelectionFrame> {
-  Offset? _dragAnchor;
-
-  Offset? _stageLocal(Offset global) {
-    final box = widget.stageKey.currentContext?.findRenderObject();
-    return box is RenderBox ? box.globalToLocal(global) : null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final selected = widget.scene.selectedId == widget.layer.id;
-    final signal = context.theme.colors.desy.signal;
-    return Positioned.fromRect(
-      rect: widget.layer.rect,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: () => widget.scene.select(widget.layer.id),
-        onPanStart: (details) {
-          widget.scene.select(widget.layer.id);
-          final local = _stageLocal(details.globalPosition);
-          if (local != null) _dragAnchor = local - widget.layer.rect.topLeft;
-        },
-        onPanUpdate: (details) {
-          final local = _stageLocal(details.globalPosition);
-          final anchor = _dragAnchor;
-          if (local != null && anchor != null) {
-            widget.scene.move(widget.layer.id, local - anchor);
-          }
-        },
-        onPanEnd: (_) => _dragAnchor = null,
-        onPanCancel: () => _dragAnchor = null,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: selected ? signal : Colors.transparent,
-              width: selected ? 2 : 1,
-            ),
-          ),
-          child: selected
-              ? Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned(
-                      left: -2,
-                      top: -24,
-                      child: IgnorePointer(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: signal,
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 3,
-                            ),
-                            child: Text(
-                              widget.layer.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                height: 1.2,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      right: -9,
-                      bottom: -9,
-                      child: MouseRegion(
-                        cursor: SystemMouseCursors.resizeDownRight,
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onPanUpdate: (details) {
-                            final local = _stageLocal(details.globalPosition);
-                            if (local != null) {
-                              widget.scene.resize(
-                                widget.layer.id,
-                                Size(
-                                  local.dx - widget.layer.rect.left,
-                                  local.dy - widget.layer.rect.top,
-                                ),
-                              );
-                            }
-                          },
-                          child: Container(
-                            width: 18,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              color: signal,
-                              border: Border.all(color: Colors.white, width: 2),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : null,
-        ),
       ),
     );
   }

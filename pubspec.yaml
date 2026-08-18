@@ -6,6 +6,8 @@ environment:
   sdk: ^3.8.0
 
 workspace:
+  - packages/object_canvas
+  - packages/object_canvas/example
   - packages/desy_bench
   - packages/desy_ide
   - packages/desy_design_system

@@ -37,14 +37,13 @@ void main() {
       final controller = DesyScreenshotSceneController(themeId: 'light');
       addTearDown(controller.dispose);
       final id = controller.addWidget(registry.allComponentInstances.single);
-      final layer = controller.layerById(id)! as DesyScreenshotWidgetLayer;
-      final logicalSize = layer.logicalSize;
+      final logicalSize = controller.logicalSizeFor(id);
 
       controller.setWidgetScale(id, .5);
 
-      expect(layer.scale, .5);
-      expect(layer.logicalSize, logicalSize);
-      expect(layer.rect.size, logicalSize * .5);
+      expect(controller.scaleFor(id), .5);
+      expect(controller.logicalSizeFor(id), logicalSize);
+      expect(controller.rectFor(id).size, logicalSize * .5);
     },
   );
 
@@ -78,7 +77,7 @@ void main() {
     controller.resize(id, const Size(320, 180));
     controller.setCanvasSize(const Size(900, 500));
 
-    expect(controller.layerById(id)!.rect.size, const Size(320, 180));
+    expect(controller.rectFor(id).size, const Size(320, 180));
     expect(controller.canvasSize, const Size(900, 500));
   });
 }

@@ -424,7 +424,7 @@ class _ScreenshotLayerInspector extends StatelessWidget {
                           DesyTextValueKnobRow(
                             label: 'Size',
                             value:
-                                '${imageLayer.rect.width.round()} × ${imageLayer.rect.height.round()}',
+                                '${scene.rectFor(imageLayer.id).width.round()} × ${scene.rectFor(imageLayer.id).height.round()}',
                           ),
                         ],
                       ),
@@ -563,7 +563,7 @@ class _WidgetInspector extends StatelessWidget {
               label: 'Scale',
               description:
                   'Changes the visual size without replacing real widget constraints.',
-              value: layer.scale,
+              value: scene.scaleFor(layer.id),
               unit: '×',
               step: .1,
               minimum: .1,

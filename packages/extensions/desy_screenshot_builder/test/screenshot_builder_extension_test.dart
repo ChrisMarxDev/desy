@@ -33,6 +33,10 @@ void main() {
 
     expect(find.text('EXPERIMENTAL'), findsOneWidget);
     expect(find.byKey(const ValueKey('elements-tab')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('screenshot-object-canvas')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('scene-tab')), findsOneWidget);
     expect(find.byKey(const ValueKey('page-tab')), findsOneWidget);
     expect(find.byKey(const ValueKey('add-text-element')), findsOneWidget);

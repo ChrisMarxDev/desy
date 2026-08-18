@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  analyze:
+    desc: Analyze object_canvas.
+    cmds:
+      - flutter analyze
+
+  test:
+    desc: Run object_canvas tests.
+    cmds:
+      - flutter test
+
+  format:
+    desc: Format object_canvas sources.
+    cmds:
+      - dart format lib test

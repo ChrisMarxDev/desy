@@ -24,7 +24,7 @@
       </article>
       <article class="card">
         <h2>Decision</h2>
-        <p><strong>Build a finite, content-agnostic object canvas—not an image editor or Desy canvas.</strong> The package owns geometry and interaction inside its bounds. The host owns object meaning, image loading, text models, toolbars, property screens, persistence, export, and application state.</p>
+        <p><strong>Build a finite, content-agnostic object canvas—not an image editor or Desy canvas.</strong> The package owns geometry, selection, interaction, ephemeral history, and mounted content rendering inside its bounds. The host owns object meaning, image loading, text models, toolbars, property screens, persistence, file destinations, sharing, and application state.</p>
       </article>
 
       <article class="card full">
@@ -34,6 +34,14 @@
   defaults: const CanvasObjectDefaults(
     constraints: CanvasObjectConstraints(minSize: Size(24, 24)),
     capabilities: CanvasObjectCapabilities.all,
+  ),
+  snapping: CanvasSnapping(
+    strategies: [
+      CanvasEdgeSnapping(),
+      ObjectAnchorSnapping(),
+      GridSnapping(step: 8),
+      AngleSnapping(stepDegrees: 15),
+    ],
   ),
   objects: [
     CanvasObject(
@@ -53,15 +61,6 @@ ObjectCanvas&lt;EditorElement&gt;(
   controller: controller,
   objectBuilder: (context, object, state) =&gt;
       buildElement(object.data, state),
-  onAction: (event) =&gt; logCanvasEdit(event),
-  snapping: CanvasSnapping(
-    strategies: [
-      CanvasEdgeSnapping(),
-      ObjectAnchorSnapping(),
-      GridSnapping(step: 8),
-      AngleSnapping(stepDegrees: 15),
-    ],
-  ),
 );</code></pre>
         <p>The controller is the single mutable owner. <code>CanvasObject&lt;T&gt;</code> stays immutable and typed. Canvas defaults provide the common minimum size and capabilities; individual objects override them only when exceptional. The object builder converts arbitrary host data into a real Flutter widget, while <code>ObjectCanvas&lt;Widget&gt;.widgets</code> provides a zero-builder default. Resizing changes <code>geometry.size</code> and therefore the widget's layout constraints; scaling changes <code>geometry.scale</code> and preserves its layout size. Each completed gesture becomes one typed <code>CanvasAction</code> backed by the <code>undo</code> package. Its reversible patch stores exact old/new values only for fields that changed and exposes apply/revert behavior; pointer frames update only a visual draft, and pointer-up adds one undoable action.</p>
       </article>
@@ -72,9 +71,12 @@ ObjectCanvas&lt;EditorElement&gt;(
           <li>A finite logical canvas with an explicit size, clipping, background, and boundary policy.</li>
           <li>Immutable, ordered <code>CanvasObject&lt;T&gt;</code> values with stable IDs, typed host data, position, layout size, rotation, transform scale, pivot, constraints, and interaction capabilities.</li>
           <li>A disposable <code>ObjectCanvasController&lt;T&gt;</code> for objects, selection, z-order, viewport, coordinate conversion, focused rebuilds, programmatic edits, and ephemeral undo/redo.</li>
+          <li>Controller-only object ownership: <code>ObjectCanvas</code> never accepts a competing <code>objects</code> list or document-change callback API.</li>
           <li>Typed move, resize, scale, rotate, add, remove, reorder, data, and composite actions; one completed interaction creates one history entry whose reversible patch stores only changed fields.</li>
+          <li>Shift/toggle and marquee multi-selection with shared group movement, union-hull snapping, preserved relative positions, and one composite undo action; resize, scale, and rotation remain single-object operations.</li>
           <li>Mouse, touch, stylus, trackpad, and keyboard selection/move/resize/scale/rotate behavior using Flutter gesture and focus APIs.</li>
           <li>Composable grid, canvas-edge, object-anchor, and angle snapping with targets precomputed on committed placement/configuration changes; pointer frames only query the index and render guides.</li>
+          <li>Mounted finite-stage rendering of background plus real object widgets to <code>ui.Image</code> or PNG bytes at explicit pixel ratio, excluding handles and guides.</li>
           <li>Builders/delegates for object content, selection frames, handles, guides, background, hit testing, modifier policy, and boundary resolution.</li>
           <li>Adapters that prove the package in the screenshot builder first, then Sketch/Canvas V2, without moving Desy registry concepts into the package.</li>
         </ul>
@@ -86,7 +88,7 @@ ObjectCanvas&lt;EditorElement&gt;(
           <li>No sidebar, toolbar, details panel, layers panel, dialogs, routes, or application scaffold.</li>
           <li>No built-in image picker, image codec, rich-text model, font catalogue, registry, or domain-specific object types.</li>
           <li>No persistence format, JSON widget language, serialized history, collaboration, cloud state, or generated production code in V1.</li>
-          <li>No file export contract in the core; hosts may capture the content boundary or add a later focused companion.</li>
+          <li>No file picker, path choice, filesystem write, download, share sheet, or export toolbar in core; hosts consume returned image/PNG data.</li>
           <li>No connectors, graph edges, drawing tools, shape catalogue, layout containers, groups, or infinite scene in the first package slice.</li>
           <li>No custom replacement gesture arena unless a documented Flutter/dependency composition spike proves a required gap.</li>
         </ul>
@@ -118,26 +120,24 @@ Pure geometry seam
         <ol>
           <li>Freeze the public object, geometry, change-event, controller, and snapping contracts with API tests.</li>
           <li>Build a package example containing mixed image, text, and arbitrary-widget data on one finite canvas.</li>
-          <li>Implement single selection, move, layout resize, transform scale, rotation, boundary containment, camera, and keyboard parity.</li>
+          <li>Implement single/multi-selection and shared movement; keep layout resize, transform scale, and rotation single-object; prove boundary containment, camera, and keyboard parity.</li>
           <li>Port the proven Desy snap engine, then add canvas-edge and angle strategies behind the same candidate/session contract.</li>
           <li>Adapt the screenshot builder. Delete its local geometry, selection, snapping, and resize code only after behavioral parity.</li>
           <li>Adapt Sketch/Canvas V2 next. Keep layouts, artboards, registry resolution, knobs, and inspectors in Desy.</li>
-          <li>Consider richer multi-selection, persistent history, groups, or publishing only after two consumers prove the core boundary.</li>
+          <li>Consider multi-object resize/scale/rotation, persistent history, groups, or publishing only after two consumers prove the core boundary.</li>
         </ol>
       </article>
 
       <article class="card">
-        <h2>Open questions</h2>
+        <h2>Locked V1 decisions</h2>
         <ul>
-          <li>Publish name: <code>object_canvas</code>, <code>flutter_object_canvas</code>, or a more distinctive name?</li>
-          <li>Ship only the canonical controller API in V1, or also a convenience <code>objects + onObjectChanged</code> constructor that internally owns and reconciles a controller?</li>
-          <li>Should transform scaling be an explicit active tool, a per-object capability, or a modifier on the standard resize handles?</li>
-          <li>Should <code>onObjectChanged</code> ship as a convenience projection over the primary <code>CanvasActionEvent</code> callback?</li>
-          <li>Should custom host actions implement the same typed apply/revert interface, or remain an internal follow-up after built-in action types prove the boundary?</li>
-          <li>Should the default ephemeral history retain 100 completed document actions?</li>
-          <li>Does V1 need multi-selection transforms, or only a future-proof selected-ID set with single-object interaction?</li>
-          <li>Should viewport state live in the main controller or in a composable camera controller?</li>
-          <li>Can released dependencies cover rotation and rotated clamping, or must the first version own a narrow rotation handle/geometry seam?</li>
+          <li>Package name is <code>object_canvas</code>; <code>ObjectCanvasController</code> is the sole document/view/history API.</li>
+          <li>Canvas defaults minimize object declarations; arbitrary data uses a builder and widget data has a <code>.widgets</code> convenience.</li>
+          <li>The controller selects layout-resize versus transform-scale mode; an optional modifier temporarily inverts it.</li>
+          <li>Multi-selection ships for shared movement only. Resize, scale, and rotation require one selected object.</li>
+          <li>Native Flutter recognizers own input; the package owns pure transform geometry and evaluates <code>box_transform</code> only for resize.</li>
+          <li>Ephemeral history retains 100 actions by default and uses reversible patches through the <code>undo</code> adapter.</li>
+          <li>Mounted canvas rendering is core; all file destination and export workflow stays with the host.</li>
         </ul>
       </article>
 

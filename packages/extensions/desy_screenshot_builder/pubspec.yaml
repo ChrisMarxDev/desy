@@ -19,6 +19,8 @@ dependencies:
   file_selector: ^1.1.0
   flutter:
     sdk: flutter
+  object_canvas:
+    path: ../../object_canvas
 
 dev_dependencies:
   flutter_test:

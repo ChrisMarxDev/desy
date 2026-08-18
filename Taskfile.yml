@@ -1,6 +1,12 @@
 version: '3'
 
 includes:
+  object_canvas:
+    taskfile: ./packages/object_canvas/Taskfile.yml
+    dir: ./packages/object_canvas
+  object_canvas_example:
+    taskfile: ./packages/object_canvas/example/Taskfile.yml
+    dir: ./packages/object_canvas/example
   bench:
     taskfile: ./packages/desy_bench/Taskfile.yml
     dir: ./packages/desy_bench
@@ -61,6 +67,8 @@ tasks:
   test:
     desc: Run all package test suites.
     cmds:
+      - task: object_canvas:test
+      - task: object_canvas_example:test
       - task: bench:test
       - task: agent_annotations:test
       - task: design_system:test
@@ -82,6 +90,7 @@ tasks:
       - task: widgetbook:build:web
       - task: overlay:build:example:web
       - task: genui_example:build:web
+      - task: object_canvas_example:build:web
 
   format:
     desc: Format maintained Dart sources.

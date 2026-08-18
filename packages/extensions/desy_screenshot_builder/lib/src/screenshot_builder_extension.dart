@@ -9,6 +9,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:object_canvas/object_canvas.dart';
 
 import 'screenshot_export.dart';
 import 'screenshot_scene.dart';
@@ -59,9 +60,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
   static const _inspectorMinimum = 340.0;
   static const _inspectorMaximum = 480.0;
 
-  final _boundaryKey = GlobalKey(debugLabel: 'screenshot-export-boundary');
-  final _stageKey = GlobalKey(debugLabel: 'screenshot-logical-stage');
-  final _transform = TransformationController();
+  final _viewportKey = GlobalKey(debugLabel: 'screenshot-canvas-viewport');
   late final DesyScreenshotSceneController _scene;
 
   var _sidebarWidth = 360.0;
@@ -98,7 +97,6 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
     _scene
       ..removeListener(_handleSceneChange)
       ..dispose();
-    _transform.dispose();
     super.dispose();
   }
 
@@ -257,7 +255,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
     });
     try {
       await WidgetsBinding.instance.endOfFrame;
-      final bytes = await captureDesyScreenshot(_boundaryKey);
+      final bytes = await _scene.canvas.renderPng();
       final location = await saveDesyScreenshot(bytes);
       if (!mounted) return;
       setState(() => _status = 'Saved PNG to $location');
@@ -270,9 +268,10 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
   }
 
   Offset? _stagePositionFromGlobal(Offset globalPosition) {
-    final renderObject = _stageKey.currentContext?.findRenderObject();
+    final renderObject = _viewportKey.currentContext?.findRenderObject();
     if (renderObject is! RenderBox) return null;
-    return renderObject.globalToLocal(globalPosition);
+    final viewportPosition = renderObject.globalToLocal(globalPosition);
+    return _scene.canvas.viewportController.toScene(viewportPosition);
   }
 
   void _fitCanvas() {
@@ -289,24 +288,20 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
         .clamp(.1, 4.0);
     final horizontal = (_viewportSize.width - canvas.width * scale) / 2;
     final vertical = (_viewportSize.height - canvas.height * scale) / 2;
-    _transform.value = Matrix4.identity()
-      ..translateByDouble(
-        horizontal - _CanvasViewport.stageMargin * scale,
-        vertical - _CanvasViewport.stageMargin * scale,
-        0,
-        1,
-      )
+    _scene.canvas.viewportController.value = Matrix4.identity()
+      ..translateByDouble(horizontal, vertical, 0, 1)
       ..scaleByDouble(scale, scale, 1, 1);
     _hasInitialFit = true;
   }
 
   void _zoom(double factor) {
     if (_viewportSize.isEmpty) return;
-    final current = _transform.value.getMaxScaleOnAxis();
+    final transform = _scene.canvas.viewportController;
+    final current = transform.value.getMaxScaleOnAxis();
     final next = (current * factor).clamp(.1, 4.0);
     final viewportCenter = _viewportSize.center(Offset.zero);
-    final sceneCenter = _transform.toScene(viewportCenter);
-    _transform.value = Matrix4.identity()
+    final sceneCenter = transform.toScene(viewportCenter);
+    transform.value = Matrix4.identity()
       ..translateByDouble(viewportCenter.dx, viewportCenter.dy, 0, 1)
       ..scaleByDouble(next, next, 1, 1)
       ..translateByDouble(-sceneCenter.dx, -sceneCenter.dy, 0, 1);
@@ -340,12 +335,10 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
             onDragExited: (_) => setState(() => _dropActive = false),
             onDragDone: (details) => unawaited(_handleFileDrop(details)),
             child: _CanvasViewport(
+              key: _viewportKey,
               scene: _scene,
               extension: extension,
               selectedTheme: selectedTheme,
-              boundaryKey: _boundaryKey,
-              stageKey: _stageKey,
-              transform: _transform,
               dropActive: _dropActive,
               onViewportSize: (size) {
                 if (_viewportSize == size) return;
