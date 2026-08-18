@@ -29,6 +29,14 @@ typedef ObjectCanvasSemanticLabelBuilder<T> =
 /// Decides whether an object is rendered and directly interactive.
 typedef ObjectCanvasVisibility<T> = bool Function(CanvasObject<T> object);
 
+const _dragGestureDevices = {
+  PointerDeviceKind.touch,
+  PointerDeviceKind.mouse,
+  PointerDeviceKind.stylus,
+  PointerDeviceKind.invertedStylus,
+  PointerDeviceKind.unknown,
+};
+
 /// Defines the visual treatment of the viewport and canvas interactions.
 class ObjectCanvasStyle {
   /// Creates canvas styling with neutral viewport and blue selection defaults.
@@ -91,6 +99,7 @@ class ObjectCanvas<T> extends StatefulWidget {
     this.autofocus = false,
     this.semanticLabelBuilder,
     this.objectVisibility,
+    this.marqueeSelectionEnabled = true,
   });
 
   /// Creates a canvas whose application data is already a [Widget].
@@ -108,6 +117,7 @@ class ObjectCanvas<T> extends StatefulWidget {
     this.autofocus = false,
     this.semanticLabelBuilder,
     this.objectVisibility,
+    this.marqueeSelectionEnabled = true,
   }) : assert(T == Widget, 'ObjectCanvas.widgets requires T to be Widget.'),
        objectBuilder = ((context, object) => object.data as Widget);
 
@@ -149,6 +159,9 @@ class ObjectCanvas<T> extends StatefulWidget {
 
   /// Filters rendering, hit testing, marquee selection, and handles.
   final ObjectCanvasVisibility<T>? objectVisibility;
+
+  /// Whether dragging empty canvas space draws a marquee selection rectangle.
+  final bool marqueeSelectionEnabled;
 
   @override
   State<ObjectCanvas<T>> createState() => _ObjectCanvasState<T>();
@@ -244,11 +257,20 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
                       key: _renderBoundaryKey,
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
+                        supportedDevices: _dragGestureDevices,
                         onTap: controller.clearSelection,
-                        onPanStart: _onMarqueeStart,
-                        onPanUpdate: _onMarqueeUpdate,
-                        onPanEnd: _onMarqueeEnd,
-                        onPanCancel: _onMarqueeCancel,
+                        onPanStart: widget.marqueeSelectionEnabled
+                            ? _onMarqueeStart
+                            : null,
+                        onPanUpdate: widget.marqueeSelectionEnabled
+                            ? _onMarqueeUpdate
+                            : null,
+                        onPanEnd: widget.marqueeSelectionEnabled
+                            ? _onMarqueeEnd
+                            : null,
+                        onPanCancel: widget.marqueeSelectionEnabled
+                            ? _onMarqueeCancel
+                            : null,
                         child: ColoredBox(
                           color: widget.style.canvasColor,
                           child: Stack(
@@ -322,7 +344,7 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
           selected: snapshot.selected,
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
-            supportedDevices: const {...PointerDeviceKind.values},
+            supportedDevices: _dragGestureDevices,
             onTap: () => _selectObject(view.id),
             onPanStart: capabilities.movable
                 ? (details) => _onObjectMoveStart(view.id, details)
@@ -391,6 +413,7 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
   }
 
   void _onMarqueeStart(DragStartDetails details) {
+    if (details.kind == PointerDeviceKind.trackpad) return;
     _marqueeOrigin = details.localPosition;
     _marquee = Rect.fromPoints(details.localPosition, details.localPosition);
     _marqueeSelectionMode = _isAdditiveModifierPressed()
@@ -492,6 +515,7 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
         cursor: handle.cursorFor(geometry.rotation),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          supportedDevices: _dragGestureDevices,
           onPanStart: (details) => _onResizeStart(id, handle.edges, details),
           onPanUpdate: (details) => _onResizeUpdate(id, details),
           onPanEnd: (_) => _onResizeEnd(),
@@ -915,6 +939,7 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          supportedDevices: _dragGestureDevices,
           onPanStart: (details) => _onRotationStart(id, details),
           onPanUpdate: (details) => _onRotationUpdate(id, details),
           onPanEnd: (_) => _onRotationEnd(),

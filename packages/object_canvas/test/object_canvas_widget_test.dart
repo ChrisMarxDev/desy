@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -154,6 +155,77 @@ void main() {
     await gesture.up();
     await tester.pump();
     expect(controller.lastActionEvent?.action.objectIds, ['a', 'b']);
+  });
+
+  testWidgets('trackpad pan does not start marquee selection', (tester) async {
+    final controller = _widgetController();
+    await tester.pumpWidget(_host(controller, viewportGestures: true));
+
+    final stageTopLeft = tester.getTopLeft(
+      find.byKey(const ValueKey('object-canvas-stage-stack')),
+    );
+    final gesture = await tester.createGesture(
+      kind: PointerDeviceKind.trackpad,
+    );
+    final focalPoint = stageTopLeft + const Offset(295, 195);
+    await gesture.panZoomStart(focalPoint);
+    await tester.pump();
+    await gesture.panZoomUpdate(focalPoint, pan: const Offset(-260, -175));
+    await tester.pump();
+    await gesture.panZoomEnd();
+    await tester.pump();
+
+    expect(controller.selectedObjectIds, isEmpty);
+  });
+
+  testWidgets('trackpad pan over a selected object moves the viewport', (
+    tester,
+  ) async {
+    final controller = _widgetController();
+    controller.selectObjects(['a']);
+    await tester.pumpWidget(_host(controller, viewportGestures: true));
+
+    final matrix = controller.viewportController.value;
+    final beforeTranslation = Offset(matrix.storage[12], matrix.storage[13]);
+    final beforePosition = controller.requireObject('a').geometry.position;
+    final gesture = await tester.createGesture(
+      kind: PointerDeviceKind.trackpad,
+    );
+    final focalPoint = tester.getCenter(
+      find.byKey(const ValueKey('object-canvas-object-a')),
+    );
+    await gesture.panZoomStart(focalPoint);
+    await tester.pump();
+    await gesture.panZoomUpdate(focalPoint, pan: const Offset(-120, -80));
+    await tester.pump();
+    await gesture.panZoomEnd();
+    await tester.pump();
+
+    expect(controller.requireObject('a').geometry.position, beforePosition);
+    expect(controller.hasActiveTransform, isFalse);
+    final nextMatrix = controller.viewportController.value;
+    expect(
+      Offset(nextMatrix.storage[12], nextMatrix.storage[13]),
+      isNot(beforeTranslation),
+    );
+  });
+
+  testWidgets('marquee selection can be disabled by the host', (tester) async {
+    final controller = _widgetController();
+    await tester.pumpWidget(_host(controller, marqueeSelectionEnabled: false));
+
+    final stageTopLeft = tester.getTopLeft(
+      find.byKey(const ValueKey('object-canvas-stage-stack')),
+    );
+    final gesture = await tester.startGesture(
+      stageTopLeft + const Offset(295, 195),
+    );
+    await gesture.moveBy(const Offset(-260, -175));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    expect(controller.selectedObjectIds, isEmpty);
   });
 
   testWidgets('drag direction stays in canvas space for a rotated object', (
@@ -665,6 +737,7 @@ Widget _host(
   ObjectCanvasController<Widget> controller, {
   bool autofocus = false,
   bool viewportGestures = false,
+  bool marqueeSelectionEnabled = true,
 }) => Directionality(
   textDirection: TextDirection.ltr,
   child: Center(
@@ -676,6 +749,7 @@ Widget _host(
         autofocus: autofocus,
         panEnabled: viewportGestures,
         scaleEnabled: viewportGestures,
+        marqueeSelectionEnabled: marqueeSelectionEnabled,
       ),
     ),
   ),

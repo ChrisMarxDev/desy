@@ -79,12 +79,14 @@ final class DesyScreenshotTextLayer extends DesyScreenshotLayer {
     required this.text,
     this.typographyId,
     this.colorId,
+    this.textAlign = TextAlign.start,
     super.hidden,
   });
 
   final String text;
   final String? typographyId;
   final String? colorId;
+  final TextAlign textAlign;
 
   @override
   String get kindLabel => 'Text';
@@ -96,6 +98,7 @@ final class DesyScreenshotTextLayer extends DesyScreenshotLayer {
     String? text,
     Object? typographyId = _unchanged,
     Object? colorId = _unchanged,
+    TextAlign? textAlign,
   }) => DesyScreenshotTextLayer(
     id: id,
     name: name ?? this.name,
@@ -104,6 +107,7 @@ final class DesyScreenshotTextLayer extends DesyScreenshotLayer {
         ? this.typographyId
         : typographyId as String?,
     colorId: identical(colorId, _unchanged) ? this.colorId : colorId as String?,
+    textAlign: textAlign ?? this.textAlign,
     hidden: hidden ?? this.hidden,
   );
 }

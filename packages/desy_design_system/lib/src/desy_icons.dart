@@ -6,6 +6,15 @@ import 'package:forui/forui.dart';
 /// Consumer previews are not required to use these icons. Centralizing the
 /// vocabulary prevents Desy packages from depending directly on Forui assets.
 abstract final class DesyIcons {
+  /// Align text to the left edge.
+  static const IconData alignLeft = FLucideIcons.alignLeft;
+
+  /// Align text to the horizontal center.
+  static const IconData alignCenter = FLucideIcons.alignCenter;
+
+  /// Align text to the right edge.
+  static const IconData alignRight = FLucideIcons.alignRight;
+
   /// Navigate to a previous surface.
   static const IconData arrowLeft = FLucideIcons.arrowLeft;
 

@@ -14,6 +14,8 @@ editor UI; the package owns canvas mechanics.
 - Move, rotate, logically resize, or uniformly scale objects.
 - Keep widget layout size separate from paint scale.
 - Select by click, modifier click, marquee, or controller API.
+- Disable marquee selection for hosts that use empty-space drags only for
+  viewport gestures.
 - Move multiple selected objects as one undoable action.
 - Snap to canvas bounds, object edges and centers, grids, or custom targets.
 - Pan and zoom with Flutter's `InteractiveViewer` and

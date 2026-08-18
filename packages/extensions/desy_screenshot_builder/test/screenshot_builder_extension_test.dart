@@ -3,6 +3,7 @@ import 'package:desy_design_system/desy_design_system.dart';
 import 'package:desy_screenshot_builder/desy_screenshot_builder.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:object_canvas/object_canvas.dart';
 
 void main() {
   const extension = DesyScreenshotBuilderExtension();
@@ -37,6 +38,25 @@ void main() {
       find.byKey(const ValueKey('screenshot-object-canvas')),
       findsOneWidget,
     );
+    expect(
+      (tester.widget(find.byKey(const ValueKey('screenshot-object-canvas')))
+              as ObjectCanvas<dynamic>)
+          .marqueeSelectionEnabled,
+      isFalse,
+    );
+    expect(
+      find.byKey(const ValueKey('screenshot-canvas-zoom-level')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<Semantics>(
+            find.byKey(const ValueKey('screenshot-canvas-zoom-level')),
+          )
+          .properties
+          .label,
+      'Zoom 100 percent',
+    );
     expect(find.byKey(const ValueKey('scene-tab')), findsOneWidget);
     expect(find.byKey(const ValueKey('page-tab')), findsOneWidget);
     expect(find.byKey(const ValueKey('add-text-element')), findsOneWidget);
@@ -59,6 +79,16 @@ void main() {
       find.byKey(const ValueKey('screenshot-layer-inspector-content')),
       findsOneWidget,
     );
+    expect(
+      tester
+          .getTopLeft(find.byKey(const ValueKey('screenshot-layer-inspector')))
+          .dx,
+      greaterThan(
+        tester
+            .getTopLeft(find.byKey(const ValueKey('screenshot-object-canvas')))
+            .dx,
+      ),
+    );
     expect(find.text('Label'), findsWidgets);
     expect(find.byKey(const ValueKey('layer-forward')), findsOneWidget);
     expect(find.byKey(const ValueKey('layer-hide')), findsOneWidget);
@@ -76,6 +106,10 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('page-tab')));
     await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('page-size-preset-control')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('page-width-control')), findsOneWidget);
     expect(find.byKey(const ValueKey('page-height-control')), findsOneWidget);
     expect(find.byKey(const ValueKey('page-theme-control')), findsOneWidget);
@@ -85,6 +119,12 @@ void main() {
     );
     expect(find.byKey(const ValueKey('export-screenshot')), findsOneWidget);
     expect(find.textContaining('1200 × 630 pixels'), findsOneWidget);
+
+    await tester.tap(find.text('Default').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('iPhone 16').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('393 × 852 pixels'), findsOneWidget);
   });
 
   testWidgets('adds editable registry-styled text', (tester) async {
@@ -97,10 +137,45 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('text-content-control')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('text-align-left-control')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('text-align-center-control')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('text-align-right-control')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('text-style-control')), findsOneWidget);
     expect(find.byKey(const ValueKey('text-color-control')), findsOneWidget);
     expect(find.text('Your text'), findsWidgets);
     expect(find.text('Ink'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('text-align-center-control')));
+    await tester.pumpAndSettle();
+
+    final canvas = tester.widget<ObjectCanvas<DesyScreenshotLayer>>(
+      find.byKey(const ValueKey('screenshot-object-canvas')),
+    );
+    final textLayer = canvas.controller.objects
+        .map((object) => object.data)
+        .whereType<DesyScreenshotTextLayer>()
+        .single;
+    expect(textLayer.textAlign, TextAlign.center);
+    expect(
+      tester
+          .widget<DesyButton>(
+            find.descendant(
+              of: find.byKey(const ValueKey('text-align-center-control')),
+              matching: find.byType(DesyButton),
+            ),
+          )
+          .selected,
+      isTrue,
+    );
   });
 
   testWidgets('stacks the selected element inspector on compact layouts', (

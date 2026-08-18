@@ -8,11 +8,10 @@ class _CanvasViewport extends StatelessWidget {
     required this.extension,
     required this.selectedTheme,
     required this.dropActive,
-    required this.onViewportSize,
-    required this.onAcceptPalette,
-    required this.onFit,
-    required this.onZoomIn,
+    required this.zoom,
     required this.onZoomOut,
+    required this.onZoomIn,
+    required this.onAcceptPalette,
   });
 
   final ObjectCanvasController<DesyScreenshotLayer> canvas;
@@ -20,17 +19,15 @@ class _CanvasViewport extends StatelessWidget {
   final DesyWorkspaceExtensionContext extension;
   final DesyTheme selectedTheme;
   final bool dropActive;
-  final ValueChanged<Size> onViewportSize;
-  final void Function(_PalettePayload payload, Offset position) onAcceptPalette;
-  final VoidCallback onFit;
-  final VoidCallback onZoomIn;
+  final double zoom;
   final VoidCallback onZoomOut;
+  final VoidCallback onZoomIn;
+  final void Function(_PalettePayload payload, Offset position) onAcceptPalette;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
-      onViewportSize(viewportSize);
       return Stack(
         children: [
           Positioned.fill(
@@ -52,9 +49,12 @@ class _CanvasViewport extends StatelessWidget {
                       child: ObjectCanvas<DesyScreenshotLayer>(
                         key: const ValueKey('screenshot-object-canvas'),
                         controller: canvas,
-                        minScale: .1,
-                        maxScale: 4,
+                        minScale:
+                            _ScreenshotBuilderScreenState._minimumViewportZoom,
+                        maxScale:
+                            _ScreenshotBuilderScreenState._maximumViewportZoom,
                         viewportBoundaryMargin: const EdgeInsets.all(2400),
+                        marqueeSelectionEnabled: false,
                         style: ObjectCanvasStyle(
                           viewportColor: context.theme.colors.desy.canvas,
                           canvasColor: backgroundColor ?? Colors.transparent,
@@ -112,13 +112,13 @@ class _CanvasViewport extends StatelessWidget {
             ),
           ),
           Positioned(
-            top: 16,
             right: 16,
-            child: _CanvasToolbar(
-              transform: canvas.viewportController,
-              onFit: onFit,
-              onZoomIn: onZoomIn,
+            bottom: 16,
+            child: DesyZoomDock(
+              keyPrefix: 'screenshot-canvas',
+              zoom: zoom,
               onZoomOut: onZoomOut,
+              onZoomIn: onZoomIn,
             ),
           ),
           if (dropActive)
@@ -147,93 +147,6 @@ class _CanvasViewport extends StatelessWidget {
       );
     },
   );
-}
-
-class _CanvasToolbar extends StatefulWidget {
-  const _CanvasToolbar({
-    required this.transform,
-    required this.onFit,
-    required this.onZoomIn,
-    required this.onZoomOut,
-  });
-
-  final TransformationController transform;
-  final VoidCallback onFit;
-  final VoidCallback onZoomIn;
-  final VoidCallback onZoomOut;
-
-  @override
-  State<_CanvasToolbar> createState() => _CanvasToolbarState();
-}
-
-class _CanvasToolbarState extends State<_CanvasToolbar> {
-  @override
-  void initState() {
-    super.initState();
-    widget.transform.addListener(_changed);
-  }
-
-  @override
-  void didUpdateWidget(covariant _CanvasToolbar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.transform == widget.transform) return;
-    oldWidget.transform.removeListener(_changed);
-    widget.transform.addListener(_changed);
-  }
-
-  @override
-  void dispose() {
-    widget.transform.removeListener(_changed);
-    super.dispose();
-  }
-
-  void _changed() => setState(() {});
-
-  @override
-  Widget build(BuildContext context) {
-    final zoom = (widget.transform.value.getMaxScaleOnAxis() * 100).round();
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.theme.colors.desy.panel,
-        border: Border.all(color: context.theme.colors.desy.divider),
-        borderRadius: BorderRadius.circular(DesyDesignSystemTokens.radiusSm),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DesyButton.icon(
-              size: DesyButtonSize.xs,
-              variant: DesyButtonVariant.ghost,
-              semanticsLabel: 'Zoom out',
-              onPress: widget.onZoomOut,
-              child: const Icon(DesyIcons.minus, size: 14),
-            ),
-            SizedBox(
-              width: 52,
-              child: Text('$zoom%', textAlign: TextAlign.center),
-            ),
-            DesyButton.icon(
-              size: DesyButtonSize.xs,
-              variant: DesyButtonVariant.ghost,
-              semanticsLabel: 'Zoom in',
-              onPress: widget.onZoomIn,
-              child: const Icon(DesyIcons.plus, size: 14),
-            ),
-            const SizedBox(width: 4),
-            DesyButton(
-              size: DesyButtonSize.xs,
-              variant: DesyButtonVariant.ghost,
-              mainAxisSize: MainAxisSize.min,
-              onPress: widget.onFit,
-              child: const Text('Fit'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _ScreenshotLayerContent extends StatelessWidget {
@@ -296,24 +209,40 @@ class _ScreenshotLayerContent extends StatelessWidget {
     }
     final text = selectedTheme.wrap(
       context,
-      Builder(
-        builder: (context) =>
-            typography?.builder(context, textLayer.text) ??
-            Text(textLayer.text, style: Theme.of(context).textTheme.bodyMedium),
+      DefaultTextStyle.merge(
+        textAlign: textLayer.textAlign,
+        child: Builder(
+          builder: (context) =>
+              typography?.builder(context, textLayer.text) ??
+              Text(
+                textLayer.text,
+                textAlign: textLayer.textAlign,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+        ),
       ),
     );
-    return Align(
-      alignment: Alignment.topLeft,
-      child: ClipRect(
-        child: color == null
-            ? text
-            : ColorFiltered(
-                colorFilter: ColorFilter.mode(color.color, BlendMode.srcIn),
-                child: text,
-              ),
+    final colored = color == null
+        ? text
+        : ColorFiltered(
+            colorFilter: ColorFilter.mode(color.color, BlendMode.srcIn),
+            child: text,
+          );
+    return LayoutBuilder(
+      builder: (context, constraints) => ClipRect(
+        child: Align(
+          alignment: _textBoxAlignment(textLayer.textAlign),
+          child: SizedBox(width: constraints.maxWidth, child: colored),
+        ),
       ),
     );
   }
+
+  Alignment _textBoxAlignment(TextAlign textAlign) => switch (textAlign) {
+    TextAlign.center => Alignment.topCenter,
+    TextAlign.right || TextAlign.end => Alignment.topRight,
+    TextAlign.left || TextAlign.start || TextAlign.justify => Alignment.topLeft,
+  };
 }
 
 class _TransparentGrid extends StatelessWidget {

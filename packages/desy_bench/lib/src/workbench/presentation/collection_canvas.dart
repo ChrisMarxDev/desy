@@ -304,7 +304,7 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
                 Positioned(
                   right: 12,
                   bottom: 12,
-                  child: _CollectionCanvasZoomDock(
+                  child: DesyZoomDock(
                     keyPrefix: widget.zoomDockKeyPrefix,
                     zoom: _zoom,
                     onZoomOut: () => _setZoom(_zoom - .15),
@@ -827,67 +827,6 @@ class _CollectionCanvasHeader extends StatelessWidget {
             variant: DesyButtonVariant.ghost,
             onPress: onResetView,
             child: const Text('Reset view'),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _CollectionCanvasZoomDock extends StatelessWidget {
-  const _CollectionCanvasZoomDock({
-    required this.keyPrefix,
-    required this.zoom,
-    required this.onZoomOut,
-    required this.onZoomIn,
-  });
-
-  final String keyPrefix;
-  final double zoom;
-  final VoidCallback onZoomOut;
-  final VoidCallback onZoomIn;
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: context.theme.colors.background.withValues(alpha: .92),
-      border: Border.all(color: context.theme.colors.border),
-      borderRadius: BorderRadius.circular(DesyDesignSystemTokens.radiusMd),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DesyButton.icon(
-            key: ValueKey('$keyPrefix-zoom-out'),
-            variant: DesyButtonVariant.ghost,
-            size: DesyButtonSize.xs,
-            onPress: onZoomOut,
-            semanticsLabel: 'Zoom out',
-            child: const Icon(DesyIcons.minus, size: 14),
-          ),
-          Semantics(
-            key: ValueKey('$keyPrefix-zoom-level'),
-            label: 'Zoom ${(zoom * 100).round()} percent',
-            child: SizedBox(
-              width: 42,
-              child: Text(
-                '${(zoom * 100).round()}%',
-                textAlign: TextAlign.center,
-                style: context.theme.typography.body.xs.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-          DesyButton.icon(
-            key: ValueKey('$keyPrefix-zoom-in'),
-            variant: DesyButtonVariant.ghost,
-            size: DesyButtonSize.xs,
-            onPress: onZoomIn,
-            semanticsLabel: 'Zoom in',
-            child: const Icon(DesyIcons.plus, size: 14),
           ),
         ],
       ),

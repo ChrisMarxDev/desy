@@ -64,6 +64,8 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
   static const _defaultCanvasSize = Size(1200, 630);
   static const _defaultWidgetSize = Size(240, 120);
   static const _defaultTextSize = Size(360, 96);
+  static const _minimumViewportZoom = .5;
+  static const _maximumViewportZoom = 2.5;
 
   final _viewportKey = GlobalKey(debugLabel: 'screenshot-canvas-viewport');
   late final ObjectCanvasController<DesyScreenshotLayer> _canvas;
@@ -74,8 +76,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
   var _compactInspectorHeight = 240.0;
   var _dropActive = false;
   var _exporting = false;
-  var _viewportSize = Size.zero;
-  var _hasInitialFit = false;
+  var _zoom = 1.0;
   var _themeId = '';
   var _nextLayer = 0;
   Color? _backgroundColor;
@@ -102,28 +103,37 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
     super.initState();
     _themeId = extension.activeTheme.id;
     _backgroundColor = extension.activeTheme.previewBackgroundColor;
-    _canvas = ObjectCanvasController<DesyScreenshotLayer>(
-      canvasSize: _defaultCanvasSize,
-      defaults: const CanvasObjectDefaults(
-        constraints: CanvasObjectConstraints(
-          minSize: Size.square(_minimumLayerExtent),
-          maxSize: Size.square(_maximumCanvasExtent),
-        ),
-      ),
-    )..addListener(_handleCanvasChange);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _fitCanvas());
+    _canvas =
+        ObjectCanvasController<DesyScreenshotLayer>(
+            canvasSize: _defaultCanvasSize,
+            defaults: const CanvasObjectDefaults(
+              constraints: CanvasObjectConstraints(
+                minSize: Size.square(_minimumLayerExtent),
+                maxSize: Size.square(_maximumCanvasExtent),
+              ),
+            ),
+          )
+          ..addListener(_handleCanvasChange)
+          ..viewportController.addListener(_handleViewportChange);
   }
 
   @override
   void dispose() {
     _canvas
       ..removeListener(_handleCanvasChange)
+      ..viewportController.removeListener(_handleViewportChange)
       ..dispose();
     super.dispose();
   }
 
   void _handleCanvasChange() {
     if (mounted) setState(() {});
+  }
+
+  void _handleViewportChange() {
+    final zoom = _canvas.viewportScale;
+    if (!mounted || (zoom - _zoom).abs() < .001) return;
+    setState(() => _zoom = zoom);
   }
 
   void _addPaletteItem(_PalettePayload payload, {Offset? position}) {
@@ -296,37 +306,15 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
     return _canvas.viewportController.toScene(viewportPosition);
   }
 
-  void _fitCanvas() {
-    if (_viewportSize.isEmpty) return;
-    const inset = 56.0;
-    final canvas = _canvas.canvasSize;
-    final scale = math
-        .min(
-          (_viewportSize.width - inset).clamp(1, double.infinity) /
-              canvas.width,
-          (_viewportSize.height - inset).clamp(1, double.infinity) /
-              canvas.height,
-        )
-        .clamp(.1, 4.0);
-    final horizontal = (_viewportSize.width - canvas.width * scale) / 2;
-    final vertical = (_viewportSize.height - canvas.height * scale) / 2;
+  void _setZoom(double value) {
+    final zoom = value
+        .clamp(_minimumViewportZoom, _maximumViewportZoom)
+        .toDouble();
+    final matrix = _canvas.viewportController.value;
+    if ((zoom - _zoom).abs() >= .001) setState(() => _zoom = zoom);
     _canvas.viewportController.value = Matrix4.identity()
-      ..translateByDouble(horizontal, vertical, 0, 1)
-      ..scaleByDouble(scale, scale, 1, 1);
-    _hasInitialFit = true;
-  }
-
-  void _zoom(double factor) {
-    if (_viewportSize.isEmpty) return;
-    final transform = _canvas.viewportController;
-    final current = transform.value.getMaxScaleOnAxis();
-    final next = (current * factor).clamp(.1, 4.0);
-    final viewportCenter = _viewportSize.center(Offset.zero);
-    final sceneCenter = transform.toScene(viewportCenter);
-    transform.value = Matrix4.identity()
-      ..translateByDouble(viewportCenter.dx, viewportCenter.dy, 0, 1)
-      ..scaleByDouble(next, next, 1, 1)
-      ..translateByDouble(-sceneCenter.dx, -sceneCenter.dy, 0, 1);
+      ..setTranslationRaw(matrix.storage[12], matrix.storage[13], 0)
+      ..scaleByDouble(zoom, zoom, 1, 1);
   }
 
   String _addWidgetLayer(
@@ -455,6 +443,18 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
     );
   }
 
+  void _setTextAlign(String id, TextAlign textAlign) {
+    final layer = _layerById(id);
+    if (layer is! DesyScreenshotTextLayer || layer.textAlign == textAlign) {
+      return;
+    }
+    _updateLayer(
+      id,
+      layer.copyWith(textAlign: textAlign),
+      label: 'Change text alignment',
+    );
+  }
+
   void _toggleHidden(String id) {
     final layer = _layerById(id);
     if (layer == null) return;
@@ -535,6 +535,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
             onSetText: _setText,
             onSetTextTypography: _setTextTypography,
             onSetTextColor: _setTextColor,
+            onSetTextAlign: _setTextAlign,
             onToggleHidden: _toggleHidden,
           );
           final viewport = DropTarget(
@@ -548,20 +549,11 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
               extension: extension,
               selectedTheme: selectedTheme,
               dropActive: _dropActive,
-              onViewportSize: (size) {
-                if (_viewportSize == size) return;
-                _viewportSize = size;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted && !_hasInitialFit) {
-                    _fitCanvas();
-                  }
-                });
-              },
+              zoom: _zoom,
+              onZoomOut: () => _setZoom(_zoom - .15),
+              onZoomIn: () => _setZoom(_zoom + .15),
               onAcceptPalette: (payload, position) =>
                   _addPaletteItem(payload, position: position),
-              onFit: _fitCanvas,
-              onZoomIn: () => _zoom(1.2),
-              onZoomOut: () => _zoom(1 / 1.2),
             ),
           );
 
@@ -635,7 +627,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
                   );
                 }),
               ),
-              SizedBox(width: inspectorWidth, child: inspector),
+              Expanded(child: viewport),
               DesyResizeDivider(
                 key: const ValueKey('screenshot-inspector-resize-handle'),
                 axis: Axis.vertical,
@@ -648,7 +640,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
                   );
                 }),
               ),
-              Expanded(child: viewport),
+              SizedBox(width: inspectorWidth, child: inspector),
             ],
           );
         },

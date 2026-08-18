@@ -31,4 +31,5 @@ export 'src/desy_tabs.dart';
 export 'src/desy_text_field.dart';
 export 'src/desy_tile.dart';
 export 'src/desy_visual_tokens.dart';
+export 'src/desy_zoom_dock.dart';
 export 'src/keyboard_shortcut_label.dart';

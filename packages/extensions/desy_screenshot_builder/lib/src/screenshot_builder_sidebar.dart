@@ -380,6 +380,7 @@ class _ScreenshotLayerInspector extends StatelessWidget {
     required this.onSetText,
     required this.onSetTextTypography,
     required this.onSetTextColor,
+    required this.onSetTextAlign,
     required this.onToggleHidden,
   });
 
@@ -390,6 +391,7 @@ class _ScreenshotLayerInspector extends StatelessWidget {
   final void Function(String id, String value) onSetText;
   final void Function(String id, String? typographyId) onSetTextTypography;
   final void Function(String id, String? colorId) onSetTextColor;
+  final void Function(String id, TextAlign textAlign) onSetTextAlign;
   final ValueChanged<String> onToggleHidden;
 
   @override
@@ -464,6 +466,7 @@ class _ScreenshotLayerInspector extends StatelessWidget {
                     onSetText: onSetText,
                     onSetTypography: onSetTextTypography,
                     onSetColor: onSetTextColor,
+                    onSetAlign: onSetTextAlign,
                   ),
                   final DesyScreenshotImageLayer imageLayer => DesyKnobSheet(
                     segments: [
@@ -871,6 +874,7 @@ class _TextInspector extends StatelessWidget {
     required this.onSetText,
     required this.onSetTypography,
     required this.onSetColor,
+    required this.onSetAlign,
   });
 
   final DesyScreenshotTextLayer layer;
@@ -878,6 +882,7 @@ class _TextInspector extends StatelessWidget {
   final void Function(String id, String value) onSetText;
   final void Function(String id, String? typographyId) onSetTypography;
   final void Function(String id, String? colorId) onSetColor;
+  final void Function(String id, TextAlign textAlign) onSetAlign;
 
   @override
   Widget build(BuildContext context) => DesyKnobSheet(
@@ -890,6 +895,13 @@ class _TextInspector extends StatelessWidget {
             label: 'Content',
             value: layer.text,
             onChanged: (value) => onSetText(layer.id, value),
+          ),
+          DesyKnobRow(
+            label: 'Alignment',
+            control: _TextAlignmentControl(
+              value: layer.textAlign,
+              onChanged: (value) => onSetAlign(layer.id, value),
+            ),
           ),
           if (registry.allFonts.isEmpty)
             const DesyTextValueKnobRow(
@@ -962,6 +974,90 @@ class _TextInspector extends StatelessWidget {
   );
 }
 
+class _TextAlignmentControl extends StatelessWidget {
+  const _TextAlignmentControl({required this.value, required this.onChanged});
+
+  final TextAlign value;
+  final ValueChanged<TextAlign> onChanged;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: context.theme.colors.secondary,
+      border: Border.all(color: context.theme.colors.border),
+      borderRadius: BorderRadius.circular(DesyDesignSystemTokens.radiusSm),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _TextAlignmentButton(
+          key: const ValueKey('text-align-left-control'),
+          value: TextAlign.left,
+          selected: value == TextAlign.left || value == TextAlign.start,
+          icon: DesyIcons.alignLeft,
+          label: 'Align left',
+          onChanged: onChanged,
+        ),
+        _TextAlignmentButton(
+          key: const ValueKey('text-align-center-control'),
+          value: TextAlign.center,
+          selected: value == TextAlign.center,
+          icon: DesyIcons.alignCenter,
+          label: 'Align center',
+          onChanged: onChanged,
+        ),
+        _TextAlignmentButton(
+          key: const ValueKey('text-align-right-control'),
+          value: TextAlign.right,
+          selected: value == TextAlign.right || value == TextAlign.end,
+          icon: DesyIcons.alignRight,
+          label: 'Align right',
+          onChanged: onChanged,
+        ),
+      ],
+    ),
+  );
+}
+
+class _TextAlignmentButton extends StatelessWidget {
+  const _TextAlignmentButton({
+    super.key,
+    required this.value,
+    required this.selected,
+    required this.icon,
+    required this.label,
+    required this.onChanged,
+  });
+
+  final TextAlign value;
+  final bool selected;
+  final IconData icon;
+  final String label;
+  final ValueChanged<TextAlign> onChanged;
+
+  @override
+  Widget build(BuildContext context) => DesyButton.icon(
+    size: DesyButtonSize.xs,
+    variant: selected ? DesyButtonVariant.secondary : DesyButtonVariant.ghost,
+    selected: selected,
+    semanticsLabel: label,
+    onPress: () => onChanged(value),
+    child: Icon(icon, size: 14),
+  );
+}
+
+class _PageSizePreset {
+  const _PageSizePreset({
+    required this.id,
+    required this.name,
+    required this.size,
+  });
+
+  final String id;
+  final String name;
+  final Size size;
+}
+
 class _PagePanel extends StatelessWidget {
   const _PagePanel({
     required this.canvas,
@@ -978,6 +1074,62 @@ class _PagePanel extends StatelessWidget {
 
   static const transparentId = '__transparent__';
   static const themeBackgroundId = '__theme_background__';
+  static const customPresetId = '__custom__';
+  static const presets = [
+    _PageSizePreset(
+      id: 'default-social',
+      name: 'Default',
+      size: Size(1200, 630),
+    ),
+    _PageSizePreset(id: 'iphone-17', name: 'iPhone 17', size: Size(402, 874)),
+    _PageSizePreset(
+      id: 'iphone-16-17-pro',
+      name: 'iPhone 16 & 17 Pro',
+      size: Size(402, 874),
+    ),
+    _PageSizePreset(id: 'iphone-16', name: 'iPhone 16', size: Size(393, 852)),
+    _PageSizePreset(
+      id: 'iphone-16-17-pro-max',
+      name: 'iPhone 16 & 17 Pro Max',
+      size: Size(440, 956),
+    ),
+    _PageSizePreset(
+      id: 'iphone-16-plus',
+      name: 'iPhone 16 Plus',
+      size: Size(430, 932),
+    ),
+    _PageSizePreset(id: 'iphone-air', name: 'iPhone Air', size: Size(420, 912)),
+    _PageSizePreset(
+      id: 'iphone-14-15-pro-max',
+      name: 'iPhone 14 & 15 Pro Max',
+      size: Size(430, 932),
+    ),
+    _PageSizePreset(
+      id: 'iphone-14-15-pro',
+      name: 'iPhone 14 & 15 Pro',
+      size: Size(393, 852),
+    ),
+    _PageSizePreset(
+      id: 'iphone-13-14',
+      name: 'iPhone 13 & 14',
+      size: Size(390, 844),
+    ),
+    _PageSizePreset(
+      id: 'iphone-14-plus',
+      name: 'iPhone 14 Plus',
+      size: Size(428, 926),
+    ),
+    _PageSizePreset(
+      id: 'android-compact',
+      name: 'Android Compact',
+      size: Size(412, 917),
+    ),
+    _PageSizePreset(
+      id: 'android-medium',
+      name: 'Android Medium',
+      size: Size(700, 840),
+    ),
+  ];
 
   final ObjectCanvasController<DesyScreenshotLayer> canvas;
   final Color? backgroundColor;
@@ -1001,18 +1153,73 @@ class _PagePanel extends StatelessWidget {
     return themeBackgroundId;
   }
 
+  String get _presetId {
+    final width = canvas.canvasSize.width.round();
+    final height = canvas.canvasSize.height.round();
+    for (final preset in presets) {
+      if (preset.size.width.round() == width &&
+          preset.size.height.round() == height) {
+        return preset.id;
+      }
+    }
+    return customPresetId;
+  }
+
   @override
   Widget build(BuildContext context) => ListView(
     key: const ValueKey('screenshot-page-panel'),
     padding: const EdgeInsets.all(16),
     children: [
-      Text(
-        'PAGE',
-        style: context.theme.typography.body.xs.copyWith(
-          color: context.theme.colors.mutedForeground,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.1,
-        ),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Text(
+              'PAGE',
+              style: context.theme.typography.body.xs.copyWith(
+                color: context.theme.colors.mutedForeground,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 190,
+            child: DesySelect<String>.rich(
+              key: const ValueKey('page-size-preset-control'),
+              label: const Text('Preset'),
+              control: DesySelectControl.lifted(
+                value: _presetId,
+                onChange: (id) {
+                  if (id == null || id == customPresetId) return;
+                  final preset = presets.firstWhere(
+                    (preset) => preset.id == id,
+                  );
+                  onCanvasSizeChanged(preset.size);
+                },
+              ),
+              format: (id) {
+                if (id == customPresetId) return 'Custom';
+                final preset = presets.firstWhere((preset) => preset.id == id);
+                return preset.name;
+              },
+              children: [
+                const DesySelectItem.item(
+                  value: customPresetId,
+                  title: Text('Custom'),
+                ),
+                for (final preset in presets)
+                  DesySelectItem.item(
+                    value: preset.id,
+                    title: Text(preset.name),
+                    subtitle: Text(
+                      '${preset.size.width.round()} × ${preset.size.height.round()}',
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
       const SizedBox(height: 12),
       Row(
