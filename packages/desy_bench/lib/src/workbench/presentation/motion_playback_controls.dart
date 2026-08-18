@@ -114,13 +114,6 @@ class _CompactMotionPlaybackControls extends StatelessWidget {
           ),
         ],
         const SizedBox(width: 18),
-        _DockControl(
-          child: _LoopModeButton(
-            controller: controller,
-            size: DesyButtonSize.sm,
-          ),
-        ),
-        const SizedBox(width: 18),
         SizedBox(
           width: 250,
           child: _PlaybackThermometer(
@@ -161,13 +154,6 @@ class _CompactMotionPlaybackControls extends StatelessWidget {
               onChanged: onGlobalDurationChanged,
               compact: true,
             ),
-          _DockControl(
-            height: 32,
-            child: _LoopModeButton(
-              controller: controller,
-              size: DesyButtonSize.xs,
-            ),
-          ),
           _DockControl(
             height: 32,
             child: _SpeedModeButton(
@@ -293,14 +279,8 @@ class _PlaybackButtons extends StatelessWidget {
   final DesyMotionPlaybackController controller;
 
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 8,
-    runSpacing: 8,
-    children: [
-      _PlayPauseButton(controller: controller),
-      _LoopModeButton(controller: controller),
-    ],
-  );
+  Widget build(BuildContext context) =>
+      _PlayPauseButton(controller: controller);
 }
 
 class _PlayPauseButton extends StatelessWidget {
@@ -337,26 +317,6 @@ class _PlayPauseButton extends StatelessWidget {
       child: Text(controller.isPlaying ? 'Pause' : 'Play'),
     );
   }
-}
-
-class _LoopModeButton extends StatelessWidget {
-  const _LoopModeButton({
-    required this.controller,
-    this.size = DesyButtonSize.xs,
-  });
-
-  final DesyMotionPlaybackController controller;
-  final DesyButtonSize size;
-
-  @override
-  Widget build(BuildContext context) => DesyButton(
-    key: const ValueKey('motion-loop-mode'),
-    size: size,
-    variant: DesyButtonVariant.outline,
-    mainAxisSize: MainAxisSize.min,
-    onPress: controller.cycleLoopMode,
-    child: Text(controller.loopMode.label),
-  );
 }
 
 class _PlayheadLabel extends StatelessWidget {
@@ -570,12 +530,4 @@ class _SpeedModeButton extends StatelessWidget {
       child: Text('${controller.speed.toStringAsFixed(1)}×'),
     );
   }
-}
-
-extension on DesyMotionLoopMode {
-  String get label => switch (this) {
-    DesyMotionLoopMode.loop => 'Loop',
-    DesyMotionLoopMode.pingPong => 'Ping-pong',
-    DesyMotionLoopMode.once => 'Once',
-  };
 }

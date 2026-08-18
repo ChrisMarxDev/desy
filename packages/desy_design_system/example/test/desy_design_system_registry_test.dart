@@ -17,6 +17,8 @@ void main() {
           .join('\n'),
     );
     expect(desyDesignSystemRegistry.themes, hasLength(2));
+    expect(desyDesignSystemRegistry.themes.first.isDark, isFalse);
+    expect(desyDesignSystemRegistry.themes.last.isDark, isTrue);
     expect(desyDesignSystemRegistry.allColors, hasLength(9));
     expect(desyDesignSystemRegistry.allFonts, hasLength(4));
     expect(desyDesignSystemRegistry.allMeasurements, hasLength(9));

@@ -129,6 +129,18 @@ class _ElementsPanel extends StatefulWidget {
 class _ElementsPanelState extends State<_ElementsPanel> {
   var _query = '';
 
+  Future<void> _openCatalog() async {
+    final payload = await showDesyDialog<_PalettePayload>(
+      context: context,
+      builder: (context, animation) => _ComponentCatalogDialog(
+        animation: animation,
+        extension: widget.extension,
+      ),
+    );
+    if (payload == null || !mounted) return;
+    widget.onAdd(payload);
+  }
+
   @override
   Widget build(BuildContext context) {
     final normalized = _query.trim().toLowerCase();
@@ -179,6 +191,15 @@ class _ElementsPanelState extends State<_ElementsPanel> {
           ],
         ),
         const SizedBox(height: 20),
+        DesyButton(
+          key: const ValueKey('open-screenshot-catalog'),
+          variant: DesyButtonVariant.secondary,
+          size: DesyButtonSize.sm,
+          prefix: const Icon(DesyIcons.layoutGrid, size: 15),
+          onPress: () => unawaited(_openCatalog()),
+          child: const Text('Open catalog'),
+        ),
+        const SizedBox(height: 20),
         DesyTextField(
           key: const ValueKey('screenshot-element-search'),
           label: 'Search widget instances',
@@ -214,6 +235,27 @@ class _ElementsPanelState extends State<_ElementsPanel> {
             const SizedBox(height: 6),
           ],
         const SizedBox(height: 16),
+        Text(
+          'MISC',
+          style: context.theme.typography.body.xs.copyWith(
+            color: context.theme.colors.mutedForeground,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.1,
+          ),
+        ),
+        const SizedBox(height: 8),
+        for (final kind in _MiscWidgetKind.values) ...[
+          _PaletteTile(
+            key: ValueKey('add-misc-${kind.name}'),
+            payload: _MiscPalettePayload(kind),
+            icon: kind.icon,
+            title: kind.label,
+            subtitle: kind.description,
+            onAdd: widget.onAdd,
+          ),
+          const SizedBox(height: 6),
+        ],
+        const SizedBox(height: 10),
         Text(
           'Drag items onto the canvas, or click to add them in the center. Drop image files anywhere in the canvas area.',
           style: context.theme.typography.body.sm.copyWith(
@@ -309,6 +351,168 @@ class _PaletteTile extends StatelessWidget {
         child: tile,
       );
     },
+  );
+}
+
+class _ComponentCatalogDialog extends StatefulWidget {
+  const _ComponentCatalogDialog({
+    required this.animation,
+    required this.extension,
+  });
+
+  final Animation<double> animation;
+  final DesyWorkspaceExtensionContext extension;
+
+  @override
+  State<_ComponentCatalogDialog> createState() =>
+      _ComponentCatalogDialogState();
+}
+
+class _ComponentCatalogDialogState extends State<_ComponentCatalogDialog> {
+  var _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = _query.trim().toLowerCase();
+    final components = widget.extension.registry.components
+        .where((component) => _matches(component, normalized))
+        .toList(growable: false);
+    return DesyDialog(
+      animation: widget.animation,
+      semanticsLabel: 'Open catalog',
+      constraints: const BoxConstraints(maxWidth: 960, maxHeight: 760),
+      builder: (context, style) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('HOME', style: context.theme.typography.body.xs),
+                      const SizedBox(height: 4),
+                      Text('All', style: style.titleTextStyle),
+                    ],
+                  ),
+                ),
+                DesyButton.icon(
+                  key: const ValueKey('close-screenshot-catalog'),
+                  size: DesyButtonSize.sm,
+                  variant: DesyButtonVariant.ghost,
+                  semanticsLabel: 'Close catalog',
+                  onPress: () => Navigator.of(context).pop(),
+                  child: const Icon(DesyIcons.x, size: 16),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            DesyTextField(
+              key: const ValueKey('screenshot-catalog-search'),
+              label: 'Search components',
+              hintText: 'Search components',
+              prefixIcon: const Icon(DesyIcons.search, size: 15),
+              onChanged: (value) => setState(() => _query = value),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'COMPONENTS',
+              style: context.theme.typography.body.xs.copyWith(
+                color: context.theme.colors.mutedForeground,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: components.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No matching components.',
+                        style: style.bodyTextStyle.copyWith(
+                          color: context.theme.colors.mutedForeground,
+                        ),
+                      ),
+                    )
+                  : GridView.builder(
+                      key: const ValueKey('screenshot-catalog-grid'),
+                      gridDelegate:
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 280,
+                            mainAxisExtent: 236,
+                            mainAxisSpacing: 14,
+                            crossAxisSpacing: 14,
+                          ),
+                      itemCount: components.length,
+                      itemBuilder: (context, index) => _CatalogComponentCard(
+                        component: components[index],
+                        extension: widget.extension,
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _matches(DesyRegistryComponent component, String normalized) {
+    if (normalized.isEmpty) return true;
+    final description = component.description ?? '';
+    return component.name.toLowerCase().contains(normalized) ||
+        component.id.toLowerCase().contains(normalized) ||
+        component.path.toLowerCase().contains(normalized) ||
+        component.category.toLowerCase().contains(normalized) ||
+        description.toLowerCase().contains(normalized);
+  }
+}
+
+class _CatalogComponentCard extends StatelessWidget {
+  const _CatalogComponentCard({
+    required this.component,
+    required this.extension,
+  });
+
+  final DesyRegistryComponent component;
+  final DesyWorkspaceExtensionContext extension;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    explicitChildNodes: true,
+    button: true,
+    label: 'Add ${component.name}',
+    child: GestureDetector(
+      key: ValueKey('screenshot-catalog-component-${component.id}'),
+      excludeFromSemantics: true,
+      onTap: () =>
+          Navigator.of(context).pop(_ComponentPalettePayload(component)),
+      child: DesyCatalogueCard(
+        identifier: component.id,
+        preview: ClipRect(
+          child: DesyWidgetPreview(
+            theme: extension.activeTheme,
+            builder: (previewContext) => ColoredBox(
+              color:
+                  extension.activeTheme.previewBackgroundColor ??
+                  Theme.of(previewContext).scaffoldBackgroundColor,
+              child: Center(
+                child: DesyFittedPreview(
+                  child: Builder(
+                    builder: (context) => component.preview(
+                      context,
+                      extension.registry.widgetBuilder,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
   );
 }
 
@@ -486,6 +690,25 @@ class _ScreenshotLayerInspector extends StatelessWidget {
                       ),
                     ],
                   ),
+                  final _ScreenshotMiscLayer miscLayer => DesyKnobSheet(
+                    segments: [
+                      DesyKnobSegment(
+                        title: 'MISC',
+                        children: [
+                          DesyTextValueKnobRow(
+                            label: 'Widget',
+                            value: miscLayer.kind.label,
+                          ),
+                          DesyTextValueKnobRow(
+                            label: 'Size',
+                            value:
+                                '${canvas.geometryFor(miscLayer.id).paintBounds.width.round()} × '
+                                '${canvas.geometryFor(miscLayer.id).paintBounds.height.round()}',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                   _ => const SizedBox.shrink(),
                 },
               ],
@@ -625,26 +848,32 @@ class _WidgetInspector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final instance = registry.resolveComponentInstance(layer.instanceId);
-    if (instance == null) {
+    final component = registry.componentById(layer.componentId);
+    if (component == null) {
       return const Padding(
         padding: EdgeInsets.all(16),
-        child: Text('The registered widget instance is no longer available.'),
+        child: Text('The registered component is no longer available.'),
       );
     }
+    final instanceId = layer.instanceId;
+    final instance = instanceId == null
+        ? null
+        : registry.resolveComponentInstance(instanceId);
     return DesyKnobSheet(
       segments: [
         DesyKnobSegment(
           title: 'WIDGET',
           children: [
-            DesyTextValueKnobRow(label: 'Instance', value: instance.name),
+            DesyTextValueKnobRow(label: 'Component', value: component.name),
+            if (instance != null)
+              DesyTextValueKnobRow(label: 'Instance', value: instance.name),
           ],
         ),
-        if (instance.component.knobDefinitions.isNotEmpty)
+        if (component.knobDefinitions.isNotEmpty)
           DesyKnobSegment(
             title: 'KNOBS',
             children: [
-              for (final knob in instance.component.knobDefinitions)
+              for (final knob in component.knobDefinitions)
                 _ScreenshotKnobControl(
                   registry: registry,
                   definition: knob,
@@ -1089,9 +1318,9 @@ class _PagePanel extends StatelessWidget {
   static const customPresetId = '__custom__';
   static const presets = [
     _PageSizePreset(
-      id: 'default-social',
-      name: 'Default',
-      size: Size(1200, 630),
+      id: 'instagram-square',
+      name: 'Instagram',
+      size: Size.square(500),
     ),
     _PageSizePreset(id: 'iphone-17', name: 'iPhone 17', size: Size(402, 874)),
     _PageSizePreset(

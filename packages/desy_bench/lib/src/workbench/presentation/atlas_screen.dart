@@ -75,8 +75,6 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     _motionPlayback = DesyMotionPlaybackController(
       vsync: this,
       duration: globalDuration,
-      loopMode: DesyMotionLoopMode.once,
-      autoplay: false,
     );
   }
 

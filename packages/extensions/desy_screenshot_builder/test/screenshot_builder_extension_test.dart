@@ -68,6 +68,12 @@ void main() {
     expect(find.byKey(const ValueKey('page-tab')), findsOneWidget);
     expect(find.byKey(const ValueKey('add-text-element')), findsOneWidget);
     expect(
+      find.byKey(const ValueKey('open-screenshot-catalog')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('add-misc-phoneBezel')), findsOneWidget);
+    expect(find.byKey(const ValueKey('add-misc-statusBar')), findsOneWidget);
+    expect(
       find.byKey(const ValueKey('screenshot-layer-inspector-empty')),
       findsOneWidget,
     );
@@ -148,13 +154,88 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('export-screenshot')), findsOneWidget);
-    expect(find.textContaining('1200 × 630 pixels'), findsOneWidget);
+    expect(find.textContaining('500 × 500 pixels'), findsOneWidget);
 
-    await tester.tap(find.text('Default').last);
+    await tester.tap(find.text('Instagram').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('iPhone 16').last);
     await tester.pumpAndSettle();
     expect(find.textContaining('393 × 852 pixels'), findsOneWidget);
+  });
+
+  testWidgets('opens a visual catalog and adds component-only layers', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(_harness(extension, _extensionContext()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('open-screenshot-catalog')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('HOME'), findsOneWidget);
+    expect(find.text('All'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('screenshot-catalog-search')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('screenshot-catalog-grid')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('screenshot-catalog-component-action.publish')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('screenshot-catalog-component-display.card')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('screenshot-catalog-component-display.card')),
+    );
+    await tester.pumpAndSettle();
+
+    final canvas = tester.widget<ObjectCanvas<DesyScreenshotLayer>>(
+      find.byKey(const ValueKey('screenshot-object-canvas')),
+    );
+    final layer = canvas.controller.objects.single.data;
+    expect(layer, isA<DesyScreenshotWidgetLayer>());
+    final widgetLayer = layer as DesyScreenshotWidgetLayer;
+    expect(widgetLayer.componentId, 'display.card');
+    expect(widgetLayer.instanceId, isNull);
+    expect(find.text('Component'), findsOneWidget);
+    expect(find.text('Display card'), findsWidgets);
+  });
+
+  testWidgets('adds misc mockup overlays from elements', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(_harness(extension, _extensionContext()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('add-misc-phoneBezel')));
+    await tester.pumpAndSettle();
+
+    var canvas = tester.widget<ObjectCanvas<DesyScreenshotLayer>>(
+      find.byKey(const ValueKey('screenshot-object-canvas')),
+    );
+    expect(canvas.controller.objects.single.data.kindLabel, 'Misc');
+    expect(find.text('Phone bezel'), findsWidgets);
+
+    await tester.tap(find.byKey(const ValueKey('add-misc-statusBar')));
+    await tester.pumpAndSettle();
+
+    canvas = tester.widget<ObjectCanvas<DesyScreenshotLayer>>(
+      find.byKey(const ValueKey('screenshot-object-canvas')),
+    );
+    expect(canvas.controller.objects, hasLength(2));
+    expect(
+      canvas.controller.objects.map((object) => object.data.kindLabel),
+      everyElement('Misc'),
+    );
   });
 
   testWidgets('adds editable registry-styled text', (tester) async {
@@ -244,6 +325,19 @@ DesyWorkspaceExtensionContext _extensionContext() {
         SizedBox(width: 120, height: 44, child: Text(knobs.label.value)),
     instances: (knobs) => {'default': const []},
   );
+  final card = DesyComponent<({Knob<String> title})>(
+    id: 'display.card',
+    name: 'Display card',
+    path: '/display',
+    defaultSize: const Size(220, 140),
+    knobs: (scope) =>
+        (title: scope.string('title', name: 'Title', initial: 'Card')),
+    build: (context, knobs) => SizedBox(
+      width: 220,
+      height: 140,
+      child: Center(child: Text(knobs.title.value)),
+    ),
+  );
   final registry = DesyRegistry(
     name: 'Acme',
     themes: const [
@@ -258,7 +352,7 @@ DesyWorkspaceExtensionContext _extensionContext() {
     fonts: const [
       DesyTypographyEntry(id: 'body', name: 'Body', builder: _buildBody),
     ],
-    components: [component],
+    components: [component, card],
   );
   return DesyWorkspaceExtensionContext(
     registry: registry,

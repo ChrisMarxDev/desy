@@ -12,7 +12,12 @@ void main() {
         registry: DesyRegistry(
           name: 'Window background',
           themes: [
-            const DesyTheme(id: 'light', name: 'Light', wrap: _wrap),
+            const DesyTheme(
+              id: 'light',
+              name: 'Light',
+              wrap: _wrap,
+              previewBackgroundColor: Color(0x00000000),
+            ),
             const DesyTheme(
               id: 'dark',
               name: 'Dark',

@@ -94,7 +94,7 @@ void main() {
             .text,
         '300',
       );
-      expect(find.text('Ping-pong'), findsOneWidget);
+      expect(find.byKey(const ValueKey('motion-loop-mode')), findsNothing);
       expect(find.text('No controls declared.'), findsNothing);
       expect(builderDuration, const Duration(milliseconds: 300));
 
@@ -110,13 +110,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 80));
       expect(renderedProgress, closeTo(pausedProgress, 0.001));
 
-      _press(tester, const ValueKey('motion-loop-mode'));
-      await tester.pump();
-      expect(find.text('Once'), findsOneWidget);
-      _press(tester, const ValueKey('motion-loop-mode'));
-      await tester.pump();
-      expect(find.text('Loop'), findsOneWidget);
-
       _press(tester, const ValueKey('motion-speed-mode'));
       await tester.pump();
       expect(find.text('2.0×'), findsOneWidget);
@@ -125,6 +118,16 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 20));
       expect(renderedProgress, isNot(closeTo(pausedProgress, 0.001)));
+
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(renderedProgress, closeTo(1, 0.001));
+      expect(find.bySemanticsLabel('Play'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(renderedProgress, closeTo(1, 0.001));
+
+      _press(tester, const ValueKey('motion-play-pause'));
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(renderedProgress, lessThan(1));
     },
   );
 
@@ -181,7 +184,7 @@ void main() {
     );
     expect(thermometer, findsOneWidget);
     expect(tester.getSize(thermometer).width, 250);
-    expect(find.text('Once'), findsOneWidget);
+    expect(find.byKey(const ValueKey('motion-loop-mode')), findsNothing);
     final durationField = find.byKey(const ValueKey('motion-global-duration'));
     expect(durationField, findsOneWidget);
     expect(
@@ -204,22 +207,12 @@ void main() {
     );
     expect(
       tester.getCenter(durationField).dx,
-      lessThan(
-        tester.getCenter(find.byKey(const ValueKey('motion-loop-mode'))).dx,
-      ),
+      lessThan(tester.getCenter(thermometer).dx),
     );
     expect(tester.getSize(durationField).height, 40);
     expect(
-      tester.getSize(find.byKey(const ValueKey('motion-loop-mode'))).height,
-      40,
-    );
-    expect(
       tester.getSize(find.byKey(const ValueKey('motion-speed-mode'))).height,
       40,
-    );
-    expect(
-      tester.getCenter(find.byKey(const ValueKey('motion-loop-mode'))).dx,
-      lessThan(tester.getCenter(thermometer).dx),
     );
     expect(
       tester.getCenter(thermometer).dx,
@@ -232,13 +225,6 @@ void main() {
       closeTo(tester.getTopLeft(durationField).dy, 0.01),
     );
 
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(renderedProgress['motion.fast'], closeTo(0, 0.001));
-    expect(renderedProgress['motion.slow'], closeTo(0, 0.001));
-    expect(renderedProgress['motion.default'], closeTo(0, 0.001));
-
-    _press(tester, const ValueKey('motion-play-pause'));
-    await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(renderedProgress['motion.fast'], closeTo(0.25, 0.05));
     expect(renderedProgress['motion.slow'], closeTo(0.25, 0.05));

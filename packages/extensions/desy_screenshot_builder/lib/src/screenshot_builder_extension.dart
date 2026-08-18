@@ -61,7 +61,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
   static const _minimumCanvasExtent = 64.0;
   static const _maximumCanvasExtent = 8192.0;
   static const _minimumLayerExtent = 24.0;
-  static const _defaultCanvasSize = Size(1200, 630);
+  static const _defaultCanvasSize = Size.square(500);
   static const _defaultWidgetSize = Size(240, 120);
   static const _defaultTextSize = Size(360, 96);
   static const _minimumViewportZoom = .25;
@@ -141,12 +141,16 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
     switch (payload) {
       case _WidgetPalettePayload(:final instance):
         _addWidgetLayer(instance, position: position);
+      case _ComponentPalettePayload(:final component):
+        _addComponentLayer(component, position: position);
       case _TextPalettePayload():
         _addTextLayer(
           position: position,
           typographyId: extension.registry.allFonts.firstOrNull?.id,
           colorId: _defaultTextColorId(),
         );
+      case _MiscPalettePayload(:final kind):
+        _addMiscLayer(kind, position: position);
     }
   }
 
@@ -328,10 +332,29 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
       DesyScreenshotWidgetLayer(
         id: id,
         name: '${instance.componentName} · ${instance.name}',
+        componentId: instance.component.id,
         instanceId: instance.id,
         knobValues: instance.component.valuesFor(instance.instanceId),
       ),
       size: declaredSize ?? _defaultWidgetSize,
+      position: position,
+    );
+    return id;
+  }
+
+  String _addComponentLayer(
+    DesyRegistryComponent component, {
+    Offset? position,
+  }) {
+    final id = _newLayerId('widget');
+    _addLayer(
+      DesyScreenshotWidgetLayer(
+        id: id,
+        name: component.name,
+        componentId: component.id,
+        knobValues: component.valuesFor(''),
+      ),
+      size: component.defaultSize ?? _defaultWidgetSize,
       position: position,
     );
     return id;
@@ -347,6 +370,16 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
     _addLayer(
       DesyScreenshotImageLayer(id: id, name: name, bytes: bytes),
       size: _fitInitialImageSize(naturalSize),
+      position: position,
+    );
+    return id;
+  }
+
+  String _addMiscLayer(_MiscWidgetKind kind, {Offset? position}) {
+    final id = _newLayerId('misc');
+    _addLayer(
+      _ScreenshotMiscLayer(id: id, name: kind.label, kind: kind),
+      size: kind.initialSize,
       position: position,
     );
     return id;
@@ -660,10 +693,58 @@ final class _WidgetPalettePayload extends _PalettePayload {
   final DesyRegisteredComponentInstance instance;
 }
 
+final class _ComponentPalettePayload extends _PalettePayload {
+  const _ComponentPalettePayload(this.component);
+
+  final DesyRegistryComponent component;
+}
+
 final class _TextPalettePayload extends _PalettePayload {
   const _TextPalettePayload();
 }
 
+final class _MiscPalettePayload extends _PalettePayload {
+  const _MiscPalettePayload(this.kind);
+
+  final _MiscWidgetKind kind;
+}
+
+enum _MiscWidgetKind {
+  phoneBezel(
+    label: 'Phone bezel',
+    description: 'Transparent frame overlay',
+    icon: DesyIcons.smartphone,
+    initialSize: Size(402, 874),
+  ),
+  statusBar(
+    label: 'Status bar',
+    description: 'Clock, signal, and battery',
+    icon: DesyIcons.layoutGrid,
+    initialSize: Size(393, 44),
+  );
+
+  const _MiscWidgetKind({
+    required this.label,
+    required this.description,
+    required this.icon,
+    required this.initialSize,
+  });
+
+  final String label;
+  final String description;
+  final IconData icon;
+  final Size initialSize;
+}
+
 extension<T> on List<T> {
   T? get firstOrNull => isEmpty ? null : first;
+}
+
+extension on DesyRegistry {
+  DesyRegistryComponent? componentById(String id) {
+    for (final component in components) {
+      if (component.id == id) return component;
+    }
+    return null;
+  }
 }

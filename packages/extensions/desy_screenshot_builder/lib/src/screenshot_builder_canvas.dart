@@ -179,6 +179,7 @@ class _ScreenshotLayerContent extends StatelessWidget {
         semanticLabel: imageLayer.name,
       ),
       final DesyScreenshotTextLayer textLayer => _buildText(context, textLayer),
+      final _ScreenshotMiscLayer miscLayer => _buildMisc(context, miscLayer),
       _ => const SizedBox.shrink(),
     },
   );
@@ -187,14 +188,14 @@ class _ScreenshotLayerContent extends StatelessWidget {
     BuildContext context,
     DesyScreenshotWidgetLayer widgetLayer,
   ) {
-    final instance = registry.resolveComponentInstance(widgetLayer.instanceId);
-    if (instance == null) {
-      return Center(child: Text('Missing ${widgetLayer.instanceId}'));
+    final component = registry.componentById(widgetLayer.componentId);
+    if (component == null) {
+      return Center(child: Text('Missing ${widgetLayer.componentId}'));
     }
     return selectedTheme.wrap(
       context,
       Builder(
-        builder: (context) => instance.component.buildWithValues(
+        builder: (context) => component.buildWithValues(
           context,
           widgetLayer.knobValues,
           widgets: registry.widgetBuilder,
@@ -248,6 +249,96 @@ class _ScreenshotLayerContent extends StatelessWidget {
     TextAlign.right || TextAlign.end => Alignment.topRight,
     TextAlign.left || TextAlign.start || TextAlign.justify => Alignment.topLeft,
   };
+
+  Widget _buildMisc(BuildContext context, _ScreenshotMiscLayer miscLayer) =>
+      switch (miscLayer.kind) {
+        _MiscWidgetKind.phoneBezel => const _PhoneBezel(),
+        _MiscWidgetKind.statusBar => const _StatusBarOverlay(),
+      };
+}
+
+class _PhoneBezel extends StatelessWidget {
+  const _PhoneBezel();
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: Colors.transparent,
+      border: Border.all(color: Colors.black, width: 10),
+      borderRadius: BorderRadius.circular(54),
+    ),
+    child: const SizedBox.expand(),
+  );
+}
+
+class _StatusBarOverlay extends StatelessWidget {
+  const _StatusBarOverlay();
+
+  @override
+  Widget build(BuildContext context) => DefaultTextStyle(
+    style: const TextStyle(
+      color: Colors.black,
+      fontSize: 14,
+      fontWeight: FontWeight.w700,
+      height: 1,
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: [
+          const Text('9:41'),
+          const Spacer(),
+          Container(
+            width: 82,
+            height: 28,
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          const Spacer(),
+          const _StatusGlyphs(),
+        ],
+      ),
+    ),
+  );
+}
+
+class _StatusGlyphs extends StatelessWidget {
+  const _StatusGlyphs();
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      for (final height in const [5.0, 8.0, 11.0])
+        Padding(
+          padding: const EdgeInsets.only(right: 2),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(width: 3, height: height, color: Colors.black),
+          ),
+        ),
+      const SizedBox(width: 7),
+      Container(
+        width: 22,
+        height: 10,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.black, width: 1.4),
+          borderRadius: BorderRadius.circular(2),
+        ),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Container(
+            width: 15,
+            margin: const EdgeInsets.all(1.4),
+            color: Colors.black,
+          ),
+        ),
+      ),
+      Container(width: 2, height: 4, color: Colors.black),
+    ],
+  );
 }
 
 class _TransparentGrid extends StatelessWidget {

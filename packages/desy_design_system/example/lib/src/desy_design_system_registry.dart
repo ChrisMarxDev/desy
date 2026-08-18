@@ -69,6 +69,7 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
       name: 'Workbench light',
       description: 'High-clarity neutral chrome for normal working contexts.',
       previewBackgroundColor: _lightTheme.colors.background,
+      isDark: false,
       wrap: (context, child) => DesyDesignSystemThemeScope(
         theme: DesyDesignSystemTheme.light,
         child: child,

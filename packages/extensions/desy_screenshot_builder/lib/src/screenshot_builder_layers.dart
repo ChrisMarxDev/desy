@@ -24,12 +24,14 @@ final class DesyScreenshotWidgetLayer extends DesyScreenshotLayer {
   DesyScreenshotWidgetLayer({
     required super.id,
     required super.name,
-    required this.instanceId,
+    required this.componentId,
+    this.instanceId,
     required Map<String, Object> knobValues,
     super.hidden,
   }) : knobValues = Map.unmodifiable(knobValues);
 
-  final String instanceId;
+  final String componentId;
+  final String? instanceId;
   final Map<String, Object> knobValues;
 
   @override
@@ -40,11 +42,14 @@ final class DesyScreenshotWidgetLayer extends DesyScreenshotLayer {
     String? id,
     String? name,
     bool? hidden,
+    String? componentId,
+    String? instanceId,
     Map<String, Object>? knobValues,
   }) => DesyScreenshotWidgetLayer(
     id: id ?? this.id,
     name: name ?? this.name,
-    instanceId: instanceId,
+    componentId: componentId ?? this.componentId,
+    instanceId: instanceId ?? this.instanceId,
     knobValues: knobValues ?? this.knobValues,
     hidden: hidden ?? this.hidden,
   );
@@ -112,4 +117,27 @@ final class DesyScreenshotTextLayer extends DesyScreenshotLayer {
     textAlign: textAlign ?? this.textAlign,
     hidden: hidden ?? this.hidden,
   );
+}
+
+final class _ScreenshotMiscLayer extends DesyScreenshotLayer {
+  _ScreenshotMiscLayer({
+    required super.id,
+    required super.name,
+    required this.kind,
+    super.hidden,
+  });
+
+  final _MiscWidgetKind kind;
+
+  @override
+  String get kindLabel => 'Misc';
+
+  @override
+  _ScreenshotMiscLayer copyWith({String? id, String? name, bool? hidden}) =>
+      _ScreenshotMiscLayer(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        kind: kind,
+        hidden: hidden ?? this.hidden,
+      );
 }

@@ -80,6 +80,39 @@ void main() {
     expect(find.text('No components registered.'), findsOneWidget);
   });
 
+  testWidgets('color previews show their canonical hex value', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 760));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final registry = DesyRegistry(
+      name: 'Color previews',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      colors: const [
+        DesyColorEntry(
+          id: 'color.brand',
+          name: 'Brand',
+          color: Color(0x80123456),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(DesyBenchApp(registry: registry));
+    await tester.pumpAndSettle();
+
+    tester
+        .widget<DesySidebarItem>(
+          find.byKey(ValueKey('sidebar-folder-${DesyAtomKind.colors.id}')),
+        )
+        .onPress!();
+    await tester.pumpAndSettle();
+
+    final card = find.byKey(const ValueKey('atlas-card-color.brand'));
+    expect(card, findsOneWidget);
+    expect(
+      find.descendant(of: card, matching: find.text('#80123456')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('assets have a focused packaged-image collection surface', (
     tester,
   ) async {

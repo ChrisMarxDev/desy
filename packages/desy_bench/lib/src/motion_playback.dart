@@ -1,17 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// How a Desy motion timeline behaves when it reaches an endpoint.
-enum DesyMotionLoopMode {
-  /// Restart from the beginning after reaching the end.
-  loop,
-
-  /// Alternate between forward and reverse playback.
-  pingPong,
-
-  /// Stop after one forward pass.
-  once,
-}
-
 /// Ephemeral playback state shared by Desy motion preview surfaces.
 ///
 /// The controller owns only the normalized preview timeline. Registered motion
@@ -20,13 +8,11 @@ class DesyMotionPlaybackController extends ChangeNotifier {
   /// Default duration used when no motion-specific or global value is present.
   static const defaultDuration = Duration(milliseconds: 300);
 
-  /// Creates a preview timeline, optionally beginning in a paused state.
+  /// Creates a preview timeline and immediately plays it forward once.
   DesyMotionPlaybackController({
     required TickerProvider vsync,
     required Duration duration,
     Curve curve = Curves.linear,
-    this.loopMode = DesyMotionLoopMode.pingPong,
-    this.autoplay = true,
   }) : assert(duration > Duration.zero),
        _duration = duration,
        _timeline = AnimationController(vsync: vsync, duration: duration) {
@@ -34,11 +20,7 @@ class DesyMotionPlaybackController extends ChangeNotifier {
     _timeline
       ..addListener(notifyListeners)
       ..addStatusListener(_handleStatus);
-    if (autoplay) {
-      _timeline.forward();
-    } else {
-      _isPlaying = false;
-    }
+    _timeline.forward();
   }
 
   /// The uncurved zero-to-one clock used by synchronized galleries.
@@ -49,12 +31,6 @@ class DesyMotionPlaybackController extends ChangeNotifier {
 
   /// The declared duration of one forward pass at 1× speed.
   Duration get duration => _duration;
-
-  /// The current repeat behavior.
-  DesyMotionLoopMode loopMode;
-
-  /// Whether the preview begins playing immediately.
-  final bool autoplay;
 
   /// Whether the timeline is currently advancing.
   bool get isPlaying => _isPlaying;
@@ -74,19 +50,9 @@ class DesyMotionPlaybackController extends ChangeNotifier {
   var _resumeAfterScrub = false;
 
   void _handleStatus(AnimationStatus status) {
-    if (!_isPlaying) return;
-    switch ((status, loopMode)) {
-      case (AnimationStatus.completed, DesyMotionLoopMode.loop):
-        _timeline.forward(from: 0);
-      case (AnimationStatus.completed, DesyMotionLoopMode.pingPong):
-        _timeline.reverse();
-      case (AnimationStatus.dismissed, DesyMotionLoopMode.pingPong):
-        _timeline.forward();
-      case (AnimationStatus.completed, DesyMotionLoopMode.once):
-        _isPlaying = false;
-        notifyListeners();
-      default:
-        break;
+    if (_isPlaying && status == AnimationStatus.completed) {
+      _isPlaying = false;
+      notifyListeners();
     }
   }
 
@@ -98,20 +64,6 @@ class DesyMotionPlaybackController extends ChangeNotifier {
       _resume();
     } else {
       _timeline.stop();
-    }
-  }
-
-  /// Cycles through ping-pong, once, and loop playback.
-  void cycleLoopMode() {
-    loopMode = switch (loopMode) {
-      DesyMotionLoopMode.loop => DesyMotionLoopMode.pingPong,
-      DesyMotionLoopMode.pingPong => DesyMotionLoopMode.once,
-      DesyMotionLoopMode.once => DesyMotionLoopMode.loop,
-    };
-    notifyListeners();
-    if (_isPlaying) {
-      _timeline.stop();
-      _resume();
     }
   }
 
@@ -148,15 +100,10 @@ class DesyMotionPlaybackController extends ChangeNotifier {
 
   void _updateEffectiveDuration() {
     final resume = _isPlaying && !_isScrubbing;
-    final wasReversing = _timeline.status == AnimationStatus.reverse;
     if (resume) _timeline.stop();
     _timeline.duration = _effectiveDuration;
     if (!resume) return;
-    if (wasReversing && loopMode == DesyMotionLoopMode.pingPong) {
-      _timeline.reverse();
-    } else {
-      _resume();
-    }
+    _resume();
   }
 
   /// Pauses playback on the first seek update and moves the playhead.
@@ -177,11 +124,8 @@ class DesyMotionPlaybackController extends ChangeNotifier {
   }
 
   void _resume() {
-    if (loopMode == DesyMotionLoopMode.once && _timeline.isCompleted) {
+    if (_timeline.isCompleted) {
       _timeline.forward(from: 0);
-    } else if (loopMode == DesyMotionLoopMode.pingPong &&
-        _timeline.status == AnimationStatus.reverse) {
-      _timeline.reverse();
     } else {
       _timeline.forward();
     }

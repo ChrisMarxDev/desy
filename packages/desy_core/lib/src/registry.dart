@@ -596,7 +596,7 @@ class DesyTheme {
     required this.wrap,
     this.description,
     this.previewBackgroundColor,
-    this.isDark,
+    this.isDark = false,
   });
 
   /// Stable identifier used by saved workbench state in a future release.
@@ -616,14 +616,13 @@ class DesyTheme {
 
   /// Whether Desy's own scaffold should use its dark Forui theme.
   ///
-  /// When omitted, Desy derives a sensible value from [previewBackgroundColor]
-  /// and otherwise uses its light scaffold. This affects only Desy-owned
-  /// chrome; [wrap] still owns the consumer widget's real theme.
-  final bool? isDark;
+  /// Defaults to `false`. Canvas colors never infer workbench brightness;
+  /// consumers opt into dark Desy chrome explicitly. This affects only
+  /// Desy-owned chrome; [wrap] still owns the consumer widget's real theme.
+  final bool isDark;
 
   /// The resolved scaffold brightness for this consumer theme.
-  bool get usesDarkWorkbench =>
-      isDark ?? ((previewBackgroundColor?.computeLuminance() ?? 1) < .5);
+  bool get usesDarkWorkbench => isDark;
 }
 
 /// A semantic design token displayed by the workbench.
@@ -2498,11 +2497,24 @@ class DesyColorEntry {
   Widget build(BuildContext context) => SizedBox(
     width: 240,
     height: 140,
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-      ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          displayValue,
+          key: ValueKey('desy-color-hex-$id'),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
     ),
   );
 }
