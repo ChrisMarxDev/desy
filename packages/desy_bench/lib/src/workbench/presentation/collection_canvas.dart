@@ -199,9 +199,10 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
           context.theme.colors.mutedForeground.withValues(alpha: .08),
           context.theme.colors.background,
         );
+        final stageSize = _canvasSize(constraints);
         final stage = SizedBox(
-          width: _canvasSize(constraints).width,
-          height: _canvasSize(constraints).height,
+          width: stageSize.width,
+          height: stageSize.height,
           child: ColoredBox(
             color: background,
             child: CustomPaint(
@@ -272,18 +273,22 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
                   onPointerPanZoomEnd: _handleTrackpadEnd,
                   child: AnimatedBuilder(
                     animation: _zoomController,
-                    child: OverflowBox(
-                      alignment: Alignment.topLeft,
-                      minWidth: 0,
-                      maxWidth: double.infinity,
-                      minHeight: 0,
-                      maxHeight: double.infinity,
-                      child: stage,
-                    ),
-                    builder: (context, child) => Transform(
-                      alignment: Alignment.topLeft,
-                      transform: _zoomController.value,
-                      child: child,
+                    child: stage,
+                    builder: (context, child) => Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned(
+                          left: 0,
+                          top: 0,
+                          width: stageSize.width,
+                          height: stageSize.height,
+                          child: Transform(
+                            alignment: Alignment.topLeft,
+                            transform: _zoomController.value,
+                            child: child,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

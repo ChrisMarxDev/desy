@@ -524,6 +524,62 @@ void main() {
     expect(geometryChanges, 0);
   });
 
+  testWidgets('collection canvas keeps item hit testing after far panning', (
+    tester,
+  ) async {
+    const frameKey = ValueKey('collection-panned-hit-frame');
+    var geometryChanges = 0;
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 640,
+          height: 480,
+          child: DesyCollectionCanvas<String>(
+            theme: theme,
+            title: 'Canvas',
+            detailsBuilder: (_, _) => const SizedBox.shrink(),
+            initialSelectedItemId: 'item',
+            items: [
+              DesyCanvasSceneItem(
+                id: 'item',
+                name: 'Item',
+                value: 'item',
+                initialRect: const Rect.fromLTWH(1100, 180, 120, 80),
+                frameKey: frameKey,
+                onGeometryChanged: (_) => geometryChanges++,
+                previewBuilder: (_, _) => const ColoredBox(color: Colors.red),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final trackpad = await tester.createGesture(
+      kind: PointerDeviceKind.trackpad,
+    );
+    const focalPoint = Offset(320, 240);
+    await trackpad.panZoomStart(focalPoint);
+    await trackpad.panZoomUpdate(focalPoint, pan: const Offset(-900, 0));
+    await trackpad.up();
+    await tester.pump();
+
+    final panned = tester.getRect(find.byKey(frameKey));
+    expect(panned.center.dx, inInclusiveRange(0, 640));
+
+    final gesture = await tester.startGesture(
+      panned.center,
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(32, 16));
+    await gesture.moveBy(const Offset(1, 1));
+    await gesture.up();
+    await tester.pump();
+
+    expect(geometryChanges, greaterThan(0));
+    expect(tester.getRect(find.byKey(frameKey)).topLeft, isNot(panned.topLeft));
+  });
+
   testWidgets('drag box does not move while a trackpad scroll starts on it', (
     tester,
   ) async {

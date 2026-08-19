@@ -208,12 +208,12 @@ void main() {
     expect(handle, findsOneWidget);
     expect(tester.getSize(handle).width, 8);
     expect(tester.getCenter(handle).dx, 248);
-    expect(
-      tester
-          .getSize(find.descendant(of: handle, matching: find.byType(FDivider)))
-          .width,
-      1,
+    final dividerLine = find.descendant(
+      of: handle,
+      matching: find.byType(ColoredBox),
     );
+    expect(dividerLine, findsOneWidget);
+    expect(tester.getSize(dividerLine).width, 1);
     expect(tester.getTopLeft(contentRegion).dx, 248);
     expect(tester.getTopLeft(contentTopDivider), const Offset(248, 48));
     final themePicker = find.byKey(const ValueKey('top-bar-theme-select'));
