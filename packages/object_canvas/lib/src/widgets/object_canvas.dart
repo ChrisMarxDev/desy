@@ -100,6 +100,7 @@ class ObjectCanvas<T> extends StatefulWidget {
     this.semanticLabelBuilder,
     this.objectVisibility,
     this.marqueeSelectionEnabled = true,
+    this.clearSelectionOnCanvasTap = true,
     this.duplicateDataBuilder,
   });
 
@@ -119,6 +120,7 @@ class ObjectCanvas<T> extends StatefulWidget {
     this.semanticLabelBuilder,
     this.objectVisibility,
     this.marqueeSelectionEnabled = true,
+    this.clearSelectionOnCanvasTap = true,
     this.duplicateDataBuilder,
   }) : assert(T == Widget, 'ObjectCanvas.widgets requires T to be Widget.'),
        objectBuilder = ((context, object) => object.data as Widget);
@@ -165,6 +167,9 @@ class ObjectCanvas<T> extends StatefulWidget {
   /// Whether dragging empty canvas space draws a marquee selection rectangle.
   final bool marqueeSelectionEnabled;
 
+  /// Whether tapping empty canvas space clears the current selection.
+  final bool clearSelectionOnCanvasTap;
+
   /// Builds application-owned data for keyboard-duplicated objects.
   final CanvasDuplicateDataBuilder<T>? duplicateDataBuilder;
 
@@ -187,6 +192,8 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
   CanvasObjectGeometry? _rotationStartGeometry;
   Offset? _rotationPivot;
   double? _rotationStartAngle;
+  bool _blankPanActive = false;
+  _CanvasPanZoomGesture? _panZoomGesture;
   final Map<String, _CanvasObjectItem<T>> _objectItems = {};
 
   ObjectCanvasController<T> get controller => widget.controller;
@@ -241,59 +248,62 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
         child: ColoredBox(
           color: widget.style.viewportColor,
           child: ClipRect(
-            child: InteractiveViewer(
-              transformationController: controller.viewportController,
-              constrained: false,
-              boundaryMargin: widget.viewportBoundaryMargin,
-              minScale: widget.minScale,
-              maxScale: widget.maxScale,
-              panEnabled: widget.panEnabled,
-              scaleEnabled: widget.scaleEnabled,
-              child: SizedBox.fromSize(
-                key: _stageKey,
-                size: controller.canvasSize,
-                child: Stack(
-                  key: const ValueKey('object-canvas-stage-stack'),
-                  clipBehavior: canvasClip,
-                  children: [
-                    if (widget.underlayBuilder case final builder?)
-                      Positioned.fill(child: builder(context, controller)),
-                    RepaintBoundary(
-                      key: _renderBoundaryKey,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        supportedDevices: _dragGestureDevices,
-                        onTap: controller.clearSelection,
-                        onPanStart: widget.marqueeSelectionEnabled
-                            ? _onMarqueeStart
-                            : null,
-                        onPanUpdate: widget.marqueeSelectionEnabled
-                            ? _onMarqueeUpdate
-                            : null,
-                        onPanEnd: widget.marqueeSelectionEnabled
-                            ? _onMarqueeEnd
-                            : null,
-                        onPanCancel: widget.marqueeSelectionEnabled
-                            ? _onMarqueeCancel
-                            : null,
-                        child: ColoredBox(
-                          color: widget.style.canvasColor,
-                          child: Stack(
-                            key: const ValueKey('object-canvas-content-stack'),
-                            clipBehavior: canvasClip,
-                            children: [
-                              for (final object in controller.objects)
-                                if (_isObjectVisible(object))
-                                  _objectItemFor(object.id),
-                            ],
+            child: Listener(
+              onPointerSignal: _onPointerSignal,
+              onPointerPanZoomStart: _onViewportPanZoomStart,
+              onPointerPanZoomUpdate: _onViewportPanZoomUpdate,
+              onPointerPanZoomEnd: _onViewportPanZoomEnd,
+              child: InteractiveViewer(
+                transformationController: controller.viewportController,
+                constrained: false,
+                boundaryMargin: widget.viewportBoundaryMargin,
+                minScale: widget.minScale,
+                maxScale: widget.maxScale,
+                panEnabled: false,
+                scaleEnabled: widget.scaleEnabled,
+                child: SizedBox.fromSize(
+                  key: _stageKey,
+                  size: controller.canvasSize,
+                  child: Stack(
+                    key: const ValueKey('object-canvas-stage-stack'),
+                    clipBehavior: canvasClip,
+                    children: [
+                      if (widget.underlayBuilder case final builder?)
+                        Positioned.fill(child: builder(context, controller)),
+                      RepaintBoundary(
+                        key: _renderBoundaryKey,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          dragStartBehavior: DragStartBehavior.down,
+                          supportedDevices: _dragGestureDevices,
+                          onTap: widget.clearSelectionOnCanvasTap
+                              ? controller.clearSelection
+                              : null,
+                          onPanStart: _onCanvasPanStart,
+                          onPanUpdate: _onCanvasPanUpdate,
+                          onPanEnd: _onCanvasPanEnd,
+                          onPanCancel: _onCanvasPanCancel,
+                          child: ColoredBox(
+                            color: widget.style.canvasColor,
+                            child: Stack(
+                              key: const ValueKey(
+                                'object-canvas-content-stack',
+                              ),
+                              clipBehavior: canvasClip,
+                              children: [
+                                for (final object in controller.objects)
+                                  if (_isObjectVisible(object))
+                                    _objectItemFor(object.id),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    Positioned.fill(child: _buildEditorOverlay(context)),
-                    if (widget.overlayBuilder case final builder?)
-                      Positioned.fill(child: builder(context, controller)),
-                  ],
+                      Positioned.fill(child: _buildEditorOverlay(context)),
+                      if (widget.overlayBuilder case final builder?)
+                        Positioned.fill(child: builder(context, controller)),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -347,17 +357,21 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
         child: Semantics(
           label: semanticLabelBuilder?.call(view) ?? 'Canvas object ${view.id}',
           selected: snapshot.selected,
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            supportedDevices: _dragGestureDevices,
-            onTap: () => _selectObject(view.id),
-            onPanStart: capabilities.movable
-                ? (details) => _onObjectMoveStart(view.id, details)
-                : null,
-            onPanUpdate: capabilities.movable ? _onObjectMoveUpdate : null,
-            onPanEnd: capabilities.movable ? (_) => _onObjectMoveEnd() : null,
-            onPanCancel: capabilities.movable ? _onObjectMoveCancel : null,
-            child: ClipRect(child: content),
+          child: Listener(
+            onPointerDown: (_) => _selectObject(view.id),
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              dragStartBehavior: DragStartBehavior.down,
+              supportedDevices: _dragGestureDevices,
+              onTap: () => _selectObject(view.id),
+              onPanStart: capabilities.movable
+                  ? (details) => _onObjectMoveStart(view.id, details)
+                  : null,
+              onPanUpdate: capabilities.movable ? _onObjectMoveUpdate : null,
+              onPanEnd: capabilities.movable ? (_) => _onObjectMoveEnd() : null,
+              onPanCancel: capabilities.movable ? _onObjectMoveCancel : null,
+              child: ClipRect(child: content),
+            ),
           ),
         ),
       ),
@@ -415,6 +429,90 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
   void _onObjectMoveCancel() {
     _moveStartPointer = null;
     controller.cancelTransform();
+  }
+
+  void _onCanvasPanStart(DragStartDetails details) {
+    _focusNode.requestFocus();
+    if (widget.panEnabled) {
+      _blankPanActive = true;
+      return;
+    }
+    if (widget.marqueeSelectionEnabled) _onMarqueeStart(details);
+  }
+
+  void _onCanvasPanUpdate(DragUpdateDetails details) {
+    if (_blankPanActive) {
+      _panViewportBy(details.delta);
+      return;
+    }
+    if (widget.marqueeSelectionEnabled) _onMarqueeUpdate(details);
+  }
+
+  void _onCanvasPanEnd(DragEndDetails details) {
+    if (_blankPanActive) {
+      _blankPanActive = false;
+      return;
+    }
+    if (widget.marqueeSelectionEnabled) _onMarqueeEnd(details);
+  }
+
+  void _onCanvasPanCancel() {
+    if (_blankPanActive) {
+      _blankPanActive = false;
+      return;
+    }
+    if (widget.marqueeSelectionEnabled) _onMarqueeCancel();
+  }
+
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (!widget.panEnabled || event is! PointerScrollEvent) return;
+    GestureBinding.instance.pointerSignalResolver.register(event, (event) {
+      if (event is PointerScrollEvent) _panViewportBy(-event.scrollDelta);
+    });
+  }
+
+  void _onViewportPanZoomStart(PointerPanZoomStartEvent event) {
+    if (!widget.panEnabled && !widget.scaleEnabled) return;
+    _panZoomGesture = _CanvasPanZoomGesture(
+      pointer: event.pointer,
+      scale: controller.viewportScale,
+      sceneFocalPoint: controller.viewportController.toScene(
+        event.localPosition,
+      ),
+    );
+  }
+
+  void _onViewportPanZoomUpdate(PointerPanZoomUpdateEvent event) {
+    final gesture = _panZoomGesture;
+    if (gesture == null || gesture.pointer != event.pointer) return;
+    final scale = widget.scaleEnabled
+        ? (gesture.scale * event.scale)
+              .clamp(widget.minScale, widget.maxScale)
+              .toDouble()
+        : gesture.scale;
+    final focalPoint =
+        event.localPosition + (widget.panEnabled ? event.pan : Offset.zero);
+    controller.viewportController.value = Matrix4.identity()
+      ..setTranslationRaw(
+        focalPoint.dx - gesture.sceneFocalPoint.dx * scale,
+        focalPoint.dy - gesture.sceneFocalPoint.dy * scale,
+        0,
+      )
+      ..scaleByDouble(scale, scale, 1, 1);
+  }
+
+  void _onViewportPanZoomEnd(PointerPanZoomEndEvent event) {
+    if (_panZoomGesture?.pointer == event.pointer) _panZoomGesture = null;
+  }
+
+  void _panViewportBy(Offset delta) {
+    final matrix = controller.viewportController.value.clone();
+    controller.viewportController.value = matrix
+      ..setTranslationRaw(
+        matrix.storage[12] + delta.dx,
+        matrix.storage[13] + delta.dy,
+        0,
+      );
   }
 
   void _onMarqueeStart(DragStartDetails details) {
@@ -520,6 +618,7 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
         cursor: handle.cursorFor(geometry.rotation),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          dragStartBehavior: DragStartBehavior.down,
           supportedDevices: _dragGestureDevices,
           onPanStart: (details) => _onResizeStart(id, handle.edges, details),
           onPanUpdate: (details) => _onResizeUpdate(id, details),
@@ -944,6 +1043,7 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          dragStartBehavior: DragStartBehavior.down,
           supportedDevices: _dragGestureDevices,
           onPanStart: (details) => _onRotationStart(id, details),
           onPanUpdate: (details) => _onRotationUpdate(id, details),
@@ -1321,6 +1421,18 @@ const _resizeHandles = <_ResizeHandle>[
     edges: CanvasResizeEdges(left: true),
   ),
 ];
+
+class _CanvasPanZoomGesture {
+  const _CanvasPanZoomGesture({
+    required this.pointer,
+    required this.scale,
+    required this.sceneFocalPoint,
+  });
+
+  final int pointer;
+  final double scale;
+  final Offset sceneFocalPoint;
+}
 
 class _ResizeHandle {
   const _ResizeHandle({

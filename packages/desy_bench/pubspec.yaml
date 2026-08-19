@@ -29,6 +29,8 @@ dependencies:
   flutter_box_transform: ^0.4.7
   go_router: ^17.3.0
   motor: ^1.1.0
+  object_canvas:
+    path: ../object_canvas
   state_beacon: ^3.1.1
   url_launcher: ^6.3.2
   web: ^1.1.1

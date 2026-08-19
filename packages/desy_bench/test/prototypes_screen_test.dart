@@ -5,6 +5,7 @@ import 'package:desy_bench/src/workbench/workbench_session.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:object_canvas/object_canvas.dart';
 
 void main() {
   testWidgets('prototype demos remain interactive inside their drag frames', (
@@ -113,7 +114,8 @@ void main() {
         find.byKey(const ValueKey('$prefix-item-prototype.two')),
         findsOneWidget,
       );
-      expect(find.byType(DesyDragBox), findsNWidgets(2));
+      expect(find.byType(ObjectCanvas<String>), findsOneWidget);
+      expect(find.byType(DesyDragBox), findsNothing);
       expect(
         find.byKey(const ValueKey('$prefix-selection-size-prototype.one')),
         findsOneWidget,

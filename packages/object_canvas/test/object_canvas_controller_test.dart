@@ -228,6 +228,36 @@ void main() {
       expect(controller.objects.map((object) => object.id), ['a', 'b']);
     });
 
+    test('replaceObjects syncs host-owned objects without history', () {
+      final selections = <Set<String>>[];
+      final controller = ObjectCanvasController<String>(
+        canvasSize: const Size(800, 600),
+        objects: [_object('a'), _object('b')],
+        onSelectionChanged: selections.add,
+      );
+      controller.setSelectedObjects(['b']);
+
+      controller.replaceObjects([
+        _object('b', position: const Offset(20, 20)),
+        _object('c', position: const Offset(80, 80)),
+      ]);
+
+      expect(controller.objects.map((object) => object.id), ['b', 'c']);
+      expect(
+        controller.requireObject('b').geometry.position,
+        const Offset(20, 20),
+      );
+      expect(controller.selectedObjectIds, {'b'});
+      expect(controller.canUndo, isFalse);
+
+      controller.replaceObjects([_object('c')]);
+
+      expect(controller.objects.map((object) => object.id), ['c']);
+      expect(controller.selectedObjectIds, isEmpty);
+      expect(selections.last, isEmpty);
+      expect(controller.canUndo, isFalse);
+    });
+
     test('addObjectData centers and clamps initial geometry', () {
       final controller = ObjectCanvasController<String>(
         canvasSize: const Size(200, 120),

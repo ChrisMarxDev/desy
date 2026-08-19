@@ -4,9 +4,9 @@
 import 'dart:math' as math;
 
 import 'package:desy_design_system/desy_design_system.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:object_canvas/object_canvas.dart';
 
 import '../../registry.dart';
 import '../workbench_annotation.dart';
@@ -15,7 +15,6 @@ import 'desy_drag_box.dart';
 import 'workbench_control_sheet.dart';
 
 const _minimumBoxExtent = 8.0;
-const _canvasExtent = 100000.0;
 const _canvasEdgePadding = 1024.0;
 const _minimumCanvasZoom = .5;
 const _maximumCanvasZoom = 2.5;
@@ -51,7 +50,6 @@ class DesyCanvasSceneItem<T> {
     this.frameKey,
     this.contentKey,
     this.labelKey,
-    this.resizeHandleKeyPrefix,
     this.onGeometryChanged,
     this.onSelected,
   }) : assert(previewBuilder != null || previewSurfaceBuilder != null);
@@ -70,7 +68,6 @@ class DesyCanvasSceneItem<T> {
   final Key? frameKey;
   final Key? contentKey;
   final Key? labelKey;
-  final String? resizeHandleKeyPrefix;
   final ValueChanged<DesyDragBoxGeometry>? onGeometryChanged;
   final VoidCallback? onSelected;
 }
@@ -142,51 +139,85 @@ class DesyCollectionCanvas<T> extends StatefulWidget {
 }
 
 class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
-  final _geometries = <String, DesyDragBoxGeometry>{};
-  final _paintOrder = <String>[];
-  final _zoomController = TransformationController();
-  int? _blankCanvasPointer;
-  String? _selectedId;
+  late final ObjectCanvasController<String> _canvas;
+  final _reportedGeometries = <String, CanvasObjectGeometry>{};
+  var _resetGeometryOnNextSync = false;
   var _zoom = 1.0;
+  var _syncingCanvas = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedId = widget.initialSelectedItemId;
+    _canvas =
+        ObjectCanvasController<String>(
+            canvasSize: const Size.square(1),
+            multiSelectionEnabled: false,
+            overflow: CanvasOverflow.show,
+            snapConfiguration: CanvasSnapConfiguration(strategies: const []),
+            defaults: const CanvasObjectDefaults(
+              constraints: CanvasObjectConstraints(
+                minSize: Size.square(_minimumBoxExtent),
+              ),
+              capabilities: CanvasObjectCapabilities(
+                rotatable: false,
+                scalable: false,
+              ),
+            ),
+            onSelectionChanged: _handleSelectionChanged,
+          )
+          ..addListener(_handleCanvasChanged)
+          ..viewportController.addListener(_handleViewportChanged);
     _setZoomValue(widget.initialZoom);
-    _zoomController.addListener(_handleZoomChanged);
   }
 
   @override
   void didUpdateWidget(covariant DesyCollectionCanvas<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.geometryRevision != widget.geometryRevision) {
-      _geometries.clear();
+      _resetGeometryOnNextSync = true;
+      _reportedGeometries.clear();
     }
     if (oldWidget.initialSelectedItemId != widget.initialSelectedItemId &&
         widget.initialSelectedItemId != null) {
-      _selectedId = widget.initialSelectedItemId;
+      _selectItemId(widget.initialSelectedItemId!);
     }
   }
 
   @override
   void dispose() {
-    _zoomController
-      ..removeListener(_handleZoomChanged)
+    _canvas
+      ..removeListener(_handleCanvasChanged)
+      ..viewportController.removeListener(_handleViewportChanged)
       ..dispose();
     super.dispose();
   }
 
-  void _handleZoomChanged() {
-    final zoom = _zoomFromMatrix(_zoomController.value);
+  void _handleViewportChanged() {
+    final zoom = _canvas.viewportScale;
     if (!mounted || (zoom - _zoom).abs() < .001) return;
     setState(() => _zoom = zoom);
   }
 
+  void _handleCanvasChanged() {
+    if (_syncingCanvas) return;
+    _publishGeometryChanges();
+  }
+
+  void _handleSelectionChanged(Set<String> selectedIds) {
+    if (_syncingCanvas) return;
+    final id = selectedIds.firstOrNull;
+    if (id case final selectedId?) {
+      final item = _itemForId(selectedId);
+      if (item != null) {
+        item.onSelected?.call();
+        widget.onItemSelected?.call(item);
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
-    _synchronizeItems();
-    final selected = _selectedItem;
     return LayoutBuilder(
       builder: (context, constraints) {
         final background =
@@ -200,53 +231,8 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
           context.theme.colors.background,
         );
         final stageSize = _canvasSize(constraints);
-        final stage = SizedBox(
-          width: stageSize.width,
-          height: stageSize.height,
-          child: ColoredBox(
-            color: background,
-            child: CustomPaint(
-              painter: _CollectionCanvasGridPainter(background: background),
-              foregroundPainter: _CollectionCanvasBorderPainter(
-                color: canvasBorderColor,
-              ),
-              child: Stack(
-                key: ValueKey('${widget.keyPrefix}-stage'),
-                fit: StackFit.expand,
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned.fill(
-                    child: Listener(
-                      behavior: HitTestBehavior.opaque,
-                      onPointerDown: _beginBlankCanvasPan,
-                      onPointerMove: _updateBlankCanvasPan,
-                      onPointerUp: _endBlankCanvasPan,
-                      onPointerCancel: _endBlankCanvasPan,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: widget.clearSelectionOnCanvasTap
-                            ? _clearSelection
-                            : null,
-                      ),
-                    ),
-                  ),
-                  for (final id in _paintOrder)
-                    if (_itemForId(id) case final item?)
-                      _CollectionCanvasItem<T>(
-                        key: ValueKey('${widget.keyPrefix}-item-$id'),
-                        keyPrefix: widget.keyPrefix,
-                        theme: widget.theme,
-                        item: item,
-                        geometry: _geometries[id]!,
-                        selected: _selectedId == id,
-                        onSelect: () => _select(item),
-                        onChanged: (geometry) => _updateGeometry(id, geometry),
-                      ),
-                ],
-              ),
-            ),
-          ),
-        );
+        _synchronizeCanvas(stageSize);
+        final selected = _selectedItem;
         final drawerWidth = math
             .min(360.0, constraints.maxWidth * .36)
             .clamp(280.0, 360.0)
@@ -261,36 +247,43 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
             color: workspaceBackground,
             child: Stack(
               children: [
-                Listener(
+                ObjectCanvas<String>(
                   key: ValueKey('${widget.keyPrefix}-viewport'),
-                  // The stage can visibly overflow this viewport after a
-                  // zoom or pan. Navigation remains available over the full
-                  // viewport, not just the transformed child's layout bounds.
-                  behavior: HitTestBehavior.opaque,
-                  onPointerSignal: _handlePointerSignal,
-                  onPointerPanZoomStart: _handleTrackpadStart,
-                  onPointerPanZoomUpdate: _handleTrackpadUpdate,
-                  onPointerPanZoomEnd: _handleTrackpadEnd,
-                  child: AnimatedBuilder(
-                    animation: _zoomController,
-                    child: stage,
-                    builder: (context, child) => Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Positioned(
-                          left: 0,
-                          top: 0,
-                          width: stageSize.width,
-                          height: stageSize.height,
-                          child: Transform(
-                            alignment: Alignment.topLeft,
-                            transform: _zoomController.value,
-                            child: child,
-                          ),
-                        ),
-                      ],
+                  controller: _canvas,
+                  minScale: _minimumCanvasZoom,
+                  maxScale: _maximumCanvasZoom,
+                  viewportBoundaryMargin: const EdgeInsets.all(
+                    _canvasEdgePadding,
+                  ),
+                  clearSelectionOnCanvasTap: widget.clearSelectionOnCanvasTap,
+                  objectVisibility: (object) => _itemForId(object.id) != null,
+                  semanticLabelBuilder: (object) =>
+                      _itemForId(object.id)?.name ?? object.id,
+                  style: ObjectCanvasStyle(
+                    viewportColor: workspaceBackground,
+                    canvasColor: background,
+                    selectionColor: context.theme.colors.desy.signal,
+                    guideColor: context.theme.colors.desy.signal,
+                    marqueeFillColor: context.theme.colors.desy.signalSurface
+                        .withValues(alpha: .24),
+                    marqueeStrokeColor: context.theme.colors.desy.signal,
+                  ),
+                  underlayBuilder: (context, controller) => CustomPaint(
+                    key: ValueKey('${widget.keyPrefix}-stage'),
+                    painter: _CollectionCanvasGridPainter(
+                      background: background,
+                    ),
+                    foregroundPainter: _CollectionCanvasBorderPainter(
+                      color: canvasBorderColor,
                     ),
                   ),
+                  overlayBuilder: (context, controller) =>
+                      _CollectionCanvasLabels<T>(
+                        keyPrefix: widget.keyPrefix,
+                        controller: controller,
+                        itemForId: _itemForId,
+                      ),
+                  objectBuilder: _buildCanvasObject,
                 ),
                 Positioned(
                   top: widget.toolbar == null ? 16 : 12,
@@ -388,24 +381,53 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
 
   void _enterSelectMode(DesyWorkbenchInspectionHost inspection) {
     if (inspection.inspectionActive) inspection.onToggleInspection!();
-    _clearSelection();
+    _canvas.clearSelection();
   }
 
   void _enterAnnotateMode(DesyWorkbenchInspectionHost inspection) {
     if (!inspection.inspectionActive) inspection.onToggleInspection!();
   }
 
-  DesyCanvasSceneItem<T>? get _selectedItem => _itemForId(_selectedId);
+  DesyCanvasSceneItem<T>? get _selectedItem =>
+      _itemForId(_canvas.selectedObjectIds.firstOrNull);
 
-  void _synchronizeItems() {
-    final ids = widget.items.map((item) => item.id).toSet();
-    _geometries.removeWhere((id, _) => !ids.contains(id));
-    _paintOrder.removeWhere((id) => !ids.contains(id));
-    for (final (index, item) in widget.items.indexed) {
-      _geometries.putIfAbsent(item.id, () => _initialGeometry(item, index));
-      if (!_paintOrder.contains(item.id)) _paintOrder.add(item.id);
+  void _synchronizeCanvas(Size stageSize) {
+    _syncingCanvas = true;
+    try {
+      if (_canvas.canvasSize != stageSize) _canvas.setCanvasSize(stageSize);
+      final ids = widget.items.map((item) => item.id).toSet();
+      _reportedGeometries.removeWhere((id, _) => !ids.contains(id));
+      final objects = <CanvasObject<String>>[];
+      for (final (index, item) in widget.items.indexed) {
+        final existing = _objectForId(item.id);
+        objects.add(
+          CanvasObject<String>(
+            id: item.id,
+            data: item.id,
+            geometry: existing == null || _resetGeometryOnNextSync
+                ? _initialGeometry(item, index)
+                : _canvas.geometryFor(item.id),
+            constraints: const CanvasObjectConstraints(
+              minSize: Size.square(_minimumBoxExtent),
+            ),
+            capabilities: CanvasObjectCapabilities(
+              movable: item.draggable,
+              rotatable: false,
+              scalable: false,
+            ),
+          ),
+        );
+      }
+      _canvas.replaceObjects(objects);
+      if (widget.initialSelectedItemId case final selectedId?
+          when _canvas.selectedObjectIds.isEmpty && ids.contains(selectedId)) {
+        _canvas.setSelectedObjects([selectedId]);
+      }
+      _resetGeometryOnNextSync = false;
+      _rememberCurrentGeometries();
+    } finally {
+      _syncingCanvas = false;
     }
-    if (_selectedId != null && !ids.contains(_selectedId)) _selectedId = null;
   }
 
   DesyCanvasSceneItem<T>? _itemForId(String? id) {
@@ -416,151 +438,166 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
     return null;
   }
 
-  DesyDragBoxGeometry _initialGeometry(DesyCanvasSceneItem<T> item, int index) {
+  CanvasObjectGeometry _initialGeometry(
+    DesyCanvasSceneItem<T> item,
+    int index,
+  ) {
     const fallback = Size(320, 240);
     const columns = 3;
     const gap = 64.0;
     const inset = 72.0;
     final placement = item.initialRect;
     if (placement != null) {
-      return DesyDragBoxGeometry(
-        rect: Rect.fromLTWH(
-          placement.left,
-          placement.top,
+      return CanvasObjectGeometry(
+        position: placement.topLeft,
+        size: Size(
           math.max(placement.width, _minimumBoxExtent),
           math.max(placement.height, _minimumBoxExtent),
         ),
       );
     }
     final size = item.initialSize;
-    return DesyDragBoxGeometry(
-      rect: Rect.fromLTWH(
+    return CanvasObjectGeometry(
+      position: Offset(
         inset + (index % columns) * (fallback.width + gap),
         inset + (index ~/ columns) * (fallback.height + gap),
+      ),
+      size: Size(
         math.max(size.width, _minimumBoxExtent),
         math.max(size.height, _minimumBoxExtent),
       ),
     );
   }
 
-  void _select(DesyCanvasSceneItem<T> item) {
-    if (_selectedId == item.id) return;
-    setState(() {
-      _selectedId = item.id;
-      _paintOrder
-        ..remove(item.id)
-        ..add(item.id);
-    });
-    item.onSelected?.call();
-    widget.onItemSelected?.call(item);
+  Widget _buildCanvasObject(BuildContext context, CanvasObject<String> object) {
+    final item = _itemForId(object.id);
+    if (item == null) return const SizedBox.shrink();
+    final geometry = DesyDragBoxGeometry(
+      rect: object.geometry.position & object.geometry.size,
+    );
+    final selected = _canvas.selectedObjectIds.contains(object.id);
+    final preview =
+        item.previewSurfaceBuilder?.call(
+          context,
+          item.value,
+          geometry,
+          () => _selectItemId(item.id),
+          (geometry) => _updateGeometry(item.id, geometry),
+        ) ??
+        Center(
+          child: DesyWidgetPreview(
+            theme: widget.theme,
+            builder: (context) => item.previewBuilder!(context, item.value),
+          ),
+        );
+    final framed = DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: context.theme.colors.desy.signal.withValues(
+            alpha: selected ? .9 : .28,
+          ),
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      child: KeyedSubtree(
+        key:
+            item.contentKey ??
+            ValueKey('${widget.keyPrefix}-content-${item.id}'),
+        child: IgnorePointer(
+          ignoring: item.ignoreChildPointer,
+          child: Semantics(
+            container: true,
+            selected: selected,
+            label: 'Select ${item.name}',
+            child: preview,
+          ),
+        ),
+      ),
+    );
+    return KeyedSubtree(
+      key: item.itemKey ?? ValueKey('${widget.keyPrefix}-item-${item.id}'),
+      child: KeyedSubtree(
+        key: item.frameKey ?? ValueKey('${widget.keyPrefix}-frame-${item.id}'),
+        child: framed,
+      ),
+    );
   }
 
-  void _clearSelection() {
-    if (_selectedId == null) return;
-    setState(() => _selectedId = null);
-  }
+  void _selectItemId(String id) => _canvas.setSelectedObjects([id]);
+
+  void _clearSelection() => _canvas.clearSelection();
 
   void _updateGeometry(String id, DesyDragBoxGeometry geometry) {
-    setState(() => _geometries[id] = geometry);
-    _itemForId(id)?.onGeometryChanged?.call(geometry);
+    final currentGeometry = _canvas.geometryFor(id);
+    final resolved =
+        _itemForId(id)?.geometryResolver?.call(
+          geometry,
+          DesyDragBoxInteraction(
+            kind: DesyDragBoxInteractionKind.resize,
+            initialRect: currentGeometry.position & currentGeometry.size,
+          ),
+        ) ??
+        geometry;
+    _canvas.updateGeometries([
+      CanvasGeometryValue(
+        objectId: id,
+        geometry: CanvasObjectGeometry(
+          position: resolved.rect.topLeft,
+          size: resolved.rect.size,
+        ),
+      ),
+    ]);
+  }
+
+  void _publishGeometryChanges() {
+    for (final object in _canvas.objects) {
+      final geometry = _canvas.geometryFor(object.id);
+      if (_reportedGeometries[object.id] == geometry) continue;
+      _reportedGeometries[object.id] = geometry;
+      _itemForId(object.id)?.onGeometryChanged?.call(
+        DesyDragBoxGeometry(rect: geometry.position & geometry.size),
+      );
+    }
+  }
+
+  void _rememberCurrentGeometries() {
+    for (final object in _canvas.objects) {
+      _reportedGeometries[object.id] = _canvas.geometryFor(object.id);
+    }
   }
 
   void _setZoom(double value) {
     final zoom = value.clamp(_minimumCanvasZoom, _maximumCanvasZoom).toDouble();
-    final matrix = _zoomController.value;
+    final matrix = _canvas.viewportController.value;
     if ((zoom - _zoom).abs() >= .001) setState(() => _zoom = zoom);
-    _zoomController.value = Matrix4.identity()
+    _canvas.viewportController.value = Matrix4.identity()
       ..setTranslationRaw(matrix.storage[12], matrix.storage[13], 0)
       ..scaleByDouble(zoom, zoom, 1, 1);
   }
 
   void _setZoomValue(double value) {
     _zoom = value.clamp(_minimumCanvasZoom, _maximumCanvasZoom).toDouble();
-    _zoomController.value = Matrix4.identity()
+    _canvas.viewportController.value = Matrix4.identity()
       ..scaleByDouble(_zoom, _zoom, 1, 1);
   }
 
-  _TrackpadGesture? _trackpadGesture;
-
-  void _beginBlankCanvasPan(PointerDownEvent event) {
-    if (event.kind != PointerDeviceKind.trackpad) {
-      _blankCanvasPointer = event.pointer;
-    }
-  }
-
-  void _updateBlankCanvasPan(PointerMoveEvent event) {
-    if (event.pointer == _blankCanvasPointer) _panCanvasBy(event.delta);
-  }
-
-  void _endBlankCanvasPan(PointerEvent event) {
-    if (event.pointer == _blankCanvasPointer) _blankCanvasPointer = null;
-  }
-
-  void _handlePointerSignal(PointerSignalEvent event) {
-    if (event is! PointerScrollEvent) return;
-    GestureBinding.instance.pointerSignalResolver.register(event, (event) {
-      if (event is PointerScrollEvent) _panCanvasBy(-event.scrollDelta);
-    });
-  }
-
-  void _handleTrackpadStart(PointerPanZoomStartEvent event) {
-    _trackpadGesture = _TrackpadGesture(
-      pointer: event.pointer,
-      scale: _zoomFromMatrix(_zoomController.value),
-      sceneFocalPoint: _zoomController.toScene(event.localPosition),
-    );
-  }
-
-  void _handleTrackpadUpdate(PointerPanZoomUpdateEvent event) {
-    final gesture = _trackpadGesture;
-    if (gesture == null || gesture.pointer != event.pointer) return;
-    final scale = (gesture.scale * event.scale)
-        .clamp(_minimumCanvasZoom, _maximumCanvasZoom)
-        .toDouble();
-    final focalPoint = event.localPosition + event.pan;
-    _zoomController.value = Matrix4.identity()
-      ..setTranslationRaw(
-        focalPoint.dx - gesture.sceneFocalPoint.dx * scale,
-        focalPoint.dy - gesture.sceneFocalPoint.dy * scale,
-        0,
-      )
-      ..scaleByDouble(scale, scale, 1, 1);
-  }
-
-  void _handleTrackpadEnd(PointerPanZoomEndEvent event) {
-    if (_trackpadGesture?.pointer == event.pointer) _trackpadGesture = null;
-  }
-
-  void _panCanvasBy(Offset delta) {
-    final matrix = _zoomController.value.clone();
-    _zoomController.value = matrix
-      ..setTranslationRaw(
-        matrix.storage[12] + delta.dx,
-        matrix.storage[13] + delta.dy,
-        0,
-      );
-  }
-
-  void _resetView() => _zoomController.value = Matrix4.identity();
-
-  /// Extracts the visible 2D scale. [Matrix4.getMaxScaleOnAxis] includes the
-  /// untouched Z axis, which stays at 1 and would falsely report 100%.
-  double _zoomFromMatrix(Matrix4 matrix) => math.sqrt(
-    matrix.storage[0] * matrix.storage[0] +
-        matrix.storage[1] * matrix.storage[1],
-  );
+  void _resetView() => _canvas.viewportController.value = Matrix4.identity();
 
   Size _canvasSize(BoxConstraints constraints) {
     var width = constraints.maxWidth + _canvasEdgePadding * 2;
     var height = constraints.maxHeight + _canvasEdgePadding * 2;
-    for (final geometry in _geometries.values) {
+    for (final (index, item) in widget.items.indexed) {
+      final object = _objectForId(item.id);
+      final geometry = object == null
+          ? _initialGeometry(item, index)
+          : _canvas.geometryFor(item.id);
       width = math.max(
         width,
-        geometry.rect.right + _canvasEdgePadding + _trailingSpace,
+        geometry.paintBounds.right + _canvasEdgePadding + _trailingSpace,
       );
       height = math.max(
         height,
-        geometry.rect.bottom +
+        geometry.paintBounds.bottom +
             _labelGap +
             _labelHeight +
             _canvasEdgePadding +
@@ -569,18 +606,53 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
     }
     return Size(width, height);
   }
+
+  CanvasObject<String>? _objectForId(String id) {
+    for (final object in _canvas.objects) {
+      if (object.id == id) return object;
+    }
+    return null;
+  }
 }
 
-class _TrackpadGesture {
-  const _TrackpadGesture({
-    required this.pointer,
-    required this.scale,
-    required this.sceneFocalPoint,
+extension<T> on Iterable<T> {
+  T? get firstOrNull => isEmpty ? null : first;
+}
+
+class _CollectionCanvasLabels<T> extends StatelessWidget {
+  const _CollectionCanvasLabels({
+    required this.keyPrefix,
+    required this.controller,
+    required this.itemForId,
   });
 
-  final int pointer;
-  final double scale;
-  final Offset sceneFocalPoint;
+  final String keyPrefix;
+  final ObjectCanvasController<String> controller;
+  final DesyCanvasSceneItem<T>? Function(String? id) itemForId;
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    clipBehavior: Clip.none,
+    children: [
+      for (final object in controller.objects)
+        if (itemForId(object.id) case final item?)
+          Positioned(
+            left: controller.geometryFor(object.id).position.dx,
+            top:
+                controller.geometryFor(object.id).position.dy +
+                controller.geometryFor(object.id).size.height +
+                _labelGap,
+            child: DesyDragBoxLabel(
+              key:
+                  item.labelKey ??
+                  ValueKey('$keyPrefix-selection-size-${item.id}'),
+              size: controller.geometryFor(object.id).size,
+              identifier: item.name,
+              selected: controller.selectedObjectIds.contains(object.id),
+            ),
+          ),
+    ],
+  );
 }
 
 class _CollectionCanvasActionBar extends StatelessWidget {
@@ -682,89 +754,6 @@ class _CanvasModeButton extends StatelessWidget {
             semanticLabel: 'Keyboard shortcut: ${shortcut.join(' plus ')}',
           ),
         ],
-      ),
-    ),
-  );
-}
-
-class _CollectionCanvasItem<T> extends StatelessWidget {
-  const _CollectionCanvasItem({
-    super.key,
-    required this.keyPrefix,
-    required this.theme,
-    required this.item,
-    required this.geometry,
-    required this.selected,
-    required this.onSelect,
-    required this.onChanged,
-  });
-
-  final String keyPrefix;
-  final DesyTheme theme;
-  final DesyCanvasSceneItem<T> item;
-  final DesyDragBoxGeometry geometry;
-  final bool selected;
-  final VoidCallback onSelect;
-  final ValueChanged<DesyDragBoxGeometry> onChanged;
-
-  @override
-  Widget build(BuildContext context) => KeyedSubtree(
-    key: item.itemKey,
-    child: DesyDragBox(
-      geometry: geometry,
-      clampingRect: const Rect.fromLTRB(
-        -_canvasExtent,
-        -_canvasExtent,
-        _canvasExtent,
-        _canvasExtent,
-      ),
-      constraints: const BoxConstraints(
-        minWidth: _minimumBoxExtent,
-        minHeight: _minimumBoxExtent,
-      ),
-      frameKey: item.frameKey ?? ValueKey('$keyPrefix-frame-${item.id}'),
-      contentKey: item.contentKey ?? ValueKey('$keyPrefix-content-${item.id}'),
-      resizeHandleKeyPrefix:
-          item.resizeHandleKeyPrefix ?? '$keyPrefix-resize-${item.id}',
-      selected: selected,
-      draggable: item.draggable,
-      ignoreChildPointer: item.ignoreChildPointer,
-      onSelect: onSelect,
-      onChanged: onChanged,
-      geometryResolver: item.geometryResolver,
-      outsideFrameDecoration: BoxDecoration(
-        border: Border.all(
-          color: context.theme.colors.desy.signal.withValues(
-            alpha: selected ? .9 : .28,
-          ),
-          width: selected ? 1.5 : 1,
-        ),
-      ),
-      outsideFrameInset: selected ? 2 : 1,
-      label: DesyDragBoxLabel(
-        key: item.labelKey ?? ValueKey('$keyPrefix-selection-size-${item.id}'),
-        size: geometry.rect.size,
-        identifier: item.name,
-        selected: selected,
-      ),
-      child: Semantics(
-        container: true,
-        selected: selected,
-        label: 'Select ${item.name}',
-        child:
-            item.previewSurfaceBuilder?.call(
-              context,
-              item.value,
-              geometry,
-              onSelect,
-              onChanged,
-            ) ??
-            Center(
-              child: DesyWidgetPreview(
-                theme: theme,
-                builder: (context) => item.previewBuilder!(context, item.value),
-              ),
-            ),
       ),
     ),
   );

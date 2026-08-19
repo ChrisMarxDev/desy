@@ -228,6 +228,30 @@ void main() {
     expect(controller.selectedObjectIds, isEmpty);
   });
 
+  testWidgets('blank canvas tap clearing can be disabled by the host', (
+    tester,
+  ) async {
+    final controller = _widgetController();
+    controller.selectObjects(['a']);
+    await tester.pumpWidget(
+      _host(controller, clearSelectionOnCanvasTap: false),
+    );
+
+    final stageTopLeft = tester.getTopLeft(
+      find.byKey(const ValueKey('object-canvas-stage-stack')),
+    );
+    await tester.tapAt(stageTopLeft + const Offset(260, 160));
+    await tester.pump();
+
+    expect(controller.selectedObjectIds, {'a'});
+
+    await tester.pumpWidget(_host(controller));
+    await tester.tapAt(stageTopLeft + const Offset(260, 160));
+    await tester.pump();
+
+    expect(controller.selectedObjectIds, isEmpty);
+  });
+
   testWidgets('drag direction stays in canvas space for a rotated object', (
     tester,
   ) async {
@@ -791,6 +815,7 @@ Widget _host(
   bool autofocus = false,
   bool viewportGestures = false,
   bool marqueeSelectionEnabled = true,
+  bool clearSelectionOnCanvasTap = true,
 }) => Directionality(
   textDirection: TextDirection.ltr,
   child: Center(
@@ -803,6 +828,7 @@ Widget _host(
         panEnabled: viewportGestures,
         scaleEnabled: viewportGestures,
         marqueeSelectionEnabled: marqueeSelectionEnabled,
+        clearSelectionOnCanvasTap: clearSelectionOnCanvasTap,
       ),
     ),
   ),

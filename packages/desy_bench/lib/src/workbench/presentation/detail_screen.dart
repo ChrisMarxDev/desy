@@ -523,7 +523,6 @@ class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
             labelKey: variant.id == 'default'
                 ? const ValueKey('detail-selection-size')
                 : ValueKey('detail-instance-label-${variant.id}'),
-            resizeHandleKeyPrefix: 'detail-resize-${variant.id}',
             previewBuilder: (context, variant) =>
                 _previewSurface(context, variant, _captureKeys[variant.id]!),
             onSelected: () => _select(variant),

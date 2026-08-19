@@ -107,7 +107,7 @@ void main() {
       expect(tester.getSize(artboard), DesyDevicePreset.iPhone15Pro.screenSize);
 
       final resizeHandle = find.byKey(
-        const ValueKey('detail-resize-default-bottomRight'),
+        const ValueKey('object-canvas-resize-default-bottom-right'),
       );
       await tester.drag(resizeHandle, const Offset(40, 0));
       await tester.pumpAndSettle();

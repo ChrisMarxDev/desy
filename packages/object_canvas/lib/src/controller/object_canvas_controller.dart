@@ -166,7 +166,13 @@ class ObjectCanvasController<T> extends ChangeNotifier {
   CanvasActionEvent<T>? get lastActionEvent => _lastActionEvent;
 
   /// The current uniform camera scale.
-  double get viewportScale => viewportController.value.getMaxScaleOnAxis();
+  double get viewportScale {
+    final matrix = viewportController.value;
+    return math.sqrt(
+      matrix.storage[0] * matrix.storage[0] +
+          matrix.storage[1] * matrix.storage[1],
+    );
+  }
 
   /// Renders the mounted canvas content to an image at [pixelRatio].
   ///
@@ -338,6 +344,46 @@ class ObjectCanvasController<T> extends ChangeNotifier {
         ],
       ),
     );
+  }
+
+  /// Replaces the controller document without creating a history entry.
+  ///
+  /// Use this when the host owns the object list, such as registry-derived
+  /// previews. User-authored insertions and removals should use [addObjects]
+  /// and [removeObjects] so they remain undoable.
+  void replaceObjects(List<CanvasObject<T>> objects) {
+    final incoming = <String>{};
+    for (final object in objects) {
+      _validateObject(object);
+      if (!incoming.add(object.id)) {
+        throw ArgumentError.value(object.id, 'objects', 'Duplicate object id');
+      }
+    }
+
+    final nextSelection = LinkedHashSet<String>.of(
+      _selectedIds.where(incoming.contains),
+    );
+    if (!multiSelectionEnabled && nextSelection.length > 1) {
+      final selectedId = nextSelection.first;
+      nextSelection
+        ..clear()
+        ..add(selectedId);
+    }
+
+    final objectsChanged = !_objectListsEqual(_objects, objects);
+    final selectionChanged = !setEquals(_selectedIds, nextSelection);
+    if (!objectsChanged && !selectionChanged) return;
+
+    cancelTransform();
+    _objects = List.of(objects);
+    _selectedIds
+      ..clear()
+      ..addAll(nextSelection);
+    if (objectsChanged) _rebuildSnapIndex();
+    if (selectionChanged) {
+      _selectionDidChange(notifyControllerListeners: false);
+    }
+    notifyListeners();
   }
 
   /// Adds one application data object with canvas-owned initial placement.
@@ -988,6 +1034,39 @@ class ObjectCanvasController<T> extends ChangeNotifier {
     }
     return '$base $suffix';
   }
+
+  bool _objectListsEqual(
+    List<CanvasObject<T>> before,
+    List<CanvasObject<T>> after,
+  ) {
+    if (before.length != after.length) return false;
+    for (var index = 0; index < before.length; index++) {
+      if (!_objectsEqual(before[index], after[index])) return false;
+    }
+    return true;
+  }
+
+  bool _objectsEqual(CanvasObject<T> before, CanvasObject<T> after) =>
+      before.id == after.id &&
+      before.data == after.data &&
+      before.geometry == after.geometry &&
+      _constraintsEqual(before.constraints, after.constraints) &&
+      _capabilitiesEqual(before.capabilities, after.capabilities);
+
+  static bool _constraintsEqual(
+    CanvasObjectConstraints? before,
+    CanvasObjectConstraints? after,
+  ) => before?.minSize == after?.minSize && before?.maxSize == after?.maxSize;
+
+  static bool _capabilitiesEqual(
+    CanvasObjectCapabilities? before,
+    CanvasObjectCapabilities? after,
+  ) =>
+      before?.selectable == after?.selectable &&
+      before?.movable == after?.movable &&
+      before?.resizable == after?.resizable &&
+      before?.scalable == after?.scalable &&
+      before?.rotatable == after?.rotatable;
 
   static String _labelFor(CanvasTransformKind kind, int count) =>
       switch (kind) {
