@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:forui/forui.dart';
 
 import 'desy_design_system_scope.dart';
@@ -14,6 +15,7 @@ class DesyTextField extends StatefulWidget {
   const DesyTextField({
     super.key,
     this.label,
+    this.floatingLabelText,
     this.hintText,
     this.errorText,
     this.prefixIcon,
@@ -25,14 +27,20 @@ class DesyTextField extends StatefulWidget {
     this.autofocus = false,
     this.enabled = true,
     this.keyboardType,
+    this.inputFormatters,
     this.textInputAction,
     this.textAlign = TextAlign.start,
     this.maxLines = 1,
     this.minLines,
-  });
+    this.height,
+  }) : assert(height == null || height > 0),
+       assert(height == null || maxLines == 1);
 
   /// An optional accessible label. It is never rendered as field chrome.
   final String? label;
+
+  /// Optional text rendered in the outline as an always-visible top label.
+  final String? floatingLabelText;
 
   /// A short example or prompt shown for an empty field.
   final String? hintText;
@@ -68,6 +76,9 @@ class DesyTextField extends StatefulWidget {
   /// The requested keyboard type.
   final TextInputType? keyboardType;
 
+  /// Native Flutter formatters applied before editing updates are reported.
+  final List<TextInputFormatter>? inputFormatters;
+
   /// The requested keyboard submit action.
   final TextInputAction? textInputAction;
 
@@ -79,6 +90,9 @@ class DesyTextField extends StatefulWidget {
 
   /// The minimum number of visible text lines.
   final int? minLines;
+
+  /// Optional fixed height for a compact single-line field.
+  final double? height;
 
   @override
   State<DesyTextField> createState() => _DesyTextFieldState();
@@ -145,6 +159,7 @@ class _DesyTextFieldState extends State<DesyTextField> {
           autofocus: widget.autofocus,
           enabled: widget.enabled,
           keyboardType: widget.keyboardType,
+          inputFormatters: widget.inputFormatters,
           textInputAction: widget.textInputAction,
           maxLines: widget.maxLines,
           minLines: widget.minLines,
@@ -160,6 +175,16 @@ class _DesyTextFieldState extends State<DesyTextField> {
           onSubmitted: widget.onSubmitted,
           decoration: InputDecoration(
             isDense: true,
+            labelText: widget.floatingLabelText,
+            floatingLabelBehavior: widget.floatingLabelText == null
+                ? FloatingLabelBehavior.auto
+                : FloatingLabelBehavior.always,
+            labelStyle: context.theme.typography.body.xs.copyWith(
+              color: colors.mutedForeground,
+            ),
+            floatingLabelStyle: context.theme.typography.body.xs.copyWith(
+              color: colors.mutedForeground,
+            ),
             hintText: widget.hintText,
             hintStyle: context.theme.typography.body.sm.copyWith(
               color: colors.mutedForeground,
@@ -170,13 +195,19 @@ class _DesyTextFieldState extends State<DesyTextField> {
             errorText: widget.errorText,
             contentPadding: EdgeInsets.symmetric(
               horizontal: DesyDesignSystemTokens.spaceMd,
-              vertical: singleLine
+              vertical: widget.height != null
+                  ? 0
+                  : singleLine
                   ? DesyDesignSystemTokens.spaceMd
                   : DesyDesignSystemTokens.spaceSm,
             ),
-            constraints: singleLine
-                ? const BoxConstraints(minHeight: 44)
-                : null,
+            constraints: switch (widget.height) {
+              final height? => BoxConstraints.tightFor(height: height),
+              null when singleLine => const BoxConstraints(
+                minHeight: DesyDesignSystemTokens.textFieldMinHeight,
+              ),
+              null => null,
+            },
             border: standardBorder,
             enabledBorder: standardBorder,
             disabledBorder: standardBorder,

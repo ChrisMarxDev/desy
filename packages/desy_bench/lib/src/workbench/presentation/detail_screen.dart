@@ -66,10 +66,11 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
   String _selectedVariantId = 'default';
   DesyMotionPlaybackController? _motionPlayback;
 
-  DesyMotionEntry? get _motion => switch (widget.entry.source) {
-    final DesyMotionEntry motion => motion,
-    _ => null,
-  };
+  DesyAnimationComponentBase? get _animationComponent =>
+      switch (widget.entry.component) {
+        final DesyAnimationComponentBase component => component,
+        _ => null,
+      };
 
   @override
   void initState() {
@@ -91,12 +92,12 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
   }
 
   void _initializeMotionPlayback() {
-    final motion = _motion;
-    if (motion == null) return;
+    final animation = _animationComponent;
+    if (animation == null) return;
     _motionPlayback = DesyMotionPlaybackController(
       vsync: this,
-      duration: motion.duration,
-      curve: motion.curve,
+      duration: animation.duration,
+      curve: animation.curve,
     );
   }
 
@@ -121,7 +122,7 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
     final accessibility = session.previewAccessibility.watch(context);
     final values = session.knobValues.watch(context);
     final component = entry.component;
-    final motion = _motion;
+    final animation = _animationComponent;
     final variants = <_DetailVariant>[
       _DetailVariant(
         id: 'default',
@@ -131,13 +132,11 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
             ? null
             : () => _selectVariant(component: component),
         builder: component == null
-            ? motion == null
-                  ? entry.builder
-                  : _buildMotionPreview
-            : (context) => component.buildWithValues(
+            ? entry.builder
+            : (context) => _buildComponentPreview(
                 context,
-                _selectedVariantId == 'default' ? values : const {},
-                widgets: session.registry.widgetBuilder,
+                component,
+                values: _selectedVariantId == 'default' ? values : const {},
               ),
       ),
       // The base preview already represents the component's default form.
@@ -154,17 +153,16 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
           selected: _selectedVariantId == 'instance-$instanceId',
           onSelect: () =>
               _selectVariant(component: component, instanceId: instanceId),
-          builder: (context) => _selectedVariantId == 'instance-$instanceId'
-              ? component.buildWithValues(
-                  context,
-                  values,
-                  widgets: session.registry.widgetBuilder,
-                )
-              : component.buildInstance(
-                  context,
-                  instanceId,
-                  session.registry.widgetBuilder,
-                ),
+          builder: (context) => _buildComponentPreview(
+            context,
+            component,
+            values: _selectedVariantId == 'instance-$instanceId'
+                ? values
+                : null,
+            instanceId: _selectedVariantId == 'instance-$instanceId'
+                ? null
+                : instanceId,
+          ),
         ),
       if (component != null)
         for (final scenario in component.scenarios)
@@ -173,7 +171,8 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
             name: 'State · ${scenario.name}',
             selected: false,
             onSelect: null,
-            builder: scenario.builder,
+            builder: (context) =>
+                _buildMotionPreview(context, scenario.builder),
           ),
     ];
 
@@ -198,7 +197,7 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
         component: component,
         entry: entry,
         values: values,
-        motionControls: motion == null ? null : _buildMotionControls(),
+        motionControls: animation == null ? null : _buildMotionControls(),
         imageExportController: component == null
             ? null
             : _imageExportController,
@@ -206,37 +205,53 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
     );
   }
 
-  Widget _buildMotionPreview(BuildContext context) {
+  Widget _buildComponentPreview(
+    BuildContext context,
+    DesyRegistryComponent component, {
+    Map<String, Object>? values,
+    String? instanceId,
+  }) {
+    final animation = _animationComponent;
     final playback = _motionPlayback;
-    final motion = _motion;
-    if (playback == null || motion == null) {
-      return widget.entry.builder(context);
+    if (animation != null && playback != null) {
+      return DesyMotionPlaybackScope(
+        progress: playback.progress,
+        child: Builder(
+          builder: (context) => instanceId == null
+              ? animation.buildWithPlayback(
+                  context,
+                  values ?? const {},
+                  widget.session.registry.widgetBuilder,
+                  playback.progress,
+                )
+              : animation.buildInstanceWithPlayback(
+                  context,
+                  instanceId,
+                  widget.session.registry.widgetBuilder,
+                  playback.progress,
+                ),
+        ),
+      );
     }
+    return instanceId == null
+        ? component.buildWithValues(
+            context,
+            values ?? const {},
+            widgets: widget.session.registry.widgetBuilder,
+          )
+        : component.buildInstance(
+            context,
+            instanceId,
+            widget.session.registry.widgetBuilder,
+          );
+  }
+
+  Widget _buildMotionPreview(BuildContext context, DesyPreviewBuilder builder) {
+    final playback = _motionPlayback;
+    if (playback == null) return builder(context);
     return DesyMotionPlaybackScope(
       progress: playback.progress,
-      child: Builder(
-        builder: (context) {
-          final specimens = motion.buildInstances(
-            context,
-            widgets: widget.session.registry.widgetBuilder,
-          );
-          final first = specimens.first;
-          final second = specimens.length > 1 ? specimens[1] : first;
-          if (!motion.supportsTransition) {
-            return motion.build(
-              context,
-              first,
-              previewDuration: playback.duration,
-            );
-          }
-          return motion.buildTransition(
-            context,
-            first,
-            second,
-            previewDuration: playback.duration,
-          );
-        },
-      ),
+      child: Builder(builder: builder),
     );
   }
 
@@ -899,7 +914,7 @@ class _DetailInspector extends StatelessWidget {
       if (motionControls case final controls?)
         DesyKnobSegment(
           title: 'PLAYBACK',
-          description: 'Control this motion preview.',
+          description: 'Control this component animation preview.',
           children: [controls],
         ),
       ...componentSegments,
@@ -1050,8 +1065,12 @@ class DesyPreviewCanvas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final stage = session.stage.watch(context);
-    final background =
+    final canvasBackground =
         theme.previewBackgroundColor ?? context.theme.colors.background;
+    final viewportBackground = context.theme.colors.desy.panelSubtle;
+    final gridLineColor =
+        (canvasBackground.computeLuminance() > .5 ? Colors.black : Colors.white)
+            .withValues(alpha: .10);
     return LayoutBuilder(
       builder: (context, constraints) {
         final selectionMinimumTop = toolbar == null
@@ -1069,101 +1088,74 @@ class DesyPreviewCanvas extends StatelessWidget {
           math.max(stage.offset.dy, selectionMinimumTop),
         );
         return ColoredBox(
-          color: background,
-          child: CustomPaint(
-            painter: _DottedPreviewPainter(background: background),
-            child: Stack(
-              key: canvasKey,
-              fit: StackFit.expand,
-              clipBehavior: Clip.hardEdge,
-              children: [
-                if (toolbar case final toolbar?)
-                  Positioned(top: _detailToolbarTop, left: 12, child: toolbar),
-                DesyDragBox(
-                  geometry: DesyDragBoxGeometry(rect: offset & size),
-                  clampingRect: Rect.fromLTRB(
-                    12,
-                    selectionMinimumTop,
-                    constraints.maxWidth - 12,
-                    constraints.maxHeight -
-                        12 -
-                        _selectionLabelGap -
-                        _selectionLabelReservedHeight,
+          color: viewportBackground,
+          child: Stack(
+            key: canvasKey,
+            fit: StackFit.expand,
+            clipBehavior: Clip.hardEdge,
+            children: [
+              if (toolbar case final toolbar?)
+                Positioned(top: _detailToolbarTop, left: 12, child: toolbar),
+              DesyDragBox(
+                geometry: DesyDragBoxGeometry(rect: offset & size),
+                clampingRect: Rect.fromLTRB(
+                  12,
+                  selectionMinimumTop,
+                  constraints.maxWidth - 12,
+                  constraints.maxHeight -
+                      12 -
+                      _selectionLabelGap -
+                      _selectionLabelReservedHeight,
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: _minimumBoxExtent,
+                  minHeight: _minimumBoxExtent,
+                ),
+                frameKey: artboardKey,
+                resizeHandleKeyPrefix: 'detail-resize',
+                selected: selected,
+                onSelect: onSelect,
+                ignoreChildPointer: false,
+                onChanged: (geometry) => session.updateStage(
+                  stage.copyWith(
+                    offset: geometry.rect.topLeft,
+                    size: geometry.rect.size,
                   ),
-                  constraints: const BoxConstraints(
-                    minWidth: _minimumBoxExtent,
-                    minHeight: _minimumBoxExtent,
-                  ),
-                  frameKey: artboardKey,
-                  resizeHandleKeyPrefix: 'detail-resize',
-                  selected: selected,
-                  onSelect: onSelect,
-                  ignoreChildPointer: false,
-                  onChanged: (geometry) => session.updateStage(
-                    stage.copyWith(
-                      offset: geometry.rect.topLeft,
-                      size: geometry.rect.size,
-                    ),
-                  ),
-                  label: DesyDragBoxLabel(
-                    key: selectionLabelKey,
-                    size: size,
-                    identifier: instanceLabel ?? 'Default',
-                  ),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: context.theme.colors.desy.signal.withValues(
-                          alpha: .48,
-                        ),
+                ),
+                label: DesyDragBoxLabel(
+                  key: selectionLabelKey,
+                  size: size,
+                  identifier: instanceLabel ?? 'Default',
+                ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: context.theme.colors.desy.signal.withValues(
+                        alpha: .48,
                       ),
                     ),
-                    child: ClipRect(
-                      child: SizedBox.expand(
-                        child: ColoredBox(
-                          key: device == null
-                              ? null
-                              : ValueKey(
-                                  'detail-device-screen-${device!.name}',
-                                ),
-                          color: background,
+                  ),
+                  child: ClipRect(
+                    child: SizedBox.expand(
+                      child: ColoredBox(
+                        key: device == null
+                            ? null
+                            : ValueKey('detail-device-screen-${device!.name}'),
+                        color: canvasBackground,
+                        child: DesyCanvasGridBackground(
+                          backgroundColor: canvasBackground,
+                          lineColor: gridLineColor,
                           child: child,
                         ),
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
     );
   }
-}
-
-class _DottedPreviewPainter extends CustomPainter {
-  const _DottedPreviewPainter({required this.background});
-
-  final Color background;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.save();
-    canvas.clipRect(Offset.zero & size);
-    final paint = Paint()
-      ..color =
-          (background.computeLuminance() > .5 ? Colors.black : Colors.white)
-              .withValues(alpha: .10);
-    for (var y = 10.0; y < size.height; y += 20) {
-      for (var x = 10.0; x < size.width; x += 20) {
-        canvas.drawCircle(Offset(x, y), 1, paint);
-      }
-    }
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _DottedPreviewPainter oldDelegate) =>
-      oldDelegate.background != background;
 }

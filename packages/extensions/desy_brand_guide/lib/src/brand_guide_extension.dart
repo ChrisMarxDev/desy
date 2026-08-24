@@ -55,7 +55,6 @@ class _BrandGuideScreen extends StatelessWidget {
       if (logos.isNotEmpty) 'Logo',
       if (registry.allColors.isNotEmpty) 'Color',
       if (registry.allFonts.isNotEmpty) 'Typography',
-      if (registry.allMotion.isNotEmpty) 'Motion',
       if (config.voice.isNotEmpty) 'Voice and tone',
       if (config.imagery != null) 'Imagery',
       if (registry.allAssets.isNotEmpty) 'Assets',
@@ -195,46 +194,6 @@ class _BrandGuideScreen extends StatelessWidget {
                             ],
                           ],
                         ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-        if (registry.allMotion.isNotEmpty) ...[
-          _GuideGap(),
-          _GuideSection(
-            key: const ValueKey('brand-guide-motion'),
-            number: _numberOf(sections, 'Motion'),
-            eyebrow: 'MOTION',
-            title: 'How the system moves',
-            child: _PreviewGrid(
-              children: [
-                for (final motion in registry.allMotion)
-                  DesyCard(
-                    key: ValueKey('brand-motion-${motion.id}'),
-                    child: Padding(
-                      padding: const EdgeInsets.all(18),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            motion.name,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(motion.displayValue),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            height: 150,
-                            child: extension.preview(motion.buildDefault),
-                          ),
-                          if (motion.description case final description?) ...[
-                            const SizedBox(height: 10),
-                            Text(description),
-                          ],
-                        ],
                       ),
                     ),
                   ),

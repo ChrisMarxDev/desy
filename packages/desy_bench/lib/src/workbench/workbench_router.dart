@@ -46,13 +46,17 @@ GoRouter createDesyWorkbenchRouter(
   DesyWorkbenchSession session, {
   DesyWindowControls? windowControls,
 }) => GoRouter(
-  initialLocation: session.registry.systemProfile == null
+  initialLocation:
+      session.registry.systemProfile == null &&
+          session.registry.homePage == null
       ? DesyWorkbenchRoutes.atlasPath
       : DesyWorkbenchRoutes.homePath,
   routes: [
     GoRoute(
       path: '/',
-      redirect: (_, _) => session.registry.systemProfile == null
+      redirect: (_, _) =>
+          session.registry.systemProfile == null &&
+              session.registry.homePage == null
           ? DesyWorkbenchRoutes.atlasPath
           : DesyWorkbenchRoutes.homePath,
     ),
@@ -270,9 +274,6 @@ class _DesyWorkbenchShellState extends State<DesyWorkbenchShell> {
       // Picking is deliberately one-shot. The feedback dock retains the target,
       // while the canvas immediately returns to ordinary pan and zoom input.
       _inspectionActive = false;
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _annotationFocusNode.requestFocus();
     });
   }
 
@@ -1640,6 +1641,23 @@ class _WorkbenchAnnotationDock extends StatefulWidget {
 }
 
 class _WorkbenchAnnotationDockState extends State<_WorkbenchAnnotationDock> {
+  @override
+  void initState() {
+    super.initState();
+    // The canvas already owns focus, so TextField.autofocus will not replace
+    // it. A request made before attachment is completed by Flutter when the
+    // EditableText reparents this node during the first build.
+    widget.focusNode.requestFocus();
+  }
+
+  @override
+  void didUpdateWidget(covariant _WorkbenchAnnotationDock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.focusNode != widget.focusNode) {
+      widget.focusNode.requestFocus();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.theme.colors;

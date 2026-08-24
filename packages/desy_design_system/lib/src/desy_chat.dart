@@ -82,57 +82,71 @@ class DesyChatMessage extends StatelessWidget {
 
   Widget _buildAgent(BuildContext context) {
     final colors = context.theme.colors;
-    return Semantics(
-      liveRegion: pending,
-      label: label ?? 'GENUI AGENT',
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final content = Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: colors.desy.signal,
-                borderRadius: BorderRadius.circular(
-                  DesyDesignSystemTokens.radiusSm,
-                ),
-              ),
-              child: const SizedBox(width: 2),
-            ),
-            const SizedBox(width: DesyDesignSystemTokens.spaceMd),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        DesyIcons.sparkles,
-                        size: 14,
-                        color: colors.desy.signal,
-                      ),
-                      const SizedBox(width: DesyDesignSystemTokens.spaceSm),
-                      Expanded(
-                        child: _MessageLabel(label: label ?? 'GENUI AGENT'),
-                      ),
-                      if (pending)
-                        SizedBox.square(
-                          dimension: 12,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 1.5,
-                            color: colors.desy.signal,
-                          ),
-                        ),
-                    ],
+            Row(
+              mainAxisSize: constraints.hasBoundedWidth
+                  ? MainAxisSize.max
+                  : MainAxisSize.min,
+              children: [
+                Icon(DesyIcons.sparkles, size: 14, color: colors.desy.signal),
+                const SizedBox(width: DesyDesignSystemTokens.spaceSm),
+                Flexible(child: _MessageLabel(label: label ?? 'GENUI AGENT')),
+                if (pending) ...[
+                  const SizedBox(width: DesyDesignSystemTokens.spaceSm),
+                  SizedBox.square(
+                    dimension: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: colors.desy.signal,
+                    ),
                   ),
-                  const SizedBox(height: DesyDesignSystemTokens.spaceMd),
-                  child,
                 ],
-              ),
+              ],
             ),
+            const SizedBox(height: DesyDesignSystemTokens.spaceMd),
+            child,
           ],
-        ),
-      ),
+        );
+        return Semantics(
+          liveRegion: pending,
+          label: label ?? 'GENUI AGENT',
+          child: IntrinsicHeight(
+            child: Row(
+              mainAxisSize: constraints.hasBoundedWidth
+                  ? MainAxisSize.max
+                  : MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colors.desy.signal,
+                    borderRadius: BorderRadius.circular(
+                      DesyDesignSystemTokens.radiusSm,
+                    ),
+                  ),
+                  child: const SizedBox(width: 2),
+                ),
+                const SizedBox(width: DesyDesignSystemTokens.spaceMd),
+                if (constraints.hasBoundedWidth)
+                  Expanded(child: content)
+                else
+                  Flexible(
+                    fit: FlexFit.loose,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 560),
+                      child: content,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -54,10 +54,11 @@ class _ScreenshotBuilderScreen extends StatefulWidget {
 }
 
 class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
-  static const _sidebarMinimum = 340.0;
-  static const _sidebarMaximum = 440.0;
-  static const _inspectorMinimum = 340.0;
-  static const _inspectorMaximum = 480.0;
+  static const _sidebarMinimum = 300.0;
+  static const _sidebarMaximum = 380.0;
+  static const _inspectorMinimum = 320.0;
+  static const _inspectorMaximum = 420.0;
+  static const _compactLayoutBreakpoint = 960.0;
   static const _minimumCanvasExtent = 64.0;
   static const _maximumCanvasExtent = 8192.0;
   static const _minimumLayerExtent = 24.0;
@@ -70,8 +71,8 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
   final _viewportKey = GlobalKey(debugLabel: 'screenshot-canvas-viewport');
   late final ObjectCanvasController<DesyScreenshotLayer> _canvas;
 
-  var _sidebarWidth = 360.0;
-  var _inspectorWidth = 360.0;
+  var _sidebarWidth = 320.0;
+  var _inspectorWidth = 340.0;
   var _compactSidebarHeight = 240.0;
   var _compactInspectorHeight = 240.0;
   var _dropActive = false;
@@ -536,6 +537,16 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
     return Size(naturalSize.width * scale, naturalSize.height * scale);
   }
 
+  double _panelWidth({
+    required double value,
+    required double minimum,
+    required double maximum,
+    required double availableWidth,
+  }) {
+    final upper = math.max(minimum, math.min(maximum, availableWidth * .34));
+    return value.clamp(minimum, upper).toDouble();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.theme.colors;
@@ -543,7 +554,7 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
       color: colors.background,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 1120;
+          final compact = constraints.maxWidth < _compactLayoutBreakpoint;
           final sidebar = _ScreenshotSidebar(
             canvas: _canvas,
             layers: layers,
@@ -553,8 +564,6 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
             exporting: _exporting,
             status: _status,
             onExit: extension.onExit,
-            onAdd: _addPaletteItem,
-            onPickImage: () => unawaited(_pickImage()),
             onExport: () => unawaited(_exportScreenshot()),
             onCanvasSizeChanged: _setCanvasSize,
             onThemeChanged: _setTheme,
@@ -570,7 +579,6 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
             onSetTextTypography: _setTextTypography,
             onSetTextColor: _setTextColor,
             onSetTextAlign: _setTextAlign,
-            onToggleHidden: _toggleHidden,
           );
           final viewport = DropTarget(
             onDragEntered: (_) => setState(() => _dropActive = true),
@@ -586,6 +594,8 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
               zoom: _zoom,
               onZoomOut: () => _setZoom(_zoom - .15),
               onZoomIn: () => _setZoom(_zoom + .15),
+              onAdd: _addPaletteItem,
+              onPickImage: () => unawaited(_pickImage()),
               onAcceptPalette: (payload, position) =>
                   _addPaletteItem(payload, position: position),
             ),
@@ -638,13 +648,19 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
           final sidebarWidth = _sidebarWidth
               .clamp(
                 _sidebarMinimum,
-                math.min(_sidebarMaximum, constraints.maxWidth * .34),
+                math.max(
+                  _sidebarMinimum,
+                  math.min(_sidebarMaximum, constraints.maxWidth * .34),
+                ),
               )
               .toDouble();
           final inspectorWidth = _inspectorWidth
               .clamp(
                 _inspectorMinimum,
-                math.min(_inspectorMaximum, constraints.maxWidth * .34),
+                math.max(
+                  _inspectorMinimum,
+                  math.min(_inspectorMaximum, constraints.maxWidth * .34),
+                ),
               )
               .toDouble();
           return Row(
@@ -655,9 +671,11 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
                 value: sidebarWidth,
                 semanticsLabel: 'Screenshot builder sidebar width',
                 onResize: (delta) => setState(() {
-                  _sidebarWidth = (_sidebarWidth + delta).clamp(
-                    _sidebarMinimum,
-                    math.min(_sidebarMaximum, constraints.maxWidth * .34),
+                  _sidebarWidth = _panelWidth(
+                    value: _sidebarWidth + delta,
+                    minimum: _sidebarMinimum,
+                    maximum: _sidebarMaximum,
+                    availableWidth: constraints.maxWidth,
                   );
                 }),
               ),
@@ -668,9 +686,11 @@ class _ScreenshotBuilderScreenState extends State<_ScreenshotBuilderScreen> {
                 value: inspectorWidth,
                 semanticsLabel: 'Screenshot element inspector width',
                 onResize: (delta) => setState(() {
-                  _inspectorWidth = (_inspectorWidth + delta).clamp(
-                    _inspectorMinimum,
-                    math.min(_inspectorMaximum, constraints.maxWidth * .34),
+                  _inspectorWidth = _panelWidth(
+                    value: _inspectorWidth + delta,
+                    minimum: _inspectorMinimum,
+                    maximum: _inspectorMaximum,
+                    availableWidth: constraints.maxWidth,
                   );
                 }),
               ),

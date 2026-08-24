@@ -144,6 +144,7 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
   var _resetGeometryOnNextSync = false;
   var _zoom = 1.0;
   var _syncingCanvas = false;
+  var _publishGeometryScheduled = false;
 
   @override
   void initState() {
@@ -200,7 +201,8 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
 
   void _handleCanvasChanged() {
     if (_syncingCanvas) return;
-    _publishGeometryChanges();
+    if (_canvas.hasActiveTransform) return;
+    _scheduleGeometryPublish();
   }
 
   void _handleSelectionChanged(Set<String> selectedIds) {
@@ -226,10 +228,7 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
         final canvasBorderColor = context.theme.colors.border.withValues(
           alpha: .72,
         );
-        final workspaceBackground = Color.alphaBlend(
-          context.theme.colors.mutedForeground.withValues(alpha: .08),
-          context.theme.colors.background,
-        );
+        final workspaceBackground = context.theme.colors.desy.panelSubtle;
         final stageSize = _canvasSize(constraints);
         _synchronizeCanvas(stageSize);
         final selected = _selectedItem;
@@ -270,11 +269,16 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
                   ),
                   underlayBuilder: (context, controller) => CustomPaint(
                     key: ValueKey('${widget.keyPrefix}-stage'),
-                    painter: _CollectionCanvasGridPainter(
-                      background: background,
-                    ),
                     foregroundPainter: _CollectionCanvasBorderPainter(
                       color: canvasBorderColor,
+                    ),
+                    child: DesyCanvasGridBackground(
+                      backgroundColor: background,
+                      lineColor:
+                          (background.computeLuminance() > .5
+                                  ? Colors.black
+                                  : Colors.white)
+                              .withValues(alpha: .10),
                     ),
                   ),
                   overlayBuilder: (context, controller) =>
@@ -392,6 +396,7 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
       _itemForId(_canvas.selectedObjectIds.firstOrNull);
 
   void _synchronizeCanvas(Size stageSize) {
+    if (_canvas.hasActiveTransform) return;
     _syncingCanvas = true;
     try {
       if (_canvas.canvasSize != stageSize) _canvas.setCanvasSize(stageSize);
@@ -550,6 +555,8 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
   }
 
   void _publishGeometryChanges() {
+    _publishGeometryScheduled = false;
+    if (!mounted || _syncingCanvas || _canvas.hasActiveTransform) return;
     for (final object in _canvas.objects) {
       final geometry = _canvas.geometryFor(object.id);
       if (_reportedGeometries[object.id] == geometry) continue;
@@ -558,6 +565,14 @@ class _DesyCollectionCanvasState<T> extends State<DesyCollectionCanvas<T>> {
         DesyDragBoxGeometry(rect: geometry.position & geometry.size),
       );
     }
+  }
+
+  void _scheduleGeometryPublish() {
+    if (_publishGeometryScheduled) return;
+    _publishGeometryScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _publishGeometryChanges();
+    });
   }
 
   void _rememberCurrentGeometries() {
@@ -669,89 +684,37 @@ class _CollectionCanvasActionBar extends StatelessWidget {
   final VoidCallback onAnnotate;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: 'Canvas modes',
-    container: true,
-    child: DecoratedBox(
-      key: ValueKey('$keyPrefix-action-bar'),
-      decoration: BoxDecoration(
-        color: context.theme.colors.background,
-        border: Border.all(color: context.theme.colors.border),
-        borderRadius: BorderRadius.circular(DesyDesignSystemTokens.radiusMd),
-        boxShadow: [
-          BoxShadow(
-            color: context.theme.colors.foreground.withValues(alpha: .12),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _CanvasModeButton(
-              key: ValueKey('$keyPrefix-mode-select'),
-              selected: !annotating,
-              label: 'Select canvas items',
-              shortcut: const ['⌘', '1'],
-              onPress: onSelect,
-              icon: DesyIcons.mousePointer,
-            ),
-            const SizedBox(width: 2),
-            _CanvasModeButton(
-              key: ValueKey('$keyPrefix-mode-annotate'),
-              selected: annotating,
-              label: annotating
-                  ? 'Stop annotating canvas widgets'
-                  : 'Annotate canvas widgets',
-              shortcut: const ['⌘', '2'],
-              onPress: onAnnotate,
-              icon: DesyIcons.messageSquare,
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-/// One compact desktop tool with a visible shortcut and discoverable label.
-class _CanvasModeButton extends StatelessWidget {
-  const _CanvasModeButton({
-    super.key,
-    required this.selected,
-    required this.label,
-    required this.shortcut,
-    required this.icon,
-    required this.onPress,
-  });
-
-  final bool selected;
-  final String label;
-  final List<String> shortcut;
-  final IconData icon;
-  final VoidCallback onPress;
-
-  @override
-  Widget build(BuildContext context) => Tooltip(
-    message: label,
-    child: DesyButton(
-      size: DesyButtonSize.xs,
-      variant: selected ? DesyButtonVariant.primary : DesyButtonVariant.ghost,
-      mainAxisSize: MainAxisSize.min,
-      semanticsLabel: label,
-      semanticsTooltip: label,
-      onPress: onPress,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18),
-          const SizedBox(height: 4),
-          DesyKeyboardShortcutLabel(
-            keys: shortcut,
-            semanticLabel: 'Keyboard shortcut: ${shortcut.join(' plus ')}',
+  Widget build(BuildContext context) => KeyedSubtree(
+    key: ValueKey('$keyPrefix-action-bar'),
+    child: Semantics(
+      label: 'Canvas modes',
+      container: true,
+      child: DesyActionDock(
+        groups: [
+          DesyActionDockGroup(
+            label: 'Selection mode',
+            actions: [
+              DesyActionDockAction(
+                key: ValueKey('$keyPrefix-mode-select'),
+                icon: DesyIcons.mousePointer,
+                label: 'Select',
+                description: 'Select canvas items',
+                shortcutKeys: const ['⌘', '1'],
+                selected: !annotating,
+                onPressed: onSelect,
+              ),
+              DesyActionDockAction(
+                key: ValueKey('$keyPrefix-mode-annotate'),
+                icon: DesyIcons.messageSquare,
+                label: 'Annotate',
+                description: annotating
+                    ? 'Stop annotating canvas widgets'
+                    : 'Annotate canvas widgets',
+                shortcutKeys: const ['⌘', '2'],
+                selected: annotating,
+                onPressed: onAnnotate,
+              ),
+            ],
           ),
         ],
       ),
@@ -826,32 +789,6 @@ class _CollectionCanvasHeader extends StatelessWidget {
       ),
     ),
   );
-}
-
-class _CollectionCanvasGridPainter extends CustomPainter {
-  const _CollectionCanvasGridPainter({required this.background});
-
-  final Color background;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.save();
-    canvas.clipRect(Offset.zero & size);
-    final paint = Paint()
-      ..color =
-          (background.computeLuminance() > .5 ? Colors.black : Colors.white)
-              .withValues(alpha: .10);
-    for (var y = 10.0; y < size.height; y += 20) {
-      for (var x = 10.0; x < size.width; x += 20) {
-        canvas.drawCircle(Offset(x, y), 1, paint);
-      }
-    }
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(_CollectionCanvasGridPainter oldDelegate) =>
-      oldDelegate.background != background;
 }
 
 class _CollectionCanvasBorderPainter extends CustomPainter {

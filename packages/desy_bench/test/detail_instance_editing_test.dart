@@ -204,6 +204,71 @@ void main() {
     );
   });
 
+  testWidgets('base preview resizes while component instances are visible', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final component = DesyStaticComponent(
+      id: 'resizable-base',
+      name: 'Resizable base',
+      instances: {
+        'default': (_) => const SizedBox.expand(),
+        'compact': (_) => const SizedBox.expand(),
+      },
+    );
+    final registry = DesyRegistry(
+      name: 'Resizable base',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      components: [component],
+    );
+    final entry = registry.resolve(component.id)!;
+    final session = DesyWorkbenchSession(registry: registry)
+      ..prepareEntry(entry);
+    addTearDown(session.dispose);
+
+    await tester.pumpWidget(
+      FTheme(
+        data: FTheme.neutral.light.desktop,
+        child: MaterialApp(
+          home: Scaffold(
+            body: DesyDetailScreen(session: session, entry: entry),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('detail-instance-artboard-instance-compact')),
+      findsOneWidget,
+    );
+    final artboard = find.byKey(const ValueKey('detail-artboard'));
+    final before = tester.getSize(artboard);
+    final handle = find.byKey(
+      const ValueKey('object-canvas-resize-default-bottom-right'),
+    );
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(handle),
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(36, 18));
+    await tester.pump();
+    await gesture.moveBy(const Offset(36, 18));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+
+    await gesture.up();
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(tester.getSize(artboard), isNot(before));
+    expect(session.stage.value.size, tester.getSize(artboard));
+  });
+
   testWidgets('selecting an instance binds its knobs to that viewer', (
     tester,
   ) async {

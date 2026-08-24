@@ -11,16 +11,15 @@ resolution: workspace
 
 dependencies:
   a2ui_core: ^0.1.0
-  desy_design_system:
-    path: ../../../desy_design_system
-  desy_design_system_example:
-    path: ../../../desy_design_system/example
+  desy_core:
+    path: ../../../desy_core
   desy_genui:
     path: ..
   flutter:
     sdk: flutter
   genui: ^0.10.1
   http: ^1.6.0
+  mix: ^2.1.0
 
 dev_dependencies:
   flutter_test:
@@ -28,4 +27,4 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
-  uses-material-design: true
+  uses-material-design: false

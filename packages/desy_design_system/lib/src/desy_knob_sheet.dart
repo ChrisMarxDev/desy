@@ -588,20 +588,23 @@ class DesyColorKnobRow extends StatelessWidget {
     control: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        DesyButton.icon(
-          key: ValueKey('color-knob-picker-$label'),
-          size: DesyButtonSize.sm,
-          variant: DesyButtonVariant.outline,
-          semanticsLabel: 'Pick $label color',
-          onPress: onPick,
-          child: Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              color: value,
-              border: Border.all(color: context.theme.colors.border),
-              borderRadius: BorderRadius.circular(
-                DesyDesignSystemTokens.radiusSm,
+        SizedBox.square(
+          dimension: DesyDesignSystemTokens.textFieldMinHeight,
+          child: DesyButton.icon(
+            key: ValueKey('color-knob-picker-$label'),
+            size: DesyButtonSize.lg,
+            variant: DesyButtonVariant.outline,
+            semanticsLabel: 'Pick $label color',
+            onPress: onPick,
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: value,
+                border: Border.all(color: context.theme.colors.border),
+                borderRadius: BorderRadius.circular(
+                  DesyDesignSystemTokens.radiusSm,
+                ),
               ),
             ),
           ),

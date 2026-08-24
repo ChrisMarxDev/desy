@@ -138,6 +138,67 @@ void main() {
     }
   });
 
+  testWidgets('component folders select and expand without collapsing again', (
+    tester,
+  ) async {
+    String? navigatedTo;
+    var location = Uri.parse('/atlas');
+    final session = DesyWorkbenchSession(
+      registry: DesyRegistry(
+        name: 'Folder navigation',
+        themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+        components: [_component('components.button', path: '/actions')],
+      ),
+    );
+    addTearDown(session.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FTheme(
+          data: FTheme.neutral.light.desktop,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: StatefulBuilder(
+              builder: (context, setState) => DesyWorkbenchSidebar(
+                session: session,
+                location: location,
+                onNavigate: (destination) => setState(() {
+                  location = Uri.parse(destination);
+                  navigatedTo = destination;
+                }),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final disclosure = find.byKey(
+      const ValueKey('desy-sidebar-folder-toggle-Actions'),
+    );
+    expect(tester.widget<FTappable>(disclosure).semanticsExpanded, isFalse);
+
+    await tester.tap(find.text('Actions'));
+    await tester.pumpAndSettle();
+
+    expect(Uri.parse(navigatedTo!).queryParameters['folder'], '/actions');
+    expect(
+      tester
+          .widget<DesySidebarItem>(
+            find.byKey(const ValueKey('sidebar-folder-/actions')),
+          )
+          .selected,
+      isTrue,
+    );
+    expect(tester.widget<FTappable>(disclosure).semanticsExpanded, isTrue);
+
+    await tester.tap(disclosure);
+    await tester.pumpAndSettle();
+
+    expect(Uri.parse(navigatedTo!).queryParameters['folder'], '/actions');
+    expect(tester.widget<FTappable>(disclosure).semanticsExpanded, isFalse);
+  });
+
   testWidgets('component leaves use overrides and a component fallback icon', (
     tester,
   ) async {
@@ -179,9 +240,7 @@ void main() {
     expect(iconFor('override.component').icon, FLucideIcons.anchor);
   });
 
-  testWidgets('sidebar groups apps above the catalogue sections', (
-    tester,
-  ) async {
+  testWidgets('sidebar shows only populated registry branches', (tester) async {
     String? destination;
     final session = DesyWorkbenchSession(
       registry: DesyRegistry(
@@ -247,22 +306,30 @@ void main() {
       ),
       findsOneWidget,
     );
-    for (final key in [
-      'registry-home-nav',
-      'workspace-extension-extension.screenshot-builder',
-    ]) {
-      expect(
-        find.ancestor(
-          of: find.byKey(ValueKey(key)),
-          matching: find.byKey(const ValueKey('sidebar-section-apps')),
+    expect(
+      find.ancestor(
+        of: find.byKey(
+          const ValueKey('workspace-extension-extension.screenshot-builder'),
         ),
-        findsOneWidget,
-      );
-    }
+        matching: find.byKey(const ValueKey('sidebar-section-apps')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(
+        of: find.byKey(const ValueKey('registry-home-nav')),
+        matching: find.byKey(const ValueKey('sidebar-section-apps')),
+      ),
+      findsNothing,
+    );
     expect(find.byKey(const ValueKey('registry-canvas-nav')), findsNothing);
     expect(find.byKey(const ValueKey('sidebar-section-atoms')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('sidebar-section-components')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('sidebar-all-components')),
       findsOneWidget,
     );
     expect(
@@ -304,7 +371,7 @@ void main() {
     expect(find.text('Components'), findsOneWidget);
     expect(find.text('Showcases'), findsNothing);
 
-    for (final label in ['Prototypes', 'Atoms', 'Components']) {
+    for (final label in ['Apps', 'Prototypes', 'Atoms', 'Components']) {
       expect(
         find.byKey(ValueKey('sidebar-section-toggle-$label')),
         findsOneWidget,
@@ -316,10 +383,6 @@ void main() {
     );
     expect(
       find.byKey(const ValueKey('sidebar-section-toggle-Tools')),
-      findsNothing,
-    );
-    expect(
-      find.byKey(const ValueKey('sidebar-section-toggle-Apps')),
       findsNothing,
     );
 
@@ -405,7 +468,7 @@ void main() {
     expect(destination, '/workspace/extension.screenshot-builder');
   });
 
-  testWidgets('Components section label opens the Atlas root', (tester) async {
+  testWidgets('Components catalogue link opens the Atlas root', (tester) async {
     final semantics = tester.ensureSemantics();
     String? destination;
     final session = DesyWorkbenchSession(
@@ -441,6 +504,15 @@ void main() {
     expect(labelSemantics.label, 'Components');
     expect(labelSemantics.flagsCollection.isButton, isTrue);
 
+    final catalogue = find.byKey(const ValueKey('sidebar-all-components'));
+    expect(catalogue, findsOneWidget);
+    expect(tester.widget<DesySidebarItem>(catalogue).selected, isFalse);
+
+    tester.widget<DesySidebarItem>(catalogue).onPress!.call();
+    await tester.pump();
+
+    expect(destination, '/atlas');
+
     await tester.tap(label);
     await tester.pump();
 
@@ -448,9 +520,7 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('sidebar omits Atoms when every typed lane is empty', (
-    tester,
-  ) async {
+  testWidgets('empty registries keep only Home in the sidebar', (tester) async {
     final session = DesyWorkbenchSession(
       registry: DesyRegistry(
         name: 'No atoms',
@@ -467,14 +537,30 @@ void main() {
             textDirection: TextDirection.ltr,
             child: DesyWorkbenchSidebar(
               session: session,
-              location: Uri.parse('/atlas'),
+              location: Uri.parse('/home'),
+              onOpenAnnotations: () {},
             ),
           ),
         ),
       ),
     );
 
+    expect(find.byKey(const ValueKey('registry-home-nav')), findsOneWidget);
+    expect(find.byKey(const ValueKey('sidebar-search')), findsNothing);
+    expect(find.byKey(const ValueKey('sidebar-section-apps')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('sidebar-section-prototypes')),
+      findsNothing,
+    );
     expect(find.byKey(const ValueKey('sidebar-section-atoms')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('sidebar-section-components')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('workbench-annotation-summary')),
+      findsNothing,
+    );
   });
 }
 

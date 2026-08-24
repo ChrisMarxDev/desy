@@ -23,7 +23,7 @@ void main() {
     expect(extension, isA<DesyWorkspaceExtension>());
   });
 
-  testWidgets('offers elements, scene, and page workflows', (tester) async {
+  testWidgets('offers action bar, layers, and page workflows', (tester) async {
     final context = _extensionContext();
     await tester.binding.setSurfaceSize(const Size(1200, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -32,12 +32,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
-    expect(find.text('EXPERIMENTAL'), findsOneWidget);
-    expect(find.byKey(const ValueKey('elements-tab')), findsOneWidget);
+    expect(find.text('Experimental'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('screenshot-object-canvas')),
       findsOneWidget,
     );
+    expect(find.byType(DesyCanvasGridBackground), findsNothing);
     expect(
       (tester.widget(find.byKey(const ValueKey('screenshot-object-canvas')))
               as ObjectCanvas<dynamic>)
@@ -66,31 +66,29 @@ void main() {
     );
     expect(find.byKey(const ValueKey('scene-tab')), findsOneWidget);
     expect(find.byKey(const ValueKey('page-tab')), findsOneWidget);
+    expect(find.byKey(const ValueKey('screenshot-action-bar')), findsOneWidget);
+    expect(find.byType(DesyActionDock), findsOneWidget);
     expect(find.byKey(const ValueKey('add-text-element')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('open-screenshot-catalog')),
       findsOneWidget,
     );
-    expect(find.byKey(const ValueKey('add-misc-phoneBezel')), findsOneWidget);
-    expect(find.byKey(const ValueKey('add-misc-statusBar')), findsOneWidget);
+    expect(find.byKey(const ValueKey('add-image-element')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('open-screenshot-mockups')),
+      findsOneWidget,
+    );
     expect(
       find.byKey(const ValueKey('screenshot-layer-inspector-empty')),
       findsOneWidget,
     );
-    expect(
-      find.byKey(const ValueKey('add-widget-action.publish.default')),
-      findsOneWidget,
-    );
-
-    await tester.tap(
-      find.byKey(const ValueKey('add-widget-action.publish.default')),
-    );
+    await tester.tap(find.byKey(const ValueKey('add-text-element')));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
     final elementSurface = tester.widget<ColoredBox>(
       find.descendant(
-        of: find.byKey(const ValueKey('object-canvas-object-widget-0')),
+        of: find.byKey(const ValueKey('object-canvas-object-text-0')),
         matching: find.byWidgetPredicate(
           (widget) =>
               widget is ColoredBox && widget.color == Colors.transparent,
@@ -112,31 +110,48 @@ void main() {
             .dx,
       ),
     );
-    expect(find.text('Label'), findsWidgets);
-    expect(find.byKey(const ValueKey('layer-forward')), findsOneWidget);
-    expect(find.byKey(const ValueKey('layer-hide')), findsOneWidget);
-    expect(find.byKey(const ValueKey('layer-duplicate')), findsOneWidget);
-    expect(find.byKey(const ValueKey('layer-delete')), findsOneWidget);
+    expect(find.text('Content'), findsWidgets);
+    expect(find.byKey(const ValueKey('layer-forward')), findsNothing);
+    expect(find.byKey(const ValueKey('layer-backward')), findsNothing);
+    expect(find.byKey(const ValueKey('layer-hide')), findsNothing);
+    expect(find.byKey(const ValueKey('layer-duplicate')), findsNothing);
+    expect(find.byKey(const ValueKey('layer-delete')), findsNothing);
+    expect(find.byKey(const ValueKey('delete-layer-text-0')), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('layer-duplicate')));
+    await tester.tap(find.byKey(const ValueKey('add-text-element')));
     await tester.pumpAndSettle();
-    final canvas = tester.widget<ObjectCanvas<DesyScreenshotLayer>>(
+    var canvas = tester.widget<ObjectCanvas<DesyScreenshotLayer>>(
       find.byKey(const ValueKey('screenshot-object-canvas')),
     );
     expect(canvas.controller.objects, hasLength(2));
-    expect(canvas.controller.objects.last.id, isNot('widget-0'));
-    expect(
-      canvas.controller.objects.last.data.id,
-      canvas.controller.objects.last.id,
+    expect(canvas.controller.objects.map((object) => object.id), [
+      'text-0',
+      'text-1',
+    ]);
+
+    tester
+        .widget<ReorderableListView>(find.byType(ReorderableListView))
+        .onReorderItem!(0, 1);
+    await tester.pumpAndSettle();
+    canvas = tester.widget<ObjectCanvas<DesyScreenshotLayer>>(
+      find.byKey(const ValueKey('screenshot-object-canvas')),
     );
+    expect(canvas.controller.objects.map((object) => object.id), [
+      'text-1',
+      'text-0',
+    ]);
 
     await tester.tap(find.byKey(const ValueKey('scene-tab')));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
-    expect(find.text('Publish · Default'), findsWidgets);
+    expect(find.text('Text'), findsWidgets);
 
-    await tester.tap(find.byKey(const ValueKey('layer-hide')));
+    await tester.tap(find.byKey(const ValueKey('delete-layer-text-0')));
+    await tester.pumpAndSettle();
+    expect(canvas.controller.objects.map((object) => object.id), ['text-1']);
+
+    await tester.tap(find.byKey(const ValueKey('toggle-layer-text-1')));
     await tester.pump();
     expect(find.text('Show'), findsWidgets);
 
@@ -206,14 +221,17 @@ void main() {
     final widgetLayer = layer as DesyScreenshotWidgetLayer;
     expect(widgetLayer.componentId, 'display.card');
     expect(widgetLayer.instanceId, isNull);
-    expect(find.text('Component'), findsOneWidget);
+    expect(find.text('Component'), findsWidgets);
     expect(find.text('Display card'), findsWidgets);
   });
 
-  testWidgets('adds misc mockup overlays from elements', (tester) async {
+  testWidgets('adds misc mockup overlays from the action bar', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(_harness(extension, _extensionContext()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('open-screenshot-mockups')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('add-misc-phoneBezel')));
@@ -224,6 +242,9 @@ void main() {
     );
     expect(canvas.controller.objects.single.data.kindLabel, 'Misc');
     expect(find.text('Phone bezel'), findsWidgets);
+
+    await tester.tap(find.byKey(const ValueKey('open-screenshot-mockups')));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('add-misc-statusBar')));
     await tester.pumpAndSettle();
@@ -292,7 +313,7 @@ void main() {
   testWidgets('stacks the selected element inspector on compact layouts', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(900, 800));
+    await tester.binding.setSurfaceSize(const Size(760, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(_harness(extension, _extensionContext()));
     await tester.pumpAndSettle();
@@ -310,6 +331,30 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('text-content-control')), findsOneWidget);
+  });
+
+  testWidgets('keeps the sidebar as a side panel on desktop editor widths', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 760));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(_harness(extension, _extensionContext()));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('screenshot-sidebar')), findsOneWidget);
+
+    final sidebar = tester.getRect(
+      find.byKey(const ValueKey('screenshot-sidebar')),
+    );
+    final canvas = tester.getRect(
+      find.byKey(const ValueKey('screenshot-object-canvas')),
+    );
+
+    expect(sidebar.left, 0);
+    expect(sidebar.width, greaterThanOrEqualTo(300));
+    expect(sidebar.height, 760);
+    expect(canvas.left, greaterThan(sidebar.right));
   });
 }
 

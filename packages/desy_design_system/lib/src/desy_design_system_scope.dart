@@ -15,7 +15,7 @@ enum DesyDesignSystemTheme {
 /// Desy-owned foundation values shared by the package and its catalogue.
 abstract final class DesyDesignSystemTokens {
   /// Primary typeface used throughout Desy-owned workbench surfaces.
-  static const String fontFamily = 'packages/desy_design_system/Roboto';
+  static const String fontFamily = 'Inter';
 
   /// Compact separation between related inline elements.
   static const double spaceXs = 4;
@@ -58,6 +58,9 @@ abstract final class DesyDesignSystemTokens {
 
   /// Default desktop controls.
   static const double controlMd = 36;
+
+  /// Minimum height of Desy's native single-line text fields.
+  static const double textFieldMinHeight = 44;
 
   /// The persistent Registry Spine width in the committed desktop shell.
   static const double registrySpineWidth = 280;

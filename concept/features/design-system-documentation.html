@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Design-system documentation · Desy concept</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="shell">
+    <nav><a href="index.html">Desy product direction</a><span>Planned concept · documentation</span></nav>
+    <section class="hero">
+      <div class="eyebrow">Deferred product decision</div>
+      <h1>Give design systems useful guidance without creating a second knowledge base.</h1>
+      <p class="lede">A component catalogue shows the real widget, but teams also need concise guidance: when to use it, constraints, accessibility notes, and examples. Desy should add this only after choosing where that guidance belongs.</p>
+    </section>
+    <section class="grid">
+      <article class="card"><h2>Why this exists</h2><p>Teams otherwise split usage guidance between source comments, a separate documentation site, and verbal knowledge. The registry already names the artifacts that need explanation.</p></article>
+      <article class="card"><h2>User value</h2><p>A designer or developer can answer “when should I use this?” beside the real, themed component rather than hunting through a duplicate inventory.</p></article>
+    </section>
+    <section class="card full">
+      <h2>Scope to evaluate</h2>
+      <ul><li>Concise authored guidance attached to a registered component or atom.</li><li>A possible Docs destination for cross-cutting material such as foundations, accessibility, and contribution guidance.</li><li>One Home/readme entry point that can link to the right guidance without becoming a CMS.</li></ul>
+    </section>
+    <section class="card full">
+      <h2>Non-goals</h2>
+      <ul><li>No Markdown site generator, backend, account, or collaborative publishing workflow.</li><li>No second folder tree or duplicate component list.</li><li>No requirement that a minimal registry provide documentation.</li></ul>
+    </section>
+    <section class="card full">
+      <h2>Implementation sketch</h2>
+      <p>First test a small typed guidance value on selected registry entries. Render it in Details beside the live preview. Only introduce a Docs destination if cross-cutting documents cannot remain discoverable from Home and entry details. Any dedicated destination must derive its index from the same immutable registry and avoid callbacks or serialized widget logic.</p>
+    </section>
+    <section class="grid">
+      <article class="card"><h2>Open questions</h2><ol><li>Is entry-level guidance sufficient for the first release?</li><li>Which documents are cross-cutting enough to justify a Docs section?</li><li>Should Home merely host arbitrary consumer content, or also derive a concise docs index?</li><li>What is the smallest typed model that avoids a free-form CMS?</li></ol></article>
+      <article class="card accent"><h2>Do or don't</h2><p><strong>Do:</strong> investigate after consumers have proven which guidance is repeatedly needed. Impact is 4/5 and complexity is 4/5: useful, but premature information architecture would create permanent clutter.</p><p><strong>Don't:</strong> add a Docs sidebar section or component-documentation API now. The right content hierarchy remains unvalidated.</p></article>
+    </section>
+    <footer>Offline concept artifact. No remote assets or runtime dependencies.</footer>
+  </main>
+</body>
+</html>

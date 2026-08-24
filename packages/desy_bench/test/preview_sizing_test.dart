@@ -266,6 +266,63 @@ void main() {
     expect(geometryChanges, greaterThan(0));
   });
 
+  testWidgets('collection canvas does not resync during active resize', (
+    tester,
+  ) async {
+    const frameKey = ValueKey('collection-resize-frame');
+    var geometryChanges = 0;
+    await tester.pumpWidget(
+      _TestHarness(
+        child: SizedBox(
+          width: 640,
+          height: 480,
+          child: DesyCollectionCanvas<String>(
+            theme: theme,
+            title: 'Canvas',
+            detailsBuilder: (_, _) => const SizedBox.shrink(),
+            initialSelectedItemId: 'item',
+            items: [
+              DesyCanvasSceneItem(
+                id: 'item',
+                name: 'Item',
+                value: 'item',
+                initialRect: const Rect.fromLTWH(60, 200, 120, 80),
+                frameKey: frameKey,
+                onGeometryChanged: (_) => geometryChanges++,
+                previewBuilder: (_, _) => const ColoredBox(color: Colors.red),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final before = tester.getRect(find.byKey(frameKey));
+    final handle = find.byKey(
+      const ValueKey('object-canvas-resize-item-bottom-right'),
+    );
+    expect(handle, findsOneWidget);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(handle),
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(24, 12));
+    await tester.pump();
+    await gesture.moveBy(const Offset(24, 12));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(geometryChanges, 0);
+
+    await gesture.up();
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(tester.getRect(find.byKey(frameKey)).size, isNot(before.size));
+    expect(geometryChanges, 1);
+  });
+
   testWidgets('collection canvas reserves a large finite stage around items', (
     tester,
   ) async {

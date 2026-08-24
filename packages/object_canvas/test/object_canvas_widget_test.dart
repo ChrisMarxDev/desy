@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart' show MaterialApp, SelectionArea;
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -360,6 +361,39 @@ void main() {
     expect(controller.canUndo, isTrue);
   });
 
+  testWidgets('ancestor selection areas do not intercept resize drags', (
+    tester,
+  ) async {
+    final controller = _widgetController();
+    controller.selectObjects(['a']);
+    await tester.pumpWidget(
+      MaterialApp(home: SelectionArea(child: _host(controller))),
+    );
+
+    final start = controller.requireObject('a').geometry;
+    final handle = find.byKey(
+      const ValueKey('object-canvas-resize-a-bottom-right'),
+    );
+    expect(handle, findsOneWidget);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(handle),
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(18, 12));
+    await gesture.moveBy(const Offset(6, 4));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(controller.hasActiveTransform, isTrue);
+    expect(controller.geometryFor('a').size, isNot(start.size));
+
+    await gesture.up();
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(controller.requireObject('a').geometry.size, isNot(start.size));
+  });
+
   testWidgets('shift resize preserves the gesture-start aspect ratio', (
     tester,
   ) async {
@@ -656,6 +690,99 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       controller.dispose();
     }
+  });
+
+  testWidgets('overflowing resize handles stay hittable outside the canvas', (
+    tester,
+  ) async {
+    final controller = ObjectCanvasController<Widget>(
+      canvasSize: const Size(120, 80),
+      overflow: CanvasOverflow.show,
+      snapConfiguration: CanvasSnapConfiguration(strategies: const []),
+      objects: [
+        CanvasObject<Widget>(
+          id: 'overflowing',
+          data: const ColoredBox(color: Color(0xFFE11D48)),
+          geometry: const CanvasObjectGeometry(
+            position: Offset(90, 50),
+            size: Size(50, 40),
+          ),
+        ),
+      ],
+    );
+    controller.selectObjects(['overflowing']);
+    await tester.pumpWidget(_host(controller));
+
+    final start = controller.requireObject('overflowing').geometry;
+    final handle = find.byKey(
+      const ValueKey('object-canvas-resize-overflowing-bottom-right'),
+    );
+    expect(tester.getCenter(handle).dx, greaterThan(120));
+    expect(tester.getCenter(handle).dy, greaterThan(80));
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(handle),
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(24, 16));
+    await gesture.moveBy(const Offset(1, 1));
+    await tester.pump();
+    expect(controller.hasActiveTransform, isTrue);
+    expect(controller.geometryFor('overflowing').size.width, greaterThan(50));
+    await gesture.up();
+    await tester.pump();
+
+    expect(
+      controller.requireObject('overflowing').geometry.size.width,
+      greaterThan(start.size.width),
+    );
+  });
+
+  testWidgets('overflowing object bodies stay selectable outside the canvas', (
+    tester,
+  ) async {
+    final controller = ObjectCanvasController<Widget>(
+      canvasSize: const Size(120, 80),
+      overflow: CanvasOverflow.show,
+      snapConfiguration: CanvasSnapConfiguration(strategies: const []),
+      objects: [
+        CanvasObject<Widget>(
+          id: 'overflowing',
+          data: const ColoredBox(color: Color(0xFFE11D48)),
+          geometry: const CanvasObjectGeometry(
+            position: Offset(90, 50),
+            size: Size(50, 40),
+          ),
+        ),
+      ],
+    );
+    await tester.pumpWidget(_host(controller));
+
+    final outsideCanvasPoint =
+        tester.getTopLeft(
+          find.byKey(const ValueKey('object-canvas-stage-stack')),
+        ) +
+        const Offset(124, 70);
+    await tester.tapAt(outsideCanvasPoint);
+    await tester.pump();
+
+    expect(controller.selectedObjectIds, {'overflowing'});
+
+    final before = controller.requireObject('overflowing').geometry.position;
+    final gesture = await tester.startGesture(
+      outsideCanvasPoint,
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(20, 10));
+    await gesture.moveBy(const Offset(1, 1));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    expect(
+      controller.requireObject('overflowing').geometry.position,
+      isNot(before),
+    );
   });
 
   testWidgets(

@@ -1,4 +1,4 @@
-import 'dart:ui' show Tristate;
+import 'dart:ui' show PointerDeviceKind, Tristate;
 
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:flutter/cupertino.dart' show CupertinoSwitch;
@@ -17,11 +17,8 @@ void main() {
     );
   });
 
-  test('Desy themes use the bundled Roboto type family', () {
-    expect(
-      DesyDesignSystemTokens.fontFamily,
-      'packages/desy_design_system/Roboto',
-    );
+  test('Desy themes use the bundled Inter type family', () {
+    expect(DesyDesignSystemTokens.fontFamily, 'Inter');
 
     for (final variant in DesyDesignSystemTheme.values) {
       final theme = DesyDesignSystemFoundation.themeData(variant);
@@ -37,6 +34,240 @@ void main() {
         DesyDesignSystemTokens.fontFamily,
       );
     }
+  });
+
+  testWidgets('color picker and hex field share one control footprint', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: const Scaffold(
+            body: SizedBox(
+              width: 420,
+              child: DesyColorKnobRow(
+                label: 'Surface color',
+                value: Color(0xfffff0f6),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final picker = tester.getRect(
+      find.byKey(const ValueKey('color-knob-picker-Surface color')),
+    );
+    final field = tester.getRect(find.byType(DesyTextField));
+
+    expect(picker.top, field.top);
+    expect(picker.bottom, field.bottom);
+  });
+
+  testWidgets('animation scrubber announces its playhead', (tester) async {
+    final semantics = tester.ensureSemantics();
+    double? changed;
+    double? ended;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: Scaffold(
+            body: SizedBox(
+              width: 420,
+              child: DesyAnimationScrubber(
+                progress: .25,
+                duration: const Duration(milliseconds: 1000),
+                onChanged: (value) => changed = value,
+                onChangeEnd: (value) => ended = value,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(DesyAnimationScrubber), findsOneWidget);
+    expect(find.byType(DesySlider), findsNothing);
+    final rail = find.byKey(const ValueKey('desy-animation-scrubber-rail'));
+    final gestureBox = find.byKey(
+      const ValueKey('desy-animation-scrubber-gesture-box'),
+    );
+    expect(rail, findsOneWidget);
+    expect(gestureBox, findsOneWidget);
+    expect(tester.getSize(rail).height, 40);
+    final railRect = tester.getRect(rail);
+    final gesture = await tester.startGesture(
+      Offset(railRect.left + railRect.width * .2, railRect.top + 2),
+    );
+    await gesture.moveTo(
+      Offset(railRect.left + railRect.width * .75, railRect.top + 2),
+    );
+    await tester.pump();
+    expect(changed, greaterThan(.6));
+    await gesture.up();
+    await tester.pump();
+    expect(ended, greaterThan(.6));
+    changed = null;
+    ended = null;
+    await tester.tapAt(
+      Offset(railRect.left + railRect.width * .1, railRect.bottom - 2),
+    );
+    await tester.pump();
+    expect(changed, lessThan(.2));
+    expect(ended, lessThan(.2));
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics &&
+            widget.properties.value == '250 milliseconds',
+      ),
+      findsOneWidget,
+    );
+    semantics.dispose();
+  });
+
+  testWidgets('action dock shows action guidance only while hovered', (
+    tester,
+  ) async {
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: Scaffold(
+            body: Center(
+              child: DesyActionDock(
+                groups: [
+                  DesyActionDockGroup(
+                    label: 'Selection mode',
+                    actions: [
+                      DesyActionDockAction(
+                        key: const ValueKey('select-action'),
+                        icon: DesyIcons.mousePointer,
+                        label: 'Select',
+                        description: 'Pick and resize elements',
+                        shortcutKeys: const ['V'],
+                        selected: true,
+                        onPressed: () {},
+                      ),
+                    ],
+                  ),
+                  DesyActionDockGroup(
+                    label: 'Add elements',
+                    actions: [
+                      DesyActionDockAction(
+                        key: const ValueKey('text-action'),
+                        icon: DesyIcons.type,
+                        label: 'Text',
+                        description: 'Add a text layer',
+                        shortcutKeys: const ['T'],
+                        onPressed: () {},
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Selection mode'), findsOneWidget);
+    expect(find.text('Add elements'), findsOneWidget);
+    expect(find.text('Pick and resize elements'), findsNothing);
+    expect(find.text('V'), findsNothing);
+
+    await mouse.moveTo(
+      tester.getCenter(find.byKey(const ValueKey('select-action'))),
+    );
+    await tester.pump();
+
+    expect(find.text('Pick and resize elements'), findsOneWidget);
+    expect(find.text('V'), findsOneWidget);
+
+    await mouse.moveTo(Offset.zero);
+    await tester.pump();
+
+    expect(find.text('Pick and resize elements'), findsNothing);
+    expect(find.text('V'), findsNothing);
+  });
+
+  testWidgets('action dock button is square and centers its icon', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: Scaffold(
+            body: Center(
+              child: DesyActionDockButton(
+                key: const ValueKey('dock-button'),
+                icon: DesyIcons.type,
+                label: 'Text',
+                description: 'Add a text layer',
+                onPressed: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final buttonRect = tester.getRect(
+      find.byKey(const ValueKey('dock-button')),
+    );
+    final iconCenter = tester.getCenter(find.byIcon(DesyIcons.type));
+
+    expect(buttonRect.width, 42);
+    expect(buttonRect.height, 42);
+    expect(iconCenter.dx, closeTo(buttonRect.center.dx, .5));
+    expect(iconCenter.dy, closeTo(buttonRect.center.dy, .5));
+  });
+
+  testWidgets('canvas backgrounds keep painter logic reusable', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: Column(
+            children: [
+              SizedBox(
+                width: 160,
+                height: 90,
+                child: DesyCanvasGridBackground(),
+              ),
+              SizedBox(
+                width: 160,
+                height: 90,
+                child: DesyCheckerboardBackground(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(DesyCanvasGridBackground), findsOneWidget);
+    expect(find.byType(DesyCheckerboardBackground), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(DesyCanvasGridBackground),
+        matching: find.byType(CustomPaint),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(DesyCheckerboardBackground),
+        matching: find.byType(CustomPaint),
+      ),
+      findsOneWidget,
+    );
   });
 
   test('Registry Spine themes separate action and inspection semantics', () {
@@ -241,6 +472,39 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(submitted, 'Build an atlas card.');
+  });
+
+  testWidgets('agent chat message can shrink-wrap inside a row', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(420, 420);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: Center(
+            child: SizedBox(
+              width: 320,
+              child: Row(
+                children: [
+                  DesyChatMessage(
+                    role: DesyChatRole.agent,
+                    child: Text('Generated surface'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Generated surface'), findsOneWidget);
   });
 
   testWidgets('core controls expose Desy-owned contracts', (tester) async {
@@ -927,6 +1191,108 @@ void main() {
       DesyVisualColors.light.signal,
     );
   });
+
+  testWidgets(
+    'folder rows navigate without changing their separate disclosure state',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      var opened = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DesyDesignSystemScope(
+            theme: DesyDesignSystemTheme.light,
+            child: SizedBox(
+              width: 248,
+              height: 160,
+              child: DesySidebar(
+                children: [
+                  DesySidebarSection(
+                    label: 'Components',
+                    children: [
+                      DesySidebarItem.folder(
+                        icon: const Icon(DesyIcons.folder),
+                        label: const Text('Actions'),
+                        disclosureLabel: 'Actions',
+                        initiallyExpanded: true,
+                        onPress: () => opened++,
+                        children: const [
+                          DesySidebarItem(
+                            key: ValueKey('folder-child'),
+                            label: Text('Button'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byKey(const ValueKey('folder-child')), findsOneWidget);
+      final disclosure = find.byKey(
+        const ValueKey('desy-sidebar-folder-toggle-Actions'),
+      );
+      Color folderRowColor() =>
+          (tester
+                      .widget<Container>(
+                        find.byKey(
+                          const ValueKey('desy-sidebar-folder-row-Actions'),
+                        ),
+                      )
+                      .decoration!
+                  as ShapeDecoration)
+              .color!;
+
+      final unhoveredColor = folderRowColor();
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer();
+      await mouse.moveTo(tester.getCenter(find.text('Actions')));
+      await tester.pump();
+
+      expect(folderRowColor(), isNot(unhoveredColor));
+
+      await mouse.moveTo(Offset.zero);
+      await tester.pump();
+      expect(folderRowColor(), unhoveredColor);
+
+      await mouse.moveTo(tester.getCenter(disclosure));
+      await tester.pump();
+      expect(folderRowColor(), isNot(unhoveredColor));
+
+      await tester.tap(find.text('Actions'));
+      await tester.pumpAndSettle();
+
+      expect(opened, 1);
+      expect(find.byKey(const ValueKey('folder-child')), findsOneWidget);
+
+      expect(tester.widget<FTappable>(disclosure).semanticsExpanded, isTrue);
+      await tester.tap(disclosure);
+      await tester.pumpAndSettle();
+
+      expect(opened, 1);
+      expect(tester.widget<FTappable>(disclosure).semanticsExpanded, isFalse);
+      expect(
+        tester
+            .widget<FCollapsible>(
+              find.byKey(
+                const ValueKey('desy-sidebar-folder-children-Actions'),
+              ),
+            )
+            .value,
+        0.0,
+      );
+
+      await tester.tap(find.text('Actions'));
+      await tester.pumpAndSettle();
+
+      expect(opened, 2);
+      expect(tester.widget<FTappable>(disclosure).semanticsExpanded, isTrue);
+      semantics.dispose();
+    },
+  );
 }
 
 void _ignoreSwitchValue(bool _) {}

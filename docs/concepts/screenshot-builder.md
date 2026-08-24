@@ -42,7 +42,8 @@ checkerboard. V1 produces one PNG pixel for each logical canvas pixel.
 ## Deliberate non-goals
 
 - Projects, multiple pages, persistence, autosave, history, or collaboration.
-- Undo/redo, grouping, rotation, rulers, manual guides, or arbitrary effects.
+- Undo/redo, grouping, rotation, rulers, manual guides, or freeform visual
+  transformations.
 - Rich text, generated production widgets, or a serialized Flutter widget
   language.
 

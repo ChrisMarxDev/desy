@@ -34,23 +34,24 @@ class DesyWorkbenchNavigationTree {
     final componentGroups = registry.componentGroups;
 
     return DesyWorkbenchNavigationTree([
-      DesyWorkbenchNavigationNode(
-        id: 'apps',
-        label: 'Apps',
-        children: [
-          const DesyWorkbenchNavigationNode(
-            id: 'home',
-            label: 'Home',
-            location: DesyWorkbenchRoutes.homePath,
-          ),
-          for (final extension in extensions)
-            DesyWorkbenchNavigationNode(
-              id: 'extension.${extension.id}',
-              label: extension.name,
-              location: DesyWorkbenchRoutes.workspaceExtension(extension.id),
-            ),
-        ],
+      const DesyWorkbenchNavigationNode(
+        id: 'home',
+        label: 'Home',
+        location: DesyWorkbenchRoutes.homePath,
       ),
+      if (extensions.isNotEmpty)
+        DesyWorkbenchNavigationNode(
+          id: 'apps',
+          label: 'Apps',
+          children: [
+            for (final extension in extensions)
+              DesyWorkbenchNavigationNode(
+                id: 'extension.${extension.id}',
+                label: extension.name,
+                location: DesyWorkbenchRoutes.workspaceExtension(extension.id),
+              ),
+          ],
+        ),
       if (registry.allPrototypes.isNotEmpty)
         DesyWorkbenchNavigationNode(
           id: 'prototypes',

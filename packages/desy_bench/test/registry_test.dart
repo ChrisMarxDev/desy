@@ -282,17 +282,10 @@ void main() {
     );
   });
 
-  test('component paths derive groups while effects stay registry-level', () {
+  test('component paths derive groups from registry-level components', () {
     final registry = DesyRegistry(
       name: 'Nested',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-      effects: [
-        DesyEffectEntry.boxShadow(
-          id: 'effect.status',
-          name: 'Status shadow',
-          shadows: [BoxShadow(blurRadius: 8)],
-        ),
-      ],
       components: [
         DesyStaticComponent(
           id: 'status.badge',
@@ -304,7 +297,6 @@ void main() {
     );
 
     expect(registry.allComponents.single.id, 'status.badge');
-    expect(registry.allEffects.single.id, 'effect.status');
   });
 
   test('registry exposes resolved token entries', () {
@@ -457,11 +449,6 @@ void main() {
     final properties = <DesyContractProperty>[
       const DesyContractProperty(name: 'label', type: 'String'),
     ];
-    final effect = DesyEffectEntry.boxShadow(
-      id: 'shadow',
-      name: 'Shadow',
-      shadows: [BoxShadow(blurRadius: 4)],
-    );
     final contract = DesyComponentContract(properties: properties);
     final component = DesyStaticComponent(
       id: 'component',
@@ -476,39 +463,11 @@ void main() {
 
     expect(component.scenarios, hasLength(1));
     expect(component.contract?.properties, hasLength(1));
-    expect(() => effect.shadows.clear(), throwsUnsupportedError);
     expect(() => component.scenarios.clear(), throwsUnsupportedError);
     expect(
       () => component.contract!.properties.clear(),
       throwsUnsupportedError,
     );
-  });
-
-  testWidgets('box-shadow effects decorate the supplied widget', (
-    tester,
-  ) async {
-    final effect = DesyEffectEntry.boxShadow(
-      id: 'effect.surface',
-      name: 'Surface shadow',
-      shadows: [BoxShadow(blurRadius: 12, offset: Offset(0, 4))],
-    );
-
-    await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: Builder(
-          builder: (context) => effect.apply(
-            context,
-            const SizedBox(key: ValueKey('effect-child')),
-          ),
-        ),
-      ),
-    );
-
-    final decoration = tester.widget<DecoratedBox>(find.byType(DecoratedBox));
-    final box = decoration.decoration as BoxDecoration;
-    expect(box.boxShadow, effect.shadows);
-    expect(find.byKey(const ValueKey('effect-child')), findsOneWidget);
   });
 
   test('numeric primitives retain their typed value and display unit', () {

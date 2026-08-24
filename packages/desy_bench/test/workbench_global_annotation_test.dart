@@ -57,13 +57,9 @@ void main() {
     );
     expect(
       find.byKey(const ValueKey('workbench-annotation-summary')),
-      findsOneWidget,
+      findsNothing,
+      reason: 'The empty inbox stays out of a clean sidebar.',
     );
-    await tester.tap(
-      find.byKey(const ValueKey('workbench-annotation-summary')),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Review your feedback'), findsOneWidget);
   });
 
   testWidgets('prototype canvas owns the annotation mode switch', (
@@ -106,15 +102,15 @@ void main() {
     expect(find.byKey(const ValueKey('$prefix-action-bar')), findsOneWidget);
     expect(
       find.descendant(
-        of: find.byKey(const ValueKey('$prefix-mode-select')),
-        matching: find.text('⌘'),
+        of: find.byKey(const ValueKey('$prefix-action-bar')),
+        matching: find.byType(DesyActionDock),
       ),
       findsOneWidget,
     );
     expect(
       find.descendant(
-        of: find.byKey(const ValueKey('$prefix-mode-annotate')),
-        matching: find.text('⌘'),
+        of: find.byKey(const ValueKey('$prefix-action-bar')),
+        matching: find.text('Selection mode'),
       ),
       findsOneWidget,
     );
@@ -210,10 +206,16 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.enterText(
-      find.byKey(const ValueKey('workbench-annotation-input')),
-      'Discard this draft',
+    final annotationInput = find.byKey(
+      const ValueKey('workbench-annotation-input'),
     );
+    final editable = tester.widget<EditableText>(
+      find.descendant(of: annotationInput, matching: find.byType(EditableText)),
+    );
+    expect(editable.focusNode.hasFocus, isTrue);
+    tester.testTextInput.enterText('Discard this draft');
+    await tester.pump();
+    expect(editable.controller.text, 'Discard this draft');
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(

@@ -112,26 +112,6 @@ class DesyRegistrySnapshot {
               },
             ),
         ],
-        'motion': [
-          for (final motion in registry.allMotion)
-            _entry(
-              id: motion.id,
-              name: motion.name,
-              value: motion.displayValue,
-              description: motion.description,
-              extra: {'intent': motion.intent},
-            ),
-        ],
-        'effects': [
-          for (final effect in registry.allEffects)
-            _entry(
-              id: effect.id,
-              name: effect.name,
-              value: effect.displayValue,
-              description: effect.description,
-              extra: {'group': effect.group},
-            ),
-        ],
         'custom': [
           for (final atom in registry.allCustomAtoms)
             _entry(
@@ -179,6 +159,11 @@ class DesyRegistrySnapshot {
       description: component.description,
       extra: {
         'category': component.category,
+        if (component case final DesyAnimationComponentBase animation)
+          'animation': {
+            'durationMs': animation.duration.inMilliseconds,
+            'curve': animation.curve.toString(),
+          },
         'path': component.path,
         if (component.source case String source) 'source': source,
         if (component.accessibility case String accessibility)

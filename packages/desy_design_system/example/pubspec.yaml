@@ -12,8 +12,6 @@ resolution: workspace
 dependencies:
   desy_bench:
     path: ../../desy_bench
-  desy_brand_guide:
-    path: ../../extensions/desy_brand_guide
   desy_design_system:
     path: ..
   desy_screenshot_builder:

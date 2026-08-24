@@ -116,8 +116,6 @@ void main() {
       find.byKey(const ValueKey('brand-guide-typography')),
       findsOneWidget,
     );
-    await reveal('brand-guide-motion');
-    expect(find.byKey(const ValueKey('brand-guide-motion')), findsOneWidget);
     await reveal('brand-guide-voice');
     expect(find.byKey(const ValueKey('brand-guide-voice')), findsOneWidget);
     expect(find.text('Direct, never inflated'), findsOneWidget);
@@ -181,15 +179,6 @@ DesyRegistry _registry() => DesyRegistry(
       name: 'Body',
       sample: 'Clear product language.',
       builder: (context, text) => Text(text),
-    ),
-  ],
-  motion: [
-    DesyMotionEntry(
-      id: 'motion.enter',
-      name: 'Enter',
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      builder: (context, child, duration) => child,
     ),
   ],
   assets: const [

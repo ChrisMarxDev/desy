@@ -1,15 +1,15 @@
 import 'dart:convert';
 
-import 'package:desy_design_system_example/desy_design_system_example.dart';
 import 'package:desy_genui/desy_genui.dart';
 import 'package:desy_genui_example/genui_backend.dart';
+import 'package:desy_genui_example/orbit/orbit_registry.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
   test('sends the compiled catalog and parses generated components', () async {
-    final catalog = DesyGenUiCatalog.compile(desyDesignSystemRegistry);
+    final catalog = DesyGenUiCatalog.compile(orbitRegistry);
     final httpClient = MockClient((request) async {
       expect(request.method, 'POST');
       expect(request.url, Uri.parse('http://agent.test/generate'));
@@ -24,10 +24,8 @@ void main() {
           'components': [
             {
               'id': 'root',
-              'component': 'desy.component.card',
+              'component': 'orbit.component.insight',
               'title': 'Generated',
-              'body': 'From the dogfood registry',
-              'showBody': true,
             },
           ],
         }),
@@ -53,7 +51,7 @@ void main() {
   });
 
   test('sends a typed UI action with the current surface', () async {
-    final catalog = DesyGenUiCatalog.compile(desyDesignSystemRegistry);
+    final catalog = DesyGenUiCatalog.compile(orbitRegistry);
     final action = GenUiAction(
       name: 'update_cards',
       sourceComponentId: 'root_composer',
@@ -64,7 +62,7 @@ void main() {
     final currentSurface = <Map<String, Object?>>[
       {
         'id': 'root',
-        'component': 'desy.component.card',
+        'component': 'orbit.component.insight',
         'title': 'Current card',
       },
     ];
@@ -82,7 +80,7 @@ void main() {
           'components': [
             {
               'id': 'root',
-              'component': 'desy.component.card',
+              'component': 'orbit.component.insight',
               'title': 'Updated card',
             },
           ],
@@ -130,7 +128,7 @@ void main() {
       (_) async => http.Response(
         jsonEncode({
           'components': [
-            {'id': 'orphan', 'component': 'desy.component.card'},
+            {'id': 'orphan', 'component': 'orbit.component.insight'},
           ],
         }),
         200,
@@ -141,7 +139,7 @@ void main() {
     await expectLater(
       backend.respond(
         turn: GenUiPromptTurn('Build something'),
-        catalog: DesyGenUiCatalog.compile(desyDesignSystemRegistry),
+        catalog: DesyGenUiCatalog.compile(orbitRegistry),
       ),
       throwsA(
         isA<StateError>().having(

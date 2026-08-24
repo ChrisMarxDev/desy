@@ -10,7 +10,7 @@
 | Colors and treatments | Registry `colors` + `DesyColorEntry` | Swatches, gradients, and custom color widgets use the built-in Colors lane. |
 | Typography | Registry `fonts` + `DesyTypographyEntry` | Resolve a real consumer text style and specimen. |
 | Measurements | Registry `measurements` + `DesyNumericEntry` | Use `kind`, `unit`, and `axis`; do not infer semantics from strings. |
-| Motion and effects | Registry `motion`/`effects` + typed entries | Keep the consumer-owned live specimen. |
+| Motion | `DesyAnimationComponent` entries | Animation components stay in the normal component tree and own their live specimen. |
 | Assets | Registry `assets`/`assetFamilies` + typed entries | Keep every asset independently addressable; families relate variants without becoming a second inventory. |
 | Custom atoms | Registry `customAtoms` + `DesyCustomAtom` | Declare only named static widget instances; Desy previews the first declared instance. |
 | Components | `DesyComponent` | Build the production widget and declare optional contracts, states, and knobs. |

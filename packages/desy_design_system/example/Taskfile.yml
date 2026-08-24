@@ -5,20 +5,40 @@ vars:
     sh: cd "{{.TASKFILE_DIR}}/../../.." && pwd -P
 
 tasks:
+  app:dev:
+    desc: Launch the dogfood catalogue with Codex-managed hot reload on macOS.
+    platforms: [darwin]
+    cmds:
+      - >-
+        codex-dev run
+        --cwd "{{.REPOSITORY_ROOT}}"
+        --adapter flutter
+        --pid-file packages/desy_design_system/example/build/desy_workshop_hot_reload.pid
+        -- sh -c 'cd "{{.TASKFILE_DIR}}" && exec flutter run -d macos
+        --pid-file="{{.REPOSITORY_ROOT}}/packages/desy_design_system/example/build/desy_workshop_hot_reload.pid"
+        --dart-define=DESY_WORKSHOP_PROJECT_DIR="{{.REPOSITORY_ROOT}}"
+        {{.CLI_ARGS}}'
+
+  app:reload:
+    desc: Request a hot reload from the registered dogfood runtime.
+    cmds:
+      - codex-dev reload --cwd "{{.REPOSITORY_ROOT}}"
+
+  app:restart:
+    desc: Request a hot restart from the registered dogfood runtime.
+    cmds:
+      - codex-dev restart --cwd "{{.REPOSITORY_ROOT}}"
+
   run:
     desc: Launch Desy's own design-system catalogue on a selected device.
     cmds:
       - flutter run {{.CLI_ARGS}}
 
   run_mac:
-    desc: Launch the dogfood catalogue and its live Workshop on macOS.
+    desc: Launch the dogfood catalogue and its live Workshop on macOS (legacy alias for app:dev).
     platforms: [darwin]
     cmds:
-      - >-
-        flutter run -d macos
-        --pid-file={{.REPOSITORY_ROOT}}/packages/desy_design_system/example/build/desy_workshop_hot_reload.pid
-        --dart-define=DESY_WORKSHOP_PROJECT_DIR={{.REPOSITORY_ROOT}}
-        {{.CLI_ARGS}}
+      - task app:dev -- {{.CLI_ARGS}}
 
   web:
     desc: Launch the dogfood catalogue in Chrome.

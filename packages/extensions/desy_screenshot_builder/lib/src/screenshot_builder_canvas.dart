@@ -11,6 +11,8 @@ class _CanvasViewport extends StatelessWidget {
     required this.zoom,
     required this.onZoomOut,
     required this.onZoomIn,
+    required this.onAdd,
+    required this.onPickImage,
     required this.onAcceptPalette,
   });
 
@@ -22,12 +24,15 @@ class _CanvasViewport extends StatelessWidget {
   final double zoom;
   final VoidCallback onZoomOut;
   final VoidCallback onZoomIn;
+  final ValueChanged<_PalettePayload> onAdd;
+  final VoidCallback onPickImage;
   final void Function(_PalettePayload payload, Offset position) onAcceptPalette;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
+      final stackBottomControls = viewportSize.width < 520;
       return Stack(
         children: [
           Positioned.fill(
@@ -46,49 +51,56 @@ class _CanvasViewport extends StatelessWidget {
                 builder: (context, candidates, rejected) => Stack(
                   children: [
                     Positioned.fill(
-                      child: ObjectCanvas<DesyScreenshotLayer>(
-                        key: const ValueKey('screenshot-object-canvas'),
-                        controller: canvas,
-                        minScale:
-                            _ScreenshotBuilderScreenState._minimumViewportZoom,
-                        maxScale:
-                            _ScreenshotBuilderScreenState._maximumViewportZoom,
-                        viewportBoundaryMargin: const EdgeInsets.all(2400),
-                        marqueeSelectionEnabled: false,
-                        duplicateDataBuilder: (object, duplicateId) =>
-                            object.data.copyWith(id: duplicateId),
-                        style: ObjectCanvasStyle(
-                          viewportColor: context.theme.colors.desy.canvas,
-                          canvasColor: backgroundColor ?? Colors.transparent,
-                          selectionColor: context.theme.colors.desy.signal,
-                          guideColor: context.theme.colors.desy.signal,
-                          marqueeFillColor: context
-                              .theme
-                              .colors
-                              .desy
-                              .signalSurface
-                              .withValues(alpha: .24),
-                          marqueeStrokeColor: context.theme.colors.desy.signal,
-                        ),
-                        underlayBuilder: backgroundColor == null
-                            ? (context, controller) => const _TransparentGrid()
-                            : null,
-                        overlayBuilder: (context, controller) => IgnorePointer(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: context.theme.colors.desy.divider,
-                              ),
-                            ),
+                      child: ColoredBox(
+                        color: context.theme.colors.desy.panelSubtle,
+                        child: ObjectCanvas<DesyScreenshotLayer>(
+                          key: const ValueKey('screenshot-object-canvas'),
+                          controller: canvas,
+                          minScale: _ScreenshotBuilderScreenState
+                              ._minimumViewportZoom,
+                          maxScale: _ScreenshotBuilderScreenState
+                              ._maximumViewportZoom,
+                          viewportBoundaryMargin: const EdgeInsets.all(2400),
+                          marqueeSelectionEnabled: false,
+                          duplicateDataBuilder: (object, duplicateId) =>
+                              object.data.copyWith(id: duplicateId),
+                          style: ObjectCanvasStyle(
+                            viewportColor:
+                                context.theme.colors.desy.panelSubtle,
+                            canvasColor: backgroundColor ?? Colors.transparent,
+                            selectionColor: context.theme.colors.desy.signal,
+                            guideColor: context.theme.colors.desy.signal,
+                            marqueeFillColor: context
+                                .theme
+                                .colors
+                                .desy
+                                .signalSurface
+                                .withValues(alpha: .24),
+                            marqueeStrokeColor:
+                                context.theme.colors.desy.signal,
                           ),
-                        ),
-                        objectVisibility: (object) => !object.data.hidden,
-                        semanticLabelBuilder: (object) => object.data.name,
-                        objectBuilder: (context, object) => IgnorePointer(
-                          child: _ScreenshotLayerContent(
-                            object: object,
-                            registry: extension.registry,
-                            selectedTheme: selectedTheme,
+                          underlayBuilder: backgroundColor == null
+                              ? (context, controller) =>
+                                    const DesyCheckerboardBackground()
+                              : null,
+                          overlayBuilder: (context, controller) =>
+                              IgnorePointer(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: context.theme.colors.desy.divider,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          objectVisibility: (object) => !object.data.hidden,
+                          semanticLabelBuilder: (object) => object.data.name,
+                          objectBuilder: (context, object) => IgnorePointer(
+                            child: _ScreenshotLayerContent(
+                              object: object,
+                              registry: extension.registry,
+                              selectedTheme: selectedTheme,
+                            ),
                           ),
                         ),
                       ),
@@ -110,6 +122,18 @@ class _CanvasViewport extends StatelessWidget {
                       ),
                   ],
                 ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 16,
+            right: stackBottomControls ? 16 : 136,
+            bottom: stackBottomControls ? 72 : 16,
+            child: Center(
+              child: _ScreenshotActionBar(
+                extension: extension,
+                onAdd: onAdd,
+                onPickImage: onPickImage,
               ),
             ),
           ),
@@ -339,41 +363,4 @@ class _StatusGlyphs extends StatelessWidget {
       Container(width: 2, height: 4, color: Colors.black),
     ],
   );
-}
-
-class _TransparentGrid extends StatelessWidget {
-  const _TransparentGrid();
-
-  @override
-  Widget build(BuildContext context) => CustomPaint(
-    painter: _TransparentGridPainter(
-      light: context.theme.colors.desy.panel,
-      dark: context.theme.colors.desy.panelSubtle,
-    ),
-  );
-}
-
-class _TransparentGridPainter extends CustomPainter {
-  const _TransparentGridPainter({required this.light, required this.dark});
-
-  final Color light;
-  final Color dark;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const cell = 12.0;
-    final paint = Paint();
-    for (var y = 0.0; y < size.height; y += cell) {
-      for (var x = 0.0; x < size.width; x += cell) {
-        paint.color = ((x / cell).floor() + (y / cell).floor()).isEven
-            ? light
-            : dark;
-        canvas.drawRect(Rect.fromLTWH(x, y, cell, cell), paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _TransparentGridPainter oldDelegate) =>
-      oldDelegate.light != light || oldDelegate.dark != dark;
 }

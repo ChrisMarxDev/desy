@@ -267,8 +267,9 @@ class _DesySidebarSectionState extends State<DesySidebarSection> {
 ///
 /// Use [DesySidebarItem.screen] for a workspace destination that replaces the
 /// current workbench screen. Its trailing arrow communicates that stronger
-/// navigation. Ordinary items have no trailing affordance. [children] is
-/// reserved for file-browser hierarchies such as the Components section.
+/// navigation. Use [DesySidebarItem.folder] for a file-browser node: its row
+/// opens the folder destination while its separate trailing disclosure controls
+/// expansion. Ordinary items have no trailing affordance.
 class DesySidebarItem extends StatelessWidget {
   /// Creates an ordinary item or a node in a file-browser hierarchy.
   const DesySidebarItem({
@@ -282,6 +283,7 @@ class DesySidebarItem extends StatelessWidget {
     this.focusNode,
     this.onPress,
     this.onLongPress,
+    this.disclosureLabel,
     this.children = const [],
   }) : opensScreen = false;
 
@@ -298,7 +300,25 @@ class DesySidebarItem extends StatelessWidget {
     this.onLongPress,
   }) : opensScreen = true,
        initiallyExpanded = false,
-       children = const [];
+       children = const [],
+       disclosureLabel = null;
+
+  /// Creates a file-browser folder with separate navigation and disclosure
+  /// controls.
+  const DesySidebarItem.folder({
+    super.key,
+    this.style = const FSidebarItemStyleDelta.context(),
+    this.icon,
+    this.label,
+    this.selected = false,
+    this.initiallyExpanded = false,
+    this.autofocus = false,
+    this.focusNode,
+    this.onPress,
+    this.onLongPress,
+    this.disclosureLabel,
+    required this.children,
+  }) : opensScreen = false;
 
   /// Scoped style changes for the underlying Forui item.
   final FSidebarItemStyleDelta style;
@@ -330,7 +350,61 @@ class DesySidebarItem extends StatelessWidget {
   /// Nested file-browser items.
   final List<Widget> children;
 
+  /// Name used by the separate folder disclosure control.
+  final String? disclosureLabel;
+
   /// Whether the row carries the trailing new-screen arrow.
+  final bool opensScreen;
+
+  @override
+  Widget build(BuildContext context) => children.isEmpty
+      ? _DesySidebarLeafItem(
+          style: style,
+          icon: icon,
+          label: label,
+          selected: selected,
+          autofocus: autofocus,
+          focusNode: focusNode,
+          onPress: onPress,
+          onLongPress: onLongPress,
+          opensScreen: opensScreen,
+        )
+      : _DesySidebarFolderItem(
+          style: style,
+          icon: icon,
+          label: label,
+          selected: selected,
+          initiallyExpanded: initiallyExpanded,
+          autofocus: autofocus,
+          focusNode: focusNode,
+          onPress: onPress,
+          onLongPress: onLongPress,
+          disclosureLabel: disclosureLabel,
+          children: children,
+        );
+}
+
+class _DesySidebarLeafItem extends StatelessWidget {
+  const _DesySidebarLeafItem({
+    required this.style,
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.autofocus,
+    required this.focusNode,
+    required this.onPress,
+    required this.onLongPress,
+    required this.opensScreen,
+  });
+
+  final FSidebarItemStyleDelta style;
+  final Widget? icon;
+  final Widget? label;
+  final bool selected;
+  final bool autofocus;
+  final FocusNode? focusNode;
+  final VoidCallback? onPress;
+  final VoidCallback? onLongPress;
   final bool opensScreen;
 
   @override
@@ -351,30 +425,270 @@ class DesySidebarItem extends StatelessWidget {
               )
             : label,
         selected: selected,
-        initiallyExpanded: initiallyExpanded,
         autofocus: autofocus,
         focusNode: focusNode,
         onPress: onPress,
         onLongPress: onLongPress,
-        children: children,
       ),
-      if (selected)
-        Positioned.directional(
-          textDirection: Directionality.of(context),
-          start: 0,
-          top: 4,
-          bottom: 4,
-          child: ExcludeSemantics(
-            child: DecoratedBox(
-              key: const ValueKey('desy-sidebar-selection-indicator'),
-              decoration: BoxDecoration(
-                color: context.theme.colors.desy.signal,
-                borderRadius: BorderRadius.circular(2),
-              ),
-              child: const SizedBox(width: 2),
-            ),
-          ),
-        ),
+      if (selected) const _DesySidebarSelectionIndicator(),
     ],
+  );
+}
+
+class _DesySidebarFolderItem extends StatefulWidget {
+  const _DesySidebarFolderItem({
+    required this.style,
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.initiallyExpanded,
+    required this.autofocus,
+    required this.focusNode,
+    required this.onPress,
+    required this.onLongPress,
+    required this.disclosureLabel,
+    required this.children,
+  });
+
+  final FSidebarItemStyleDelta style;
+  final Widget? icon;
+  final Widget? label;
+  final bool selected;
+  final bool initiallyExpanded;
+  final bool autofocus;
+  final FocusNode? focusNode;
+  final VoidCallback? onPress;
+  final VoidCallback? onLongPress;
+  final String? disclosureLabel;
+  final List<Widget> children;
+
+  @override
+  State<_DesySidebarFolderItem> createState() => _DesySidebarFolderItemState();
+}
+
+class _DesySidebarFolderItemState extends State<_DesySidebarFolderItem>
+    with TickerProviderStateMixin {
+  FSidebarItemStyle? _style;
+  CurvedAnimation? _reveal;
+  CurvedAnimation? _fade;
+  CurvedAnimation? _iconReveal;
+  Animation<double>? _iconRotation;
+  AnimationController? _controller;
+  AnimationController? _fadeController;
+  late bool _expanded = widget.initiallyExpanded;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _updateStyle();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DesySidebarFolderItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _updateStyle();
+  }
+
+  void _updateStyle() {
+    final style = widget.style(
+      FSidebarGroupData.maybeOf(context)?.style.itemStyle ??
+          FSidebarData.maybeOf(context)?.style.groupStyle.itemStyle ??
+          context.theme.sidebarStyle.groupStyle.itemStyle,
+    );
+    if (_style == style) return;
+    _style = style;
+    _reveal?.dispose();
+    _fade?.dispose();
+    _iconReveal?.dispose();
+    _controller?.dispose();
+    _fadeController?.dispose();
+    final motion = context.accessibility.motion;
+    final reduceMotion = motion != FAccessibilityMotion.all;
+    final disableMotion = motion == FAccessibilityMotion.disabled;
+    _controller = AnimationController(
+      vsync: this,
+      value: _expanded ? 1 : 0,
+      duration: reduceMotion ? Duration.zero : style.motion.expandDuration,
+      reverseDuration: reduceMotion
+          ? Duration.zero
+          : style.motion.collapseDuration,
+    );
+    _fadeController = AnimationController(
+      vsync: this,
+      value: _expanded ? 1 : 0,
+      duration: disableMotion ? Duration.zero : style.motion.expandDuration,
+      reverseDuration: disableMotion
+          ? Duration.zero
+          : style.motion.collapseDuration,
+    );
+    _reveal = CurvedAnimation(
+      parent: _controller!,
+      curve: style.motion.expandCurve,
+      reverseCurve: style.motion.collapseCurve,
+    );
+    _fade = CurvedAnimation(
+      parent: _fadeController!,
+      curve: Curves.easeIn,
+      reverseCurve: Curves.easeOut,
+    );
+    _iconReveal = CurvedAnimation(
+      parent: _controller!,
+      curve: style.motion.iconExpandCurve,
+      reverseCurve: style.motion.iconCollapseCurve,
+    );
+    _iconRotation = style.motion.iconTween.animate(_iconReveal!);
+  }
+
+  void _toggleExpanded() {
+    _setExpanded(!_expanded);
+  }
+
+  void _activateFolder() {
+    if (!_expanded) _setExpanded(true);
+    widget.onPress?.call();
+  }
+
+  void _setExpanded(bool expanded) {
+    if (_expanded == expanded) return;
+    if (expanded) {
+      _controller!.forward();
+      _fadeController!.forward();
+    } else {
+      _controller!.reverse();
+      _fadeController!.reverse();
+    }
+    setState(() => _expanded = expanded);
+  }
+
+  @override
+  void dispose() {
+    _reveal?.dispose();
+    _fade?.dispose();
+    _iconReveal?.dispose();
+    _controller?.dispose();
+    _fadeController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final style = _style!;
+    final name = widget.disclosureLabel ?? 'folder';
+    return Stack(
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FTappable(
+              style: style.tappableStyle,
+              focusedOutlineStyle: style.focusedOutlineStyle,
+              selected: widget.selected,
+              autofocus: widget.autofocus,
+              focusNode: widget.focusNode,
+              onPress: _activateFolder,
+              onLongPress: widget.onLongPress,
+              builder: (context, variants, _) => Container(
+                key: ValueKey('desy-sidebar-folder-row-$name'),
+                padding: style.padding,
+                decoration: ShapeDecoration(
+                  shape: RoundedSuperellipseBorder(
+                    borderRadius: style.borderRadius,
+                  ),
+                  color: style.backgroundColor.resolve(variants),
+                ),
+                child: Row(
+                  spacing: style.collapsibleIconSpacing,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        spacing: style.iconSpacing,
+                        children: [
+                          if (widget.icon != null)
+                            IconTheme(
+                              data: style.iconStyle.resolve(variants),
+                              child: widget.icon!,
+                            ),
+                          if (widget.label != null)
+                            Expanded(
+                              child: DefaultTextStyle.merge(
+                                style: style.textStyle.resolve(variants),
+                                child: widget.label!,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    FTappable(
+                      key: ValueKey('desy-sidebar-folder-toggle-$name'),
+                      style: style.tappableStyle,
+                      focusedOutlineStyle: style.focusedOutlineStyle,
+                      semanticsLabel:
+                          '${_expanded ? 'Collapse' : 'Expand'} $name',
+                      semanticsButton: true,
+                      semanticsExpanded: _expanded,
+                      excludeSemantics: true,
+                      onPress: _toggleExpanded,
+                      builder: (_, variants, child) => IconTheme(
+                        data: style.collapsibleIconStyle.resolve(variants),
+                        child: child!,
+                      ),
+                      child: SizedBox.square(
+                        dimension: 20,
+                        child: RotationTransition(
+                          turns: _iconRotation!,
+                          child: style.collapsibleIcon(context),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              child: const SizedBox.shrink(),
+            ),
+            AnimatedBuilder(
+              animation: _reveal!,
+              builder: (_, _) => FCollapsible(
+                key: ValueKey('desy-sidebar-folder-children-$name'),
+                value: _reveal!.value,
+                child: Padding(
+                  padding: style.childrenPadding,
+                  child: FadeTransition(
+                    opacity: _fade!,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      spacing: style.childrenSpacing,
+                      children: widget.children,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (widget.selected) const _DesySidebarSelectionIndicator(),
+      ],
+    );
+  }
+}
+
+class _DesySidebarSelectionIndicator extends StatelessWidget {
+  const _DesySidebarSelectionIndicator();
+
+  @override
+  Widget build(BuildContext context) => Positioned.directional(
+    textDirection: Directionality.of(context),
+    start: 0,
+    top: 4,
+    bottom: 4,
+    child: ExcludeSemantics(
+      child: DecoratedBox(
+        key: const ValueKey('desy-sidebar-selection-indicator'),
+        decoration: BoxDecoration(
+          color: context.theme.colors.desy.signal,
+          borderRadius: BorderRadius.circular(2),
+        ),
+        child: const SizedBox(width: 2),
+      ),
+    ),
   );
 }

@@ -21,15 +21,15 @@ a parallel implementation.
 ## 4. Opinionated structure, open implementation
 
 Desy prescribes a small, typed design-system structure so it can provide
-purpose-built tools for Colors, Fonts, Icons, Measurements, Motion, Effects,
-Assets, and knobless Custom atoms.
+purpose-built tools for Colors, Fonts, Icons, Measurements, Assets, and
+knobless Custom atoms.
 Each lane is an optional, separate `DesyRegistry` parameter. A consumer opts in
 by supplying entries and an empty lane is absent from the workbench.
 
 Within those lanes, implementation stays open: every registered artifact
 ultimately resolves through a builder that returns the consumer's real Flutter
 `Widget`. Typed metadata gives Desy enough structure for font specimens,
-measurement diagrams, motion playback and scrubbing, and other specialized
+measurement diagrams and other specialized
 surfaces without prescribing the consumer's visual language.
 
 For example, a color entry may use a color-specific builder to offer a useful
@@ -120,7 +120,7 @@ responsive artboards.
 
 Atoms is a built-in workbench section derived from typed `DesyRegistry`
 parameters, not a consumer-declared folder. Its known lanes are Colors, Fonts,
-Icons, Measurements, Motion, Effects, Assets, and Custom. Each asset is a
+Icons, Measurements, Assets, and Custom. Each asset is a
 packaged image declared by stable ID, filename, Flutter asset key, and a short
 usage description; Desy derives its preview and handoff actions from those
 bundle bytes. Custom atoms are named,
@@ -133,9 +133,11 @@ Semantic solid colors are `DesyColorEntry` values backed by Flutter `Color`
 objects. Gradients and other paint recipes consume those colors and belong to
 their appropriate typed treatment contract rather than the Colors lane; text
 specimens are `DesyTypographyEntry` values;
-numeric foundations are `DesyNumericEntry` values; motion uses
-`DesyMotionEntry`; effects use `DesyEffectEntry`; glyphs use `DesyIconEntry`;
-and assets use `DesyAssetEntry` with optional `DesyAssetFamily` relationships.
+numeric foundations are `DesyNumericEntry` values; glyphs use
+`DesyIconEntry`; and assets use
+`DesyAssetEntry`. Motion demos are ordinary registered
+`DesyAnimationComponent` entries, which add a scrubber to that component's
+Details inspector.
 Every entry may still render a consumer-owned widget. Empty
 lanes are omitted, and when all lanes are empty the entire Atoms sidebar section
 is omitted.

@@ -1,5 +1,14 @@
 import 'package:flutter/material.dart';
 
+/// How a Desy-controlled animation behaves after one forward pass.
+enum DesyMotionLoopMode {
+  /// Stop at the end of the animation.
+  once,
+
+  /// Restart from the beginning after reaching the end.
+  loop,
+}
+
 /// Ephemeral playback state shared by Desy motion preview surfaces.
 ///
 /// The controller owns only the normalized preview timeline. Registered motion
@@ -38,6 +47,9 @@ class DesyMotionPlaybackController extends ChangeNotifier {
   /// The current playback rate.
   double get speed => _speed;
 
+  /// The current end-of-timeline behavior.
+  DesyMotionLoopMode get loopMode => _loopMode;
+
   /// Current uncurved normalized playhead position.
   double get value => _timeline.value;
 
@@ -46,14 +58,20 @@ class DesyMotionPlaybackController extends ChangeNotifier {
   late final CurvedAnimation _progress;
   var _isPlaying = true;
   var _speed = 1.0;
+  var _loopMode = DesyMotionLoopMode.once;
   var _isScrubbing = false;
   var _resumeAfterScrub = false;
 
   void _handleStatus(AnimationStatus status) {
-    if (_isPlaying && status == AnimationStatus.completed) {
-      _isPlaying = false;
-      notifyListeners();
+    if (!_isPlaying || _isScrubbing || status != AnimationStatus.completed) {
+      return;
     }
+    if (_loopMode == DesyMotionLoopMode.loop) {
+      _timeline.forward(from: 0);
+      return;
+    }
+    _isPlaying = false;
+    notifyListeners();
   }
 
   /// Starts or pauses playback without changing the current playhead.
@@ -75,6 +93,13 @@ class DesyMotionPlaybackController extends ChangeNotifier {
     if (_speed == speed) return;
     _speed = speed;
     _updateEffectiveDuration();
+    notifyListeners();
+  }
+
+  /// Changes whether playback stops or restarts after one forward pass.
+  void setLoopMode(DesyMotionLoopMode mode) {
+    if (_loopMode == mode) return;
+    _loopMode = mode;
     notifyListeners();
   }
 
@@ -120,7 +145,9 @@ class DesyMotionPlaybackController extends ChangeNotifier {
   void finishScrub(double value) {
     _timeline.value = value;
     _isScrubbing = false;
-    if (_resumeAfterScrub) _resume();
+    final resume = _resumeAfterScrub;
+    _resumeAfterScrub = false;
+    if (resume) _resume();
   }
 
   void _resume() {

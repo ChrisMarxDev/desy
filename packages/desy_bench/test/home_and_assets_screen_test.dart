@@ -80,6 +80,36 @@ void main() {
     expect(find.text('No components registered.'), findsOneWidget);
   });
 
+  testWidgets('a registry homePage replaces the derived Home overview', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 760));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final registry = DesyRegistry(
+      name: 'Custom home',
+      themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+      homePage: (_) => const Center(
+        key: ValueKey('consumer-home-page'),
+        child: Text('Welcome to Acme'),
+      ),
+      components: [
+        DesyStaticComponent(
+          id: 'acme.button',
+          name: 'Button',
+          instances: const {'default': _buttonPreview},
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(DesyBenchApp(registry: registry));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('home-custom-page')), findsOneWidget);
+    expect(find.byKey(const ValueKey('consumer-home-page')), findsOneWidget);
+    expect(find.byKey(const ValueKey('home-overview')), findsNothing);
+    expect(find.text('Welcome to Acme'), findsOneWidget);
+  });
+
   testWidgets('color previews show their canonical hex value', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1000, 760));
     addTearDown(() => tester.binding.setSurfaceSize(null));

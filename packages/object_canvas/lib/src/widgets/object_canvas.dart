@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -234,6 +235,8 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
         ? Clip.none
         : Clip.hardEdge;
     final snapshots = _objectSnapshots();
+    final hitTestBounds = _overflowHitTestBounds(snapshots.values);
+    final interactionSize = _interactionSize(hitTestBounds);
     final currentIds = snapshots.keys.toSet();
     _objectItems.removeWhere((id, item) => !currentIds.contains(id));
     return _ObjectCanvasModel<T>(
@@ -241,68 +244,84 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
       objectBuilder: widget.objectBuilder,
       semanticLabelBuilder: widget.semanticLabelBuilder,
       snapshots: snapshots,
-      child: Focus(
-        focusNode: _focusNode,
-        autofocus: widget.autofocus,
-        onKeyEvent: _onKeyEvent,
-        child: ColoredBox(
-          color: widget.style.viewportColor,
-          child: ClipRect(
-            child: Listener(
-              onPointerSignal: _onPointerSignal,
-              onPointerPanZoomStart: _onViewportPanZoomStart,
-              onPointerPanZoomUpdate: _onViewportPanZoomUpdate,
-              onPointerPanZoomEnd: _onViewportPanZoomEnd,
-              child: InteractiveViewer(
-                transformationController: controller.viewportController,
-                constrained: false,
-                boundaryMargin: widget.viewportBoundaryMargin,
-                minScale: widget.minScale,
-                maxScale: widget.maxScale,
-                panEnabled: false,
-                scaleEnabled: widget.scaleEnabled,
-                child: SizedBox.fromSize(
-                  key: _stageKey,
-                  size: controller.canvasSize,
-                  child: Stack(
-                    key: const ValueKey('object-canvas-stage-stack'),
-                    clipBehavior: canvasClip,
-                    children: [
-                      if (widget.underlayBuilder case final builder?)
-                        Positioned.fill(child: builder(context, controller)),
-                      RepaintBoundary(
-                        key: _renderBoundaryKey,
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          dragStartBehavior: DragStartBehavior.down,
-                          supportedDevices: _dragGestureDevices,
-                          onTap: widget.clearSelectionOnCanvasTap
-                              ? controller.clearSelection
-                              : null,
-                          onPanStart: _onCanvasPanStart,
-                          onPanUpdate: _onCanvasPanUpdate,
-                          onPanEnd: _onCanvasPanEnd,
-                          onPanCancel: _onCanvasPanCancel,
-                          child: ColoredBox(
-                            color: widget.style.canvasColor,
-                            child: Stack(
-                              key: const ValueKey(
-                                'object-canvas-content-stack',
+      child: SelectionContainer.disabled(
+        child: Focus(
+          focusNode: _focusNode,
+          autofocus: widget.autofocus,
+          onKeyEvent: _onKeyEvent,
+          child: ColoredBox(
+            color: widget.style.viewportColor,
+            child: ClipRect(
+              child: Listener(
+                onPointerSignal: _onPointerSignal,
+                onPointerPanZoomStart: _onViewportPanZoomStart,
+                onPointerPanZoomUpdate: _onViewportPanZoomUpdate,
+                onPointerPanZoomEnd: _onViewportPanZoomEnd,
+                child: InteractiveViewer(
+                  transformationController: controller.viewportController,
+                  constrained: false,
+                  boundaryMargin: widget.viewportBoundaryMargin,
+                  minScale: widget.minScale,
+                  maxScale: widget.maxScale,
+                  panEnabled: false,
+                  scaleEnabled: widget.scaleEnabled,
+                  child: _OverflowHitTestBox(
+                    key: _stageKey,
+                    size: interactionSize,
+                    hitTestBounds: hitTestBounds,
+                    child: _OverflowHitTestStack(
+                      key: const ValueKey('object-canvas-stage-stack'),
+                      hitTestBounds: hitTestBounds,
+                      clipBehavior: canvasClip,
+                      children: [
+                        if (widget.underlayBuilder case final builder?)
+                          Positioned.fromRect(
+                            rect: Offset.zero & controller.canvasSize,
+                            child: builder(context, controller),
+                          ),
+                        if (controller.overflow == CanvasOverflow.show)
+                          for (final snapshot in snapshots.values)
+                            if (_isObjectVisible(snapshot.object))
+                              ..._buildObjectOverflowHitTargets(snapshot),
+                        Positioned.fromRect(
+                          rect: Offset.zero & controller.canvasSize,
+                          child: RepaintBoundary(
+                            key: _renderBoundaryKey,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              dragStartBehavior: DragStartBehavior.down,
+                              supportedDevices: _dragGestureDevices,
+                              onTap: widget.clearSelectionOnCanvasTap
+                                  ? controller.clearSelection
+                                  : null,
+                              onPanStart: _onCanvasPanStart,
+                              onPanUpdate: _onCanvasPanUpdate,
+                              onPanEnd: _onCanvasPanEnd,
+                              onPanCancel: _onCanvasPanCancel,
+                              child: ColoredBox(
+                                color: widget.style.canvasColor,
+                                child: Stack(
+                                  key: const ValueKey(
+                                    'object-canvas-content-stack',
+                                  ),
+                                  clipBehavior: canvasClip,
+                                  children: [
+                                    for (final object in controller.objects)
+                                      if (_isObjectVisible(object))
+                                        _objectItemFor(object.id),
+                                  ],
+                                ),
                               ),
-                              clipBehavior: canvasClip,
-                              children: [
-                                for (final object in controller.objects)
-                                  if (_isObjectVisible(object))
-                                    _objectItemFor(object.id),
-                              ],
                             ),
                           ),
                         ),
-                      ),
-                      Positioned.fill(child: _buildEditorOverlay(context)),
-                      if (widget.overlayBuilder case final builder?)
-                        Positioned.fill(child: builder(context, controller)),
-                    ],
+                        Positioned.fill(
+                          child: _buildEditorOverlay(context, hitTestBounds),
+                        ),
+                        if (widget.overlayBuilder case final builder?)
+                          Positioned.fill(child: builder(context, controller)),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -312,6 +331,24 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
       ),
     );
   }
+
+  Rect _overflowHitTestBounds(Iterable<_CanvasObjectSnapshot<T>> snapshots) {
+    var bounds = Offset.zero & controller.canvasSize;
+    if (controller.overflow != CanvasOverflow.show) return bounds;
+    final padding = math.max(widget.style.handleTapSize, 48).toDouble();
+    for (final snapshot in snapshots) {
+      if (!_isObjectVisible(snapshot.object)) continue;
+      bounds = bounds.expandToInclude(
+        snapshot.object.geometry.paintBounds.inflate(padding),
+      );
+    }
+    return bounds;
+  }
+
+  Size _interactionSize(Rect hitTestBounds) => Size(
+    math.max(controller.canvasSize.width, hitTestBounds.right).toDouble(),
+    math.max(controller.canvasSize.height, hitTestBounds.bottom).toDouble(),
+  );
 
   Map<String, _CanvasObjectSnapshot<T>> _objectSnapshots() {
     final selectedIds = controller.selectedObjectIds;
@@ -358,7 +395,7 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
           label: semanticLabelBuilder?.call(view) ?? 'Canvas object ${view.id}',
           selected: snapshot.selected,
           child: Listener(
-            onPointerDown: (_) => _selectObject(view.id),
+            onPointerDown: (_) => _selectObjectOnPointerDown(view.id),
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
               dragStartBehavior: DragStartBehavior.down,
@@ -378,6 +415,91 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
     );
   }
 
+  List<Widget> _buildObjectOverflowHitTargets(
+    _CanvasObjectSnapshot<T> snapshot,
+  ) {
+    final view = snapshot.object;
+    final canvasBounds = Offset.zero & controller.canvasSize;
+    final rects = _outsideCanvasRects(view.geometry.paintBounds, canvasBounds);
+    if (rects.isEmpty) return const [];
+    return [
+      for (final (index, rect) in rects.indexed)
+        _buildObjectHitTarget(snapshot, rect, index),
+    ];
+  }
+
+  Widget _buildObjectHitTarget(
+    _CanvasObjectSnapshot<T> snapshot,
+    Rect bounds,
+    int index,
+  ) {
+    final view = snapshot.object;
+    final capabilities = snapshot.capabilities;
+    return Positioned.fromRect(
+      key: ValueKey('object-canvas-overflow-hit-${view.id}-$index'),
+      rect: bounds,
+      child: Listener(
+        onPointerDown: (_) => _selectObjectOnPointerDown(view.id),
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          dragStartBehavior: DragStartBehavior.down,
+          supportedDevices: _dragGestureDevices,
+          onTap: () => _selectObject(view.id),
+          onPanStart: capabilities.movable
+              ? (details) => _onObjectMoveStart(view.id, details)
+              : null,
+          onPanUpdate: capabilities.movable ? _onObjectMoveUpdate : null,
+          onPanEnd: capabilities.movable ? (_) => _onObjectMoveEnd() : null,
+          onPanCancel: capabilities.movable ? _onObjectMoveCancel : null,
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+  }
+
+  List<Rect> _outsideCanvasRects(Rect bounds, Rect canvasBounds) {
+    final rects = <Rect>[];
+    void add(Rect rect) {
+      if (rect.width > 0 && rect.height > 0) rects.add(rect);
+    }
+
+    add(
+      Rect.fromLTRB(
+        bounds.left,
+        bounds.top,
+        bounds.right,
+        math.min(bounds.bottom, canvasBounds.top),
+      ),
+    );
+    add(
+      Rect.fromLTRB(
+        bounds.left,
+        math.max(bounds.top, canvasBounds.bottom),
+        bounds.right,
+        bounds.bottom,
+      ),
+    );
+    final verticalTop = math.max(bounds.top, canvasBounds.top);
+    final verticalBottom = math.min(bounds.bottom, canvasBounds.bottom);
+    add(
+      Rect.fromLTRB(
+        bounds.left,
+        verticalTop,
+        math.min(bounds.right, canvasBounds.left),
+        verticalBottom,
+      ),
+    );
+    add(
+      Rect.fromLTRB(
+        math.max(bounds.left, canvasBounds.right),
+        verticalTop,
+        bounds.right,
+        verticalBottom,
+      ),
+    );
+    return rects;
+  }
+
   bool _isObjectVisible(CanvasObject<T> object) =>
       widget.objectVisibility?.call(object) ?? true;
 
@@ -389,6 +511,11 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
           ? CanvasSelectionMode.toggle
           : CanvasSelectionMode.replace,
     );
+  }
+
+  void _selectObjectOnPointerDown(String id) {
+    _focusNode.requestFocus();
+    if (!controller.selectedObjectIds.contains(id)) _selectObject(id);
   }
 
   void _onObjectMoveStart(String id, DragStartDetails details) {
@@ -554,11 +681,12 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
     if (mounted) setState(() {});
   }
 
-  Widget _buildEditorOverlay(BuildContext context) {
+  Widget _buildEditorOverlay(BuildContext context, Rect hitTestBounds) {
     final selected = controller.selectedObjectIds
         .where((id) => _isObjectVisible(controller.requireObject(id)))
         .toList(growable: false);
-    return Stack(
+    return _OverflowHitTestStack(
+      hitTestBounds: hitTestBounds,
       clipBehavior: Clip.none,
       children: [
         Positioned.fill(
@@ -573,28 +701,35 @@ class _ObjectCanvasState<T> extends State<ObjectCanvas<T>> {
             ),
           ),
         ),
-        if (selected.length == 1) _buildSingleSelectionHandles(selected.single),
+        if (selected.length == 1)
+          _buildSingleSelectionHandles(selected.single, hitTestBounds),
       ],
     );
   }
 
-  Widget _buildSingleSelectionHandles(String id) {
+  Widget _buildSingleSelectionHandles(String id, Rect hitTestBounds) {
     final geometry = controller.geometryFor(id);
     final capabilities = controller.capabilitiesFor(id);
     final canResize =
         controller.transformMode == CanvasTransformMode.layoutResize
         ? capabilities.resizable
         : capabilities.scalable;
-    return Stack(
+    return _OverflowHitTestStack(
+      hitTestBounds: hitTestBounds,
       clipBehavior: Clip.none,
       children: [
-        if (canResize) _buildResizeHandles(id, geometry),
+        if (canResize) _buildResizeHandles(id, geometry, hitTestBounds),
         if (capabilities.rotatable) _buildRotationHandle(id, geometry),
       ],
     );
   }
 
-  Widget _buildResizeHandles(String id, CanvasObjectGeometry geometry) => Stack(
+  Widget _buildResizeHandles(
+    String id,
+    CanvasObjectGeometry geometry,
+    Rect hitTestBounds,
+  ) => _OverflowHitTestStack(
+    hitTestBounds: hitTestBounds,
     clipBehavior: Clip.none,
     children: [
       for (final handle in _resizeHandles)
@@ -1251,6 +1386,139 @@ class _CanvasObjectDependency {
 
   @override
   int get hashCode => Object.hash(objectId, aspect);
+}
+
+class _OverflowHitTestBox extends SingleChildRenderObjectWidget {
+  const _OverflowHitTestBox({
+    super.key,
+    required this.size,
+    required this.hitTestBounds,
+    required super.child,
+  });
+
+  final Size size;
+  final Rect hitTestBounds;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _OverflowHitTestRenderBox(size: size, hitTestBounds: hitTestBounds);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _OverflowHitTestRenderBox renderObject,
+  ) {
+    renderObject
+      ..desiredSize = size
+      ..hitTestBounds = hitTestBounds;
+  }
+}
+
+class _OverflowHitTestRenderBox extends RenderProxyBox {
+  _OverflowHitTestRenderBox({required Size size, required Rect hitTestBounds})
+    : _desiredSize = size,
+      _hitTestBounds = hitTestBounds;
+
+  Size get desiredSize => _desiredSize;
+  Size _desiredSize;
+
+  set desiredSize(Size value) {
+    if (_desiredSize == value) return;
+    _desiredSize = value;
+    markNeedsLayout();
+  }
+
+  Rect get hitTestBounds => _hitTestBounds;
+  Rect _hitTestBounds;
+
+  set hitTestBounds(Rect value) {
+    if (_hitTestBounds == value) return;
+    _hitTestBounds = value;
+  }
+
+  @override
+  void performLayout() {
+    size = constraints.constrain(desiredSize);
+    child?.layout(BoxConstraints.tight(size), parentUsesSize: true);
+  }
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (!hitTestBounds.contains(position) &&
+        !(Offset.zero & size).contains(position)) {
+      return false;
+    }
+    if (hitTestChildren(result, position: position) || hitTestSelf(position)) {
+      result.add(BoxHitTestEntry(this, position));
+      return true;
+    }
+    return false;
+  }
+}
+
+class _OverflowHitTestStack extends Stack {
+  const _OverflowHitTestStack({
+    super.key,
+    required this.hitTestBounds,
+    super.clipBehavior,
+    super.children,
+  });
+
+  final Rect hitTestBounds;
+
+  @override
+  RenderStack createRenderObject(BuildContext context) =>
+      _OverflowHitTestRenderStack(
+        hitTestBounds: hitTestBounds,
+        alignment: alignment,
+        textDirection: textDirection ?? Directionality.maybeOf(context),
+        fit: fit,
+        clipBehavior: clipBehavior,
+      );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _OverflowHitTestRenderStack renderObject,
+  ) {
+    renderObject
+      ..hitTestBounds = hitTestBounds
+      ..alignment = alignment
+      ..textDirection = textDirection ?? Directionality.maybeOf(context)
+      ..fit = fit
+      ..clipBehavior = clipBehavior;
+  }
+}
+
+class _OverflowHitTestRenderStack extends RenderStack {
+  _OverflowHitTestRenderStack({
+    required Rect hitTestBounds,
+    required super.alignment,
+    super.textDirection,
+    required super.fit,
+    required super.clipBehavior,
+  }) : _hitTestBounds = hitTestBounds;
+
+  Rect get hitTestBounds => _hitTestBounds;
+  Rect _hitTestBounds;
+
+  set hitTestBounds(Rect value) {
+    if (_hitTestBounds == value) return;
+    _hitTestBounds = value;
+  }
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (!hitTestBounds.contains(position) &&
+        !(Offset.zero & size).contains(position)) {
+      return false;
+    }
+    if (hitTestChildren(result, position: position) || hitTestSelf(position)) {
+      result.add(BoxHitTestEntry(this, position));
+      return true;
+    }
+    return false;
+  }
 }
 
 class _ObjectCanvasModel<T> extends InheritedModel<_CanvasObjectDependency> {

@@ -7,6 +7,7 @@ import 'package:motor/motor.dart';
 
 import 'prototypes/annotation_inbox_prototype.dart';
 import 'prototypes/knob_controls_prototype.dart';
+import 'prototypes/screenshot_action_bar_prototype.dart';
 
 final _lightTheme = DesyDesignSystemFoundation.themeData(
   DesyDesignSystemTheme.light,
@@ -63,6 +64,7 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
       ),
     ],
   ),
+  homePage: _desyHomePage,
   themes: [
     DesyTheme(
       id: 'desy.theme.light',
@@ -239,84 +241,6 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
       description: 'Switches desktop sidebar chrome to compact navigation.',
     ),
   ],
-  motion: [
-    DesyMotionEntry(
-      id: 'desy.motion.sidebar-reveal',
-      name: 'Sidebar reveal',
-      duration: DesyDesignSystemTokens.navigationMotion,
-      curve: Curves.easeOutCubic,
-      description: 'Fades and eases a persistent sidebar into its workspace.',
-      builder: _buildSidebarReveal,
-    ),
-    DesyMotionEntry(
-      id: 'desy.motion.navigation',
-      name: 'Navigation reveal',
-      duration: DesyDesignSystemTokens.navigationMotion,
-      curve: Curves.easeOutCubic,
-      description: 'Sidebar width and similar spatial navigation changes.',
-      builder: _buildMotionSpecimen,
-      transitionBuilder: _buildMotionTransition,
-      instances: const [
-        DesyInstanceId('desy.component.button.primary'),
-        DesyInstanceId('desy.component.badge.outline'),
-      ],
-    ),
-    DesyMotionEntry(
-      id: 'desy.motion.content-swap',
-      name: 'Content swap',
-      duration: DesyDesignSystemTokens.feedbackMotion,
-      curve: Curves.easeInOutCubic,
-      description: 'Crossfades two elements in one stable view without travel.',
-      builder: _buildMotionSpecimen,
-      transitionBuilder: _buildContentSwapTransition,
-      instances: const [
-        DesyInstanceId('desy.component.button.primary'),
-        DesyInstanceId('desy.component.badge.outline'),
-      ],
-    ),
-    DesyMotionEntry(
-      id: 'desy.motion.screen-navigation',
-      name: 'Screen navigation',
-      duration: DesyDesignSystemTokens.navigationMotion,
-      curve: Curves.easeOutCubic,
-      description:
-          'Fades and slides between destination screens while keeping the shell stable.',
-      builder: _buildScreenReveal,
-      transitionBuilder: _buildScreenNavigationTransition,
-      instances: const [
-        DesyInstanceId('desy.component.button.primary'),
-        DesyInstanceId('desy.component.badge.outline'),
-      ],
-    ),
-    DesyMotionEntry(
-      id: 'desy.motion.feedback',
-      name: 'Feedback emphasis',
-      duration: DesyDesignSystemTokens.feedbackMotion,
-      curve: Curves.easeOutCubic,
-      description: 'A concise confirmation or newly revealed state.',
-      builder: _buildMotionSpecimen,
-      transitionBuilder: _buildMotionTransition,
-      instances: const [
-        DesyInstanceId('desy.component.badge.outline'),
-        DesyInstanceId('desy.component.button.primary'),
-      ],
-    ),
-  ],
-  effects: [
-    DesyEffectEntry.boxShadow(
-      id: 'desy.effect.floating',
-      name: 'Floating surface',
-      description: 'Temporary surfaces above the workbench document.',
-      shadows: const [
-        BoxShadow(
-          color: Color(0x2410201D),
-          offset: Offset(0, 10),
-          blurRadius: 28,
-          spreadRadius: -10,
-        ),
-      ],
-    ),
-  ],
   assets: [
     DesyAssetEntry(
       id: 'desy.asset.workspace.signature.primary',
@@ -354,11 +278,15 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
   prototypes: [
     buildAnnotationInboxPrototypeSession(),
     buildKnobControlsPrototypeSession(),
+    buildScreenshotActionBarPrototypeSession(),
   ],
   components: [
+    ..._motionComponents,
     _sampleComponent,
     _allKnobsComponent,
     _buttonComponent,
+    _actionDockButtonComponent,
+    _actionDockComponent,
     _badgeComponent,
     _chatMessageComponent,
     _chatComposerComponent,
@@ -372,6 +300,7 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
     _choiceKnobComponent,
     _dateTimeKnobComponent,
     _colorKnobComponent,
+    _animationScrubberComponent,
     _instanceKnobComponent,
     _textFieldComponent,
     _accordionComponent,
@@ -382,6 +311,8 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
     _sidebarSectionComponent,
     _sidebarItemComponent,
     _cardComponent,
+    _canvasGridBackgroundComponent,
+    _checkerboardBackgroundComponent,
     _knobSheetComponent,
     _catalogueCardComponent,
     _progressTrailComponent,
@@ -389,6 +320,129 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
     _shortcutComponent,
   ],
 );
+
+Widget _desyHomePage(BuildContext context) => ListView(
+  key: const ValueKey('desy-home-readme'),
+  padding: const EdgeInsets.fromLTRB(40, 40, 40, 56),
+  children: [
+    Text('DESY DESIGN SYSTEM', style: Theme.of(context).textTheme.labelSmall),
+    const SizedBox(height: 8),
+    Text(
+      'A working guide to Desy',
+      style: Theme.of(context).textTheme.displaySmall,
+    ),
+    const SizedBox(height: 10),
+    ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: 680),
+      child: Text(
+        'Use this catalogue to inspect the production widgets, foundations, and interaction patterns that make up the workbench.',
+      ),
+    ),
+    const SizedBox(height: 32),
+    LayoutBuilder(
+      builder: (context, constraints) => Wrap(
+        spacing: 16,
+        runSpacing: 16,
+        children: [
+          for (final pointer in const [
+            (
+              'Start with components',
+              'Inspect real production widgets and their declared states.',
+            ),
+            (
+              'Use the foundations',
+              'Compare colors, typography, icons, and measurements as a system.',
+            ),
+            (
+              'Keep decisions visible',
+              'Use the registry as the durable map for the system.',
+            ),
+          ])
+            SizedBox(
+              width: constraints.maxWidth >= 780
+                  ? (constraints.maxWidth - 32) / 3
+                  : constraints.maxWidth >= 520
+                  ? (constraints.maxWidth - 16) / 2
+                  : constraints.maxWidth,
+              child: DesyCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        pointer.$1,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        pointer.$2,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  ],
+);
+
+final _motionComponents = <DesyAnimationComponent<void>>[
+  DesyAnimationComponent<void>(
+    id: 'desy.motion.sidebar-reveal',
+    name: 'Sidebar reveal',
+    path: '/motion',
+    description: 'Fades and eases a persistent sidebar into its workspace.',
+    duration: DesyDesignSystemTokens.navigationMotion,
+    curve: Curves.easeOutCubic,
+    knobs: (_) {},
+    builder: _buildSidebarReveal,
+  ),
+  DesyAnimationComponent<void>(
+    id: 'desy.motion.navigation',
+    name: 'Navigation reveal',
+    path: '/motion',
+    description: 'Sidebar width and similar spatial navigation changes.',
+    duration: DesyDesignSystemTokens.navigationMotion,
+    curve: Curves.easeOutCubic,
+    knobs: (_) {},
+    builder: _buildMotionTransition,
+  ),
+  DesyAnimationComponent<void>(
+    id: 'desy.motion.content-swap',
+    name: 'Content swap',
+    path: '/motion',
+    description: 'Crossfades two elements in one stable view without travel.',
+    duration: DesyDesignSystemTokens.feedbackMotion,
+    curve: Curves.easeInOutCubic,
+    knobs: (_) {},
+    builder: _buildContentSwapTransition,
+  ),
+  DesyAnimationComponent<void>(
+    id: 'desy.motion.screen-navigation',
+    name: 'Screen navigation',
+    path: '/motion',
+    description:
+        'Fades and slides between destination screens while keeping the shell stable.',
+    duration: DesyDesignSystemTokens.navigationMotion,
+    curve: Curves.easeOutCubic,
+    knobs: (_) {},
+    builder: _buildScreenNavigationTransition,
+  ),
+  DesyAnimationComponent<void>(
+    id: 'desy.motion.feedback',
+    name: 'Feedback emphasis',
+    path: '/motion',
+    description: 'A concise confirmation or newly revealed state.',
+    duration: DesyDesignSystemTokens.feedbackMotion,
+    curve: Curves.easeOutCubic,
+    knobs: (_) {},
+    builder: _buildMotionTransition,
+  ),
+];
 
 Widget _buildWorkspaceSignature(BuildContext context) =>
     const _DesyWorkspaceSignature();
@@ -763,6 +817,123 @@ final _buttonComponent = DesyComponent(
     'primary': [knobs.label('Inspect component')],
     'outline': [knobs.label('Open settings'), knobs.outline(true)],
     'disabled': [knobs.label('Unavailable'), knobs.enabled(false)],
+  },
+);
+
+final _actionDockButtonComponent = _component(
+  id: 'desy.component.action-dock-button',
+  name: 'Action dock button',
+  path: '/actions',
+  description:
+      'A square icon-first canvas command with centered glyph, hover motion, and selected-state emphasis.',
+  icon: DesyIcons.mousePointer,
+  source: 'package:desy_design_system/src/desy_action_dock.dart',
+  knobs: (k) => (
+    label: k.string('label', name: 'Label', initial: 'Text'),
+    selected: k.boolean('selected', name: 'Selected', initial: false),
+    shortcut: k.boolean('shortcut', name: 'Show shortcut', initial: true),
+  ),
+  build: (context, knobs) => DesyActionDockButton(
+    icon: DesyIcons.type,
+    label: knobs.label.value,
+    description: 'Add a text layer',
+    shortcutKeys: knobs.shortcut.value ? const ['T'] : const [],
+    selected: knobs.selected.value,
+    onPressed: () {},
+  ),
+  instances: (knobs) => {
+    'default': [knobs.label('Text'), knobs.selected(false)],
+    'selected': [knobs.label('Select'), knobs.selected(true)],
+    'no-shortcut': [knobs.shortcut(false)],
+  },
+);
+
+final _actionDockComponent = _component(
+  id: 'desy.component.action-dock',
+  name: 'Action dock',
+  path: '/molecules/canvas',
+  description:
+      'A floating grouped command dock for canvas modes, insertion commands, and output actions.',
+  icon: DesyIcons.layers,
+  source: 'package:desy_design_system/src/desy_action_dock.dart',
+  knobs: (k) => (
+    selectMode: k.boolean('selectMode', name: 'Select mode', initial: true),
+    output: k.boolean('output', name: 'Show output group', initial: true),
+  ),
+  build: (context, knobs) => DesyActionDock(
+    groups: [
+      DesyActionDockGroup(
+        label: 'Selection mode',
+        actions: [
+          DesyActionDockAction(
+            key: const ValueKey('registry-action-select'),
+            icon: DesyIcons.mousePointer,
+            label: 'Select',
+            description: 'Pick and resize elements',
+            shortcutKeys: const ['V'],
+            selected: knobs.selectMode.value,
+            onPressed: () {},
+          ),
+          DesyActionDockAction(
+            key: const ValueKey('registry-action-frame'),
+            icon: DesyIcons.crosshair,
+            label: 'Frame',
+            description: 'Edit canvas bounds',
+            shortcutKeys: const ['F'],
+            selected: !knobs.selectMode.value,
+            onPressed: () {},
+          ),
+        ],
+      ),
+      DesyActionDockGroup(
+        label: 'Add elements',
+        actions: [
+          DesyActionDockAction(
+            key: const ValueKey('registry-action-text'),
+            icon: DesyIcons.type,
+            label: 'Text',
+            description: 'Add a text layer',
+            shortcutKeys: const ['T'],
+            onPressed: () {},
+          ),
+          DesyActionDockAction(
+            key: const ValueKey('registry-action-component'),
+            icon: DesyIcons.layoutGrid,
+            label: 'Component',
+            description: 'Open the component catalog',
+            shortcutKeys: const ['C'],
+            onPressed: () {},
+          ),
+          DesyActionDockAction(
+            key: const ValueKey('registry-action-image'),
+            icon: DesyIcons.image,
+            label: 'Image',
+            description: 'Add an image layer',
+            shortcutKeys: const ['I'],
+            onPressed: () {},
+          ),
+        ],
+      ),
+      if (knobs.output.value)
+        DesyActionDockGroup(
+          label: 'Output',
+          actions: [
+            DesyActionDockAction(
+              key: const ValueKey('registry-action-export'),
+              icon: DesyIcons.camera,
+              label: 'Shot',
+              description: 'Export screenshot',
+              shortcutKeys: const ['Cmd', 'S'],
+              onPressed: () {},
+            ),
+          ],
+        ),
+    ],
+  ),
+  instances: (knobs) => {
+    'select': [knobs.selectMode(true), knobs.output(true)],
+    'frame': [knobs.selectMode(false), knobs.output(true)],
+    'insert-only': [knobs.output(false)],
   },
 );
 
@@ -1489,6 +1660,46 @@ final _colorKnobComponent = _component(
   },
 );
 
+final _animationScrubberComponent = _component(
+  id: 'desy.component.animation-scrubber',
+  name: 'Animation scrubber',
+  path: '/inputs/animation',
+  description:
+      'Scrubs a finite animation timeline on a tick rail with a signal playhead.',
+  icon: DesyIcons.play,
+  source: 'package:desy_design_system/src/desy_animation_scrubber.dart',
+  knobs: (k) => (
+    progress: k.number(
+      'progress',
+      name: 'Progress',
+      initial: .35,
+      unit: '%',
+      step: .05,
+      maximum: 1,
+    ),
+    duration: k.number(
+      'duration',
+      name: 'Duration',
+      initial: 600,
+      unit: 'ms',
+      step: 100,
+      minimum: 100,
+      maximum: 2000,
+    ),
+    enabled: k.boolean('enabled', name: 'Enabled', initial: true),
+  ),
+  build: (context, knobs) => DesyAnimationScrubber(
+    progress: knobs.progress.value,
+    duration: Duration(milliseconds: knobs.duration.value.round()),
+    onChanged: knobs.enabled.value ? (_) {} : null,
+  ),
+  instances: (knobs) => {
+    'opening': [knobs.progress(.2), knobs.duration(320)],
+    'settled': [knobs.progress(.75), knobs.duration(600)],
+    'disabled': [knobs.enabled(false)],
+  },
+);
+
 final _instanceKnobComponent = _component(
   id: 'desy.component.instance-knob-row',
   name: 'Instance knob row',
@@ -1521,6 +1732,62 @@ final _instanceKnobComponent = _component(
     'badge': [knobs.instance(_badgeDefaultInstanceId), knobs.enabled(true)],
     'shortcut': [knobs.instance(_shortcutSingleKeyInstanceId)],
     'disabled': [knobs.enabled(false)],
+  },
+);
+
+final _canvasGridBackgroundComponent = _component(
+  id: 'desy.component.canvas-grid-background',
+  name: 'Canvas grid background',
+  path: '/layout/canvas',
+  description:
+      'Paints the shared square-line workbench backdrop used behind canvas surfaces.',
+  icon: DesyIcons.layoutGrid,
+  source: 'package:desy_design_system/src/desy_canvas_background.dart',
+  knobs: (k) => (
+    compact: k.boolean('compact', name: 'Compact cells', initial: false),
+    content: k.boolean('content', name: 'Show content', initial: true),
+  ),
+  build: (context, knobs) => SizedBox(
+    width: 320,
+    height: 180,
+    child: DesyCanvasGridBackground(
+      cellSize: knobs.compact.value ? 16 : 24,
+      child: knobs.content.value
+          ? const Center(child: DesyBadge(child: Text('CANVAS')))
+          : null,
+    ),
+  ),
+  instances: (knobs) => {
+    'default': [knobs.compact(false), knobs.content(true)],
+    'compact': [knobs.compact(true), knobs.content(false)],
+  },
+);
+
+final _checkerboardBackgroundComponent = _component(
+  id: 'desy.component.checkerboard-background',
+  name: 'Checkerboard background',
+  path: '/layout/canvas',
+  description:
+      'Paints the shared checkerboard used to preview transparent canvas content.',
+  icon: DesyIcons.layoutGrid,
+  source: 'package:desy_design_system/src/desy_canvas_background.dart',
+  knobs: (k) => (
+    compact: k.boolean('compact', name: 'Compact cells', initial: false),
+    content: k.boolean('content', name: 'Show content', initial: true),
+  ),
+  build: (context, knobs) => SizedBox(
+    width: 320,
+    height: 180,
+    child: DesyCheckerboardBackground(
+      cellSize: knobs.compact.value ? 8 : 12,
+      child: knobs.content.value
+          ? const Center(child: DesyBadge(child: Text('TRANSPARENT')))
+          : null,
+    ),
+  ),
+  instances: (knobs) => {
+    'default': [knobs.compact(false), knobs.content(true)],
+    'compact': [knobs.compact(true), knobs.content(false)],
   },
 );
 
@@ -2317,56 +2584,66 @@ class _SidebarSpecimen extends StatelessWidget {
   );
 }
 
-Widget _buildMotionSpecimen(
-  BuildContext context,
-  Widget child,
-  Duration duration,
-) => _MotionSpecimen(child: child);
-
 Widget _buildSidebarReveal(
   BuildContext context,
-  Widget child,
-  Duration duration,
-) => DesyMotionReveal(beginOffset: const Offset(-24, 0), child: child);
-
-Widget _buildScreenReveal(
-  BuildContext context,
-  Widget child,
-  Duration duration,
-) => DesyMotionReveal(beginOffset: const Offset(20, 0), child: child);
+  void _,
+  Animation<double> progress,
+) => DesyMotionReveal(
+  progress: progress,
+  beginOffset: const Offset(-24, 0),
+  child: _animationButton(),
+);
 
 Widget _buildMotionTransition(
   BuildContext context,
-  Widget first,
-  Widget second,
-  Duration duration,
+  void _,
+  Animation<double> progress,
 ) => _MotionSpecimen(
-  child: DesyMotionWidgetTransition(first: first, second: second),
+  progress: progress,
+  child: DesyMotionWidgetTransition(
+    progress: progress,
+    first: _animationButton(),
+    second: _animationBadge(),
+  ),
 );
 
 Widget _buildContentSwapTransition(
   BuildContext context,
-  Widget first,
-  Widget second,
-  Duration duration,
-) => DesyMotionWidgetTransition(first: first, second: second, distance: 0);
+  void _,
+  Animation<double> progress,
+) => DesyMotionWidgetTransition(
+  progress: progress,
+  first: _animationButton(),
+  second: _animationBadge(),
+  distance: 0,
+);
 
 Widget _buildScreenNavigationTransition(
   BuildContext context,
-  Widget first,
-  Widget second,
-  Duration duration,
-) => DesyMotionWidgetTransition(first: first, second: second, distance: 32);
+  void _,
+  Animation<double> progress,
+) => DesyMotionWidgetTransition(
+  progress: progress,
+  first: _animationButton(),
+  second: _animationBadge(),
+  distance: 32,
+);
+
+Widget _animationButton() =>
+    DesyButton(onPress: _noop, child: const Text('Inspect component'));
+
+Widget _animationBadge() => const DesyBadge(child: Text('STABLE'));
+
+void _noop() {}
 
 class _MotionSpecimen extends StatelessWidget {
-  const _MotionSpecimen({required this.child});
+  const _MotionSpecimen({required this.progress, required this.child});
 
+  final Animation<double> progress;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final progress =
-        DesyMotionPlaybackScope.maybeOf(context) ?? kAlwaysDismissedAnimation;
     return AnimatedBuilder(
       animation: progress,
       child: child,

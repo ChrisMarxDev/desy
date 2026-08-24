@@ -259,7 +259,10 @@ class _ColorPickerState extends State<_ColorPicker> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      _ColorSwatch(color: color, size: 48),
+                      _ColorSwatch(
+                        color: color,
+                        size: DesyDesignSystemTokens.textFieldMinHeight,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: DesyTextField(

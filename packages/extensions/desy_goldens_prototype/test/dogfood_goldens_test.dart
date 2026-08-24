@@ -107,15 +107,8 @@ Future<void> _writePlan(DesyGoldenPrototypePlan plan) async {
 
 Future<void> _loadDogfoodFonts() async {
   final loader = FontLoader(DesyDesignSystemTokens.fontFamily);
-  for (final asset in const [
-    'Roboto-Light.ttf',
-    'Roboto-Regular.ttf',
-    'Roboto-Medium.ttf',
-    'Roboto-Bold.ttf',
-  ]) {
-    loader.addFont(
-      rootBundle.load('packages/desy_design_system/assets/fonts/$asset'),
-    );
-  }
+  loader.addFont(
+    rootBundle.load('packages/forui/assets/fonts/inter/Inter.ttf'),
+  );
   await loader.load();
 }

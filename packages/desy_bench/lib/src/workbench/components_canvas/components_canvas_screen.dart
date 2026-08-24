@@ -1426,74 +1426,81 @@ class _CanvasStage extends StatelessWidget {
               renderBox.globalToLocal(details.offset),
             );
           },
-          builder: (context, candidates, rejected) => DecoratedBox(
-            decoration: BoxDecoration(
-              color:
-                  theme.previewBackgroundColor ??
-                  context.theme.colors.background,
-              border: candidates.isEmpty
-                  ? null
-                  : Border.all(
-                      color: context.theme.colors.desy.signal,
-                      width: 2,
-                    ),
-            ),
-            child: CustomPaint(
-              painter: _CanvasGridPainter(
-                minorColor: context.theme.colors.border,
-                majorColor: context.theme.colors.mutedForeground,
-                step: gridStep,
+          builder: (context, candidates, rejected) {
+            final showMinor = gridStep >= 4;
+            final paintedStep = showMinor ? gridStep : gridStep * 8;
+            final majorEvery = showMinor ? 8 : 1;
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                border: candidates.isEmpty
+                    ? null
+                    : Border.all(
+                        color: context.theme.colors.desy.signal,
+                        width: 2,
+                      ),
               ),
-              child: Stack(
-                key: const ValueKey('sketch-stage'),
-                clipBehavior: Clip.hardEdge,
-                children: [
-                  Positioned.fill(
-                    child: GestureDetector(
-                      key: const ValueKey('sketch-background'),
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => controller.select(null),
-                    ),
-                  ),
-                  if (nodes.isEmpty)
-                    const Center(
-                      child: Text(
-                        'Choose or drag an instance from the palette.',
+              child: DesyCanvasGridBackground(
+                backgroundColor:
+                    theme.previewBackgroundColor ??
+                    context.theme.colors.background,
+                cellSize: paintedStep,
+                lineColor: context.theme.colors.border.withAlpha(40),
+                majorEvery: majorEvery,
+                majorLineColor: context.theme.colors.mutedForeground.withAlpha(
+                  50,
+                ),
+                lineWidth: .5,
+                child: Stack(
+                  key: const ValueKey('sketch-stage'),
+                  clipBehavior: Clip.hardEdge,
+                  children: [
+                    Positioned.fill(
+                      child: GestureDetector(
+                        key: const ValueKey('sketch-background'),
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => controller.select(null),
                       ),
                     ),
-                  for (final nodeId in nodes.keys)
-                    _ReactiveCanvasNode(
-                      key: ValueKey('canvas-node-signal-$nodeId'),
-                      nodeId: nodeId,
-                      committedNodes: nodes,
-                      selectedId: selectedId,
-                      clampingRect: clampingRect,
-                      registry: registry,
-                      instances: instances,
-                      theme: theme,
-                      controller: controller,
-                    ),
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: RepaintBoundary(
-                        key: const ValueKey('sketch-snap-guides-repaint'),
-                        child: ValueListenableBuilder<List<DesySnapGuide>>(
-                          valueListenable: controller.activeSnapGuides,
-                          builder: (context, guides, _) => CustomPaint(
-                            key: const ValueKey('sketch-snap-guides'),
-                            painter: _CanvasSnapGuidePainter(
-                              guides: guides,
-                              color: context.theme.colors.desy.signal,
+                    if (nodes.isEmpty)
+                      const Center(
+                        child: Text(
+                          'Choose or drag an instance from the palette.',
+                        ),
+                      ),
+                    for (final nodeId in nodes.keys)
+                      _ReactiveCanvasNode(
+                        key: ValueKey('canvas-node-signal-$nodeId'),
+                        nodeId: nodeId,
+                        committedNodes: nodes,
+                        selectedId: selectedId,
+                        clampingRect: clampingRect,
+                        registry: registry,
+                        instances: instances,
+                        theme: theme,
+                        controller: controller,
+                      ),
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: RepaintBoundary(
+                          key: const ValueKey('sketch-snap-guides-repaint'),
+                          child: ValueListenableBuilder<List<DesySnapGuide>>(
+                            valueListenable: controller.activeSnapGuides,
+                            builder: (context, guides, _) => CustomPaint(
+                              key: const ValueKey('sketch-snap-guides'),
+                              painter: _CanvasSnapGuidePainter(
+                                guides: guides,
+                                color: context.theme.colors.desy.signal,
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       );
     },
@@ -2049,60 +2056,6 @@ extension on DesyDevicePreset {
     DesyDevicePreset.iPhone15Pro => DesyIcons.smartphone,
     DesyDevicePreset.iPadPro11 => DesyIcons.tablet,
   };
-}
-
-class _CanvasGridPainter extends CustomPainter {
-  const _CanvasGridPainter({
-    required this.minorColor,
-    required this.majorColor,
-    required this.step,
-  });
-
-  final Color minorColor;
-  final Color majorColor;
-  final double step;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final minor = Paint()
-      ..color = minorColor.withAlpha(40)
-      ..strokeWidth = 0.5;
-    final major = Paint()
-      ..color = majorColor.withAlpha(50)
-      ..strokeWidth = 1;
-
-    final showMinor = step >= 4;
-    final paintedStep = showMinor ? step : step * 8;
-    final majorEvery = showMinor ? 8 : 1;
-    for (
-      var index = 0, x = 0.0;
-      x <= size.width;
-      index++, x = index * paintedStep
-    ) {
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        index % majorEvery == 0 ? major : minor,
-      );
-    }
-    for (
-      var index = 0, y = 0.0;
-      y <= size.height;
-      index++, y = index * paintedStep
-    ) {
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        index % majorEvery == 0 ? major : minor,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_CanvasGridPainter oldDelegate) =>
-      oldDelegate.minorColor != minorColor ||
-      oldDelegate.majorColor != majorColor ||
-      oldDelegate.step != step;
 }
 
 class _CanvasSnapGuidePainter extends CustomPainter {

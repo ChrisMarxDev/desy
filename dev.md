@@ -1,5 +1,17 @@
 # Desy Bench development
 
+## Codex-managed dogfood hot reload
+
+On macOS, launch the dogfood catalogue once with `task dogfood:app:dev`.
+That command registers the active Flutter tool in the gitignored
+`.codex/local/dev-runtime.json`. Subsequent Codex Dart edits request a
+debounced hot reload through the global `codex-dev` hook; no PID is needed.
+
+Use `codex-dev status --cwd .` to inspect the registration. If it reports a
+stale or missing runtime, restart `task dogfood:app:dev`. `task
+dogfood:app:reload` and `task dogfood:app:restart` remain available for manual
+checks.
+
 This is the maintained contributor guide. Keep it about implemented behavior.
 Planned product work and concept ideas belong only in the
 [`concept/features` index](concept/features/index.html); implemented contracts
@@ -51,12 +63,12 @@ Forui rather than mixing in another Flutter UI package. Primary actions remain
 neutral black; `DesyVisualColors.signal` is reserved for focus, selection,
 inspection, and annotation; positive green communicates runtime health. Light
 workbench surfaces are white with one-pixel neutral structural dividers,
-compact radii, and bundled Roboto typography. Screens and extensions consume
+compact radii, and Forui's bundled Inter typography. Screens and extensions consume
 these semantic tokens instead of declaring local signal colors.
 
 ## Registry organization
 
-Colors, Fonts, Icons, Measurements, Motion, and Effects are optional typed
+Colors, Fonts, Icons, Measurements, and Motion are optional typed
 parameters on `DesyRegistry`, not consumer folder branches. Desy derives the Atoms
 section from the non-empty lists and omits it completely when none are supplied.
 Numeric primitives use `DesyNumericEntry`; icon glyphs use `DesyIconEntry`.

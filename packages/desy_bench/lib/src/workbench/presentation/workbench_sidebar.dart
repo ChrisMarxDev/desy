@@ -39,24 +39,30 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     final componentCount = session.registry.allComponents.length;
     final extensions = session.extensions;
     final searchResults = _searchEntries(query);
+    final hasSearchableEntries = session.registry.allEntries.isNotEmpty;
+    final hasAnnotations = session.workbenchAnnotations
+        .watch(context)
+        .isNotEmpty;
 
     return DesySidebar(
       constraints: const BoxConstraints(minWidth: double.infinity),
       headerPadding: EdgeInsets.zero,
       contentPadding: const EdgeInsets.symmetric(horizontal: 8),
       footerPadding: EdgeInsets.zero,
-      header: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-        child: _searchField(context, query),
-      ),
-      footer: onOpenAnnotations == null
+      header: hasSearchableEntries
+          ? Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+              child: _searchField(context, query),
+            )
+          : null,
+      footer: onOpenAnnotations == null || !hasAnnotations
           ? null
           : _SidebarAnnotationSummary(
               session: session,
               onOpen: onOpenAnnotations!,
             ),
       children: [
-        if (query.isNotEmpty)
+        if (hasSearchableEntries && query.isNotEmpty)
           DesySidebarSection(
             key: const ValueKey('sidebar-section-search-results'),
             label: 'Search results',
@@ -78,32 +84,29 @@ class DesyWorkbenchSidebar extends StatelessWidget {
             ],
           )
         else ...[
-          DesySidebarSection(
-            key: const ValueKey('sidebar-section-apps'),
-            label: 'Apps',
-            children: [
-              DesySidebarItem(
-                key: const ValueKey('registry-home-nav'),
-                icon: const Icon(DesyIcons.layoutGrid, size: 18),
-                label: const Text('Home'),
-                selected: currentLocation.path == DesyWorkbenchRoutes.homePath,
-                onPress: () => _go(context, DesyWorkbenchRoutes.homePath),
-              ),
-              for (final extension in extensions)
-                DesySidebarItem(
-                  key: ValueKey('workspace-extension-${extension.id}'),
-                  icon: Icon(extension.icon ?? DesyIcons.boxes, size: 18),
-                  label: Text(extension.name),
-                  selected:
-                      currentLocation.path ==
+          _homeItem(context, currentLocation),
+          if (extensions.isNotEmpty)
+            DesySidebarSection(
+              key: const ValueKey('sidebar-section-apps'),
+              label: 'Apps',
+              count: extensions.length,
+              collapsible: true,
+              children: [
+                for (final extension in extensions)
+                  DesySidebarItem(
+                    key: ValueKey('workspace-extension-${extension.id}'),
+                    icon: Icon(extension.icon ?? DesyIcons.boxes, size: 18),
+                    label: Text(extension.name),
+                    selected:
+                        currentLocation.path ==
+                        DesyWorkbenchRoutes.workspaceExtension(extension.id),
+                    onPress: () => _go(
+                      context,
                       DesyWorkbenchRoutes.workspaceExtension(extension.id),
-                  onPress: () => _go(
-                    context,
-                    DesyWorkbenchRoutes.workspaceExtension(extension.id),
+                    ),
                   ),
-                ),
-            ],
-          ),
+              ],
+            ),
           if (session.registry.allPrototypes.isNotEmpty)
             DesySidebarSection(
               key: const ValueKey('sidebar-section-prototypes'),
@@ -140,7 +143,10 @@ class DesyWorkbenchSidebar extends StatelessWidget {
               count: componentCount,
               collapsible: true,
               onLabelPress: () => _go(context, DesyWorkbenchRoutes.atlasPath),
-              children: componentTree,
+              children: [
+                _allComponentsItem(context, currentLocation),
+                ...componentTree,
+              ],
             ),
         ],
       ],
@@ -163,6 +169,15 @@ class DesyWorkbenchSidebar extends StatelessWidget {
         })
         .toList(growable: false);
   }
+
+  DesySidebarItem _homeItem(BuildContext context, Uri location) =>
+      DesySidebarItem(
+        key: const ValueKey('registry-home-nav'),
+        icon: const Icon(DesyIcons.layoutGrid, size: 18),
+        label: const Text('Home'),
+        selected: location.path == DesyWorkbenchRoutes.homePath,
+        onPress: () => _go(context, DesyWorkbenchRoutes.homePath),
+      );
 
   Widget _searchField(BuildContext context, String query) {
     final field = DesyTextField(
@@ -220,6 +235,17 @@ class DesyWorkbenchSidebar extends StatelessWidget {
       ),
   ];
 
+  DesySidebarItem _allComponentsItem(BuildContext context, Uri location) =>
+      DesySidebarItem(
+        key: const ValueKey('sidebar-all-components'),
+        icon: const Icon(DesyIcons.layoutGrid, size: 18),
+        label: const Text('All components'),
+        selected:
+            location.path == DesyWorkbenchRoutes.atlasPath &&
+            !location.queryParameters.containsKey('folder'),
+        onPress: () => _go(context, DesyWorkbenchRoutes.atlasPath),
+      );
+
   List<Widget> _componentTreeChildren(
     BuildContext context,
     List<DesyComponentGroup> roots,
@@ -237,10 +263,11 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     Uri location,
   ) {
     final entries = _directEntries(folder);
-    return DesySidebarItem(
+    return DesySidebarItem.folder(
       key: ValueKey('sidebar-folder-${folder.path}'),
       icon: const Icon(DesyIcons.folder, size: 16),
       label: Text(folder.name),
+      disclosureLabel: folder.name,
       selected:
           location.path == DesyWorkbenchRoutes.atlasPath &&
           location.queryParameters['folder'] == folder.path,
@@ -305,7 +332,6 @@ class DesyWorkbenchSidebar extends StatelessWidget {
     'Icons' => DesyIcons.shapes,
     'Spacing' || 'Sizing' || 'Shape' => DesyIcons.ruler,
     'Motion' => DesyIcons.sparkles,
-    'Effects' => DesyIcons.layers,
     'Assets' => DesyIcons.image,
     _ => DesyIcons.folder,
   };

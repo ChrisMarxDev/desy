@@ -79,7 +79,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('REGISTRY'), findsNothing);
-    expect(find.text('Apps'), findsOneWidget);
+    expect(find.text('Apps'), findsNothing);
     expect(find.text('Home'), findsOneWidget);
     expect(find.text('Sketch'), findsNothing);
     expect(find.text('Prototypes'), findsWidgets);

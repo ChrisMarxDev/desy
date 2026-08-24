@@ -5,9 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
 
-import 'motion_playback_controls.dart';
 import 'component_overview.dart';
-import '../../motion_playback.dart';
 import '../../registry.dart';
 import '../widget_preview.dart';
 import '../workbench_annotation.dart';
@@ -30,68 +28,9 @@ class DesyAtlasScreen extends StatefulWidget {
   State<DesyAtlasScreen> createState() => _DesyAtlasScreenState();
 }
 
-class _DesyAtlasScreenState extends State<DesyAtlasScreen>
-    with TickerProviderStateMixin {
-  DesyMotionPlaybackController? _motionPlayback;
-  Duration? _globalMotionDuration;
-
+class _DesyAtlasScreenState extends State<DesyAtlasScreen> {
   DesyWorkbenchSession get session => widget.session;
   String? get folderId => widget.folderId;
-
-  @override
-  void initState() {
-    super.initState();
-    _configureMotionPlayback();
-  }
-
-  @override
-  void didUpdateWidget(covariant DesyAtlasScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.folderId != widget.folderId ||
-        oldWidget.session != widget.session) {
-      _configureMotionPlayback();
-    }
-  }
-
-  void _configureMotionPlayback() {
-    _motionPlayback?.dispose();
-    _motionPlayback = null;
-    _globalMotionDuration = null;
-    final entries = _entriesForDestination(folderId);
-    if (entries.isEmpty ||
-        !entries.every((entry) => entry.source is DesyMotionEntry)) {
-      return;
-    }
-    var longestDeclaredDuration = Duration.zero;
-    for (final entry in entries) {
-      final motion = entry.source as DesyMotionEntry;
-      final duration = motion.duration;
-      if (duration > longestDeclaredDuration) {
-        longestDeclaredDuration = duration;
-      }
-    }
-    final globalDuration = longestDeclaredDuration;
-    _globalMotionDuration = globalDuration;
-    _motionPlayback = DesyMotionPlaybackController(
-      vsync: this,
-      duration: globalDuration,
-    );
-  }
-
-  void _setGlobalMotionDuration(Duration duration) {
-    final playback = _motionPlayback;
-    if (playback == null || duration <= Duration.zero) return;
-    setState(() {
-      _globalMotionDuration = duration;
-      playback.setDuration(duration);
-    });
-  }
-
-  @override
-  void dispose() {
-    _motionPlayback?.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +43,6 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
         ? null
         : session.registry.atomKindForId(folderId!);
     final atomRoot = folderId == DesyAtomKind.rootId;
-
     if (atomKind == null && !atomRoot) {
       final components = folder?.allComponents ?? session.registry.components;
       return _ComponentsAtlas(
@@ -166,18 +104,6 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
               ],
             ),
           ),
-          if ((_motionPlayback, _globalMotionDuration) case (
-            final playback?,
-            final globalDuration?,
-          )) ...[
-            const SizedBox(height: 14),
-            DesyMotionPlaybackControls(
-              controller: playback,
-              compact: true,
-              globalDuration: globalDuration,
-              onGlobalDurationChanged: _setGlobalMotionDuration,
-            ),
-          ],
           if (entries.any((entry) => entry.source is DesyColorEntry)) ...[
             const SizedBox(height: 4),
             Text(
@@ -197,7 +123,6 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
               entries: entries,
               theme: theme,
               widgets: widgets,
-              motionPlayback: _motionPlayback,
               onOpen: widget.onOpen,
             ),
           ),
@@ -251,20 +176,6 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen>
     for (final component in folder.components)
       session.registry.resolve(component.id)!,
   ];
-
-  List<DesyRegistryEntry> _entriesForDestination(String? id) {
-    if (id == null) return const [];
-    if (id == DesyAtomKind.rootId) {
-      return [
-        for (final kind in session.registry.atomKinds)
-          ...session.registry.entriesForAtom(kind),
-      ];
-    }
-    final atomKind = session.registry.atomKindForId(id);
-    if (atomKind != null) return session.registry.entriesForAtom(atomKind);
-    final folder = _folderFor(id);
-    return folder == null ? const [] : _directEntriesInFolder(folder);
-  }
 
   String _eyebrow(
     DesyComponentGroup? folder,
@@ -377,14 +288,12 @@ class _AtlasEntryGrid extends StatelessWidget {
     required this.entries,
     required this.theme,
     required this.widgets,
-    required this.motionPlayback,
     required this.onOpen,
   });
 
   final List<DesyRegistryEntry> entries;
   final DesyTheme theme;
   final DesyWidgetResolver widgets;
-  final DesyMotionPlaybackController? motionPlayback;
   final ValueChanged<DesyRegistryEntry> onOpen;
 
   @override
@@ -398,7 +307,6 @@ class _AtlasEntryGrid extends StatelessWidget {
         entries: entries,
         theme: theme,
         widgets: widgets,
-        motionPlayback: motionPlayback,
         onOpen: onOpen,
         bottomPadding: 0,
       ),
@@ -411,7 +319,6 @@ class _AtlasEntriesSliver extends StatelessWidget {
     required this.entries,
     required this.theme,
     required this.widgets,
-    required this.motionPlayback,
     required this.onOpen,
     required this.bottomPadding,
   });
@@ -419,7 +326,6 @@ class _AtlasEntriesSliver extends StatelessWidget {
   final List<DesyRegistryEntry> entries;
   final DesyTheme theme;
   final DesyWidgetResolver widgets;
-  final DesyMotionPlaybackController? motionPlayback;
   final ValueChanged<DesyRegistryEntry> onOpen;
   final double bottomPadding;
 
@@ -438,7 +344,6 @@ class _AtlasEntriesSliver extends StatelessWidget {
           entry: entries[index],
           theme: theme,
           widgets: widgets,
-          motionPlayback: motionPlayback,
           onOpen: () => onOpen(entries[index]),
         ),
         childCount: entries.length,
@@ -452,19 +357,16 @@ class _AtlasCard extends StatelessWidget {
     required this.entry,
     required this.theme,
     required this.widgets,
-    required this.motionPlayback,
     required this.onOpen,
   });
 
   final DesyRegistryEntry entry;
   final DesyTheme theme;
   final DesyWidgetResolver widgets;
-  final DesyMotionPlaybackController? motionPlayback;
   final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final previewBuilder = _previewBuilder();
     return Semantics(
       container: true,
       explicitChildNodes: true,
@@ -499,7 +401,7 @@ class _AtlasCard extends StatelessWidget {
                         kind: 'Registry entry',
                         label: entry.name,
                       ),
-                      child: Builder(builder: previewBuilder),
+                      child: Builder(builder: entry.builder),
                     ),
                   ),
                 ),
@@ -507,18 +409,6 @@ class _AtlasCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  WidgetBuilder _previewBuilder() {
-    final playback = motionPlayback;
-    final source = entry.source;
-    if (playback == null || source is! DesyMotionEntry) return entry.builder;
-    return (context) => DesyMotionPlaybackScope(
-      progress: playback.timeline,
-      child: Builder(
-        builder: (context) => source.buildDefault(context, widgets: widgets),
       ),
     );
   }

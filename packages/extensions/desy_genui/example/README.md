@@ -1,26 +1,52 @@
-# Desy GenUI OpenAI sample
+# Orbit — Desy GenUI experiment
 
-This Flutter app compiles Desy's maintained dogfood registry into a real GenUI
-`Catalog`, feeds typed A2UI v0.9 messages to `SurfaceController`, and renders
-the surface with the real Desy theme. A small loopback-only Dart server calls
-OpenAI's Responses API and keeps the API key outside the Flutter web build.
+Orbit is the desktop experimentation app for `desy_genui`. It takes an
+app-owned chat prompt, asks a backend for an A2UI component graph, and renders
+that graph using the application's own real Flutter widgets.
 
-## Which Desy project does it use?
+It is a deliberate replacement for the old Material-shaped demo. Orbit uses a
+Shadcn-inspired semantic foundation and [Mix](https://pub.dev/packages/mix)
+for its reusable surface styling; it does not render `MaterialApp`, `Scaffold`,
+`TextField`, `InkWell`, Material icons, or Material progress indicators.
 
-This executable directly uses `desyDesignSystemRegistry` from
-`packages/desy_design_system/example/lib/src/desy_design_system_registry.dart`.
-There is no second sample registry. The same declarations drive the maintained
-workbench catalogue, backend artifact, runtime GenUI builders, and this chat.
+## Orbit design system
 
-The dogfood registry includes real `DesyChatThread`, `DesyChatMessage`, and
-`DesyChatComposer` components. Agent output uses Desy's signal-pink inspection
-trace, prompts use the recessed panel surface, and submission uses Desy's
-native text field plus primary action.
+`lib/orbit/` is a separate consumer-owned design system:
+
+- `orbit_theme.dart` defines the semantic light and dark palettes, typography,
+  spacing, radius, motion, focus treatment, pointer cursors, native editable
+  text area, buttons, badges, progress, and spinner.
+- `orbit_components.dart` defines the generated-content vocabulary: insight,
+  task list and row, recommendation, approval request, tool activity, metric
+  grid and tile, source card, and response stack.
+- `orbit_registry.dart` registers those exact widgets with Desy under stable
+  IDs and validated paths. The registry has two real themes: Midnight and
+  Daylight.
+
+The app shell owns chat input, backend communication, shortcut policy, and
+business routing. Generated UI owns only declared component props, legal child
+slots, and emitted events. `DesyGenUiCatalog.compile(orbitRegistry)` produces
+the executable Flutter catalog and serializable backend artifact from that one
+registry.
+
+Desktop interaction is intentionally explicit:
+
+- buttons expose focus, hover, disabled, pointer-cursor, semantic, and
+  keyboard activation states;
+- the composer is native `EditableText`, retaining selection, IME, and assistive
+  technology behavior;
+- `Ctrl/⌘ + K` focuses the composer and `Ctrl/⌘ + Enter` generates a response;
+- agent updates use a live semantic region, while approval and recommendation
+  events remain typed GenUI actions.
+
+The component choices take inspiration from the compact agent patterns at
+[Beautiful UI](https://www.beautifului.dev/), without copying its code or
+assets. The token roles and neutral defaults follow
+[Shadcn's theming model](https://ui.shadcn.com/docs/theming).
 
 ## Configure OpenAI
 
-From `packages/extensions/desy_genui/example`, copy `.env.example` to `.env`
-on a fresh checkout and put the secret only in `.env`:
+From `packages/extensions/desy_genui/example`, copy `.env.example` to `.env`:
 
 ```dotenv
 OPENAI_API_KEY=sk-...
@@ -28,45 +54,23 @@ OPENAI_MODEL=gpt-5-mini
 GENUI_SERVER_PORT=8787
 ```
 
-`.env` and environment variants are ignored workspace-wide; `.env.example` is
-the explicitly committed exception. Shell environment values override `.env`.
+The secret stays in the loopback-only Dart server, not in the Flutter web app.
 
 ## Run
 
-Start the provider server in one terminal from the workspace root:
+From the workspace root, start the local backend and then the Chrome app:
 
 ```sh
 task genui_example:server
-```
-
-Then start the Flutter web app in another terminal:
-
-
-```sh
 task genui_example:run
 ```
 
-`run` targets Chrome explicitly, so Flutter will not select an iOS device or
-download iOS artifacts. Enter a prompt and choose **Generate UI**. The app sends
-the serializable `compiled.backendArtifact`; the server derives a strict output
-schema from it and returns a complete component tree. Only the app retains
-Flutter widget builders. The server sees schemas, prompts, examples, version,
-and digest.
+The backend receives the catalog artifact, digest, and either a prompt or a
+typed generated-UI action. It returns one complete A2UI surface, which Orbit
+swaps into the conversation. Generated actions are forwarded by default;
+`DesyGenUiExampleApp.shouldForwardAction` lets a production consumer keep
+navigation, persistence, and other business actions local.
 
-## Generated UI events
-
-An event emitted by generated UI is not only displayed by the sample. The app
-parses GenUI's A2UI v0.9 interaction envelope into a typed `GenUiAction`, then
-creates a `GenUiActionTurn` containing the action and the complete current
-component surface. The backend sends that structured continuation to the model
-and the returned component graph replaces the active surface.
-
-This agent-only sample forwards generated user actions by default. Applications
-that mix generated UI with business logic can supply `shouldForwardAction` to
-`DesyGenUiExampleApp` and keep navigation, persistence, or other named actions
-local. Desy only declares and dispatches the event; the application continues
-to own its meaning and forwarding policy.
-
-The loopback server and permissive development CORS header are for local
-experimentation. A deployed app should use an authenticated backend and keep
-the same `GenUiBackend` client boundary.
+The included server is a development bridge: loopback-only, unauthenticated,
+and permissive-CORS. Keep the `GenUiBackend` boundary when replacing it with an
+authenticated production gateway.

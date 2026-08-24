@@ -10,8 +10,6 @@ class _ScreenshotSidebar extends StatelessWidget {
     required this.exporting,
     required this.status,
     required this.onExit,
-    required this.onAdd,
-    required this.onPickImage,
     required this.onExport,
     required this.onCanvasSizeChanged,
     required this.onThemeChanged,
@@ -27,8 +25,6 @@ class _ScreenshotSidebar extends StatelessWidget {
   final bool exporting;
   final String? status;
   final VoidCallback? onExit;
-  final ValueChanged<_PalettePayload> onAdd;
-  final VoidCallback onPickImage;
   final VoidCallback onExport;
   final ValueChanged<Size> onCanvasSizeChanged;
   final void Function(String themeId, {Color? defaultBackground})
@@ -37,82 +33,95 @@ class _ScreenshotSidebar extends StatelessWidget {
   final ValueChanged<String> onToggleHidden;
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: context.theme.colors.desy.panel,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 12, 10),
-          child: Row(
-            children: [
-              if (onExit != null) ...[
-                DesyButton.icon(
-                  key: const ValueKey('screenshot-builder-exit'),
-                  size: DesyButtonSize.xs,
-                  variant: DesyButtonVariant.ghost,
-                  semanticsLabel: 'Back to workspace',
-                  onPress: onExit,
-                  child: const Icon(DesyIcons.arrowLeft, size: 15),
+  Widget build(BuildContext context) {
+    final colors = context.theme.colors;
+    return DecoratedBox(
+      key: const ValueKey('screenshot-sidebar'),
+      decoration: BoxDecoration(
+        color: colors.desy.panel,
+        border: Border(bottom: BorderSide(color: colors.desy.divider)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: colors.desy.divider)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+              child: Row(
+                children: [
+                  if (onExit != null) ...[
+                    DesyButton.icon(
+                      key: const ValueKey('screenshot-builder-exit'),
+                      size: DesyButtonSize.xs,
+                      variant: DesyButtonVariant.ghost,
+                      semanticsLabel: 'Back to workspace',
+                      onPress: onExit,
+                      child: const Icon(DesyIcons.arrowLeft, size: 14),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Expanded(
+                    child: Text(
+                      'Screenshot builder',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.theme.typography.body.sm.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  DesyBadge(
+                    variant: DesyBadgeVariant.secondary,
+                    child: Text(
+                      'Experimental',
+                      style: context.theme.typography.body.xs,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: DesyTabs(
+              expands: true,
+              children: [
+                DesyTabEntry(
+                  label: const Text('Layers', key: ValueKey('scene-tab')),
+                  child: _ScenePanel(
+                    canvas: canvas,
+                    layers: layers,
+                    onToggleHidden: onToggleHidden,
+                  ),
                 ),
-                const SizedBox(width: 8),
+                DesyTabEntry(
+                  label: const Text('Page', key: ValueKey('page-tab')),
+                  child: _PagePanel(
+                    canvas: canvas,
+                    backgroundColor: backgroundColor,
+                    extension: extension,
+                    selectedTheme: selectedTheme,
+                    exporting: exporting,
+                    status: status,
+                    onExport: onExport,
+                    onCanvasSizeChanged: onCanvasSizeChanged,
+                    onThemeChanged: onThemeChanged,
+                    onBackgroundChanged: onBackgroundChanged,
+                  ),
+                ),
               ],
-              const Expanded(
-                child: Text(
-                  'Screenshot builder',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const DesyBadge(child: Text('EXPERIMENTAL')),
-            ],
+            ),
           ),
-        ),
-        Expanded(
-          child: DesyTabs(
-            expands: true,
-            children: [
-              DesyTabEntry(
-                label: const Text('Elements', key: ValueKey('elements-tab')),
-                child: _ElementsPanel(
-                  extension: extension,
-                  onAdd: onAdd,
-                  onPickImage: onPickImage,
-                ),
-              ),
-              DesyTabEntry(
-                label: const Text('Scene', key: ValueKey('scene-tab')),
-                child: _ScenePanel(
-                  canvas: canvas,
-                  layers: layers,
-                  onToggleHidden: onToggleHidden,
-                ),
-              ),
-              DesyTabEntry(
-                label: const Text('Page', key: ValueKey('page-tab')),
-                child: _PagePanel(
-                  canvas: canvas,
-                  backgroundColor: backgroundColor,
-                  extension: extension,
-                  selectedTheme: selectedTheme,
-                  exporting: exporting,
-                  status: status,
-                  onExport: onExport,
-                  onCanvasSizeChanged: onCanvasSizeChanged,
-                  onThemeChanged: onThemeChanged,
-                  onBackgroundChanged: onBackgroundChanged,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
-class _ElementsPanel extends StatefulWidget {
-  const _ElementsPanel({
+class _ScreenshotActionBar extends StatelessWidget {
+  const _ScreenshotActionBar({
     required this.extension,
     required this.onAdd,
     required this.onPickImage,
@@ -122,235 +131,132 @@ class _ElementsPanel extends StatefulWidget {
   final ValueChanged<_PalettePayload> onAdd;
   final VoidCallback onPickImage;
 
-  @override
-  State<_ElementsPanel> createState() => _ElementsPanelState();
-}
-
-class _ElementsPanelState extends State<_ElementsPanel> {
-  var _query = '';
-
-  Future<void> _openCatalog() async {
+  Future<void> _openCatalog(BuildContext context) async {
     final payload = await showDesyDialog<_PalettePayload>(
       context: context,
-      builder: (context, animation) => _ComponentCatalogDialog(
-        animation: animation,
-        extension: widget.extension,
-      ),
+      builder: (context, animation) =>
+          _ComponentCatalogDialog(animation: animation, extension: extension),
     );
-    if (payload == null || !mounted) return;
-    widget.onAdd(payload);
+    if (payload != null) onAdd(payload);
   }
 
   @override
-  Widget build(BuildContext context) {
-    final normalized = _query.trim().toLowerCase();
-    final instances = widget.extension.registry.allComponentInstances
-        .where(
-          (instance) =>
-              normalized.isEmpty ||
-              instance.name.toLowerCase().contains(normalized) ||
-              instance.componentName.toLowerCase().contains(normalized),
-        )
-        .toList(growable: false);
-    return ListView(
-      key: const ValueKey('screenshot-elements-panel'),
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          'ADD TO CANVAS',
-          style: context.theme.typography.body.xs.copyWith(
-            color: context.theme.colors.mutedForeground,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.1,
+  Widget build(BuildContext context) => DesyActionDock(
+    key: const ValueKey('screenshot-action-bar'),
+    groups: [
+      DesyActionDockGroup(
+        label: 'Add elements',
+        actions: [
+          DesyActionDockAction(
+            key: const ValueKey('add-text-element'),
+            icon: DesyIcons.type,
+            label: 'Text',
+            description: 'Add a text layer',
+            onPressed: () => onAdd(const _TextPalettePayload()),
           ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _PaletteTile(
-                key: const ValueKey('add-text-element'),
-                payload: const _TextPalettePayload(),
-                icon: DesyIcons.type,
-                title: 'Text',
-                subtitle: 'Registry type + color',
-                onAdd: widget.onAdd,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: DesyButton(
-                key: const ValueKey('add-image-element'),
-                variant: DesyButtonVariant.outline,
-                size: DesyButtonSize.sm,
-                prefix: const Icon(DesyIcons.image, size: 15),
-                onPress: widget.onPickImage,
-                child: const Text('Image'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        DesyButton(
-          key: const ValueKey('open-screenshot-catalog'),
-          variant: DesyButtonVariant.secondary,
-          size: DesyButtonSize.sm,
-          prefix: const Icon(DesyIcons.layoutGrid, size: 15),
-          onPress: () => unawaited(_openCatalog()),
-          child: const Text('Open catalog'),
-        ),
-        const SizedBox(height: 20),
-        DesyTextField(
-          key: const ValueKey('screenshot-element-search'),
-          label: 'Search widget instances',
-          hintText: 'Search widgets',
-          prefixIcon: const Icon(DesyIcons.search, size: 15),
-          onChanged: (value) => setState(() => _query = value),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          '${instances.length} WIDGET INSTANCE${instances.length == 1 ? '' : 'S'}',
-          style: context.theme.typography.body.xs.copyWith(
-            color: context.theme.colors.mutedForeground,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.1,
+          DesyActionDockAction(
+            key: const ValueKey('open-screenshot-catalog'),
+            icon: DesyIcons.layoutGrid,
+            label: 'Component',
+            description: 'Open the component catalog',
+            onPressed: () => unawaited(_openCatalog(context)),
           ),
-        ),
-        const SizedBox(height: 8),
-        if (instances.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Text('No matching registered widget instances.'),
-          )
-        else
-          for (final instance in instances) ...[
-            _PaletteTile(
-              key: ValueKey('add-widget-${instance.id}'),
-              payload: _WidgetPalettePayload(instance),
-              icon: instance.component.icon ?? DesyIcons.component,
-              title: instance.name,
-              subtitle: instance.componentName,
-              onAdd: widget.onAdd,
-            ),
-            const SizedBox(height: 6),
-          ],
-        const SizedBox(height: 16),
-        Text(
-          'MISC',
-          style: context.theme.typography.body.xs.copyWith(
-            color: context.theme.colors.mutedForeground,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.1,
+          DesyActionDockAction(
+            key: const ValueKey('add-image-element'),
+            icon: DesyIcons.image,
+            label: 'Image',
+            description: 'Add an image layer',
+            onPressed: onPickImage,
           ),
-        ),
-        const SizedBox(height: 8),
-        for (final kind in _MiscWidgetKind.values) ...[
-          _PaletteTile(
-            key: ValueKey('add-misc-${kind.name}'),
-            payload: _MiscPalettePayload(kind),
-            icon: kind.icon,
-            title: kind.label,
-            subtitle: kind.description,
-            onAdd: widget.onAdd,
-          ),
-          const SizedBox(height: 6),
         ],
-        const SizedBox(height: 10),
-        Text(
-          'Drag items onto the canvas, or click to add them in the center. Drop image files anywhere in the canvas area.',
-          style: context.theme.typography.body.sm.copyWith(
-            color: context.theme.colors.mutedForeground,
-            height: 1.4,
+      ),
+      DesyActionDockGroup(
+        label: 'Mockups',
+        actions: [
+          DesyActionDockAction(
+            key: const ValueKey('open-screenshot-mockups'),
+            icon: DesyIcons.smartphone,
+            label: 'Mockup',
+            description: 'Add status bars and bezels',
+            onPressed: () => unawaited(_openMockups(context)),
           ),
-        ),
-      ],
+        ],
+      ),
+    ],
+  );
+
+  Future<void> _openMockups(BuildContext context) async {
+    final payload = await showDesyDialog<_PalettePayload>(
+      context: context,
+      builder: (context, animation) => _MockupDialog(animation: animation),
     );
+    if (payload != null) onAdd(payload);
   }
 }
 
-class _PaletteTile extends StatelessWidget {
-  const _PaletteTile({
-    super.key,
-    required this.payload,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onAdd,
-  });
+class _MockupDialog extends StatelessWidget {
+  const _MockupDialog({required this.animation});
 
-  final _PalettePayload payload;
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final ValueChanged<_PalettePayload> onAdd;
+  final Animation<double> animation;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final contentWidth =
-          (constraints.maxWidth.isFinite ? constraints.maxWidth - 28 : 180.0)
-              .clamp(72.0, 280.0);
-      final tile = DesyButton(
-        variant: DesyButtonVariant.outline,
-        size: DesyButtonSize.sm,
-        mainAxisAlignment: MainAxisAlignment.start,
-        onPress: () => onAdd(payload),
-        child: SizedBox(
-          width: contentWidth,
-          child: Row(
+  Widget build(BuildContext context) => DesyDialog(
+    animation: animation,
+    semanticsLabel: 'Choose mockup widget',
+    constraints: const BoxConstraints(maxWidth: 360),
+    builder: (context, style) => Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              Icon(icon, size: 15),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.theme.typography.body.xs.copyWith(
-                        color: context.theme.colors.mutedForeground,
-                      ),
-                    ),
-                  ],
-                ),
+              Expanded(child: Text('Mockups', style: style.titleTextStyle)),
+              DesyButton.icon(
+                size: DesyButtonSize.xs,
+                variant: DesyButtonVariant.ghost,
+                semanticsLabel: 'Close mockups',
+                onPress: () => Navigator.of(context).pop(),
+                child: const Icon(DesyIcons.x, size: 14),
               ),
             ],
           ),
-        ),
-      );
-      return Draggable<_PalettePayload>(
-        data: payload,
-        dragAnchorStrategy: pointerDragAnchorStrategy,
-        feedback: Material(
-          color: Colors.transparent,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 220),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: context.theme.colors.desy.panel,
-                border: Border.all(color: context.theme.colors.desy.signal),
-                borderRadius: BorderRadius.circular(
-                  DesyDesignSystemTokens.radiusSm,
+          const SizedBox(height: 12),
+          for (final kind in _MiscWidgetKind.values)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: DesyButton(
+                key: ValueKey('add-misc-${kind.name}'),
+                variant: DesyButtonVariant.outline,
+                size: DesyButtonSize.sm,
+                mainAxisAlignment: MainAxisAlignment.start,
+                prefix: Icon(kind.icon, size: 14),
+                onPress: () =>
+                    Navigator.of(context).pop(_MiscPalettePayload(kind)),
+                child: SizedBox(
+                  width: 220,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(kind.label),
+                      Text(
+                        kind.description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.theme.typography.body.xs.copyWith(
+                          color: context.theme.colors.mutedForeground,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                child: Text(title),
               ),
             ),
-          ),
-        ),
-        childWhenDragging: Opacity(opacity: .4, child: tile),
-        child: tile,
-      );
-    },
+        ],
+      ),
+    ),
   );
 }
 
@@ -530,12 +436,11 @@ class _ScenePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topFirst = layers.reversed.toList(growable: false);
-    return ListView(
+    return Column(
       key: const ValueKey('screenshot-scene-panel'),
-      padding: const EdgeInsets.symmetric(vertical: 16),
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
           child: Row(
             children: [
               Expanded(
@@ -548,30 +453,59 @@ class _ScenePanel extends StatelessWidget {
                   ),
                 ),
               ),
-              Text('${layers.length}'),
+              Text(
+                '${layers.length}',
+                style: context.theme.typography.body.xs.copyWith(
+                  color: context.theme.colors.mutedForeground,
+                ),
+              ),
             ],
           ),
         ),
-        const SizedBox(height: 12),
-        if (topFirst.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              'The scene is empty. Add widgets, images, or text from Elements.',
-              style: context.theme.typography.body.sm.copyWith(
-                color: context.theme.colors.mutedForeground,
-              ),
-            ),
-          )
-        else
-          for (final layer in topFirst)
-            _LayerRow(
-              layer: layer,
-              canvas: canvas,
-              onToggleHidden: onToggleHidden,
-            ),
+        Expanded(
+          child: topFirst.isEmpty
+              ? ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    Text(
+                      'The scene is empty.',
+                      style: context.theme.typography.body.xs.copyWith(
+                        color: context.theme.colors.mutedForeground,
+                      ),
+                    ),
+                  ],
+                )
+              : ReorderableListView.builder(
+                  buildDefaultDragHandles: false,
+                  padding: const EdgeInsets.only(bottom: 10),
+                  itemCount: topFirst.length,
+                  onReorderItem: (oldIndex, newIndex) =>
+                      _reorderLayer(topFirst, oldIndex, newIndex),
+                  itemBuilder: (context, index) {
+                    final layer = topFirst[index];
+                    return _LayerRow(
+                      key: ValueKey('layer-row-${layer.id}'),
+                      index: index,
+                      layer: layer,
+                      canvas: canvas,
+                      onToggleHidden: onToggleHidden,
+                    );
+                  },
+                ),
+        ),
       ],
     );
+  }
+
+  void _reorderLayer(
+    List<DesyScreenshotLayer> topFirst,
+    int oldIndex,
+    int newIndex,
+  ) {
+    final next = [for (final layer in topFirst) layer.id];
+    final moved = next.removeAt(oldIndex);
+    next.insert(newIndex.clamp(0, next.length), moved);
+    canvas.reorderObjects(next.reversed.toList(growable: false));
   }
 }
 
@@ -585,7 +519,6 @@ class _ScreenshotLayerInspector extends StatelessWidget {
     required this.onSetTextTypography,
     required this.onSetTextColor,
     required this.onSetTextAlign,
-    required this.onToggleHidden,
   });
 
   final ObjectCanvasController<DesyScreenshotLayer> canvas;
@@ -596,7 +529,6 @@ class _ScreenshotLayerInspector extends StatelessWidget {
   final void Function(String id, String? typographyId) onSetTextTypography;
   final void Function(String id, String? colorId) onSetTextColor;
   final void Function(String id, TextAlign textAlign) onSetTextAlign;
-  final ValueChanged<String> onToggleHidden;
 
   @override
   Widget build(BuildContext context) {
@@ -650,11 +582,6 @@ class _ScreenshotLayerInspector extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
-                _SelectedLayerActions(
-                  layer: layer,
-                  canvas: canvas,
-                  onToggleHidden: onToggleHidden,
                 ),
                 const SizedBox(height: 8),
                 switch (layer) {
@@ -719,120 +646,100 @@ class _ScreenshotLayerInspector extends StatelessWidget {
 
 class _LayerRow extends StatelessWidget {
   const _LayerRow({
+    super.key,
+    required this.index,
     required this.layer,
     required this.canvas,
     required this.onToggleHidden,
   });
 
+  final int index;
   final DesyScreenshotLayer layer;
   final ObjectCanvasController<DesyScreenshotLayer> canvas;
   final ValueChanged<String> onToggleHidden;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-    child: Row(
-      children: [
-        Expanded(
-          child: DesyButton(
-            key: ValueKey('select-layer-${layer.id}'),
-            selected: canvas.selectedObjectIds.contains(layer.id),
-            variant: canvas.selectedObjectIds.contains(layer.id)
-                ? DesyButtonVariant.secondary
-                : DesyButtonVariant.ghost,
-            size: DesyButtonSize.sm,
-            mainAxisAlignment: MainAxisAlignment.start,
-            onPress: layer.hidden
-                ? null
-                : () => canvas.setSelectedObjects([layer.id]),
-            child: Text(
-              layer.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+  Widget build(BuildContext context) {
+    final selected = canvas.selectedObjectIds.contains(layer.id);
+    final colors = context.theme.colors;
+    final textColor = layer.hidden ? colors.mutedForeground : colors.foreground;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: selected ? colors.desy.signalSurface : Colors.transparent,
+          borderRadius: BorderRadius.circular(DesyDesignSystemTokens.radiusSm),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: DesyButton(
+                key: ValueKey('select-layer-${layer.id}'),
+                selected: selected,
+                variant: DesyButtonVariant.ghost,
+                size: DesyButtonSize.xs,
+                mainAxisAlignment: MainAxisAlignment.start,
+                prefix: Icon(_iconFor(layer), size: 13, color: textColor),
+                onPress: layer.hidden
+                    ? null
+                    : () => canvas.setSelectedObjects([layer.id]),
+                child: Text(
+                  layer.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.theme.typography.body.xs.copyWith(
+                    color: textColor,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
             ),
-          ),
+            ReorderableDragStartListener(
+              index: index,
+              child: Icon(
+                DesyIcons.chevronsUpDown,
+                size: 13,
+                color: colors.mutedForeground,
+              ),
+            ),
+            const SizedBox(width: 2),
+            DesyButton(
+              key: ValueKey('toggle-layer-${layer.id}'),
+              size: DesyButtonSize.xs,
+              variant: DesyButtonVariant.ghost,
+              mainAxisSize: MainAxisSize.min,
+              semanticsLabel: layer.hidden
+                  ? 'Show ${layer.name}'
+                  : 'Hide ${layer.name}',
+              onPress: () => onToggleHidden(layer.id),
+              child: Text(
+                layer.hidden ? 'Show' : 'Hide',
+                style: context.theme.typography.body.xs.copyWith(
+                  color: colors.mutedForeground,
+                ),
+              ),
+            ),
+            DesyButton.icon(
+              key: ValueKey('delete-layer-${layer.id}'),
+              size: DesyButtonSize.xs,
+              variant: DesyButtonVariant.ghost,
+              semanticsLabel: 'Delete ${layer.name}',
+              onPress: () => canvas.removeObjects([layer.id]),
+              child: const Icon(DesyIcons.trash, size: 13),
+            ),
+          ],
         ),
-        DesyButton(
-          key: ValueKey('toggle-layer-${layer.id}'),
-          size: DesyButtonSize.xs,
-          variant: DesyButtonVariant.ghost,
-          mainAxisSize: MainAxisSize.min,
-          semanticsLabel: layer.hidden
-              ? 'Show ${layer.name}'
-              : 'Hide ${layer.name}',
-          onPress: () => onToggleHidden(layer.id),
-          child: Text(layer.hidden ? 'Show' : 'Hide'),
-        ),
-      ],
-    ),
-  );
-}
+      ),
+    );
+  }
 
-class _SelectedLayerActions extends StatelessWidget {
-  const _SelectedLayerActions({
-    required this.layer,
-    required this.canvas,
-    required this.onToggleHidden,
-  });
-
-  final DesyScreenshotLayer layer;
-  final ObjectCanvasController<DesyScreenshotLayer> canvas;
-  final ValueChanged<String> onToggleHidden;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        DesyButton(
-          key: const ValueKey('layer-backward'),
-          size: DesyButtonSize.xs,
-          variant: DesyButtonVariant.outline,
-          mainAxisSize: MainAxisSize.min,
-          onPress: () => canvas.moveObjectsBackward([layer.id]),
-          child: const Text('Backward'),
-        ),
-        DesyButton(
-          key: const ValueKey('layer-forward'),
-          size: DesyButtonSize.xs,
-          variant: DesyButtonVariant.outline,
-          mainAxisSize: MainAxisSize.min,
-          onPress: () => canvas.moveObjectsForward([layer.id]),
-          child: const Text('Forward'),
-        ),
-        DesyButton(
-          key: const ValueKey('layer-hide'),
-          size: DesyButtonSize.xs,
-          variant: DesyButtonVariant.outline,
-          mainAxisSize: MainAxisSize.min,
-          onPress: () => onToggleHidden(layer.id),
-          child: Text(layer.hidden ? 'Show' : 'Hide'),
-        ),
-        DesyButton(
-          key: const ValueKey('layer-duplicate'),
-          size: DesyButtonSize.xs,
-          variant: DesyButtonVariant.outline,
-          mainAxisSize: MainAxisSize.min,
-          onPress: () => canvas.duplicateObjects(
-            [layer.id],
-            dataBuilder: (object, duplicateId) =>
-                object.data.copyWith(id: duplicateId),
-          ),
-          child: const Text('Duplicate'),
-        ),
-        DesyButton(
-          key: const ValueKey('layer-delete'),
-          size: DesyButtonSize.xs,
-          variant: DesyButtonVariant.destructive,
-          mainAxisSize: MainAxisSize.min,
-          onPress: () => canvas.removeObjects([layer.id]),
-          child: const Text('Delete'),
-        ),
-      ],
-    ),
-  );
+  IconData _iconFor(DesyScreenshotLayer layer) => switch (layer) {
+    DesyScreenshotWidgetLayer() => DesyIcons.component,
+    DesyScreenshotImageLayer() => DesyIcons.image,
+    DesyScreenshotTextLayer() => DesyIcons.type,
+    _ScreenshotMiscLayer(:final kind) => kind.icon,
+    _ => DesyIcons.layers,
+  };
 }
 
 class _WidgetInspector extends StatelessWidget {

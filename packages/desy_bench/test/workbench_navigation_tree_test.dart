@@ -21,13 +21,11 @@ void main() {
       extensions: const [],
     );
     final locations = _destinations(tree.roots);
-    final apps = tree.roots.firstWhere((node) => node.id == 'apps');
-    final home = apps.children.firstWhere((node) => node.id == 'home');
-    expect(apps.label, 'Apps');
-    expect(apps.location, isNull);
+    final home = tree.roots.firstWhere((node) => node.id == 'home');
     expect(home.label, 'Home');
     expect(home.location, DesyWorkbenchRoutes.homePath);
     expect(home.children, isEmpty);
+    expect(tree.roots.any((node) => node.id == 'apps'), isFalse);
 
     expect(
       locations,
@@ -145,7 +143,7 @@ void main() {
     );
   });
 
-  test('workspace extensions are grouped with Home under Apps', () {
+  test('workspace extensions create the optional Apps branch', () {
     final registry = DesyRegistry(
       name: 'Extensions',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
@@ -165,7 +163,8 @@ void main() {
       (node) => node.id == 'extension.screenshots',
     );
 
-    expect(apps.children.firstWhere((node) => node.id == 'home').label, 'Home');
+    expect(tree.roots.first.id, 'home');
+    expect(tree.roots.first.location, DesyWorkbenchRoutes.homePath);
     expect(extensionNode.label, 'Screenshot builder');
     expect(
       extensionNode.location,

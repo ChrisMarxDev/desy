@@ -22,10 +22,21 @@ void main() {
     expect(desyDesignSystemRegistry.allColors, hasLength(9));
     expect(desyDesignSystemRegistry.allFonts, hasLength(4));
     expect(desyDesignSystemRegistry.allMeasurements, hasLength(9));
-    expect(desyDesignSystemRegistry.allMotion, hasLength(5));
-    expect(desyDesignSystemRegistry.allEffects, hasLength(1));
+    expect(
+      desyDesignSystemRegistry.components.where(
+        (component) => component.path == '/motion',
+      ),
+      hasLength(5),
+    );
+    expect(
+      desyDesignSystemRegistry.components.where(
+        (component) => component.path == '/motion',
+      ),
+      everyElement(isA<DesyAnimationComponentBase>()),
+    );
     expect(desyDesignSystemRegistry.allIcons, hasLength(29));
     expect(desyDesignSystemRegistry.systemProfile?.id, 'desy.system-profile');
+    expect(desyDesignSystemRegistry.homePage, isNotNull);
     expect(
       desyDesignSystemRegistry.systemHeroAsset?.id,
       'desy.asset.workspace.signature.primary',
@@ -42,7 +53,7 @@ void main() {
       'web/favicon.png',
     );
     expect(desyDesignSystemRegistry.atomKinds, DesyAtomKind.values);
-    expect(desyDesignSystemRegistry.allPrototypes, hasLength(2));
+    expect(desyDesignSystemRegistry.allPrototypes, hasLength(3));
     expect(
       desyDesignSystemRegistry
           .prototypeSession('desy.prototype-session.annotation-inbox')
@@ -62,6 +73,20 @@ void main() {
       ['desy.prototype.knob-controls.divider-bands'],
     );
     expect(
+      desyDesignSystemRegistry
+          .prototypeSession('desy.prototype-session.screenshot-action-bar')
+          ?.prototypes
+          .map((prototype) => prototype.id),
+      [
+        'desy.prototype.screenshot-action-bar.segmented-command-bar',
+        'desy.prototype.screenshot-action-bar.floating-icon-dock',
+        'desy.prototype.screenshot-action-bar.group-card-shelf',
+        'desy.prototype.screenshot-action-bar.mode-insert-rail',
+        'desy.prototype.screenshot-action-bar.command-palette-strip',
+        'desy.prototype.screenshot-action-bar.dense-pro-dock',
+      ],
+    );
+    expect(
       desyDesignSystemRegistry.resolve('desy.icon.shapes')?.path,
       'Atoms / Icons',
     );
@@ -76,12 +101,17 @@ void main() {
       desyDesignSystemRegistry.allComponents.map((component) => component.id),
       unorderedEquals({
         'desy.component.accordion',
+        'desy.component.action-dock',
+        'desy.component.action-dock-button',
         'desy.component.all-knobs',
+        'desy.component.animation-scrubber',
         'desy.component.badge',
         'desy.component.button',
         'desy.component.boolean-knob-row',
         'desy.component.card',
+        'desy.component.canvas-grid-background',
         'desy.component.catalogue-card',
+        'desy.component.checkerboard-background',
         'desy.component.chat-composer',
         'desy.component.chat-message',
         'desy.component.chat-thread',
@@ -106,6 +136,11 @@ void main() {
         'desy.component.text-knob-row',
         'desy.component.text-field',
         'desy.component.tile',
+        'desy.motion.sidebar-reveal',
+        'desy.motion.navigation',
+        'desy.motion.content-swap',
+        'desy.motion.screen-navigation',
+        'desy.motion.feedback',
       }),
     );
     expect(
@@ -119,7 +154,8 @@ void main() {
     final sample = desyDesignSystemRegistry.resolve('desy.component.sample')!;
     expect(sample.component!.instanceIds, isEmpty);
     for (final component in desyDesignSystemRegistry.allComponents.where(
-      (component) => component.id != sample.id,
+      (component) =>
+          component.id != sample.id && component is! DesyAnimationComponentBase,
     )) {
       expect(component.instanceIds, isNotEmpty, reason: component.id);
       expect(
@@ -259,6 +295,23 @@ void main() {
     ]);
   });
 
+  test(
+    'animation scrubber declares normalized progress and duration knobs',
+    () {
+      final scrubber = desyDesignSystemRegistry.allComponents.singleWhere(
+        (component) => component.id == 'desy.component.animation-scrubber',
+      );
+
+      expect(scrubber.path, '/inputs/animation');
+      expect(scrubber.instanceIds, ['opening', 'settled', 'disabled']);
+      expect(scrubber.knobDefinitions.map((definition) => definition.kind), [
+        DesyKnobKind.number,
+        DesyKnobKind.number,
+        DesyKnobKind.boolean,
+      ]);
+    },
+  );
+
   test('date-time knob row declares a typed DateTime control', () {
     final dateTimeKnobRow = desyDesignSystemRegistry.allComponents.singleWhere(
       (component) => component.id == 'desy.component.date-time-knob-row',
@@ -345,6 +398,36 @@ void main() {
       expect(tester.takeException(), isNull, reason: component.id);
       await tester.pumpWidget(const SizedBox());
     }
+  });
+
+  testWidgets('catalogued animation scrubber uses the Desy timeline rail', (
+    tester,
+  ) async {
+    final component = desyDesignSystemRegistry.allComponents.singleWhere(
+      (component) => component.id == 'desy.component.animation-scrubber',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: Scaffold(
+            body: Builder(
+              builder: (context) => component.preview(
+                context,
+                desyDesignSystemRegistry.widgetBuilder,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(DesyAnimationScrubber), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('desy-animation-scrubber-rail')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('every component renders each declared preset instance', (

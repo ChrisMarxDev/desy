@@ -3,6 +3,7 @@
 
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../motion_playback.dart';
 
@@ -27,7 +28,7 @@ class DesyMotionPlaybackControls extends StatelessWidget {
   final Duration? globalDuration;
   final ValueChanged<Duration>? onGlobalDurationChanged;
 
-  static const _speeds = [0.5, 1.0, 2.0];
+  static const _compactControlHeight = 32.0;
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
@@ -58,10 +59,6 @@ class _PanelMotionPlaybackControls extends StatelessWidget {
       _PlayheadLabel(controller: controller),
       const SizedBox(height: 8),
       _PlaybackSlider(controller: controller),
-      const SizedBox(height: 18),
-      Text('Playback speed', style: Theme.of(context).textTheme.labelLarge),
-      const SizedBox(height: 8),
-      _SpeedButtons(controller: controller),
     ],
   );
 }
@@ -113,19 +110,19 @@ class _CompactMotionPlaybackControls extends StatelessWidget {
             ),
           ),
         ],
-        const SizedBox(width: 18),
-        SizedBox(
-          width: 250,
-          child: _PlaybackThermometer(
-            key: const ValueKey('motion-playhead-thermometer'),
+        const SizedBox(width: 10),
+        _DockControl(
+          child: _LoopModeButton(
             controller: controller,
+            size: DesyButtonSize.sm,
           ),
         ),
         const SizedBox(width: 18),
-        _DockControl(
-          child: _SpeedModeButton(
+        SizedBox(
+          width: 250,
+          child: _PlaybackSlider(
+            key: const ValueKey('motion-playhead-thermometer'),
             controller: controller,
-            size: DesyButtonSize.sm,
           ),
         ),
       ],
@@ -136,35 +133,44 @@ class _CompactMotionPlaybackControls extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          _DockControl(
-            height: 32,
-            child: _PlayPauseButton(
-              controller: controller,
-              iconOnly: true,
-              size: DesyButtonSize.xs,
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _DockControl(
+              width: DesyMotionPlaybackControls._compactControlHeight,
+              child: _PlayPauseButton(
+                controller: controller,
+                iconOnly: true,
+                size: DesyButtonSize.sm,
+              ),
             ),
-          ),
-          if (globalDuration case final duration?)
-            _GlobalDurationField(
-              duration: duration,
-              onChanged: onGlobalDurationChanged,
-              compact: true,
+            if (globalDuration case final duration?) ...[
+              const SizedBox(width: 8),
+              _DockControl(
+                width: 80,
+                child: _GlobalDurationField(
+                  duration: duration,
+                  onChanged: onGlobalDurationChanged,
+                  compact: true,
+                  width: 80,
+                ),
+              ),
+            ],
+            const SizedBox(width: 8),
+            _DockControl(
+              child: _LoopModeButton(
+                controller: controller,
+                size: DesyButtonSize.sm,
+              ),
             ),
-          _DockControl(
-            height: 32,
-            child: _SpeedModeButton(
-              controller: controller,
-              size: DesyButtonSize.xs,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
       const SizedBox(height: 10),
-      _PlaybackThermometer(
+      _PlaybackSlider(
         key: const ValueKey('motion-playhead-thermometer'),
         controller: controller,
       ),
@@ -173,13 +179,17 @@ class _CompactMotionPlaybackControls extends StatelessWidget {
 }
 
 class _DockControl extends StatelessWidget {
-  const _DockControl({required this.child, this.height = 40});
+  const _DockControl({required this.child, this.width});
 
   final Widget child;
-  final double height;
+  final double? width;
 
   @override
-  Widget build(BuildContext context) => SizedBox(height: height, child: child);
+  Widget build(BuildContext context) => SizedBox(
+    height: DesyMotionPlaybackControls._compactControlHeight,
+    width: width,
+    child: Align(child: child),
+  );
 }
 
 class _MotionControlGroup extends StatelessWidget {
@@ -211,11 +221,13 @@ class _GlobalDurationField extends StatefulWidget {
     required this.duration,
     this.onChanged,
     this.compact = false,
+    this.width,
   });
 
   final Duration duration;
   final ValueChanged<Duration>? onChanged;
   final bool compact;
+  final double? width;
 
   @override
   State<_GlobalDurationField> createState() => _GlobalDurationFieldState();
@@ -236,22 +248,25 @@ class _GlobalDurationFieldState extends State<_GlobalDurationField> {
     final milliseconds = int.tryParse(_value.trim());
     final isValid = milliseconds != null && milliseconds > 0;
     final field = SizedBox(
-      width: widget.compact ? 104 : 76,
+      width: widget.width ?? (widget.compact ? 80 : 76),
       child: DesyTextField(
         key: const ValueKey('motion-global-duration'),
         label: 'Global duration in milliseconds',
+        floatingLabelText: 'ms',
         value: _value,
-        errorText: isValid ? null : 'Enter a duration greater than zero.',
+        errorText: widget.compact || isValid
+            ? null
+            : 'Enter a duration greater than zero.',
         enabled: widget.onChanged != null,
+        height: widget.compact
+            ? DesyMotionPlaybackControls._compactControlHeight
+            : null,
         keyboardType: const TextInputType.numberWithOptions(
           decimal: false,
           signed: false,
         ),
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         textInputAction: TextInputAction.done,
-        suffixIcon: Padding(
-          padding: const EdgeInsets.only(left: 4),
-          child: Text('ms', style: Theme.of(context).textTheme.labelSmall),
-        ),
         onChanged: (value) {
           setState(() => _value = value);
           final next = int.tryParse(value.trim());
@@ -279,8 +294,14 @@ class _PlaybackButtons extends StatelessWidget {
   final DesyMotionPlaybackController controller;
 
   @override
-  Widget build(BuildContext context) =>
-      _PlayPauseButton(controller: controller);
+  Widget build(BuildContext context) => Wrap(
+    spacing: 8,
+    runSpacing: 8,
+    children: [
+      _PlayPauseButton(controller: controller),
+      _LoopModeButton(controller: controller),
+    ],
+  );
 }
 
 class _PlayPauseButton extends StatelessWidget {
@@ -319,6 +340,33 @@ class _PlayPauseButton extends StatelessWidget {
   }
 }
 
+class _LoopModeButton extends StatelessWidget {
+  const _LoopModeButton({
+    required this.controller,
+    this.size = DesyButtonSize.xs,
+  });
+
+  final DesyMotionPlaybackController controller;
+  final DesyButtonSize size;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = controller.loopMode;
+    final next = current == DesyMotionLoopMode.once
+        ? DesyMotionLoopMode.loop
+        : DesyMotionLoopMode.once;
+    return DesyButton(
+      key: const ValueKey('motion-loop-mode'),
+      size: size,
+      variant: DesyButtonVariant.outline,
+      mainAxisSize: MainAxisSize.min,
+      semanticsLabel: 'Use ${next.label.toLowerCase()} playback',
+      onPress: () => controller.setLoopMode(next),
+      child: Text(current.label),
+    );
+  }
+}
+
 class _PlayheadLabel extends StatelessWidget {
   const _PlayheadLabel({required this.controller});
 
@@ -343,191 +391,24 @@ class _PlayheadLabel extends StatelessWidget {
   }
 }
 
-class _PlaybackThermometer extends StatelessWidget {
-  const _PlaybackThermometer({super.key, required this.controller});
-
-  static const _sections = 20;
-
-  final DesyMotionPlaybackController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.theme.colors;
-    final duration = controller.duration.inMilliseconds;
-    final current = controller.value;
-    final increment = 1 / _sections;
-
-    String timeAt(double value) =>
-        '${(duration * value).round()} of $duration milliseconds';
-
-    void seek(double value) {
-      controller.scrub(value);
-      controller.finishScrub(value);
-    }
-
-    return Semantics(
-      slider: true,
-      label: 'Playback position',
-      value: timeAt(current),
-      increasedValue: timeAt((current + increment).clamp(0.0, 1.0).toDouble()),
-      decreasedValue: timeAt((current - increment).clamp(0.0, 1.0).toDouble()),
-      onIncrease: () => seek((current + increment).clamp(0.0, 1.0).toDouble()),
-      onDecrease: () => seek((current - increment).clamp(0.0, 1.0).toDouble()),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          void scrub(Offset position) {
-            if (constraints.maxWidth <= 0) return;
-            controller.scrub(
-              (position.dx / constraints.maxWidth).clamp(0.0, 1.0).toDouble(),
-            );
-          }
-
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            excludeFromSemantics: true,
-            onTapDown: (details) => seek(
-              (details.localPosition.dx / constraints.maxWidth)
-                  .clamp(0.0, 1.0)
-                  .toDouble(),
-            ),
-            onHorizontalDragUpdate: (details) => scrub(details.localPosition),
-            onHorizontalDragEnd: (_) =>
-                controller.finishScrub(controller.value),
-            onHorizontalDragCancel: () =>
-                controller.finishScrub(controller.value),
-            child: SizedBox(
-              height: 40,
-              width: double.infinity,
-              child: CustomPaint(
-                painter: _PlaybackThermometerPainter(
-                  progress: current,
-                  guideColor: colors.border,
-                  playheadColor: colors.desy.signal,
-                  sections: _sections,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _PlaybackThermometerPainter extends CustomPainter {
-  const _PlaybackThermometerPainter({
-    required this.progress,
-    required this.guideColor,
-    required this.playheadColor,
-    required this.sections,
-  });
-
-  final double progress;
-  final Color guideColor;
-  final Color playheadColor;
-  final int sections;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const trackTop = 8.0;
-    final guidePaint = Paint()
-      ..color = guideColor
-      ..strokeWidth = 1;
-    for (var index = 0; index <= sections; index++) {
-      final x = size.width * index / sections;
-      final major = index % (sections ~/ 4) == 0;
-      canvas.drawLine(
-        Offset(x, trackTop + 11),
-        Offset(x, trackTop + (major ? 21 : 16)),
-        guidePaint,
-      );
-    }
-    final playheadX = (size.width * progress).clamp(2.0, size.width - 2.0);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset(playheadX, trackTop + 4),
-          width: 4,
-          height: 32,
-        ),
-        const Radius.circular(2),
-      ),
-      Paint()..color = playheadColor,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_PlaybackThermometerPainter oldDelegate) =>
-      progress != oldDelegate.progress ||
-      guideColor != oldDelegate.guideColor ||
-      playheadColor != oldDelegate.playheadColor ||
-      sections != oldDelegate.sections;
-}
-
 class _PlaybackSlider extends StatelessWidget {
-  const _PlaybackSlider({required this.controller});
+  const _PlaybackSlider({super.key, required this.controller});
 
   final DesyMotionPlaybackController controller;
 
   @override
-  Widget build(BuildContext context) => DesySlider(
+  Widget build(BuildContext context) => DesyAnimationScrubber(
     key: const ValueKey('motion-playhead'),
-    control: DesySliderControl.liftedContinuous(
-      value: DesySliderValue(max: controller.value),
-      onChange: (value) => controller.scrub(value.max),
-    ),
-    semanticValueFormatterCallback: (value) =>
-        '${(controller.duration.inMilliseconds * value).round()} milliseconds',
-    tooltipBuilder: (tooltip, value) =>
-        Text('${(controller.duration.inMilliseconds * value).round()} ms'),
-    onEnd: (value) => controller.finishScrub(value.max),
+    progress: controller.value,
+    duration: controller.duration,
+    onChanged: controller.scrub,
+    onChangeEnd: controller.finishScrub,
   );
 }
 
-class _SpeedButtons extends StatelessWidget {
-  const _SpeedButtons({required this.controller});
-
-  final DesyMotionPlaybackController controller;
-
-  @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 6,
-    runSpacing: 6,
-    children: [
-      for (final option in DesyMotionPlaybackControls._speeds)
-        DesyButton(
-          key: ValueKey('motion-speed-$option'),
-          size: DesyButtonSize.xs,
-          mainAxisSize: MainAxisSize.min,
-          variant: controller.speed == option
-              ? DesyButtonVariant.primary
-              : DesyButtonVariant.outline,
-          onPress: () => controller.setSpeed(option),
-          child: Text('$option×'),
-        ),
-    ],
-  );
-}
-
-class _SpeedModeButton extends StatelessWidget {
-  const _SpeedModeButton({required this.controller, required this.size});
-
-  final DesyMotionPlaybackController controller;
-  final DesyButtonSize size;
-
-  @override
-  Widget build(BuildContext context) {
-    final speeds = DesyMotionPlaybackControls._speeds;
-    final currentIndex = speeds.indexOf(controller.speed);
-    final nextSpeed = speeds[(currentIndex + 1) % speeds.length];
-    return DesyButton(
-      key: const ValueKey('motion-speed-mode'),
-      size: size,
-      variant: DesyButtonVariant.outline,
-      mainAxisSize: MainAxisSize.min,
-      semanticsLabel: 'Playback speed ${controller.speed} times',
-      onPress: () => controller.setSpeed(nextSpeed),
-      child: Text('${controller.speed.toStringAsFixed(1)}×'),
-    );
-  }
+extension on DesyMotionLoopMode {
+  String get label => switch (this) {
+    DesyMotionLoopMode.once => 'Once',
+    DesyMotionLoopMode.loop => 'Loop',
+  };
 }

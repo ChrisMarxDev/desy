@@ -127,6 +127,13 @@ final class DesySystemLink {
   final DesySystemLinkRole role;
 }
 
+/// Consumer-authored content rendered as the workbench Home destination.
+///
+/// The builder receives the active workbench context, including the consumer's
+/// real theme. It is intentionally optional: registries without one retain
+/// Desy's derived component overview.
+typedef DesyHomePageBuilder = Widget Function(BuildContext context);
+
 /// A built-in, typed atom lane understood by Desy's specialized boards.
 enum DesyAtomKind {
   /// Consumer solid-color entries.
@@ -140,12 +147,6 @@ enum DesyAtomKind {
 
   /// Consumer numeric foundation entries.
   measurements,
-
-  /// Consumer motion entries with playback-aware specimens.
-  motion,
-
-  /// Consumer visual-effect entries.
-  effects,
 
   /// Consumer-owned visual and media resources.
   assets,
@@ -162,8 +163,6 @@ enum DesyAtomKind {
     fonts => 'Fonts',
     icons => 'Icons',
     measurements => 'Measurements',
-    motion => 'Motion',
-    effects => 'Effects',
     assets => 'Assets',
     custom => 'Custom',
   };
@@ -180,12 +179,11 @@ class DesyRegistry {
     required List<DesyTheme> themes,
     this.identity,
     this.systemProfile,
+    this.homePage,
     List<DesyToken> tokens = const [],
     List<DesyColorEntry> colors = const [],
     List<DesyTypographyEntry> fonts = const [],
     List<DesyNumericEntry> measurements = const [],
-    List<DesyMotionEntry> motion = const [],
-    List<DesyEffectEntry> effects = const [],
     List<DesyCustomAtom> customAtoms = const [],
     List<DesyIconEntry> icons = const [],
     List<DesyAssetEntry> assets = const [],
@@ -197,8 +195,6 @@ class DesyRegistry {
        colors = List.unmodifiable(colors),
        fonts = List.unmodifiable(fonts),
        measurements = List.unmodifiable(measurements),
-       motion = List.unmodifiable(motion),
-       effects = List.unmodifiable(effects),
        customAtoms = List.unmodifiable(customAtoms),
        icons = List.unmodifiable(icons),
        assets = List.unmodifiable(assets),
@@ -215,6 +211,9 @@ class DesyRegistry {
   /// Optional consumer-authored context for the registry Home surface.
   final DesySystemProfile? systemProfile;
 
+  /// Optional consumer-authored Home content.
+  final DesyHomePageBuilder? homePage;
+
   /// Theme wrappers supplied by the consumer.
   final List<DesyTheme> themes;
 
@@ -229,12 +228,6 @@ class DesyRegistry {
 
   /// Typed numeric primitives for the specialized Measurements board.
   final List<DesyNumericEntry> measurements;
-
-  /// Motion primitives and their live consumer-owned specimens.
-  final List<DesyMotionEntry> motion;
-
-  /// Widget decorators such as consumer-owned shadow recipes.
-  final List<DesyEffectEntry> effects;
 
   /// Knobless consumer-owned widget instances in Desy's Custom Atom lane.
   final List<DesyCustomAtom> customAtoms;
@@ -270,12 +263,6 @@ class DesyRegistry {
   /// Every numeric primitive declared for the Measurements lane.
   List<DesyNumericEntry> get allMeasurements => measurements;
 
-  /// Every motion primitive declared for the Motion lane.
-  List<DesyMotionEntry> get allMotion => motion;
-
-  /// Every widget effect declared for the Effects lane.
-  List<DesyEffectEntry> get allEffects => effects;
-
   /// Every consumer-defined custom atom.
   List<DesyCustomAtom> get allCustomAtoms => customAtoms;
 
@@ -288,8 +275,6 @@ class DesyRegistry {
     if (fonts.isNotEmpty) DesyAtomKind.fonts,
     if (icons.isNotEmpty) DesyAtomKind.icons,
     if (measurements.isNotEmpty) DesyAtomKind.measurements,
-    if (motion.isNotEmpty) DesyAtomKind.motion,
-    if (effects.isNotEmpty) DesyAtomKind.effects,
     if (assets.isNotEmpty) DesyAtomKind.assets,
     if (customAtoms.isNotEmpty) DesyAtomKind.custom,
   ]);
@@ -305,8 +290,6 @@ class DesyRegistry {
           colors: kind == DesyAtomKind.colors ? colors : const [],
           typography: kind == DesyAtomKind.fonts ? fonts : const [],
           numbers: kind == DesyAtomKind.measurements ? measurements : const [],
-          motion: kind == DesyAtomKind.motion ? motion : const [],
-          effects: kind == DesyAtomKind.effects ? effects : const [],
           customAtoms: kind == DesyAtomKind.custom ? customAtoms : const [],
           icons: kind == DesyAtomKind.icons ? icons : const [],
           assets: kind == DesyAtomKind.assets ? assets : const [],
@@ -435,8 +418,6 @@ class DesyRegistry {
     colors: const [],
     typography: const [],
     numbers: const [],
-    motion: const [],
-    effects: const [],
     customAtoms: const [],
     icons: const [],
     assets: const [],
@@ -659,7 +640,7 @@ class DesyToken {
 /// A consumer-defined foundational visual built from named static instances.
 ///
 /// Use this for atom-like artifacts that Desy cannot classify as color, type,
-/// measurement, motion, effect, or icon. A custom atom intentionally has no
+/// measurement, motion, or icon. A custom atom intentionally has no
 /// knobs: each visible form is an explicit, consumer-owned widget instance.
 class DesyCustomAtom {
   /// Creates one knobless custom atom with one or more named widget instances.
@@ -892,22 +873,6 @@ class DesyRegistryValidator {
     for (final id in extensionIds) {
       add(id, 'extension');
     }
-    for (final motion in registry.allMotion) {
-      for (final instance in motion.instances) {
-        if (registry.resolveComponentInstance(instance.value) != null) {
-          continue;
-        }
-        issues.add(
-          DesyRegistryValidationIssue(
-            id: instance.value,
-            severity: DesyRegistryValidationSeverity.warning,
-            message:
-                'Motion "${motion.id}" references '
-                'unknown component instance "${instance.value}".',
-          ),
-        );
-      }
-    }
     for (final component in registry.allComponents) {
       final contextsByReference = <String, List<String>>{};
       void recordReference(DesyInstanceId reference, String context) {
@@ -979,8 +944,6 @@ List<DesyRegistryEntry> _entriesFor({
   required List<DesyColorEntry> colors,
   required List<DesyTypographyEntry> typography,
   required List<DesyNumericEntry> numbers,
-  required List<DesyMotionEntry> motion,
-  required List<DesyEffectEntry> effects,
   required List<DesyCustomAtom> customAtoms,
   required List<DesyIconEntry> icons,
   required List<DesyAssetEntry> assets,
@@ -1036,31 +999,6 @@ List<DesyRegistryEntry> _entriesFor({
       source: number,
       description: number.description,
       value: number.displayValue,
-      atomKind: atomKind,
-    ),
-  for (final item in motion)
-    DesyRegistryEntry(
-      id: item.id,
-      name: item.name,
-      folderIds: folderIds,
-      folderNames: folderNames,
-      builder: item.buildDefault,
-      source: item,
-      description: item.description,
-      value: item.displayValue,
-      atomKind: atomKind,
-    ),
-  for (final effect in effects)
-    DesyRegistryEntry(
-      id: effect.id,
-      name: effect.name,
-      folderIds: folderIds,
-      folderNames: folderNames,
-      builder: (context) =>
-          effect.apply(context, _effectSpecimen(context, effect)),
-      source: effect,
-      description: effect.description,
-      value: effect.displayValue,
       atomKind: atomKind,
     ),
   for (final atom in customAtoms)
@@ -1126,18 +1064,6 @@ DesyRegistry _bareRegistry(DesyRegistryComponent component) => DesyRegistry(
 );
 
 Widget _bareTheme(BuildContext context, Widget child) => child;
-
-Widget _effectSpecimen(BuildContext context, DesyEffectEntry effect) =>
-    Container(
-      width: 148,
-      height: 92,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(effect.displayValue),
-    );
 
 /// The unit attached to a [DesyNumericEntry].
 enum DesyNumberUnit {
@@ -1335,191 +1261,6 @@ class DesyNumericEntry {
       builder?.call(context) ?? Text(displayValue, textAlign: TextAlign.center);
 }
 
-/// Builds a motion treatment around its supplied child specimen.
-typedef DesyMotionBuilder =
-    Widget Function(BuildContext context, Widget child, Duration duration);
-
-/// Builds a transition between two real consumer widgets.
-///
-/// Registered motion surfaces supply the current pair; the consumer keeps
-/// ownership of the visual transition and can read [DesyMotionPlaybackScope]
-/// for the scrubbed timeline.
-typedef DesyMotionTransitionBuilder =
-    Widget Function(
-      BuildContext context,
-      Widget first,
-      Widget second,
-      Duration duration,
-    );
-
-/// A named motion primitive and a live consumer-owned animation specimen.
-class DesyMotionEntry {
-  /// Creates a motion primitive.
-  DesyMotionEntry({
-    required this.id,
-    required this.name,
-    required this.duration,
-    required this.curve,
-    required this.builder,
-    List<DesyInstanceId> instances = const [],
-    this.transitionBuilder,
-    this.intent = 'Motion',
-    this.description,
-  }) : instances = List.unmodifiable(instances) {
-    if (duration <= Duration.zero) {
-      throw ArgumentError.value(
-        duration,
-        'duration',
-        'A motion duration must be greater than zero.',
-      );
-    }
-    final seenIds = <String>{};
-    for (final instance in this.instances) {
-      if (instance.value.trim().isEmpty) {
-        throw ArgumentError.value(
-          instance,
-          'instances',
-          'A motion instance needs a non-empty ID.',
-        );
-      }
-      if (!seenIds.add(instance.value)) {
-        throw ArgumentError.value(
-          instance,
-          'instances',
-          'Motion instance IDs must be unique within "$id".',
-        );
-      }
-    }
-  }
-
-  /// Stable identifier for the entry.
-  final String id;
-
-  /// Human-readable name.
-  final String name;
-
-  /// Intended duration for one forward pass of this motion.
-  ///
-  /// Desy uses this as the initial detail playback duration and passes it to
-  /// the consumer builders so the preview reflects the declared treatment.
-  final Duration duration;
-
-  /// Typed curve used by the consumer.
-  final Curve curve;
-
-  /// Real consumer animation treatment, wrapped around a supplied child.
-  final DesyMotionBuilder builder;
-
-  /// Optional consumer-owned transition treatment for a pair of widgets.
-  final DesyMotionTransitionBuilder? transitionBuilder;
-
-  /// Whether this motion offers a two-widget transition preview.
-  bool get supportsTransition => transitionBuilder != null;
-
-  /// Registry-owned instances used by this animation, in display order.
-  ///
-  /// These are declaration data, not a user-selectable preview control. When
-  /// no instances are declared, Desy supplies two Flutter-logo containers so
-  /// every motion remains inspectable.
-  final List<DesyInstanceId> instances;
-
-  /// Builds the registry-declared instances, or Desy's two fallback specimens.
-  List<Widget> buildInstances(
-    BuildContext context, {
-    DesyWidgetResolver? widgets,
-  }) {
-    if (instances.isEmpty) {
-      return const [
-        _DesyMotionFallbackSpecimen.first(),
-        _DesyMotionFallbackSpecimen.second(),
-      ];
-    }
-    return [
-      for (final instance in instances)
-        widgets?.resolve(context, instance) ??
-            buildDesyMissingRegistryWidget(
-              registryName: 'Motion instance',
-              instanceId: instance.value,
-            ),
-    ];
-  }
-
-  /// Builds the default motion preview for simple registry surfaces.
-  Widget buildDefault(BuildContext context, {DesyWidgetResolver? widgets}) =>
-      builder(
-        context,
-        buildInstances(context, widgets: widgets).first,
-        duration,
-      );
-
-  /// Builds [child] with the consumer-owned motion treatment.
-  ///
-  /// [previewDuration] lets the detail playback control supply a local
-  /// override without changing the immutable declared [duration].
-  Widget build(
-    BuildContext context,
-    Widget child, {
-    Duration? previewDuration,
-  }) => builder(context, child, previewDuration ?? duration);
-
-  /// Builds a consumer-owned transition from [first] to [second].
-  ///
-  /// A regular one-child treatment remains useful when no transition was
-  /// declared, so the fallback animates the incoming child.
-  Widget buildTransition(
-    BuildContext context,
-    Widget first,
-    Widget second, {
-    Duration? previewDuration,
-  }) =>
-      transitionBuilder?.call(
-        context,
-        first,
-        second,
-        previewDuration ?? duration,
-      ) ??
-      builder(context, second, previewDuration ?? duration);
-
-  /// Optional display metadata for motion-oriented surfaces.
-  final String intent;
-
-  /// Optional usage guidance.
-  final String? description;
-
-  /// Concise display value.
-  String get displayValue => '${duration.inMilliseconds} ms · $curve';
-}
-
-class _DesyMotionFallbackSpecimen extends StatelessWidget {
-  const _DesyMotionFallbackSpecimen._(this.color, {super.key});
-
-  const _DesyMotionFallbackSpecimen.first()
-    : this._(
-        const Color(0xFF54C5F8),
-        key: const ValueKey('motion-fallback-first'),
-      );
-
-  const _DesyMotionFallbackSpecimen.second()
-    : this._(
-        const Color(0xFF7257D9),
-        key: const ValueKey('motion-fallback-second'),
-      );
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 116,
-    height: 116,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: const FlutterLogo(size: 56, style: FlutterLogoStyle.markOnly),
-  );
-}
-
 /// A consumer-owned icon glyph rendered by Flutter's real icon widget.
 class DesyIconEntry {
   /// Creates a typed icon primitive.
@@ -1613,47 +1354,6 @@ final class DesyAssetEntry {
     semanticLabel: fileName,
     errorBuilder: (_, _, _) => const SizedBox.shrink(),
   );
-}
-
-/// A typed effect that decorates a widget supplied by the consumer.
-///
-/// Effects remain intentionally narrow: the first supported effect is a list
-/// of [BoxShadow] values. Future shaders and widget transforms can add their
-/// own typed constructors without turning this into a loose configuration map.
-class DesyEffectEntry {
-  /// Creates a box-shadow effect.
-  DesyEffectEntry.boxShadow({
-    required this.id,
-    required this.name,
-    required List<BoxShadow> shadows,
-    this.group = 'Effects',
-    this.description,
-  }) : shadows = List.unmodifiable(shadows);
-
-  /// Stable identifier for the effect.
-  final String id;
-
-  /// Human-readable name.
-  final String name;
-
-  /// The consumer-declared shadows applied to a widget.
-  final List<BoxShadow> shadows;
-
-  /// Optional display metadata for effect-oriented surfaces.
-  final String group;
-
-  /// Optional usage guidance.
-  final String? description;
-
-  /// Applies this effect to [child] without recreating the child widget.
-  Widget apply(BuildContext context, Widget child) => DecoratedBox(
-    decoration: BoxDecoration(boxShadow: shadows),
-    child: child,
-  );
-
-  /// Concise display value for workbench presentation.
-  String get displayValue =>
-      '${shadows.length} box shadow${shadows.length == 1 ? '' : 's'}';
 }
 
 /// Builder for a real consumer component preview.
@@ -2898,6 +2598,259 @@ final class DesyComponent<K> extends DesyRegistryComponent {
           break;
       }
     }
+  }
+}
+
+/// A component that receives a workbench-controlled animation playhead.
+///
+/// Animation components remain normal component entries: they use the same
+/// paths, contracts, scenarios, instances, and knob APIs as [DesyComponent].
+/// The workbench only supplies the ephemeral [Animation] while Details is
+/// open; no animation child inventory is registered separately.
+abstract interface class DesyAnimationComponentBase
+    implements DesyRegistryComponent {
+  /// Intended duration for one forward pass.
+  Duration get duration;
+
+  /// Curve applied by the workbench playback controller.
+  Curve get curve;
+
+  /// Builds the component using the current detail-playback [progress].
+  Widget buildWithPlayback(
+    BuildContext context,
+    Map<String, Object> values,
+    DesyWidgetResolver widgets,
+    Animation<double> progress, {
+    DesyEventHost events = const DesyNoopEventHost(),
+  });
+
+  /// Builds one named instance using the current detail-playback [progress].
+  Widget buildInstanceWithPlayback(
+    BuildContext context,
+    String instanceId,
+    DesyWidgetResolver widgets,
+    Animation<double> progress, {
+    DesyEventHost events = const DesyNoopEventHost(),
+  });
+}
+
+/// Builder for the real widget owned by a [DesyAnimationComponent].
+typedef DesyAnimationComponentBuilder<K> =
+    Widget Function(BuildContext context, K knobs, Animation<double> progress);
+
+/// A normal registry component with an explicit scrub-friendly animation
+/// builder and playback fields.
+final class DesyAnimationComponent<K> extends DesyAnimationComponentBase {
+  /// Creates an animation-capable component.
+  factory DesyAnimationComponent({
+    required String id,
+    required String name,
+    String path = '/',
+    required K Function(KnobScope scope) knobs,
+    required DesyAnimationComponentBuilder<K> builder,
+    required Duration duration,
+    required Curve curve,
+    Map<String, Iterable<KnobSettingBase>> Function(K knobs)? instances,
+    IconData? icon,
+    String? description,
+    String category = 'Components',
+    String? accessibility,
+    String? source,
+    Size? defaultSize,
+    DesyComponentContract? contract,
+    List<DesyComponentScenario> scenarios = const [],
+  }) {
+    if (duration <= Duration.zero) {
+      throw ArgumentError.value(
+        duration,
+        'duration',
+        'An animation duration must be greater than zero.',
+      );
+    }
+    final component = DesyComponent<K>(
+      id: id,
+      name: name,
+      path: path,
+      knobs: knobs,
+      build: (context, values) =>
+          builder(context, values, kAlwaysCompleteAnimation),
+      instances: instances,
+      icon: icon,
+      description: description,
+      category: category,
+      accessibility: accessibility,
+      source: source,
+      defaultSize: defaultSize,
+      contract: contract,
+      scenarios: scenarios,
+    );
+    return DesyAnimationComponent._(
+      component: component,
+      bind: knobs,
+      builder: builder,
+      duration: duration,
+      curve: curve,
+    );
+  }
+
+  DesyAnimationComponent._({
+    required DesyComponent<K> component,
+    required K Function(KnobScope scope) bind,
+    required DesyAnimationComponentBuilder<K> builder,
+    required this.duration,
+    required this.curve,
+  }) : _component = component,
+       _bind = bind,
+       _builder = builder;
+
+  final DesyComponent<K> _component;
+  final K Function(KnobScope scope) _bind;
+  final DesyAnimationComponentBuilder<K> _builder;
+
+  @override
+  final Duration duration;
+
+  @override
+  final Curve curve;
+
+  @override
+  String get id => _component.id;
+
+  @override
+  String get name => _component.name;
+
+  @override
+  String get path => _component.path;
+
+  @override
+  DesyComponentPath get componentPath => _component.componentPath;
+
+  @override
+  IconData? get icon => _component.icon;
+
+  @override
+  String? get description => _component.description;
+
+  @override
+  String get category => _component.category;
+
+  @override
+  String? get accessibility => _component.accessibility;
+
+  @override
+  String? get source => _component.source;
+
+  @override
+  Size? get defaultSize => _component.defaultSize;
+
+  @override
+  DesyComponentContract? get contract => _component.contract;
+
+  @override
+  List<DesyComponentScenario> get scenarios => _component.scenarios;
+
+  @override
+  List<KnobDefinition<Object>> get knobDefinitions =>
+      _component.knobDefinitions;
+
+  @override
+  List<String> get instanceIds => _component.instanceIds;
+
+  @override
+  String instanceLabel(String instanceId) =>
+      _component.instanceLabel(instanceId);
+
+  @override
+  Widget buildInstance(
+    BuildContext context,
+    String instanceId,
+    DesyWidgetResolver widgets, {
+    DesyEventHost events = const DesyNoopEventHost(),
+  }) => _component.buildInstance(context, instanceId, widgets, events: events);
+
+  @override
+  Widget buildWithValues(
+    BuildContext context,
+    Map<String, Object> values, {
+    required DesyWidgetResolver widgets,
+    DesyEventHost events = const DesyNoopEventHost(),
+  }) => _component.buildWithValues(
+    context,
+    values,
+    widgets: widgets,
+    events: events,
+  );
+
+  @override
+  Widget preview(
+    BuildContext context,
+    DesyWidgetResolver widgets, {
+    DesyEventHost events = const DesyNoopEventHost(),
+  }) => _component.preview(context, widgets, events: events);
+
+  @override
+  Map<String, Object> valuesFor(String instanceId) =>
+      _component.valuesFor(instanceId);
+
+  @override
+  Iterable<DesyInstanceId> referencesFor(String instanceId) =>
+      _component.referencesFor(instanceId);
+
+  @override
+  String? get defaultInstanceId => _component.defaultInstanceId;
+
+  @override
+  Widget buildWithPlayback(
+    BuildContext context,
+    Map<String, Object> values,
+    DesyWidgetResolver widgets,
+    Animation<double> progress, {
+    DesyEventHost events = const DesyNoopEventHost(),
+  }) => _build(
+    context,
+    [
+      for (final definition in knobDefinitions)
+        if (values.containsKey(definition.id))
+          KnobSetting<Object>(
+            definition,
+            _toSettingValue(definition, values[definition.id]!),
+          ),
+    ],
+    widgets,
+    progress,
+    events,
+  );
+
+  @override
+  Widget buildInstanceWithPlayback(
+    BuildContext context,
+    String instanceId,
+    DesyWidgetResolver widgets,
+    Animation<double> progress, {
+    DesyEventHost events = const DesyNoopEventHost(),
+  }) => _build(
+    context,
+    _component.instances[instanceId] ?? const [],
+    widgets,
+    progress,
+    events,
+  );
+
+  Widget _build(
+    BuildContext context,
+    List<KnobSettingBase> overrides,
+    DesyWidgetResolver widgets,
+    Animation<double> progress,
+    DesyEventHost events,
+  ) {
+    final scope = ResolvedKnobScope(
+      knobDefinitions,
+      overrides,
+      context,
+      widgets.withEvents(events),
+      events,
+    );
+    return _builder(context, _bind(scope), progress);
   }
 }
 

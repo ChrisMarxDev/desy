@@ -1,6 +1,4 @@
-import 'package:desy_bench/src/motion_playback.dart';
 import 'package:desy_bench/src/registry.dart';
-import 'package:desy_bench/src/workbench/presentation/atlas_screen.dart';
 import 'package:desy_bench/src/workbench/presentation/detail_screen.dart';
 import 'package:desy_bench/src/workbench/workbench_session.dart';
 import 'package:desy_design_system/desy_design_system.dart';
@@ -8,253 +6,118 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('motion entries require and expose an intended duration', () {
-    final entry = DesyMotionEntry(
-      id: 'motion.inherited',
+  test('animation components retain their playback fields', () {
+    final component = DesyAnimationComponent<void>(
+      id: 'component.inherited',
       name: 'Inherited duration',
+      knobs: (_) {},
+      builder: (_, _, _) => const SizedBox(),
       duration: const Duration(milliseconds: 280),
       curve: Curves.linear,
-      builder: _motionBuilder,
     );
 
-    expect(entry.duration, const Duration(milliseconds: 280));
-    expect(entry.displayValue, contains('280 ms'));
+    expect(component.duration, const Duration(milliseconds: 280));
+    expect(component.curve, Curves.linear);
   });
 
-  testWidgets(
-    'motion details autoplay and expose one shared playback timeline',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1100, 800));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      var renderedProgress = 0.0;
-      Duration? builderDuration;
-      final registry = DesyRegistry(
-        name: 'Motion test',
-        themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-        motion: [
-          DesyMotionEntry(
-            id: 'motion.reveal',
-            name: 'Reveal',
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.linear,
-            builder: (context, child, duration) {
-              builderDuration = duration;
-              final playback = DesyMotionPlaybackScope.maybeOf(context);
-              expect(playback, isNotNull);
-              return AnimatedBuilder(
-                animation: playback!,
-                builder: (context, child) {
-                  renderedProgress = playback.value;
-                  return child!;
-                },
-                child: child,
-              );
-            },
-          ),
-        ],
-      );
-      final session = DesyWorkbenchSession(registry: registry);
-      addTearDown(session.dispose);
-
-      await tester.pumpWidget(
-        _TestHarness(
-          child: DesyDetailScreen(
-            session: session,
-            entry: registry.resolve('motion.reveal')!,
-          ),
-        ),
-      );
-
-      expect(
-        find.byKey(const ValueKey('motion-playback-controls')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('motion-playhead-thermometer')),
-        findsOneWidget,
-      );
-      expect(find.byType(FlutterLogo), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('motion-specimen-select')),
-        findsNothing,
-      );
-      final durationField = find.byKey(
-        const ValueKey('motion-global-duration'),
-      );
-      expect(durationField, findsOneWidget);
-      expect(
-        tester
-            .widget<EditableText>(
-              find.descendant(
-                of: durationField,
-                matching: find.byType(EditableText),
-              ),
-            )
-            .controller
-            .text,
-        '300',
-      );
-      expect(find.byKey(const ValueKey('motion-loop-mode')), findsNothing);
-      expect(find.text('No controls declared.'), findsNothing);
-      expect(builderDuration, const Duration(milliseconds: 300));
-
-      await tester.enterText(durationField, '600');
-      await tester.pump();
-      expect(builderDuration, const Duration(milliseconds: 600));
-      await tester.pump(const Duration(milliseconds: 50));
-      expect(renderedProgress, closeTo(1 / 12, 0.05));
-
-      _press(tester, const ValueKey('motion-play-pause'));
-      await tester.pump();
-      final pausedProgress = renderedProgress;
-      await tester.pump(const Duration(milliseconds: 80));
-      expect(renderedProgress, closeTo(pausedProgress, 0.001));
-
-      _press(tester, const ValueKey('motion-speed-mode'));
-      await tester.pump();
-      expect(find.text('2.0×'), findsOneWidget);
-
-      _press(tester, const ValueKey('motion-play-pause'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 20));
-      expect(renderedProgress, isNot(closeTo(pausedProgress, 0.001)));
-
-      await tester.pump(const Duration(milliseconds: 400));
-      expect(renderedProgress, closeTo(1, 0.001));
-      expect(find.bySemanticsLabel('Play'), findsOneWidget);
-      await tester.pump(const Duration(milliseconds: 400));
-      expect(renderedProgress, closeTo(1, 0.001));
-
-      _press(tester, const ValueKey('motion-play-pause'));
-      await tester.pump(const Duration(milliseconds: 20));
-      expect(renderedProgress, lessThan(1));
-    },
-  );
-
-  testWidgets('Motion Atlas header controls one duration-aware global clock', (
+  testWidgets('component details autoplay with one scrubbed timeline', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(1100, 800));
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    final renderedProgress = <String, double>{};
-    DesyMotionEntry motion(String id, Duration duration) => DesyMotionEntry(
-      id: id,
-      name: id,
-      duration: duration,
-      curve: Curves.linear,
-      builder: (context, child, _) {
-        final playback = DesyMotionPlaybackScope.maybeOf(context)!;
-        return AnimatedBuilder(
-          animation: playback,
-          builder: (context, _) {
-            renderedProgress[id] = playback.value;
-            return child;
-          },
-        );
-      },
-    );
+    var renderedProgress = 0.0;
     final registry = DesyRegistry(
-      name: 'Global motion test',
+      name: 'Component animation test',
       themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
-      motion: [
-        motion('motion.fast', const Duration(milliseconds: 100)),
-        motion('motion.slow', const Duration(milliseconds: 200)),
-        motion('motion.default', const Duration(milliseconds: 150)),
+      components: [
+        DesyAnimationComponent<void>(
+          id: 'component.reveal',
+          name: 'Reveal',
+          path: '/feedback',
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.linear,
+          knobs: (_) {},
+          builder: (context, _, progress) => AnimatedBuilder(
+            animation: progress,
+            builder: (context, _) {
+              renderedProgress = progress.value;
+              return const FlutterLogo();
+            },
+          ),
+        ),
       ],
     );
     final session = DesyWorkbenchSession(registry: registry);
     addTearDown(session.dispose);
 
     await tester.pumpWidget(
-      _TestHarness(
-        child: DesyAtlasScreen(
+      _Harness(
+        child: DesyDetailScreen(
           session: session,
-          folderId: DesyAtomKind.motion.id,
-          onOpen: (_) {},
+          entry: registry.resolve('component.reveal')!,
         ),
       ),
     );
-
-    final globalControls = find.byKey(
-      const ValueKey('motion-global-playback-controls'),
-    );
-    expect(globalControls, findsOneWidget);
-    final thermometer = find.byKey(
-      const ValueKey('motion-playhead-thermometer'),
-    );
-    expect(thermometer, findsOneWidget);
-    expect(tester.getSize(thermometer).width, 250);
-    expect(find.byKey(const ValueKey('motion-loop-mode')), findsNothing);
-    final durationField = find.byKey(const ValueKey('motion-global-duration'));
-    expect(durationField, findsOneWidget);
-    expect(
-      tester
-          .widget<EditableText>(
-            find.descendant(
-              of: durationField,
-              matching: find.byType(EditableText),
-            ),
-          )
-          .controller
-          .text,
-      '200',
-    );
-    expect(
-      tester.getTopLeft(globalControls).dy,
-      lessThan(
-        tester.getTopLeft(find.byKey(const ValueKey('atlas-search'))).dy,
-      ),
-    );
-    expect(
-      tester.getCenter(durationField).dx,
-      lessThan(tester.getCenter(thermometer).dx),
-    );
-    expect(tester.getSize(durationField).height, 40);
-    expect(
-      tester.getSize(find.byKey(const ValueKey('motion-speed-mode'))).height,
-      40,
-    );
-    expect(
-      tester.getCenter(thermometer).dx,
-      lessThan(
-        tester.getCenter(find.byKey(const ValueKey('motion-speed-mode'))).dx,
-      ),
-    );
-    expect(
-      tester.getTopLeft(find.byKey(const ValueKey('motion-speed-mode'))).dy,
-      closeTo(tester.getTopLeft(durationField).dy, 0.01),
-    );
-
     await tester.pump(const Duration(milliseconds: 50));
-    expect(renderedProgress['motion.fast'], closeTo(0.25, 0.05));
-    expect(renderedProgress['motion.slow'], closeTo(0.25, 0.05));
-    expect(renderedProgress['motion.default'], closeTo(0.25, 0.05));
 
-    _press(tester, const ValueKey('motion-play-pause'));
+    expect(
+      find.byKey(const ValueKey('motion-playback-controls')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('desy-animation-scrubber-rail')),
+      findsOneWidget,
+    );
+    expect(renderedProgress, greaterThan(0));
+
+    final play = find.byKey(const ValueKey('motion-play-pause'));
+    final duration = find.byKey(const ValueKey('motion-global-duration'));
+    final loop = find.byKey(const ValueKey('motion-loop-mode'));
+    expect(find.text('Once'), findsOneWidget);
+    for (final control in [play, loop]) {
+      expect(tester.getSize(control).height, 32);
+      expect(
+        tester.getCenter(control).dy,
+        closeTo(tester.getCenter(duration).dy, 0.01),
+      );
+    }
+    expect(tester.getSize(duration).height, 32);
+    final durationTextField = tester.widget<TextField>(
+      find.descendant(of: duration, matching: find.byType(TextField)),
+    );
+    expect(durationTextField.decoration?.labelText, 'ms');
+    expect(durationTextField.decoration?.suffixIcon, isNull);
+    expect(
+      find.descendant(of: duration, matching: find.text('ms')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('motion-speed-mode')), findsNothing);
+    expect(find.text('Playback speed'), findsNothing);
+    expect(find.text('1.0×'), findsNothing);
+    expect(find.text('2.0×'), findsNothing);
+
+    _press(tester, const ValueKey('motion-loop-mode'));
     await tester.pump();
-    final pausedFast = renderedProgress['motion.fast']!;
-    final pausedSlow = renderedProgress['motion.slow']!;
-    await tester.pump(const Duration(milliseconds: 60));
-    expect(renderedProgress['motion.fast'], closeTo(pausedFast, 0.001));
-    expect(renderedProgress['motion.slow'], closeTo(pausedSlow, 0.001));
+    expect(find.text('Loop'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(renderedProgress, lessThan(0.5));
 
-    _press(tester, const ValueKey('motion-speed-mode'));
+    _press(tester, const ValueKey('motion-loop-mode'));
     await tester.pump();
-    expect(find.text('2.0×'), findsOneWidget);
+    expect(find.text('Once'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(renderedProgress, closeTo(1, 0.001));
 
-    await tester.enterText(durationField, '400');
+    await tester.enterText(duration, '12abc3');
     await tester.pump();
     expect(
       tester
           .widget<EditableText>(
-            find.descendant(
-              of: durationField,
-              matching: find.byType(EditableText),
-            ),
+            find.descendant(of: duration, matching: find.byType(EditableText)),
           )
           .controller
           .text,
-      '400',
+      '123',
     );
   });
 }
@@ -263,13 +126,10 @@ void _press(WidgetTester tester, ValueKey<String> key) {
   tester.widget<DesyButton>(find.byKey(key)).onPress!.call();
 }
 
-Widget _wrap(BuildContext context, Widget child) => child;
+Widget _wrap(BuildContext context, Widget child) => Material(child: child);
 
-Widget _motionBuilder(BuildContext context, Widget child, Duration duration) =>
-    child;
-
-class _TestHarness extends StatelessWidget {
-  const _TestHarness({required this.child});
+class _Harness extends StatelessWidget {
+  const _Harness({required this.child});
 
   final Widget child;
 

@@ -3,7 +3,7 @@
 `desy_brand_guide` is an optional, read-only workspace extension. It receives
 the active `DesyRegistry` through the standard extension context and assembles
 a scrollable guideline from the system profile, logo assets, colors,
-typography, motion, and the complete asset collection.
+typography, component previews, and the complete asset collection.
 
 `DesyBrandGuideConfig` adds only brand declarations that ordinary component
 libraries should not be forced to provide: immutable voice principles with

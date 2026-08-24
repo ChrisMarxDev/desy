@@ -111,6 +111,9 @@ abstract final class DesyIcons {
   /// A tablet preview bezel.
   static const IconData tablet = FLucideIcons.tablet;
 
+  /// Delete or remove an item.
+  static const IconData trash = FLucideIcons.trash2;
+
   /// A warning that requires investigation.
   static const IconData triangleAlert = FLucideIcons.triangleAlert;
 

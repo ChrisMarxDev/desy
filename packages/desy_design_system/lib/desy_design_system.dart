@@ -8,8 +8,11 @@ library;
 export 'package:forui/forui.dart';
 
 export 'src/control_aliases.dart';
+export 'src/desy_animation_scrubber.dart';
 export 'src/desy_badge.dart';
 export 'src/desy_button.dart';
+export 'src/desy_action_dock.dart';
+export 'src/desy_canvas_background.dart';
 export 'src/desy_card.dart';
 export 'src/desy_chat.dart';
 export 'src/desy_catalogue_card.dart';

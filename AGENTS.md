@@ -29,7 +29,7 @@
 - The consumer registry is the single declared source of truth.
 - Keep registry contracts widget-returning: every registered artifact ultimately
   supplies the consumer's real widget. Colors, Fonts, Icons, Measurements,
-  Motion, Effects, and Assets are known but optional typed lanes so Desy can provide
+  Motion, and Assets are known but optional typed lanes so Desy can provide
   specialized tools without prescribing their visual implementation.
 - Desy-owned workbench surfaces consume the public `DesyRegistry` directly
   through one app-wide access path. Do not copy registry lists into screens or
@@ -70,7 +70,7 @@
   logical size from the drag box. Named device previews keep fixed screen and
   media geometry, clip to the screen, and scale the screen and bezel down
   together without inserting `SafeArea` or scrolling.
-- Treat Colors, Fonts, Icons, Measurements, Motion, Effects, and Assets as optional,
+- Treat Colors, Fonts, Icons, Measurements, Motion, and Assets as optional,
   typed `DesyRegistry` parameters. They are built-in atom lanes, never
   consumer-declared folder branches or inferred labels.
 - Show only non-empty atom lanes in navigation and omit the complete Atoms
