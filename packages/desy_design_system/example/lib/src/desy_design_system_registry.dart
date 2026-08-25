@@ -67,7 +67,6 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
       ),
     ],
   ),
-  homePage: _desyHomePage,
   themes: [
     DesyTheme(
       id: 'desy.theme.light',
@@ -320,75 +319,6 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
     _progressTrailComponent,
     _scaffoldComponent,
     _shortcutComponent,
-  ],
-);
-
-Widget _desyHomePage(BuildContext context) => ListView(
-  key: const ValueKey('desy-home-readme'),
-  padding: const EdgeInsets.fromLTRB(40, 40, 40, 56),
-  children: [
-    Text('DESY DESIGN SYSTEM', style: Theme.of(context).textTheme.labelSmall),
-    const SizedBox(height: 8),
-    Text(
-      'A working guide to Desy',
-      style: Theme.of(context).textTheme.displaySmall,
-    ),
-    const SizedBox(height: 10),
-    ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: 680),
-      child: Text(
-        'Use this catalogue to inspect the production widgets, foundations, and interaction patterns that make up the workbench.',
-      ),
-    ),
-    const SizedBox(height: 32),
-    LayoutBuilder(
-      builder: (context, constraints) => Wrap(
-        spacing: 16,
-        runSpacing: 16,
-        children: [
-          for (final pointer in const [
-            (
-              'Start with components',
-              'Inspect real production widgets and their declared states.',
-            ),
-            (
-              'Use the foundations',
-              'Compare colors, typography, icons, and measurements as a system.',
-            ),
-            (
-              'Keep decisions visible',
-              'Use the registry as the durable map for the system.',
-            ),
-          ])
-            SizedBox(
-              width: constraints.maxWidth >= 780
-                  ? (constraints.maxWidth - 32) / 3
-                  : constraints.maxWidth >= 520
-                  ? (constraints.maxWidth - 16) / 2
-                  : constraints.maxWidth,
-              child: DesyCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        pointer.$1,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        pointer.$2,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    ),
   ],
 );
 

@@ -36,7 +36,7 @@ void main() {
     );
     expect(desyDesignSystemRegistry.allIcons, hasLength(29));
     expect(desyDesignSystemRegistry.systemProfile?.id, 'desy.system-profile');
-    expect(desyDesignSystemRegistry.homePage, isNotNull);
+    expect(desyDesignSystemRegistry.homePage, isNull);
     expect(
       desyDesignSystemRegistry.systemHeroAsset?.id,
       'desy.asset.workspace.signature.primary',
@@ -126,7 +126,6 @@ void main() {
         'desy.component.resize-divider',
         'desy.component.scaffold',
         'desy.component.select',
-        'desy.component.sample',
         'desy.component.shortcut-label',
         'desy.component.sidebar',
         'desy.component.sidebar-section',
@@ -151,11 +150,8 @@ void main() {
       desyDesignSystemRegistry.resolve('desy.component.knob-sheet')?.path,
       'Molecules / Inputs / Knobs',
     );
-    final sample = desyDesignSystemRegistry.resolve('desy.component.sample')!;
-    expect(sample.component!.instanceIds, isEmpty);
     for (final component in desyDesignSystemRegistry.allComponents.where(
-      (component) =>
-          component.id != sample.id && component is! DesyAnimationComponentBase,
+      (component) => component is! DesyAnimationComponentBase,
     )) {
       expect(component.instanceIds, isNotEmpty, reason: component.id);
       expect(
