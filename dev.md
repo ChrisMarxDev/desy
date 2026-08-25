@@ -100,7 +100,8 @@ use. `DesyRegistrySnapshot` contains every declared component—there is no
 agent-specific catalogue configuration or filtered component inventory.
 GenUI/A2UI adapters remain separate packages and continue to invoke the
 registry's real widget builders locally.
-The maintained GenUI adapter lives in `packages/extensions/desy_genui`.
+The maintained GenUI exploration lives in `genui/`; its Desy integration
+adapter remains in `genui/desy_genui`.
 `DesyGenUiCatalog.compile(registry)` produces both an executable Flutter
 `Catalog` and a backend-safe schema/prompt/example artifact with a deterministic
 digest. Its `example/` is intentionally backend-free and feeds typed local

@@ -1,0 +1,9 @@
+name: codex_app_server
+description: Experimental pure-Dart client for the local Codex app-server JSON-RPC protocol.
+version: 0.0.1
+publish_to: none
+environment:
+  sdk: ^3.10.0
+resolution: workspace
+dev_dependencies:
+  test: ^1.25.0

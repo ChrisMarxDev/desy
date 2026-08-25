@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Local Codex GenUI driver</title><link rel="stylesheet" href="../styles.css"></head><body><main class="shell">
+<nav><a href="index.html">← Planned features</a><span>Research experiment · desktop only</span></nav>
+<section class="hero"><div class="eyebrow">Optional protocol experiment</div><h1>Run local Codex as a constrained GenUI driver.</h1><p class="lede">Prove a self-contained desktop app can launch Codex app-server as a child process, ask it for schema-constrained A2UI operations, and render those operations through Flutter GenUI.</p></section>
+<section class="grid"><article class="card"><h2>Boundary</h2><p>No agent runtime, A2A server, ACP implementation, provider key, or new Desy contract. This is Codex app-server JSON-RPC over stdio plus an adapter emitting canonical A2UI messages.</p></article><article class="card"><h2>Package split</h2><p><code>codex_app_server</code> is pure Dart process/JSON-RPC plumbing. <code>genui_codex</code> maps a GenUI request to a Codex turn, then constrained JSON to A2UI.</p></article><article class="card"><h2>Scope</h2><p>Dart VM desktop only. The driver defaults to read-only work and rejects invalid model output. Flutter Web, Android, and iOS remain unsupported.</p></article></section>
+<section class="card full"><h2>Wire map</h2><pre><code>Conversation / ChatMessage → Codex turn/start (JSON-RPC JSONL)
+Codex final structured output → A2UI v0.9 messages → SurfaceController</code></pre><p>The catalog capability and compact instruction are model context, not a wire protocol. A2A is deliberately absent.</p></section>
+</main></body></html>

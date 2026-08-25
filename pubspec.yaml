@@ -16,7 +16,10 @@ workspace:
   - packages/desy_design_system/widgetbook
   - packages/extensions/desy_brand_guide
   - packages/extensions/desy_screenshot_builder
-  - packages/extensions/desy_genui
-  - packages/extensions/desy_genui/example
+  - genui/desy_genui
+  - genui/experiments/codex_app_server
+  - genui/experiments/genui_codex
+  - genui/experiments/genui_flue
+  - genui/example
   - packages/extensions/desy_goldens_prototype
   - packages/extensions/desy_widget_workshop

@@ -1,10 +1,9 @@
 # Orbit GenUI design system
 
-Orbit is a consumer-owned, desktop-first design system used by the
-`desy_genui` sample. It demonstrates a production-shaped boundary: Desy
-compiles and presents a declared registry, while the consumer retains
-ownership of its visual language, real widgets, theme, input, and product
-policy.
+Orbit is a consumer-owned, desktop-first design system in the standalone GenUI
+exploration. Its optional `desy_genui` adapter demonstrates one integration:
+the consumer retains ownership of its visual language, real widgets, theme,
+input, and product policy.
 
 ## Foundation
 
@@ -42,7 +41,7 @@ of truth for those platform-sensitive concerns.
 ## Generated component boundary
 
 The registry in
-`packages/extensions/desy_genui/example/lib/orbit/orbit_registry.dart` declares
+`genui/example/lib/orbit/orbit_registry.dart` declares
 stable component IDs and slash paths. It exposes this component vocabulary:
 
 - layout: response stack;
@@ -50,11 +49,10 @@ stable component IDs and slash paths. It exposes this component vocabulary:
 - agent: task list, task row, approval request, tool activity;
 - data: metric grid, metric tile, source card.
 
-The same widgets are used in both Orbit and Desy previews. Generated surfaces
-can set declared values, select declared example instances, nest into legal
-slots, and emit typed actions. They do not receive callbacks, navigation,
-database access, secret values, or ownership of the chat composer. The app
-decides whether to forward a typed action to the backend.
+Generated surfaces can set declared values, select declared example instances,
+nest into legal slots, and emit typed actions. They do not receive callbacks,
+navigation, database access, secret values, or ownership of the chat composer.
+The app decides whether to forward a typed action to the backend.
 
 ## Verification
 

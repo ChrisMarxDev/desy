@@ -32,11 +32,20 @@ includes:
     taskfile: ./packages/extensions/desy_screenshot_builder/Taskfile.yml
     dir: ./packages/extensions/desy_screenshot_builder
   genui:
-    taskfile: ./packages/extensions/desy_genui/Taskfile.yml
-    dir: ./packages/extensions/desy_genui
+    taskfile: ./genui/desy_genui/Taskfile.yml
+    dir: ./genui/desy_genui
+  codex_app_server:
+    taskfile: ./genui/experiments/codex_app_server/Taskfile.yml
+    dir: ./genui/experiments/codex_app_server
+  genui_codex:
+    taskfile: ./genui/experiments/genui_codex/Taskfile.yml
+    dir: ./genui/experiments/genui_codex
+  genui_flue:
+    taskfile: ./genui/experiments/genui_flue/Taskfile.yml
+    dir: ./genui/experiments/genui_flue
   genui_example:
-    taskfile: ./packages/extensions/desy_genui/example/Taskfile.yml
-    dir: ./packages/extensions/desy_genui/example
+    taskfile: ./genui/example/Taskfile.yml
+    dir: ./genui/example
   goldens_prototype:
     taskfile: ./packages/extensions/desy_goldens_prototype/Taskfile.yml
     dir: ./packages/extensions/desy_goldens_prototype
@@ -74,6 +83,9 @@ tasks:
       - task: widgetbook:test
       - task: screenshot_builder:test
       - task: genui:test
+      - task: codex_app_server:test
+      - task: genui_codex:test
+      - task: genui_flue:test
       - task: genui_example:test
       - task: widget_workshop:test
 
