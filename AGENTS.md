@@ -16,7 +16,8 @@
 
 - `docs/` contains only user-facing Desy documentation, written in Markdown.
   Add a document there only when it helps a Desy consumer use the product; list
-  every document from the root README.
+  every document from the root README. Update affected documentation and its
+  README link in the same change as every public API-surface change.
 - `concept/` contains internal project concept work for agents and maintainers:
   planned features, internal contracts, decisions, and research. It is not
   consumer documentation.

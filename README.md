@@ -28,6 +28,7 @@ widgets under their real theme.
 
 ## Documentation
 
+- [Registry: declare your design system](docs/registry.md)
 - [Knobs: portable component inputs](docs/knobs.md)
 
 ## Give this prompt to your coding agent
