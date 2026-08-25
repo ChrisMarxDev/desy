@@ -12,6 +12,8 @@ import 'package:mix/mix.dart';
 
 import 'genui_backend.dart';
 import 'experiments/codex/codex_genui_backend.dart';
+import 'experiments/codex_checkpoints/codex_checkpoints_workbench.dart';
+import 'experiments/local_data/sample_ticket_loader.dart';
 import 'orbit/orbit_registry.dart';
 import 'orbit/orbit_theme.dart';
 
@@ -91,6 +93,8 @@ class _SendComposerIntent extends Intent {
   const _SendComposerIntent();
 }
 
+enum _WorkspaceDestination { agentRoom, codexCheckpoints }
+
 class _OrbitWorkspace extends StatefulWidget {
   const _OrbitWorkspace({
     required this.onToggleTheme,
@@ -113,6 +117,7 @@ class _OrbitWorkspaceState extends State<_OrbitWorkspace> {
   late final SurfaceController controller;
   late final TextEditingController _promptController;
   late final FocusNode _composerFocusNode;
+  late final SampleTicketLoader _sampleTicketLoader;
   late final bool _ownsBackend;
   GenUiBackend? _backend;
   StreamSubscription<ChatMessage>? _events;
@@ -123,6 +128,9 @@ class _OrbitWorkspaceState extends State<_OrbitWorkspace> {
   String _source = 'ORBIT FIXTURE';
   String _lastAction = 'No generated action yet.';
   bool _isGenerating = false;
+  bool _isLoadingSampleTickets = false;
+  bool _isShowingSampleTickets = false;
+  var _destination = _WorkspaceDestination.agentRoom;
 
   @override
   void initState() {
@@ -133,6 +141,7 @@ class _OrbitWorkspaceState extends State<_OrbitWorkspace> {
       text: 'Show me the clearest next move for this workspace.',
     );
     _composerFocusNode = FocusNode(debugLabel: 'orbit-composer');
+    _sampleTicketLoader = SampleTicketLoader();
     _ownsBackend = widget.backend == null;
     _backend = widget.backend;
     _events = controller.onSubmit.listen((message) {
@@ -228,6 +237,7 @@ class _OrbitWorkspaceState extends State<_OrbitWorkspace> {
     setState(() {
       _isGenerating = true;
       _error = null;
+      _isShowingSampleTickets = false;
       if (submittedPrompt != null) _submittedPrompt = submittedPrompt;
     });
     try {
@@ -253,14 +263,71 @@ class _OrbitWorkspaceState extends State<_OrbitWorkspace> {
     _composerFocusNode.requestFocus();
   }
 
+  Future<void> _loadNextSampleTicket() async {
+    if (_isLoadingSampleTickets) return;
+    setState(() {
+      _isLoadingSampleTickets = true;
+      _error = null;
+      _submittedPrompt = 'Load the next local sample ticket.';
+    });
+    try {
+      final snapshot = await _sampleTicketLoader.loadNext();
+      if (!mounted) return;
+      _updateSampleTicketData(snapshot);
+      if (!_isShowingSampleTickets) {
+        _updateSurface(_sampleTicketFeedComponents);
+        _isShowingSampleTickets = true;
+      }
+      setState(() {
+        _source = 'LOCAL TICKET LOADER · request ${snapshot.tickets.length}';
+        _lastAction =
+            'Loaded ${snapshot.tickets.last['key']} without asking the agent.';
+      });
+    } on Object catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _isLoadingSampleTickets = false);
+    }
+  }
+
+  void _updateSampleTicketData(SampleTicketSnapshot snapshot) {
+    // A2UI data-model writes notify all related bindings. Publish one coherent
+    // snapshot instead of five leaf writes so Flutter sees no intermediate
+    // ticket/chart state during a refresh.
+    controller.handleMessage(
+      a2ui.UpdateDataModelMessage(
+        surfaceId: _surfaceId,
+        path: '/sampleTickets',
+        value: <String, Object?>{
+          'title': 'Local ticket feed',
+          'tickets': snapshot.tickets,
+          'chartTitle': 'Tickets by status',
+          'statusLabels': snapshot.statusLabels,
+          'statusValues': snapshot.statusValues,
+        },
+      ),
+    );
+  }
+
   void _startFresh() {
     setState(() {
       _submittedPrompt = null;
       _error = null;
       _source = 'ORBIT FIXTURE';
       _lastAction = 'No generated action yet.';
+      _isShowingSampleTickets = false;
       _updateSurface(_fixtureComponents);
     });
+  }
+
+  void _startNewAgentExperiment() {
+    setState(() => _destination = _WorkspaceDestination.agentRoom);
+    _startFresh();
+  }
+
+  void _selectDestination(_WorkspaceDestination destination) {
+    if (_destination == destination) return;
+    setState(() => _destination = destination);
   }
 
   @override
@@ -305,67 +372,90 @@ class _OrbitWorkspaceState extends State<_OrbitWorkspace> {
                 children: [
                   if (showSidebar)
                     _OrbitSidebar(
-                      onNewExperiment: _startFresh,
+                      destination: _destination,
+                      onNewExperiment: _startNewAgentExperiment,
+                      onSelectDestination: _selectDestination,
                       onToggleTheme: widget.onToggleTheme,
                     ),
                   Expanded(
                     child: Column(
                       children: [
                         _TopBar(
+                          title: _destination == _WorkspaceDestination.agentRoom
+                              ? 'Agent room'
+                              : 'Codex checkpoints',
                           catalogId:
                               compiled.catalog.catalogId ?? 'Orbit catalog',
-                          generating: _isGenerating,
+                          generating:
+                              _destination == _WorkspaceDestination.agentRoom &&
+                              _isGenerating,
                           isDark: activeTheme.isDark,
                           onToggleTheme: widget.onToggleTheme,
                         ),
-                        Expanded(
-                          child: ListView(
-                            padding: const EdgeInsets.fromLTRB(20, 28, 20, 16),
-                            children: [
-                              Align(
-                                alignment: Alignment.topCenter,
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 760,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const _Welcome(),
-                                      const SizedBox(
-                                        height: OrbitTokens.space2xl,
-                                      ),
-                                      if (_submittedPrompt
-                                          case final prompt?) ...[
-                                        _UserPrompt(text: prompt),
+                        if (_destination == _WorkspaceDestination.agentRoom)
+                          Expanded(
+                            child: ListView(
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                28,
+                                20,
+                                16,
+                              ),
+                              children: [
+                                Align(
+                                  alignment: Alignment.topCenter,
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 760,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const _Welcome(),
                                         const SizedBox(
-                                          height: OrbitTokens.spaceXl,
+                                          height: OrbitTokens.space2xl,
+                                        ),
+                                        if (_submittedPrompt
+                                            case final prompt?) ...[
+                                          _UserPrompt(text: prompt),
+                                          const SizedBox(
+                                            height: OrbitTokens.spaceXl,
+                                          ),
+                                        ],
+                                        _AgentResponse(
+                                          controller: controller,
+                                          surfaceId: _surfaceId,
+                                          loading: _isGenerating,
+                                          error: _error,
+                                          source: _source,
+                                          lastAction: _lastAction,
+                                          theme: registryTheme,
                                         ),
                                       ],
-                                      _AgentResponse(
-                                        controller: controller,
-                                        surfaceId: _surfaceId,
-                                        loading: _isGenerating,
-                                        error: _error,
-                                        source: _source,
-                                        lastAction: _lastAction,
-                                        theme: registryTheme,
-                                      ),
-                                    ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                          )
+                        else
+                          Expanded(
+                            child: CodexCheckpointsWorkbench(
+                              catalog: compiled,
+                              theme: registryTheme,
+                            ),
                           ),
-                        ),
-                        _PromptDock(
-                          controller: _promptController,
-                          focusNode: _composerFocusNode,
-                          generating: _isGenerating,
-                          onSubmit: _submit,
-                          onSuggestion: _useSuggestion,
-                        ),
+                        if (_destination == _WorkspaceDestination.agentRoom)
+                          _PromptDock(
+                            controller: _promptController,
+                            focusNode: _composerFocusNode,
+                            generating: _isGenerating,
+                            onSubmit: _submit,
+                            onSuggestion: _useSuggestion,
+                            loadingSampleTickets: _isLoadingSampleTickets,
+                            onLoadNextSampleTicket: _loadNextSampleTicket,
+                          ),
                       ],
                     ),
                   ),
@@ -381,11 +471,15 @@ class _OrbitWorkspaceState extends State<_OrbitWorkspace> {
 
 class _OrbitSidebar extends StatelessWidget {
   const _OrbitSidebar({
+    required this.destination,
     required this.onNewExperiment,
+    required this.onSelectDestination,
     required this.onToggleTheme,
   });
 
+  final _WorkspaceDestination destination;
   final VoidCallback onNewExperiment;
+  final ValueChanged<_WorkspaceDestination> onSelectDestination;
   final VoidCallback onToggleTheme;
 
   @override
@@ -414,10 +508,19 @@ class _OrbitSidebar extends StatelessWidget {
             const SizedBox(height: OrbitTokens.spaceXl),
             Text('WORKSPACE', style: OrbitType.overline(context)),
             const SizedBox(height: OrbitTokens.spaceSm),
-            const _SidebarItem(
+            _SidebarItem(
               glyph: OrbitGlyphs.sparkle,
               label: 'Agent room',
-              selected: true,
+              selected: destination == _WorkspaceDestination.agentRoom,
+              onPressed: () =>
+                  onSelectDestination(_WorkspaceDestination.agentRoom),
+            ),
+            _SidebarItem(
+              glyph: OrbitGlyphs.document,
+              label: 'Codex checkpoints',
+              selected: destination == _WorkspaceDestination.codexCheckpoints,
+              onPressed: () =>
+                  onSelectDestination(_WorkspaceDestination.codexCheckpoints),
             ),
             const _SidebarItem(glyph: OrbitGlyphs.grid, label: 'Components'),
             const _SidebarItem(
@@ -507,42 +610,57 @@ class _SidebarItem extends StatelessWidget {
     required this.glyph,
     required this.label,
     this.selected = false,
+    this.onPressed,
   });
 
   final String glyph;
   final String label;
   final bool selected;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: OrbitTokens.space2xs),
-    child: OrbitSurface(
-      tone: selected ? OrbitSurfaceTone.muted : OrbitSurfaceTone.transparent,
-      border: false,
-      radius: OrbitTokens.radiusMd,
-      padding: const EdgeInsets.symmetric(
-        horizontal: OrbitTokens.spaceSm,
-        vertical: 10,
-      ),
-      child: Row(
-        children: [
-          OrbitGlyph(
-            glyph,
-            size: 16,
-            color: selected
-                ? OrbitTheme.of(context).colors.foreground
-                : OrbitTheme.of(context).colors.mutedForeground,
+    child: Semantics(
+      button: onPressed != null,
+      selected: selected,
+      child: GestureDetector(
+        onTap: onPressed,
+        child: OrbitSurface(
+          tone: selected
+              ? OrbitSurfaceTone.muted
+              : OrbitSurfaceTone.transparent,
+          border: false,
+          radius: OrbitTokens.radiusMd,
+          padding: const EdgeInsets.symmetric(
+            horizontal: OrbitTokens.spaceSm,
+            vertical: 10,
           ),
-          const SizedBox(width: OrbitTokens.spaceSm),
-          Text(
-            label,
-            style: OrbitType.label(context).copyWith(
-              color: selected
-                  ? OrbitTheme.of(context).colors.foreground
-                  : OrbitTheme.of(context).colors.mutedForeground,
-            ),
+          child: Row(
+            children: [
+              OrbitGlyph(
+                glyph,
+                size: 16,
+                color: selected
+                    ? OrbitTheme.of(context).colors.foreground
+                    : OrbitTheme.of(context).colors.mutedForeground,
+              ),
+              const SizedBox(width: OrbitTokens.spaceSm),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: OrbitType.label(context).copyWith(
+                    color: selected
+                        ? OrbitTheme.of(context).colors.foreground
+                        : OrbitTheme.of(context).colors.mutedForeground,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     ),
   );
@@ -550,12 +668,14 @@ class _SidebarItem extends StatelessWidget {
 
 class _TopBar extends StatelessWidget {
   const _TopBar({
+    required this.title,
     required this.catalogId,
     required this.generating,
     required this.isDark,
     required this.onToggleTheme,
   });
 
+  final String title;
   final String catalogId;
   final bool generating;
   final bool isDark;
@@ -576,7 +696,7 @@ class _TopBar extends StatelessWidget {
           children: [
             const OrbitGlyph(OrbitGlyphs.sparkle, size: 18),
             const SizedBox(width: OrbitTokens.spaceSm),
-            Text('Agent room', style: OrbitType.title(context)),
+            Text(title, style: OrbitType.title(context)),
             const SizedBox(width: OrbitTokens.spaceSm),
             Expanded(
               child: Text(
@@ -794,6 +914,8 @@ class _PromptDock extends StatelessWidget {
     required this.generating,
     required this.onSubmit,
     required this.onSuggestion,
+    required this.loadingSampleTickets,
+    required this.onLoadNextSampleTicket,
   });
 
   final TextEditingController controller;
@@ -801,6 +923,8 @@ class _PromptDock extends StatelessWidget {
   final bool generating;
   final ValueChanged<String> onSubmit;
   final ValueChanged<String> onSuggestion;
+  final bool loadingSampleTickets;
+  final VoidCallback onLoadNextSampleTicket;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -825,6 +949,18 @@ class _PromptDock extends StatelessWidget {
                     _Suggestion(
                       label: 'Summarize signals',
                       onTap: onSuggestion,
+                    ),
+                    const SizedBox(width: OrbitTokens.spaceSm),
+                    OrbitButton(
+                      label: loadingSampleTickets
+                          ? 'Loading ticket…'
+                          : 'Load next ticket',
+                      onPressed: loadingSampleTickets
+                          ? null
+                          : onLoadNextSampleTicket,
+                      variant: OrbitButtonVariant.secondary,
+                      compact: true,
+                      leading: const OrbitGlyph(OrbitGlyphs.document, size: 14),
                     ),
                     const SizedBox(width: OrbitTokens.spaceSm),
                     _Suggestion(
@@ -1008,5 +1144,34 @@ const _fixtureComponents = <Map<String, Object?>>[
     'title': 'Orbit GenUI registry',
     'detail': 'The local component source used to compile this response.',
     'meta': 'Local catalog · 10 components · 2 themes',
+  },
+];
+
+const _sampleTicketFeedComponents = <Map<String, Object?>>[
+  {
+    'id': 'root',
+    'component': 'orbit.component.stack',
+    'children': ['ticket-feed', 'ticket-status', 'ticket-source'],
+  },
+  {
+    'id': 'ticket-feed',
+    'component': 'orbit.component.ticket-list',
+    'title': {'path': '/sampleTickets/title'},
+    'tickets': {'path': '/sampleTickets/tickets'},
+  },
+  {
+    'id': 'ticket-status',
+    'component': 'orbit.component.bar-chart',
+    'title': {'path': '/sampleTickets/chartTitle'},
+    'labels': {'path': '/sampleTickets/statusLabels'},
+    'values': {'path': '/sampleTickets/statusValues'},
+  },
+  {
+    'id': 'ticket-source',
+    'component': 'orbit.component.source',
+    'title': 'Local sample provider',
+    'detail':
+        'Every refresh reveals exactly one additional ticket. The component graph stays fixed.',
+    'meta': 'No network · no model call · data-model updates only',
   },
 ];

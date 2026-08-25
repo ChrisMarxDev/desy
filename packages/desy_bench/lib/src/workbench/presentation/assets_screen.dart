@@ -12,12 +12,20 @@ import '../../registry.dart';
 import '../asset_transfer.dart';
 import '../widget_preview.dart';
 import '../workbench_session.dart';
+import 'workbench_breadcrumbs.dart';
 
 /// A specialized collection surface for consumer-owned packaged images.
 class DesyAssetsScreen extends StatelessWidget {
-  const DesyAssetsScreen({super.key, required this.session});
+  const DesyAssetsScreen({
+    super.key,
+    required this.session,
+    required this.onOpenCatalogue,
+    required this.onOpenAtoms,
+  });
 
   final DesyWorkbenchSession session;
+  final VoidCallback onOpenCatalogue;
+  final VoidCallback onOpenAtoms;
 
   @override
   Widget build(BuildContext context) {
@@ -25,10 +33,23 @@ class DesyAssetsScreen extends StatelessWidget {
     final assets = session.registry.allAssets;
     return ListView(
       key: const ValueKey('assets-screen'),
-      padding: const EdgeInsets.fromLTRB(28, 28, 28, 48),
+      padding: const EdgeInsets.fromLTRB(
+        desyWorkbenchCanvasInset,
+        desyWorkbenchCanvasInset,
+        desyWorkbenchCanvasInset,
+        48,
+      ),
       children: [
-        Text('ATOMS / ASSETS', style: Theme.of(context).textTheme.labelSmall),
-        const SizedBox(height: 4),
+        DesyWorkbenchBreadcrumbs(
+          key: const ValueKey('atlas-breadcrumbs'),
+          textKey: const ValueKey('atlas-breadcrumb-text'),
+          segments: [
+            DesyWorkbenchBreadcrumb(label: 'all/', onOpen: onOpenCatalogue),
+            DesyWorkbenchBreadcrumb(label: 'Atoms', onOpen: onOpenAtoms),
+            const DesyWorkbenchBreadcrumb(label: 'Assets'),
+          ],
+        ),
+        const SizedBox(height: 10),
         Text('Assets', style: Theme.of(context).textTheme.displaySmall),
         const SizedBox(height: 6),
         ConstrainedBox(

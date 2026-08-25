@@ -1,17 +1,5 @@
 # Desy Bench development
 
-## Codex-managed dogfood hot reload
-
-On macOS, launch the dogfood catalogue once with `task dogfood:app:dev`.
-That command registers the active Flutter tool in the gitignored
-`.codex/local/dev-runtime.json`. Subsequent Codex Dart edits request a
-debounced hot reload through the global `codex-dev` hook; no PID is needed.
-
-Use `codex-dev status --cwd .` to inspect the registration. If it reports a
-stale or missing runtime, restart `task dogfood:app:dev`. `task
-dogfood:app:reload` and `task dogfood:app:restart` remain available for manual
-checks.
-
 This is the maintained contributor guide. Keep it about implemented behavior.
 Planned product work and concept ideas belong only in the
 [`concept/features` index](concept/features/index.html); implemented contracts
@@ -80,6 +68,8 @@ bound-record component (`DesyComponent<K>`) or a static catalog
 (`DesyStaticComponent`), both implementing `DesyRegistryComponent`. The full
 contract is described in
 [`docs/concepts/registry-component-contracts.md`](docs/concepts/registry-component-contracts.md);
+the public offline entry point is [`docs/index.html`](docs/index.html), with
+the portable input reference at [`docs/knobs.html`](docs/knobs.html).
 component contracts, scenarios, and knobs are optional typed metadata, and a
 real widget preview is the primitive requirement.
 

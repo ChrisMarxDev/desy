@@ -1,10 +1,14 @@
 // Shared internal workbench controls for real component instances.
 // ignore_for_file: public_member_api_docs
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 
 import '../../registry.dart';
+
+const _colorControlHeight = 36.0;
 
 /// One canonical knob UI used wherever Desy renders a component instance.
 ///
@@ -50,19 +54,16 @@ class DesyComponentKnobPanel extends StatelessWidget {
           switch (knob.kind) {
             DesyKnobKind.boolean => DesyBooleanKnobRow(
               label: knob.name,
-              description: knob.description,
               value: values[knob.id] as bool? ?? knob.initial as bool,
               onChanged: (value) => onChanged(knob, value),
             ),
             DesyKnobKind.string => DesyTextKnobRow(
               label: knob.name,
-              description: knob.description,
               value: values[knob.id] as String? ?? knob.initial as String,
               onChanged: (value) => onChanged(knob, value),
             ),
             DesyKnobKind.choice => DesyChoiceKnobRow(
               label: knob.name,
-              description: knob.description,
               value: values[knob.id] as String? ?? knob.initial as String,
               options: knob.options,
               controlKey: ValueKey('choice-knob-select-${knob.id}'),
@@ -70,7 +71,6 @@ class DesyComponentKnobPanel extends StatelessWidget {
             ),
             DesyKnobKind.number => DesyNumericKnobRow(
               label: knob.name,
-              description: knob.description,
               value: values[knob.id] as double? ?? knob.initial as double,
               unit: knob.unit!,
               step: knob.step!,
@@ -80,7 +80,6 @@ class DesyComponentKnobPanel extends StatelessWidget {
             ),
             DesyKnobKind.dateTime => DesyDateTimeKnobRow(
               label: knob.name,
-              description: knob.description,
               value: values[knob.id] as DateTime? ?? knob.initial as DateTime,
               onChanged: (value) => onChanged(knob, value),
             ),
@@ -89,6 +88,62 @@ class DesyComponentKnobPanel extends StatelessWidget {
               definition: knob,
               value: values[knob.id] as Color? ?? knob.initial as Color,
               onChanged: (value) => onChanged(knob, value),
+            ),
+            DesyKnobKind.stringList => DesyTextKnobRow(
+              label: knob.name,
+              value:
+                  (values[knob.id] as Iterable?)?.whereType<String>().join(
+                    ', ',
+                  ) ??
+                  (knob.initial as List<String>).join(', '),
+              onChanged: (value) => onChanged(
+                knob,
+                List.unmodifiable(
+                  value
+                      .split(',')
+                      .map((item) => item.trim())
+                      .where((item) => item.isNotEmpty),
+                ),
+              ),
+            ),
+            DesyKnobKind.numberList => DesyTextKnobRow(
+              label: knob.name,
+              value:
+                  ((values[knob.id] as Iterable?)?.whereType<num>() ??
+                          (knob.initial as List<double>))
+                      .join(', '),
+              onChanged: (value) {
+                final numbers = value
+                    .split(',')
+                    .map((item) => double.tryParse(item.trim()))
+                    .toList();
+                if (numbers.every((item) => item != null)) {
+                  final parsed = numbers.cast<double>();
+                  final isValid = parsed.every(
+                    (item) =>
+                        item.isFinite &&
+                        (knob.minimum == null || item >= knob.minimum!) &&
+                        (knob.maximum == null || item <= knob.maximum!),
+                  );
+                  if (isValid) {
+                    onChanged(knob, List.unmodifiable(parsed));
+                  }
+                }
+              },
+            ),
+            DesyKnobKind.jsonValue => DesyTextKnobRow(
+              label: knob.name,
+              value: jsonEncode(values[knob.id] ?? knob.initial),
+              onChanged: (value) {
+                try {
+                  final decoded = jsonDecode(value);
+                  if (decoded != null) {
+                    onChanged(knob, decoded);
+                  }
+                } on FormatException {
+                  return;
+                }
+              },
             ),
             DesyKnobKind.widgetInstance => _ComponentInstanceKnob(
               registry: registry,
@@ -112,7 +167,6 @@ class DesyComponentKnobPanel extends StatelessWidget {
             ),
             DesyKnobKind.event => DesyKnobRow(
               label: knob.name,
-              description: knob.description,
               control: const DesyBadge(
                 variant: DesyBadgeVariant.secondary,
                 child: Text('Event'),
@@ -153,7 +207,6 @@ class _ColorKnob extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DesyColorKnobRow(
     label: definition.name,
-    description: definition.description,
     value: value,
     onChanged: onChanged,
     onPick: () => _openPicker(context),
@@ -259,25 +312,27 @@ class _ColorPickerState extends State<_ColorPicker> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      _ColorSwatch(
-                        color: color,
-                        size: DesyDesignSystemTokens.textFieldMinHeight,
-                      ),
+                      _ColorSwatch(color: color, size: _colorControlHeight),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: DesyTextField(
-                          key: ValueKey(
-                            'color-knob-picker-field-${widget.definition.id}',
+                        child: SizedBox(
+                          height: _colorControlHeight,
+                          child: DesyTextField(
+                            key: ValueKey(
+                              'color-knob-picker-field-${widget.definition.id}',
+                            ),
+                            label: '${widget.definition.name} ARGB',
+                            value: _colorHex(color),
+                            hintText: '#AARRGGBB',
+                            onChanged: (input) {
+                              final next = _parseColor(input);
+                              if (next != null) {
+                                setState(
+                                  () => _color = HSVColor.fromColor(next),
+                                );
+                              }
+                            },
                           ),
-                          label: '${widget.definition.name} ARGB',
-                          value: _colorHex(color),
-                          hintText: '#AARRGGBB',
-                          onChanged: (input) {
-                            final next = _parseColor(input);
-                            if (next != null) {
-                              setState(() => _color = HSVColor.fromColor(next));
-                            }
-                          },
                         ),
                       ),
                     ],
@@ -412,7 +467,6 @@ class _ComponentInstanceKnob extends StatelessWidget {
     final instance = registry.resolveWidgetInstance(selected);
     return DesyInstanceKnobRow(
       label: definition.name,
-      description: definition.description,
       instanceName: instance?.name ?? selected,
       controlKey: ValueKey('instance-swap-current-${definition.id}'),
       prefix: Icon(instance?.icon ?? DesyIcons.component),
@@ -450,7 +504,6 @@ class _ComponentInstancesKnob extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DesyInstanceKnobRow(
     label: definition.name,
-    description: definition.description,
     instanceName: '${selected.length} selected',
     controlKey: ValueKey('instance-multi-current-${definition.id}'),
     prefix: const Icon(DesyIcons.component),

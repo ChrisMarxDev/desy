@@ -74,6 +74,9 @@ gets full autocomplete and return-type checking without any code generation.
 - `k.boolean(id, {name?, initial}) -> Knob<bool>`
 - `k.dateTime(id, {name?, initial}) -> Knob<DateTime>`
 - `k.color(id, {name?, initial}) -> Knob<Color>`
+- `k.stringList(id, {name?, initial}) -> Knob<List<String>>`
+- `k.numberList(id, {name?, initial, minimum?, maximum?}) -> Knob<List<double>>`
+- `k.jsonValue(id, {name?, initial}) -> Knob<Object>`
 
 Its composition and interaction knobs are:
 
@@ -84,6 +87,12 @@ Its composition and interaction knobs are:
 The schema's runtime form is an immutable list of `KnobDefinition<Object>`
 (used by the workbench knob panel), while the typed handles (`Knob<T>`,
 `WidgetInstanceKnob`) keep build and instance code typesafe.
+
+`stringList` and `numberList` are the portable collection contract. They carry
+immutable lists, not Dart records or chart-package types. `jsonValue` carries a
+decoded, deep-frozen JSON root when its shape is intentionally open; prefer a
+narrower knob when the shape is known. The details and GenUI mapping are in
+[the knobs guide](knobs.md).
 
 ### 2. One `build` serves every preview and every instance
 

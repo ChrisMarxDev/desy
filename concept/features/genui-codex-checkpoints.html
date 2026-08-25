@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex GenUI checkpoints</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="shell">
+    <nav><a href="index.html">← Planned features</a><span>GenUI exploration · coding workflow</span></nav>
+    <section class="hero">
+      <div class="eyebrow">Value experiment</div>
+      <h1>Ask for a decision only when it changes the code.</h1>
+      <p class="lede">Codex Checkpoints is a task-oriented GenUI experiment. A coding agent pauses at a material fork, presents structured evidence and approved choices, then receives the user’s choice as a canonical continuation action.</p>
+    </section>
+    <section class="grid">
+      <article class="card"><h2>Why it exists</h2><p>Chat forces consequential architecture choices, patch approval, and verification status into prose. That makes choices hard to compare and easy to lose in a long task transcript.</p></article>
+      <article class="card"><h2>User value</h2><p>Developers inspect a bounded decision with affected files and evidence, choose deliberately, and see the same task continue. The interface exists only for the checkpoint; normal coding progress remains ordinary task output.</p></article>
+    </section>
+    <section class="card full">
+      <h2>Scope</h2>
+      <div class="flow"><strong>Start coding task</strong><span>→</span><strong>API scope checkpoint</strong><span>→</span><strong>Verification checkpoint</strong><span>→</span><strong>Patch acceptance</strong></div>
+      <p>The first slice is a deterministic local task driver using the same <code>GenUiPromptTurn</code>, <code>GenUiActionTurn</code>, and generated-surface interface as a provider adapter. It demonstrates the handoff before a live Codex turn owns actual repository changes.</p>
+    </section>
+    <section class="grid">
+      <article class="card"><h2>Non-goals</h2><ul><li>No autonomous shell command, patch application, or git write.</li><li>No generated dashboard or permanent project-management view.</li><li>No claim that every status update needs AI or GenUI.</li><li>No substitution of the existing local Codex driver in this slice.</li></ul></article>
+      <article class="card"><h2>Implementation sketch</h2><ul><li>A task driver owns the checkpoint state machine and validates legal choices.</li><li>The workbench creates one A2UI surface and passes generated actions back as typed turns.</li><li>Orbit renders only registered cards, evidence, tasks, and explicit approvals.</li><li>Later, the local Codex adapter can take the driver’s place without changing the workbench action seam.</li></ul></article>
+    </section>
+    <section class="card full">
+      <h2>Acceptance evidence</h2>
+      <pre><code>Start task → choose public or experimental API → inspect proposed patch → run verification → accept or request revision</code></pre>
+      <p>Each transition must be driven by a generated UI action, preserve the task’s current surface as continuation context, and clearly state that fixture transitions never execute a repository command.</p>
+    </section>
+    <section class="grid">
+      <article class="card"><h2>Open questions</h2><ul><li>Which real Codex task events should request a checkpoint rather than continue autonomously?</li><li>How should a live driver include bounded diff and test evidence without exposing arbitrary filesystem authority?</li><li>Should the user be able to reopen a completed checkpoint as task history?</li></ul></article>
+      <article class="card"><h2>Do or don't</h2><p class="decision"><strong>Do the narrow checkpoint experiment.</strong> It directly tests the value that static reports lacked: a user decision changes an ongoing task. Keep it local and non-writing until that continuation loop feels more useful than prose.</p><p><span class="pill">Impact 5/5</span><span class="pill">Complexity 3/5</span><span class="pill">Risk: contained</span></p></article>
+    </section>
+    <footer>Offline concept artifact. No remote assets or runtime dependencies.</footer>
+  </main>
+</body>
+</html>

@@ -851,6 +851,55 @@ class _ScreenshotKnobControl extends StatelessWidget {
       onChanged: onChanged,
       onPick: () => unawaited(_pickColor(context)),
     ),
+    DesyKnobKind.stringList => DesyTextKnobRow(
+      label: definition.name,
+      description:
+          '${definition.description ?? 'Values'} Separate with commas.',
+      value: (value as Iterable).whereType<String>().join(', '),
+      onChanged: (input) => onChanged(
+        List<String>.unmodifiable(
+          input
+              .split(',')
+              .map((item) => item.trim())
+              .where((item) => item.isNotEmpty),
+        ),
+      ),
+    ),
+    DesyKnobKind.numberList => DesyTextKnobRow(
+      label: definition.name,
+      description:
+          '${definition.description ?? 'Values'} Separate with commas.',
+      value: (value as Iterable).whereType<num>().join(', '),
+      onChanged: (input) {
+        final parsed = input
+            .split(',')
+            .map((item) => double.tryParse(item.trim()))
+            .toList();
+        if (parsed.every((item) => item != null)) {
+          final numbers = parsed.cast<double>();
+          final valid = numbers.every(
+            (item) =>
+                item.isFinite &&
+                (definition.minimum == null || item >= definition.minimum!) &&
+                (definition.maximum == null || item <= definition.maximum!),
+          );
+          if (valid) onChanged(List<double>.unmodifiable(numbers));
+        }
+      },
+    ),
+    DesyKnobKind.jsonValue => DesyTextKnobRow(
+      label: definition.name,
+      description: '${definition.description ?? 'Value'} Valid JSON only.',
+      value: jsonEncode(value),
+      onChanged: (input) {
+        try {
+          final decoded = jsonDecode(input);
+          if (decoded != null) onChanged(decoded);
+        } on FormatException {
+          return;
+        }
+      },
+    ),
     DesyKnobKind.widgetInstance => _singleInstanceControl(context),
     DesyKnobKind.widgetInstances => _multipleInstanceControl(),
     DesyKnobKind.event => DesyKnobRow(

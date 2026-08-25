@@ -63,6 +63,25 @@ void main() {
         initial: DateTime.utc(2026, 8, 15, 9, 30),
       ),
       KnobDefinition(
+        id: 'labels',
+        name: 'Labels',
+        kind: DesyKnobKind.stringList,
+        initial: const ['Search', 'Invite'],
+      ),
+      KnobDefinition(
+        id: 'values',
+        name: 'Values',
+        kind: DesyKnobKind.numberList,
+        initial: const [38.0, 26.0],
+        minimum: 0,
+      ),
+      KnobDefinition(
+        id: 'metadata',
+        name: 'Metadata',
+        kind: DesyKnobKind.jsonValue,
+        initial: const {'source': 'test'},
+      ),
+      KnobDefinition(
         id: 'status',
         name: 'Status',
         kind: DesyKnobKind.widgetInstance,
@@ -105,7 +124,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(DesyBooleanKnobRow), findsOneWidget);
-    expect(find.byType(DesyTextKnobRow), findsOneWidget);
+    expect(find.byType(DesyTextKnobRow), findsNWidgets(4));
     expect(find.byType(DesyChoiceKnobRow), findsOneWidget);
     expect(find.byType(DesyNumericKnobRow), findsOneWidget);
     expect(find.byType(DesyColorKnobRow), findsOneWidget);
@@ -113,7 +132,7 @@ void main() {
     expect(find.byType(DesyInstanceKnobRow), findsNWidgets(2));
     expect(find.byType(DesyKnobSheet), findsOneWidget);
     expect(find.byType(DesySwitch), findsOneWidget);
-    expect(find.text('Visible copy.'), findsOneWidget);
+    expect(find.text('Visible copy.'), findsNothing);
     expect(find.text('Event'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

@@ -63,6 +63,43 @@ void main() {
 
     expect(picker.top, field.top);
     expect(picker.bottom, field.bottom);
+    expect(picker.height, 36);
+    expect(field.height, 36);
+  });
+
+  testWidgets('button accepts a prefix icon and custom enabled color', (
+    tester,
+  ) async {
+    const color = Color(0xffff2871);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyDesignSystemScope(
+          theme: DesyDesignSystemTheme.light,
+          child: Scaffold(
+            body: Center(
+              child: DesyButton(
+                color: color,
+                mainAxisSize: MainAxisSize.min,
+                onPress: () {},
+                prefixIcon: const Icon(DesyIcons.send),
+                child: const Text('Send feedback'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(DesyIcons.send), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is DecoratedBox &&
+            widget.decoration is BoxDecoration &&
+            (widget.decoration as BoxDecoration).color == color,
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('animation scrubber announces its playhead', (tester) async {

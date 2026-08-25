@@ -6,6 +6,7 @@ import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
 
 import 'component_overview.dart';
+import 'workbench_breadcrumbs.dart';
 import '../../registry.dart';
 import '../widget_preview.dart';
 import '../workbench_annotation.dart';
@@ -18,11 +19,15 @@ class DesyAtlasScreen extends StatefulWidget {
     required this.session,
     required this.folderId,
     required this.onOpen,
+    required this.onOpenCatalogue,
+    required this.onOpenFolder,
   });
 
   final DesyWorkbenchSession session;
   final String? folderId;
   final ValueChanged<DesyRegistryEntry> onOpen;
+  final VoidCallback onOpenCatalogue;
+  final ValueChanged<String> onOpenFolder;
 
   @override
   State<DesyAtlasScreen> createState() => _DesyAtlasScreenState();
@@ -53,6 +58,8 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen> {
         theme: theme,
         query: query,
         onQueryChanged: (value) => session.atlasQuery.value = value,
+        breadcrumbs: _componentBreadcrumbs(folder),
+        onOpenFolder: widget.onOpenFolder,
         onOpen: (component) =>
             widget.onOpen(session.registry.resolve(component.id)!),
       );
@@ -67,20 +74,27 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen> {
         theme: theme,
         sampleText: fontSampleText,
         onSampleTextChanged: (value) => session.fontSampleText.value = value,
+        breadcrumbs: _atomBreadcrumbs(atomKind),
       );
     }
 
     return Padding(
       key: const ValueKey('atlas-content-padding'),
-      padding: const EdgeInsets.fromLTRB(28, 28, 28, 0),
+      padding: const EdgeInsets.fromLTRB(
+        desyWorkbenchCanvasInset,
+        desyWorkbenchCanvasInset,
+        desyWorkbenchCanvasInset,
+        0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _eyebrow(folder, atomKind, atomRoot),
-            style: Theme.of(context).textTheme.labelSmall,
+          DesyWorkbenchBreadcrumbs(
+            key: const ValueKey('atlas-breadcrumbs'),
+            textKey: const ValueKey('atlas-breadcrumb-text'),
+            segments: _atomBreadcrumbs(atomKind),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 10),
           Text.rich(
             key: const ValueKey('atlas-headline'),
             TextSpan(
@@ -177,21 +191,56 @@ class _DesyAtlasScreenState extends State<DesyAtlasScreen> {
       session.registry.resolve(component.id)!,
   ];
 
-  String _eyebrow(
-    DesyComponentGroup? folder,
-    DesyAtomKind? atomKind,
-    bool atomRoot,
-  ) => atomKind != null
-      ? 'ATOMS / ${atomKind.label.toUpperCase()}'
-      : atomRoot
-      ? 'ATOMS'
-      : 'COMPONENTS';
-
   String _title(
     DesyComponentGroup? folder,
     DesyAtomKind? atomKind,
     bool atomRoot,
   ) => atomKind?.label ?? (atomRoot ? 'Atoms' : folder?.name ?? 'Components');
+
+  List<DesyWorkbenchBreadcrumb> _componentBreadcrumbs(
+    DesyComponentGroup? folder,
+  ) => [
+    DesyWorkbenchBreadcrumb(
+      label: 'all/',
+      onOpen: folder == null ? null : widget.onOpenCatalogue,
+    ),
+    if (folder != null)
+      for (final group in _groupsForPath(folder.path))
+        DesyWorkbenchBreadcrumb(
+          label: group.name,
+          onOpen: group.path == folder.path
+              ? null
+              : () => widget.onOpenFolder(group.path),
+        ),
+  ];
+
+  List<DesyWorkbenchBreadcrumb> _atomBreadcrumbs(DesyAtomKind? atomKind) => [
+    DesyWorkbenchBreadcrumb(label: 'all/', onOpen: widget.onOpenCatalogue),
+    DesyWorkbenchBreadcrumb(
+      label: 'Atoms',
+      onOpen: atomKind == null
+          ? null
+          : () => widget.onOpenFolder(DesyAtomKind.rootId),
+    ),
+    if (atomKind != null) DesyWorkbenchBreadcrumb(label: atomKind.label),
+  ];
+
+  List<DesyComponentGroup> _groupsForPath(String path) {
+    final groups = <DesyComponentGroup>[];
+    var children = session.registry.componentGroups;
+    for (final segment
+        in path.split('/').where((segment) => segment.isNotEmpty)) {
+      final currentPath = groups.isEmpty
+          ? '/$segment'
+          : '${groups.last.path}/$segment';
+      final group = children.firstWhere(
+        (candidate) => candidate.path == currentPath,
+      );
+      groups.add(group);
+      children = group.children;
+    }
+    return groups;
+  }
 }
 
 class _ComponentsAtlas extends StatelessWidget {
@@ -203,6 +252,8 @@ class _ComponentsAtlas extends StatelessWidget {
     required this.theme,
     required this.query,
     required this.onQueryChanged,
+    required this.breadcrumbs,
+    required this.onOpenFolder,
     required this.onOpen,
   });
 
@@ -213,6 +264,8 @@ class _ComponentsAtlas extends StatelessWidget {
   final DesyTheme theme;
   final String query;
   final ValueChanged<String> onQueryChanged;
+  final List<DesyWorkbenchBreadcrumb> breadcrumbs;
+  final ValueChanged<String> onOpenFolder;
   final ValueChanged<DesyRegistryComponent> onOpen;
 
   @override
@@ -228,12 +281,21 @@ class _ComponentsAtlas extends StatelessWidget {
 
     return Padding(
       key: const ValueKey('atlas-content-padding'),
-      padding: const EdgeInsets.fromLTRB(28, 28, 28, 0),
+      padding: const EdgeInsets.fromLTRB(
+        desyWorkbenchCanvasInset,
+        desyWorkbenchCanvasInset,
+        desyWorkbenchCanvasInset,
+        0,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('COMPONENTS', style: Theme.of(context).textTheme.labelSmall),
-          const SizedBox(height: 4),
+          DesyWorkbenchBreadcrumbs(
+            key: const ValueKey('atlas-breadcrumbs'),
+            textKey: const ValueKey('atlas-breadcrumb-text'),
+            segments: breadcrumbs,
+          ),
+          const SizedBox(height: 10),
           Text.rich(
             key: const ValueKey('atlas-headline'),
             TextSpan(
@@ -273,6 +335,7 @@ class _ComponentsAtlas extends StatelessWidget {
                 theme: theme,
                 pathPrefix: pathPrefix,
                 onOpen: onOpen,
+                onOpenFolder: onOpenFolder,
                 emptyMessage: 'No components match this search.',
               ),
             ),
@@ -420,20 +483,23 @@ class _FontsAtlas extends StatelessWidget {
     required this.theme,
     required this.sampleText,
     required this.onSampleTextChanged,
+    required this.breadcrumbs,
   });
 
   final List<DesyTypographyEntry> entries;
   final DesyTheme theme;
   final String sampleText;
   final ValueChanged<String> onSampleTextChanged;
+  final List<DesyWorkbenchBreadcrumb> breadcrumbs;
 
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(28),
+    padding: const EdgeInsets.all(desyWorkbenchCanvasInset),
     children: [
       _FontsAtlasHeader(
         sampleText: sampleText,
         onSampleTextChanged: onSampleTextChanged,
+        breadcrumbs: breadcrumbs,
       ),
       const SizedBox(height: 32),
       _FontLedger(entries: entries, theme: theme, sampleText: sampleText),
@@ -447,18 +513,24 @@ class _FontsAtlasHeader extends StatelessWidget {
   const _FontsAtlasHeader({
     required this.sampleText,
     required this.onSampleTextChanged,
+    required this.breadcrumbs,
   });
 
   final String sampleText;
   final ValueChanged<String> onSampleTextChanged;
+  final List<DesyWorkbenchBreadcrumb> breadcrumbs;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('ATOMS / FONTS', style: Theme.of(context).textTheme.labelSmall),
-        const SizedBox(height: 4),
+        DesyWorkbenchBreadcrumbs(
+          key: const ValueKey('atlas-breadcrumbs'),
+          textKey: const ValueKey('atlas-breadcrumb-text'),
+          segments: breadcrumbs,
+        ),
+        const SizedBox(height: 10),
         Text('Type styles', style: Theme.of(context).textTheme.displaySmall),
         const SizedBox(height: 20),
         _FontSampleEditor(

@@ -18,6 +18,9 @@ abstract final class DesyIcons {
   /// Navigate to a previous surface.
   static const IconData arrowLeft = FLucideIcons.arrowLeft;
 
+  /// Alternate between forward and reverse playback.
+  static const IconData arrowLeftRight = FLucideIcons.arrowLeftRight;
+
   /// A collection of component instances.
   static const IconData boxes = FLucideIcons.boxes;
 
@@ -57,6 +60,9 @@ abstract final class DesyIcons {
   /// Layered content.
   static const IconData layers = FLucideIcons.layers;
 
+  /// Navigate to a linked catalogue destination.
+  static const IconData link = FLucideIcons.link;
+
   /// A compact feedback or annotation action.
   static const IconData messageSquare = FLucideIcons.messageSquare;
 
@@ -86,6 +92,12 @@ abstract final class DesyIcons {
 
   /// Start or resume a preview timeline.
   static const IconData play = FLucideIcons.play;
+
+  /// Play an animation continuously from the beginning.
+  static const IconData repeat = FLucideIcons.repeat;
+
+  /// Play an animation through one time.
+  static const IconData repeatOnce = FLucideIcons.repeat1;
 
   /// Increase a numeric value.
   static const IconData plus = FLucideIcons.plus;

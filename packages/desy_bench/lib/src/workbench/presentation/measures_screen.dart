@@ -8,6 +8,7 @@ import 'package:state_beacon/state_beacon.dart';
 import '../../registry.dart';
 import '../widget_preview.dart';
 import '../workbench_session.dart';
+import 'workbench_breadcrumbs.dart';
 
 /// A comparison board for the system's typed numeric foundations.
 ///
@@ -19,10 +20,14 @@ class DesyMeasuresScreen extends StatelessWidget {
     super.key,
     required this.session,
     required this.measurements,
+    this.onOpenCatalogue,
+    this.onOpenAtoms,
   });
 
   final DesyWorkbenchSession session;
   final List<DesyNumericEntry> measurements;
+  final VoidCallback? onOpenCatalogue;
+  final VoidCallback? onOpenAtoms;
 
   @override
   Widget build(BuildContext context) {
@@ -33,13 +38,18 @@ class DesyMeasuresScreen extends StatelessWidget {
     }
 
     return ListView(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(desyWorkbenchCanvasInset),
       children: [
-        Text(
-          'ATOMS / MEASUREMENTS',
-          style: Theme.of(context).textTheme.labelSmall,
+        DesyWorkbenchBreadcrumbs(
+          key: const ValueKey('atlas-breadcrumbs'),
+          textKey: const ValueKey('atlas-breadcrumb-text'),
+          segments: [
+            DesyWorkbenchBreadcrumb(label: 'all/', onOpen: onOpenCatalogue),
+            DesyWorkbenchBreadcrumb(label: 'Atoms', onOpen: onOpenAtoms),
+            const DesyWorkbenchBreadcrumb(label: 'Measurements'),
+          ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 10),
         Text('Measurements', style: Theme.of(context).textTheme.displaySmall),
         const SizedBox(height: 6),
         ConstrainedBox(

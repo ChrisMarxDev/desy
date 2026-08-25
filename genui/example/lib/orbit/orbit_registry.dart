@@ -8,11 +8,16 @@ const _insightDefault = 'orbit.component.insight.default';
 const _taskListDefault = 'orbit.component.task-list.default';
 const _taskRowProgress = 'orbit.component.task-row.progress';
 const _taskRowReady = 'orbit.component.task-row.ready';
+const _ticketListDefault = 'orbit.component.ticket-list.default';
 const _recommendationDefault = 'orbit.component.recommendation.default';
 const _approvalDefault = 'orbit.component.approval.default';
 const _toolActivityDefault = 'orbit.component.tool-activity.default';
 const _metricGridDefault = 'orbit.component.metric-grid.default';
 const _metricTileDefault = 'orbit.component.metric-tile.default';
+const _markdownDefault = 'orbit.component.markdown.default';
+const _mermaidDefault = 'orbit.component.mermaid.default';
+const _barChartDefault = 'orbit.component.bar-chart.default';
+const _pieChartDefault = 'orbit.component.pie-chart.default';
 const _sourceDefault = 'orbit.component.source.default';
 
 /// The GenUI consumer registry. Every catalogue item builds the exact Orbit
@@ -103,11 +108,16 @@ final DesyRegistry orbitRegistry = DesyRegistry(
     _insightComponent,
     _taskListComponent,
     _taskRowComponent,
+    _ticketListComponent,
     _recommendationComponent,
     _approvalComponent,
     _toolActivityComponent,
     _metricGridComponent,
     _metricTileComponent,
+    _markdownComponent,
+    _mermaidComponent,
+    _barChartComponent,
+    _pieChartComponent,
     _sourceComponent,
   ],
 );
@@ -220,9 +230,14 @@ final _stackComponent = DesyComponent(
       options: const [
         _insightDefault,
         _metricGridDefault,
+        _markdownDefault,
+        _mermaidDefault,
+        _barChartDefault,
+        _pieChartDefault,
         _recommendationDefault,
         _approvalDefault,
         _taskListDefault,
+        _ticketListDefault,
         _toolActivityDefault,
         _sourceDefault,
       ],
@@ -234,6 +249,7 @@ final _stackComponent = DesyComponent(
       knobs.children(const [
         _insightDefault,
         _metricGridDefault,
+        _barChartDefault,
         _recommendationDefault,
         _taskListDefault,
       ]),
@@ -334,6 +350,53 @@ final _taskRowComponent = DesyComponent(
       knobs.title('Draft the release note'),
       knobs.detail('Waiting for approval'),
       knobs.state('queued'),
+    ],
+  },
+);
+
+final _ticketListComponent = DesyComponent(
+  id: 'orbit.component.ticket-list',
+  name: 'Ticket list',
+  path: '/data/tickets',
+  description:
+      'A provider-neutral ticket collection. Bind its JSON list to a local data-model path for live refreshes.',
+  source: 'lib/orbit/orbit_components.dart',
+  defaultSize: const Size(640, 380),
+  knobs: (k) => (
+    title: k.string('title', initial: 'Release tickets'),
+    tickets: k.jsonValue(
+      'tickets',
+      initial: const [
+        {
+          'key': 'APP-1',
+          'summary': 'Show the release owner on the overview',
+          'status': 'In progress',
+        },
+      ],
+      description:
+          'A JSON array of tickets: `{ key, summary, status }`. It may be a data-model binding.',
+    ),
+  ),
+  build: (context, knobs) => OrbitTicketList(
+    title: knobs.title.value,
+    tickets: _tickets(knobs.tickets.value),
+  ),
+  instances: (knobs) => {
+    'default': const [],
+    'triage': [
+      knobs.title('Triage queue'),
+      knobs.tickets(const [
+        {
+          'key': 'APP-1',
+          'summary': 'Show the release owner on the overview',
+          'status': 'In progress',
+        },
+        {
+          'key': 'APP-2',
+          'summary': 'Clarify the approval handoff',
+          'status': 'Ready',
+        },
+      ]),
     ],
   },
 );
@@ -508,6 +571,151 @@ final _metricTileComponent = DesyComponent(
   },
 );
 
+final _markdownComponent = DesyComponent(
+  id: 'orbit.component.markdown',
+  name: 'Markdown',
+  path: '/content/rich-text',
+  description:
+      'GitHub-flavored rich text rendered locally from a portable Markdown string.',
+  source: 'lib/orbit/orbit_components.dart',
+  defaultSize: const Size(640, 360),
+  knobs: (k) => (
+    title: k.string('title', initial: 'Release brief'),
+    markdown: k.string(
+      'markdown',
+      initial:
+          '## What changed\n\n- **Faster** triage for incoming work\n- Clear owners and next steps\n\n> Review the proposal before publishing.',
+      description: 'GitHub-flavored Markdown. Use plain text rather than HTML.',
+    ),
+  ),
+  build: (context, knobs) => OrbitMarkdownCard(
+    title: knobs.title.value,
+    markdown: knobs.markdown.value,
+  ),
+  instances: (knobs) => {
+    'default': const [],
+    'decision-brief': [
+      knobs.title('Decision brief'),
+      knobs.markdown(
+        '# Choose the launch path\n\n**Recommendation:** start with the '
+        'guided flow.\n\n1. Validate the handoff\n2. Measure activation\n'
+        '3. Expand deliberately',
+      ),
+    ],
+  },
+);
+
+final _mermaidComponent = DesyComponent(
+  id: 'orbit.component.mermaid',
+  name: 'Mermaid diagram',
+  path: '/content/diagrams',
+  description:
+      'A locally rendered Mermaid diagram. Prefer a concise flowchart or sequence diagram.',
+  source: 'lib/orbit/orbit_components.dart',
+  defaultSize: const Size(640, 380),
+  knobs: (k) => (
+    title: k.string('title', initial: 'Request workflow'),
+    code: k.string(
+      'code',
+      initial:
+          'flowchart LR\n  Request[New request] --> Review{Ready?}\n  '
+          'Review -->|Yes| Publish[Publish]\n  Review -->|No| Refine[Refine]',
+      description:
+          'Mermaid source. Use a supported diagram such as flowchart LR/TD or sequenceDiagram.',
+    ),
+  ),
+  build: (context, knobs) =>
+      OrbitMermaidDiagramCard(title: knobs.title.value, code: knobs.code.value),
+  instances: (knobs) => {
+    'default': const [],
+    'handoff': [
+      knobs.title('Research handoff'),
+      knobs.code(
+        'sequenceDiagram\n  participant Agent\n  participant User\n  '
+        'Agent->>User: Present evidence\n  User-->>Agent: Approve next step',
+      ),
+    ],
+  },
+);
+
+final _barChartComponent = DesyComponent(
+  id: 'orbit.component.bar-chart',
+  name: 'Bar chart',
+  path: '/data/charts',
+  description:
+      'A categorical comparison chart built from portable label and number lists.',
+  source: 'lib/orbit/orbit_components.dart',
+  defaultSize: const Size(640, 380),
+  knobs: (k) => (
+    title: k.string('title', initial: 'Weekly signal volume'),
+    labels: k.stringList(
+      'labels',
+      initial: const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+      description: 'One x-axis label for each value.',
+    ),
+    values: k.numberList(
+      'values',
+      initial: const [12, 18, 9, 24, 20],
+      minimum: 0,
+      description: 'One non-negative value for each label.',
+    ),
+  ),
+  build: (context, knobs) => OrbitBarChartCard(
+    title: knobs.title.value,
+    data: OrbitChartDatum.zip(
+      labels: knobs.labels.value,
+      values: knobs.values.value,
+    ),
+  ),
+  instances: (knobs) => {
+    'default': const [],
+    'activation': [
+      knobs.title('New activations by channel'),
+      knobs.labels(const ['Search', 'Invite', 'Template', 'API']),
+      knobs.values(const [38, 26, 19, 11]),
+    ],
+  },
+);
+
+final _pieChartComponent = DesyComponent(
+  id: 'orbit.component.pie-chart',
+  name: 'Pie chart',
+  path: '/data/charts',
+  description:
+      'A proportional breakdown built from portable label and number lists.',
+  source: 'lib/orbit/orbit_components.dart',
+  defaultSize: const Size(640, 420),
+  knobs: (k) => (
+    title: k.string('title', initial: 'Work by status'),
+    labels: k.stringList(
+      'labels',
+      initial: const ['Ready', 'In progress', 'Blocked'],
+      description: 'One legend label for each value.',
+    ),
+    values: k.numberList(
+      'values',
+      initial: const [14, 8, 3],
+      minimum: 0,
+      description: 'One non-negative value for each label.',
+    ),
+  ),
+  build: (context, knobs) => OrbitPieChartCard(
+    title: knobs.title.value,
+    data: OrbitChartDatum.zip(
+      labels: knobs.labels.value,
+      values: knobs.values.value,
+    ),
+  ),
+  instances: (knobs) => {
+    'default': const [],
+    'sources': [
+      knobs.title('Evidence sources'),
+      knobs.labels(const ['Workspace', 'Issue tracker', 'Research']),
+      knobs.values(const [42, 31, 27]),
+    ],
+  },
+);
+
 final _sourceComponent = DesyComponent(
   id: 'orbit.component.source',
   name: 'Source card',
@@ -558,3 +766,17 @@ OrbitTaskState _taskState(String value) => switch (value) {
   'blocked' => OrbitTaskState.blocked,
   _ => OrbitTaskState.queued,
 };
+
+List<OrbitTicket> _tickets(Object value) {
+  if (value is! List) return const [];
+  final tickets = <OrbitTicket>[];
+  for (final item in value) {
+    if (item is! Map) continue;
+    try {
+      tickets.add(OrbitTicket.fromJson(item));
+    } on FormatException {
+      // One malformed external record should not hide the remaining tickets.
+    }
+  }
+  return List.unmodifiable(tickets);
+}

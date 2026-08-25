@@ -6,7 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('compact dogfood previews keep their natural width', (
+  testWidgets('button previews fill their available artboard width', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1200, 900));
@@ -36,7 +36,7 @@ void main() {
     );
     expect(
       tester.getSize(specimenButton).width,
-      lessThan(tester.getSize(defaultArtboard).width),
+      closeTo(tester.getSize(defaultArtboard).width, 1),
     );
 
     tester

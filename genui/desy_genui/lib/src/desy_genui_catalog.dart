@@ -147,6 +147,21 @@ final class _Compiler {
     if (rawData is! Map) {
       throw ArgumentError.value(rawData, 'data', 'Expected component data.');
     }
+    return _BoundDesyComponent(
+      dataContext: itemContext.dataContext,
+      rawData: Map<String, Object?>.from(rawData),
+      reportError: itemContext.reportError,
+      builder: (context, resolvedData) =>
+          _buildResolved(component, itemContext, context, resolvedData),
+    );
+  }
+
+  Widget _buildResolved(
+    DesyRegistryComponent component,
+    CatalogItemContext itemContext,
+    BuildContext context,
+    Map<String, Object?> rawData,
+  ) {
     final data = <String, Object>{};
     for (final knob in component.knobDefinitions) {
       final value = rawData[knob.id];
@@ -156,7 +171,10 @@ final class _Compiler {
         DesyKnobKind.widgetInstances => _surfaceIds(knob, value, itemContext),
         DesyKnobKind.event => DesyEventBinding(value),
         DesyKnobKind.dateTime => _dateTime(knob, value),
-        _ => value as Object,
+        DesyKnobKind.stringList => _stringList(knob, value),
+        DesyKnobKind.numberList => _numberList(knob, value),
+        DesyKnobKind.jsonValue => _jsonKnobValue(knob, value),
+        _ => value,
       };
     }
 
@@ -165,7 +183,7 @@ final class _Compiler {
       buildSurfaceChild: (_, id) => itemContext.buildChild(id),
     );
     return component.buildWithValues(
-      itemContext.buildContext,
+      context,
       data,
       widgets: resolver,
       events: _GenUiEventHost(itemContext),
@@ -178,6 +196,44 @@ final class _Compiler {
       if (parsed != null) return parsed;
     }
     throw ArgumentError.value(value, knob.id, 'Expected an ISO-8601 string.');
+  }
+
+  List<String> _stringList(KnobDefinition<Object> knob, Object value) {
+    if (value is List && value.every((item) => item is String)) {
+      return List<String>.unmodifiable(value.cast<String>());
+    }
+    throw ArgumentError.value(value, knob.id, 'Expected a list of strings.');
+  }
+
+  List<double> _numberList(KnobDefinition<Object> knob, Object value) {
+    if (value is List && value.every((item) => item is num)) {
+      final result = value.cast<num>().map((item) => item.toDouble()).toList();
+      if (result.every(
+        (item) =>
+            item.isFinite &&
+            (knob.minimum == null || item >= knob.minimum!) &&
+            (knob.maximum == null || item <= knob.maximum!),
+      )) {
+        return List<double>.unmodifiable(result);
+      }
+    }
+    throw ArgumentError.value(
+      value,
+      knob.id,
+      'Expected a valid list of numbers.',
+    );
+  }
+
+  Object _jsonKnobValue(KnobDefinition<Object> knob, Object value) {
+    try {
+      final decoded = jsonDecode(jsonEncode(value));
+      if (decoded == null) {
+        throw const FormatException('JSON root must not be null.');
+      }
+      return _freezeJsonNode(decoded)!;
+    } on Object catch (_) {
+      throw ArgumentError.value(value, knob.id, 'Expected a JSON value.');
+    }
   }
 
   DesyInstanceId _surfaceId(
@@ -239,27 +295,39 @@ final class _Compiler {
   Schema _schemaFor(KnobDefinition<Object> knob) {
     final description = knob.description ?? knob.name;
     final Schema schema = switch (knob.kind) {
-      DesyKnobKind.string => S.string(description: description),
-      DesyKnobKind.choice => Schema.fromMap({
-        'type': 'string',
-        'description': description,
-        'enum': knob.options,
-      }),
-      DesyKnobKind.number => S.number(
-        description: _numberDescription(knob, description),
-        minimum: knob.minimum,
-        maximum: knob.maximum,
-        multipleOf: knob.step,
+      DesyKnobKind.string => _valueOrBinding(S.string(), description),
+      DesyKnobKind.choice => _valueOrBinding(
+        Schema.fromMap({'type': 'string', 'enum': knob.options}),
+        description,
       ),
-      DesyKnobKind.boolean => S.boolean(description: description),
-      DesyKnobKind.dateTime => S.string(
-        description: '$description Encoded as an ISO-8601 date-time string.',
+      DesyKnobKind.number => _valueOrBinding(
+        S.number(
+          minimum: knob.minimum,
+          maximum: knob.maximum,
+          multipleOf: knob.step,
+        ),
+        _numberDescription(knob, description),
       ),
-      DesyKnobKind.color => S.integer(
-        description: '$description Encoded as a Flutter ARGB integer.',
-        minimum: 0,
-        maximum: 0xffffffff,
+      DesyKnobKind.boolean => _valueOrBinding(S.boolean(), description),
+      DesyKnobKind.dateTime => _valueOrBinding(
+        S.string(),
+        '$description Encoded as an ISO-8601 date-time string.',
       ),
+      DesyKnobKind.color => _valueOrBinding(
+        S.integer(minimum: 0, maximum: 0xffffffff),
+        '$description Encoded as a Flutter ARGB integer.',
+      ),
+      DesyKnobKind.stringList => _valueOrBinding(
+        S.list(items: S.string()),
+        description,
+      ),
+      DesyKnobKind.numberList => _valueOrBinding(
+        S.list(
+          items: S.number(minimum: knob.minimum, maximum: knob.maximum),
+        ),
+        _numberDescription(knob, description),
+      ),
+      DesyKnobKind.jsonValue => _jsonValueOrBinding(description),
       DesyKnobKind.widgetInstance => A2uiSchemas.componentReference(
         description: _slotDescription(knob, description),
       ),
@@ -278,6 +346,27 @@ final class _Compiler {
 
   String _numberDescription(KnobDefinition<Object> knob, String description) =>
       knob.unit == null ? description : '$description Unit: ${knob.unit}.';
+
+  Schema _valueOrBinding(Schema literal, String description) => S.combined(
+    oneOf: [
+      literal,
+      A2uiSchemas.dataBindingSchema(),
+      A2uiSchemas.functionCall(),
+    ],
+    description: description,
+  );
+
+  // `S.any()` also accepts the binding map, so this needs `anyOf` rather than
+  // `oneOf`: a raw JSON object can validly have a `path` key, while a top-level
+  // `{path: ...}` remains the explicit reactive binding form.
+  Schema _jsonValueOrBinding(String description) => Schema.fromMap({
+    'description': description,
+    'anyOf': [
+      S.any().value,
+      A2uiSchemas.dataBindingSchema().value,
+      A2uiSchemas.functionCall().value,
+    ],
+  });
 
   String _slotDescription(KnobDefinition<Object> knob, String description) {
     if (knob.options.isEmpty) return description;
@@ -388,6 +477,14 @@ final class _Compiler {
           definition[knob.id] = childIds;
         case DesyKnobKind.event:
           break;
+        // A2UI's catalog examples are flat component graphs, not a data-model
+        // fixture format. Collection and JSON knobs therefore use their
+        // declared defaults in examples; explicit A2UI updates may still
+        // provide them and are validated by the widget builder.
+        case DesyKnobKind.stringList:
+        case DesyKnobKind.numberList:
+        case DesyKnobKind.jsonValue:
+          break;
         case DesyKnobKind.color:
           definition[knob.id] = _jsonValue(value);
         case DesyKnobKind.dateTime:
@@ -404,6 +501,96 @@ final class _Compiler {
       addDescendant();
     }
   }
+}
+
+/// Resolves the top-level dynamic properties of a Desy component and rebuilds
+/// only that component when a bound data-model value changes.
+///
+/// Structural slots and action maps remain literal. Consumer components may
+/// bind scalar, list, or JSON-value knobs with `{ "path": "/data/path" }`.
+final class _BoundDesyComponent extends StatefulWidget {
+  const _BoundDesyComponent({
+    required this.dataContext,
+    required this.rawData,
+    required this.reportError,
+    required this.builder,
+  });
+
+  final DataContext dataContext;
+  final Map<String, Object?> rawData;
+  final void Function(Object error, StackTrace? stackTrace) reportError;
+  final Widget Function(BuildContext context, Map<String, Object?> data)
+  builder;
+
+  @override
+  State<_BoundDesyComponent> createState() => _BoundDesyComponentState();
+}
+
+final class _BoundDesyComponentState extends State<_BoundDesyComponent> {
+  final _resolvedData = <String, Object?>{};
+  final _subscriptions = <StreamSubscription<Object?>>[];
+
+  @override
+  void initState() {
+    super.initState();
+    _bind();
+  }
+
+  @override
+  void didUpdateWidget(_BoundDesyComponent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dataContext != widget.dataContext ||
+        oldWidget.rawData != widget.rawData) {
+      _bind();
+    }
+  }
+
+  @override
+  void dispose() {
+    _cancelSubscriptions();
+    super.dispose();
+  }
+
+  void _bind() {
+    _cancelSubscriptions();
+    _resolvedData
+      ..clear()
+      ..addAll(widget.rawData);
+    for (final entry in widget.rawData.entries) {
+      if (!_isDynamicValue(entry.value)) continue;
+      // A binding has no literal value to pass into the typed consumer
+      // component while the stream is connecting. Omit it so the component's
+      // declared default stays visible until its first data-model emission.
+      _resolvedData.remove(entry.key);
+      _subscriptions.add(
+        widget.dataContext
+            .resolve(entry.value)
+            .listen(
+              (value) {
+                if (!mounted) return;
+                setState(() => _resolvedData[entry.key] = value);
+              },
+              onError: (Object error, StackTrace stackTrace) {
+                widget.reportError(error, stackTrace);
+              },
+            ),
+      );
+    }
+  }
+
+  void _cancelSubscriptions() {
+    for (final subscription in _subscriptions) {
+      unawaited(subscription.cancel());
+    }
+    _subscriptions.clear();
+  }
+
+  bool _isDynamicValue(Object? value) =>
+      value is Map && (value['path'] is String || value.containsKey('call'));
+
+  @override
+  Widget build(BuildContext context) =>
+      widget.builder(context, Map<String, Object?>.unmodifiable(_resolvedData));
 }
 
 final class _GenUiEventHost implements DesyEventHost {
@@ -461,3 +648,16 @@ Object? _jsonValue(Object value) => switch (value) {
 
 Map<String, Object?> _freezeJsonMap(Map<String, Object?> value) =>
     Map.unmodifiable(jsonDecode(jsonEncode(value)) as Map<String, Object?>);
+
+Object? _freezeJsonNode(Object? value) {
+  return switch (value) {
+    null || String() || num() || bool() => value,
+    List() => List<Object?>.unmodifiable(value.map(_freezeJsonNode)),
+    Map() => Map<String, Object?>.unmodifiable({
+      for (final entry in value.entries)
+        if (entry.key is String)
+          entry.key as String: _freezeJsonNode(entry.value),
+    }),
+    _ => throw const FormatException('Expected JSON-compatible value.'),
+  };
+}

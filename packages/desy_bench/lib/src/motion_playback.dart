@@ -7,6 +7,9 @@ enum DesyMotionLoopMode {
 
   /// Restart from the beginning after reaching the end.
   loop,
+
+  /// Alternate between forward and reverse playback.
+  pingPong,
 }
 
 /// Ephemeral playback state shared by Desy motion preview surfaces.
@@ -15,7 +18,7 @@ enum DesyMotionLoopMode {
 /// entries remain immutable and consumer-owned.
 class DesyMotionPlaybackController extends ChangeNotifier {
   /// Default duration used when no motion-specific or global value is present.
-  static const defaultDuration = Duration(milliseconds: 300);
+  static const defaultDuration = Duration(milliseconds: 360);
 
   /// Creates a preview timeline and immediately plays it forward once.
   DesyMotionPlaybackController({
@@ -63,15 +66,25 @@ class DesyMotionPlaybackController extends ChangeNotifier {
   var _resumeAfterScrub = false;
 
   void _handleStatus(AnimationStatus status) {
-    if (!_isPlaying || _isScrubbing || status != AnimationStatus.completed) {
+    if (!_isPlaying ||
+        _isScrubbing ||
+        (status != AnimationStatus.completed &&
+            status != AnimationStatus.dismissed)) {
       return;
     }
-    if (_loopMode == DesyMotionLoopMode.loop) {
-      _timeline.forward(from: 0);
-      return;
+    switch (_loopMode) {
+      case DesyMotionLoopMode.once:
+        _isPlaying = false;
+        notifyListeners();
+      case DesyMotionLoopMode.loop:
+        _timeline.forward(from: 0);
+      case DesyMotionLoopMode.pingPong:
+        if (status == AnimationStatus.completed) {
+          _timeline.reverse();
+        } else if (status == AnimationStatus.dismissed) {
+          _timeline.forward();
+        }
     }
-    _isPlaying = false;
-    notifyListeners();
   }
 
   /// Starts or pauses playback without changing the current playhead.
@@ -151,7 +164,9 @@ class DesyMotionPlaybackController extends ChangeNotifier {
   }
 
   void _resume() {
-    if (_timeline.isCompleted) {
+    if (_loopMode == DesyMotionLoopMode.pingPong && _timeline.isCompleted) {
+      _timeline.reverse();
+    } else if (_timeline.isCompleted) {
       _timeline.forward(from: 0);
     } else {
       _timeline.forward();

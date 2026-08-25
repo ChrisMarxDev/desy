@@ -7,7 +7,9 @@ that graph using the application's own real Flutter widgets.
 It is a deliberate replacement for the old Material-shaped demo. Orbit uses a
 Shadcn-inspired semantic foundation and [Mix](https://pub.dev/packages/mix)
 for its reusable surface styling; it does not render `MaterialApp`, `Scaffold`,
-`TextField`, `InkWell`, Material icons, or Material progress indicators.
+`TextField`, `InkWell`, Material icons, or Material progress indicators. The
+Material icon font is bundled only because `flutter_mermaid` declares it for
+its own internal fallback state; Orbit supplies its own loading and error UI.
 
 ## Orbit design system
 
@@ -18,7 +20,10 @@ for its reusable surface styling; it does not render `MaterialApp`, `Scaffold`,
   text area, buttons, badges, progress, and spinner.
 - `orbit_components.dart` defines the generated-content vocabulary: insight,
   task list and row, recommendation, approval request, tool activity, metric
-  grid and tile, source card, and response stack.
+  grid and tile, Markdown, Mermaid diagrams, charts, source card, and response
+  stack. Markdown uses `flutter_markdown_plus`; Mermaid uses the pure-Dart
+  `flutter_mermaid` renderer, so neither format needs a web view or another AI
+  request to display.
 - `orbit_registry.dart` registers those exact widgets with Desy under stable
   IDs and validated paths. The registry has two real themes: Midnight and
   Daylight.
@@ -74,6 +79,16 @@ navigation, persistence, and other business actions local.
 The included server is a development bridge: loopback-only, unauthenticated,
 and permissive-CORS. Keep the `GenUiBackend` boundary when replacing it with an
 authenticated production gateway.
+
+## Local live-data sample
+
+The Orbit prompt dock includes <strong>Load next ticket</strong>. It runs the
+local `SampleTicketLoader`, which returns `APP-1` on the first request, then
+`APP-1` and `APP-2`, and so on. The loader writes only A2UI
+`updateDataModel` values into a stable ticket-list and bar-chart component
+tree—there is no network call and no agent turn. It is the intended seam for a
+real provider client: the app owns loading and refresh; GenUI owns the
+already-composed, data-bound view.
 
 ## Local Codex experiment
 

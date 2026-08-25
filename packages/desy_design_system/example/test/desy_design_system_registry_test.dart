@@ -260,6 +260,9 @@ void main() {
       'enabled',
       'scheduledAt',
       'accent',
+      'reviewers',
+      'milestones',
+      'metadata',
       'leading',
       'supporting',
       'onActivate',
@@ -360,6 +363,28 @@ void main() {
       button.knobDefinitions.singleWhere((knob) => knob.id == 'onPress').kind,
       DesyKnobKind.event,
     );
+  });
+
+  test('button exposes typed prefix-icon and color controls', () {
+    final button = desyDesignSystemRegistry.allComponents.singleWhere(
+      (component) => component.id == 'desy.component.button',
+    );
+
+    expect(
+      button.knobDefinitions.singleWhere((knob) => knob.id == 'prefixIcon'),
+      isA<KnobDefinition<Object>>()
+          .having((knob) => knob.kind, 'kind', DesyKnobKind.widgetInstance)
+          .having(
+            (knob) => knob.options,
+            'options',
+            contains('desy.icon.send'),
+          ),
+    );
+    expect(
+      button.knobDefinitions.singleWhere((knob) => knob.id == 'color').kind,
+      DesyKnobKind.color,
+    );
+    expect(button.instanceIds, contains('signal'));
   });
 
   test(

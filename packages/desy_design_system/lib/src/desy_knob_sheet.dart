@@ -581,18 +581,21 @@ class DesyColorKnobRow extends StatelessWidget {
   /// Opens a richer owning color workflow, such as registry swatches + picker.
   final VoidCallback? onPick;
 
+  static const _controlHeight = 36.0;
+
   @override
   Widget build(BuildContext context) => DesyKnobRow(
     label: label,
     description: description,
-    control: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox.square(
-          dimension: DesyDesignSystemTokens.textFieldMinHeight,
-          child: DesyButton.icon(
+    control: SizedBox(
+      height: _controlHeight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DesyButton.icon(
             key: ValueKey('color-knob-picker-$label'),
-            size: DesyButtonSize.lg,
+            size: DesyButtonSize.md,
             variant: DesyButtonVariant.outline,
             semanticsLabel: 'Pick $label color',
             onPress: onPick,
@@ -608,24 +611,24 @@ class DesyColorKnobRow extends StatelessWidget {
               ),
             ),
           ),
-        ),
-        const SizedBox(width: DesyDesignSystemTokens.spaceSm),
-        SizedBox(
-          width: 112,
-          child: DesyTextField(
-            key: ValueKey('color-knob-field-$label'),
-            label: label,
-            value: _colorHex(value),
-            hintText: '#RRGGBB',
-            onChanged: onChanged == null
-                ? null
-                : (input) {
-                    final color = _parseColor(input);
-                    if (color != null) onChanged!(color);
-                  },
+          const SizedBox(width: DesyDesignSystemTokens.spaceSm),
+          SizedBox(
+            width: 112,
+            child: DesyTextField(
+              key: ValueKey('color-knob-field-$label'),
+              label: label,
+              value: _colorHex(value),
+              hintText: '#RRGGBB',
+              onChanged: onChanged == null
+                  ? null
+                  : (input) {
+                      final color = _parseColor(input);
+                      if (color != null) onChanged!(color);
+                    },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }

@@ -93,17 +93,36 @@ GoRouter createDesyWorkbenchRouter(
                 DesyMeasuresScreen(
                   session: session,
                   measurements: session.registry.measurements,
+                  onOpenCatalogue: () =>
+                      context.go(DesyWorkbenchRoutes.atlasPath),
+                  onOpenAtoms: () => context.go(
+                    DesyWorkbenchRoutes.atlas(folderId: DesyAtomKind.rootId),
+                  ),
                 ),
               );
             }
             if (atomKind == DesyAtomKind.assets) {
-              return _instantPage(state, DesyAssetsScreen(session: session));
+              return _instantPage(
+                state,
+                DesyAssetsScreen(
+                  session: session,
+                  onOpenCatalogue: () =>
+                      context.go(DesyWorkbenchRoutes.atlasPath),
+                  onOpenAtoms: () => context.go(
+                    DesyWorkbenchRoutes.atlas(folderId: DesyAtomKind.rootId),
+                  ),
+                ),
+              );
             }
             return _instantPage(
               state,
               DesyAtlasScreen(
                 session: session,
                 folderId: folderId,
+                onOpenCatalogue: () =>
+                    context.go(DesyWorkbenchRoutes.atlasPath),
+                onOpenFolder: (folderId) =>
+                    context.go(DesyWorkbenchRoutes.atlas(folderId: folderId)),
                 onOpen: (entry) {
                   session.prepareEntry(entry);
                   context.go(DesyWorkbenchRoutes.entry(entry.id));
@@ -2043,6 +2062,7 @@ class _DesyDetailRouteScreenState extends State<_DesyDetailRouteScreen> {
     ),
     onOpenFolder: (folderId) =>
         context.go(DesyWorkbenchRoutes.atlas(folderId: folderId)),
+    onOpenCatalogue: () => context.go(DesyWorkbenchRoutes.atlasPath),
   );
 }
 

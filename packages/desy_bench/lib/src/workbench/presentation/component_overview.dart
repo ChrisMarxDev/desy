@@ -19,6 +19,7 @@ class DesyComponentOverview extends StatelessWidget {
     required this.registry,
     required this.theme,
     required this.onOpen,
+    this.onOpenFolder,
     this.pathPrefix = '/',
     this.leadingSlivers = const [],
     this.emptyMessage = 'No components registered.',
@@ -28,6 +29,7 @@ class DesyComponentOverview extends StatelessWidget {
   final DesyRegistry registry;
   final DesyTheme theme;
   final ValueChanged<DesyRegistryComponent> onOpen;
+  final ValueChanged<String>? onOpenFolder;
   final String pathPrefix;
   final List<Widget> leadingSlivers;
   final String emptyMessage;
@@ -74,6 +76,9 @@ class DesyComponentOverview extends StatelessWidget {
             child: _ComponentFolderHeading(
               folder: section,
               first: root.components.isEmpty && index == 0,
+              onOpen: onOpenFolder == null
+                  ? null
+                  : () => onOpenFolder!(section.path),
             ),
           ),
           if (section.components.isNotEmpty)
@@ -147,10 +152,15 @@ class _ComponentOverviewFolder {
 }
 
 class _ComponentFolderHeading extends StatelessWidget {
-  const _ComponentFolderHeading({required this.folder, required this.first});
+  const _ComponentFolderHeading({
+    required this.folder,
+    required this.first,
+    required this.onOpen,
+  });
 
   final _ComponentOverviewFolder folder;
   final bool first;
+  final VoidCallback? onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -170,15 +180,33 @@ class _ComponentFolderHeading extends StatelessWidget {
             _ => 14.0,
           };
     return Padding(
-      padding: EdgeInsets.only(top: topSpacing, bottom: 10),
-      child: Semantics(
-        header: true,
-        child: Text(
-          folder.label,
-          key: ValueKey('atlas-folder-heading-${folder.path}'),
-          style: style,
-        ),
+      padding: EdgeInsets.only(
+        top: topSpacing,
+        bottom: onOpen == null ? 10 : 4,
       ),
+      child: onOpen == null
+          ? Semantics(
+              header: true,
+              child: Text(
+                folder.label,
+                key: ValueKey('atlas-folder-heading-${folder.path}'),
+                style: style,
+              ),
+            )
+          : Semantics(
+              header: true,
+              child: DesyButton(
+                key: ValueKey('atlas-folder-heading-${folder.path}'),
+                variant: DesyButtonVariant.ghost,
+                size: DesyButtonSize.xs,
+                mainAxisSize: MainAxisSize.min,
+                onPress: onOpen,
+                semanticsLabel: 'Open ${folder.label} catalogue',
+                semanticsTooltip: 'Open ${folder.label} catalogue',
+                suffix: const Icon(DesyIcons.link, size: 15),
+                child: Text(folder.label, style: style),
+              ),
+            ),
     );
   }
 }

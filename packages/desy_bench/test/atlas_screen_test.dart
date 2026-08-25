@@ -1,5 +1,6 @@
 import 'package:desy_bench/desy_bench.dart';
 import 'package:desy_design_system/desy_design_system.dart';
+import 'package:flutter/material.dart' show SelectableText;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -62,7 +63,7 @@ void main() {
       final contentPadding = tester.widget<Padding>(
         find.byKey(const ValueKey('atlas-content-padding')),
       );
-      expect(contentPadding.padding, const EdgeInsets.fromLTRB(28, 28, 28, 0));
+      expect(contentPadding.padding, const EdgeInsets.fromLTRB(12, 12, 12, 0));
     },
   );
 
@@ -88,6 +89,13 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('1 entries'), findsOneWidget);
+      final breadcrumb = tester.widget<SelectableText>(
+        find.byKey(const ValueKey('atlas-breadcrumb-text')),
+      );
+      expect(
+        breadcrumb.textSpan?.toPlainText(includeSemanticsLabels: false),
+        'all/',
+      );
 
       final scroll = find.byKey(const ValueKey('component-overview-scroll'));
       expect(scroll, findsOneWidget);
@@ -118,6 +126,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Mixed type'), findsWidgets);
+    final breadcrumb = tester.widget<SelectableText>(
+      find.byKey(const ValueKey('atlas-breadcrumb-text')),
+    );
+    expect(
+      breadcrumb.textSpan?.toPlainText(includeSemanticsLabels: false),
+      'all/ Atoms / Fonts',
+    );
     final ledger = find.byKey(const ValueKey('font-ledger'));
     expect(ledger, findsOneWidget);
     expect(
@@ -180,7 +195,7 @@ void main() {
       find.byKey(const ValueKey('atlas-headline')),
     );
     expect(headline.textSpan?.toPlainText(), startsWith('Inputs'));
-    expect(find.text('COMPONENTS'), findsOneWidget);
+    expect(find.byKey(const ValueKey('atlas-breadcrumbs')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('component-overview-scroll')),
       findsOneWidget,
@@ -194,6 +209,35 @@ void main() {
       find.byKey(const ValueKey('atlas-card-input.button')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('component headings visibly link to their catalogue folder', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      DesyBenchApp(
+        registry: DesyRegistry(
+          name: 'Linked headings',
+          themes: const [DesyTheme(id: 'light', name: 'Light', wrap: _wrap)],
+          components: [_component('motion.reveal', path: '/motion')],
+        ),
+      ),
+    );
+
+    final heading = find.byKey(const ValueKey('atlas-folder-heading-/motion'));
+    expect(heading, findsOneWidget);
+    expect(
+      find.descendant(of: heading, matching: find.byIcon(DesyIcons.link)),
+      findsOneWidget,
+    );
+
+    await tester.tap(heading);
+    await tester.pumpAndSettle();
+
+    final headline = tester.widget<Text>(
+      find.byKey(const ValueKey('atlas-headline')),
+    );
+    expect(headline.textSpan?.toPlainText(), startsWith('Motion'));
   });
 
   testWidgets('typography entries build only the supplied preview text', (

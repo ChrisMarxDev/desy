@@ -67,9 +67,15 @@ class DesyButton extends StatelessWidget {
     this.mainAxisAlignment = MainAxisAlignment.center,
     this.crossAxisAlignment = CrossAxisAlignment.center,
     this.textBaseline,
+    this.prefixIcon,
     this.prefix,
     this.suffix,
-  }) : _iconOnly = false;
+    this.color,
+  }) : assert(
+         prefixIcon == null || prefix == null,
+         'Use prefixIcon for an icon or prefix for other leading content.',
+       ),
+       _iconOnly = false;
 
   /// Creates a square action containing only an icon.
   const DesyButton.icon({
@@ -97,8 +103,10 @@ class DesyButton extends StatelessWidget {
        mainAxisAlignment = MainAxisAlignment.center,
        crossAxisAlignment = CrossAxisAlignment.center,
        textBaseline = null,
+       prefixIcon = null,
        prefix = null,
-       suffix = null;
+       suffix = null,
+       color = null;
 
   /// Called when the enabled action is activated.
   final VoidCallback? onPress;
@@ -151,6 +159,11 @@ class DesyButton extends StatelessWidget {
   /// The action's density.
   final DesyButtonSize size;
 
+  /// Optional icon displayed before [child].
+  ///
+  /// Use [prefix] for leading content that is not an icon.
+  final Widget? prefixIcon;
+
   /// The main action content.
   final Widget child;
 
@@ -172,6 +185,13 @@ class DesyButton extends StatelessWidget {
   /// The baseline used when [crossAxisAlignment] requests one.
   final TextBaseline? textBaseline;
 
+  /// Optional enabled-state background color.
+  ///
+  /// When supplied, Desy chooses a readable foreground color for the label and
+  /// any prefix or suffix icon. Disabled buttons retain their semantic disabled
+  /// styling.
+  final Color? color;
+
   final bool _iconOnly;
 
   @override
@@ -190,11 +210,16 @@ class DesyButton extends StatelessWidget {
       DesyButtonSize.lg => FButtonSizeVariant.lg,
     };
 
+    final style = color == null || onPress == null
+        ? const FButtonStyleDelta.context()
+        : _colorStyle(color!);
+
     if (_iconOnly) {
       return FButton.icon(
         onPress: onPress,
         variant: foruiVariant,
         size: foruiSize,
+        style: style,
         onDisabledPress: onDisabledPress,
         onLongPress: onLongPress,
         onDoubleTap: onDoubleTap,
@@ -217,6 +242,7 @@ class DesyButton extends StatelessWidget {
       onPress: onPress,
       variant: foruiVariant,
       size: foruiSize,
+      style: style,
       onDisabledPress: onDisabledPress,
       onLongPress: onLongPress,
       onDoubleTap: onDoubleTap,
@@ -235,9 +261,53 @@ class DesyButton extends StatelessWidget {
       mainAxisAlignment: mainAxisAlignment,
       crossAxisAlignment: crossAxisAlignment,
       textBaseline: textBaseline,
-      prefix: prefix,
+      prefix: prefixIcon ?? prefix,
       suffix: suffix,
       child: child,
+    );
+  }
+
+  FButtonStyleDelta _colorStyle(Color background) {
+    final foreground = background.computeLuminance() > 0.45
+        ? const Color(0xFF171717)
+        : const Color(0xFFFFFFFF);
+    final decoration =
+        FVariantsDelta<
+          FTappableVariantConstraint,
+          FTappableVariant,
+          Decoration,
+          DecorationDelta
+        >.delta([
+          FVariantOperation.all(DecorationDelta.boxDelta(color: background)),
+        ]);
+    final textStyle =
+        FVariantsDelta<
+          FTappableVariantConstraint,
+          FTappableVariant,
+          TextStyle,
+          TextStyleDelta
+        >.delta([
+          FVariantOperation.all(TextStyleDelta.delta(color: foreground)),
+        ]);
+    final iconStyle =
+        FVariantsDelta<
+          FTappableVariantConstraint,
+          FTappableVariant,
+          IconThemeData,
+          IconThemeDataDelta
+        >.delta([
+          FVariantOperation.all(IconThemeDataDelta.delta(color: foreground)),
+        ]);
+
+    return FButtonStyleDelta.delta(
+      decoration: decoration,
+      contentStyle: FButtonContentStyleDelta.delta(
+        textStyle: textStyle,
+        iconStyle: iconStyle,
+      ),
+      iconContentStyle: FButtonIconContentStyleDelta.delta(
+        iconStyle: iconStyle,
+      ),
     );
   }
 }

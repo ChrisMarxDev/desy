@@ -61,23 +61,29 @@ void main() {
         item.dataSchema.value['properties']! as Map<String, Object?>;
 
     expect(properties['title'], containsPair('default', 'Default title'));
-    expect(properties['count'], containsPair('minimum', 1));
-    expect(properties['count'], containsPair('maximum', 9));
-    expect(properties['count'], containsPair('multipleOf', 1));
-    expect(properties['enabled'], containsPair('type', 'boolean'));
+    expect(jsonEncode(properties['title']), contains('"path"'));
+    expect(jsonEncode(properties['count']), contains('"minimum":1'));
+    expect(jsonEncode(properties['count']), contains('"maximum":9'));
+    expect(jsonEncode(properties['count']), contains('"multipleOf":1'));
+    expect(jsonEncode(properties['enabled']), contains('"type":"boolean"'));
     expect(
-      properties['tone'],
-      allOf(
-        containsPair('enum', ['Neutral', 'Positive', 'Critical']),
-        containsPair('default', 'Neutral'),
-      ),
+      jsonEncode(properties['tone']),
+      allOf(contains('"Neutral"'), contains('"default":"Neutral"')),
     );
-    expect(properties['startsAt'], containsPair('type', 'string'));
+    expect(jsonEncode(properties['startsAt']), contains('"type":"string"'));
     expect(
       properties['startsAt'],
       containsPair('default', '2026-08-15T09:30:00.000Z'),
     );
-    expect(properties['color'], containsPair('maximum', 0xffffffff));
+    expect(jsonEncode(properties['color']), contains('"maximum":4294967295'));
+    expect(jsonEncode(properties['labels']), contains('"type":"array"'));
+    expect(
+      jsonEncode(properties['labels']),
+      contains('"items":{"type":"string"}'),
+    );
+    expect(jsonEncode(properties['values']), contains('"type":"array"'));
+    expect(jsonEncode(properties['values']), contains('"minimum":0'));
+    expect(properties['metadata'], containsPair('default', {'source': 'test'}));
     expect(properties['body'], containsPair('type', 'string'));
     expect(properties['children'], containsPair('type', 'array'));
     expect(
@@ -120,6 +126,8 @@ void main() {
         'tone': 'Critical',
         'startsAt': '2026-08-16T14:45:00.000Z',
         'color': 0xff112233,
+        'labels': ['Search', 'Invite'],
+        'values': [38, 26],
         'body': 'body',
         'children': ['first', 'second'],
       },
@@ -193,6 +201,55 @@ void main() {
     expect(action['name'], 'submit');
     expect(action['sourceComponentId'], 'root');
     expect(context, {'origin': 'fixture', 'label': 'Submit'});
+  });
+
+  testWidgets('data-bound props update a component without replacing it', (
+    tester,
+  ) async {
+    final compiled = DesyGenUiCatalog.compile(_registry());
+    final controller = SurfaceController(catalogs: [compiled.catalog]);
+    addTearDown(controller.dispose);
+    _send(controller, compiled, const [
+      {
+        'id': 'root',
+        'component': 'test.leaf',
+        'label': {'path': '/tickets/0/key'},
+      },
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyGenUiSurface(
+          controller: controller,
+          surfaceId: 'test-surface',
+          theme: _theme,
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Leaf'), findsOneWidget);
+
+    controller.handleMessage(
+      a2ui.UpdateDataModelMessage(
+        surfaceId: 'test-surface',
+        path: '/tickets/0/key',
+        value: 'APP-1',
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('APP-1'), findsOneWidget);
+
+    controller.handleMessage(
+      a2ui.UpdateDataModelMessage(
+        surfaceId: 'test-surface',
+        path: '/tickets/0/key',
+        value: 'APP-2',
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('APP-2'), findsOneWidget);
   });
 
   testWidgets('materialized named example is a renderable flat surface', (
@@ -320,6 +377,9 @@ DesyRegistryComponent _panelComponent() => DesyComponent(
     tone: k.choice('tone', options: const ['Neutral', 'Positive', 'Critical']),
     startsAt: k.dateTime('startsAt', initial: DateTime.utc(2026, 8, 15, 9, 30)),
     color: k.color('color', initial: const Color(0xff445566)),
+    labels: k.stringList('labels', initial: const ['Search', 'Invite']),
+    values: k.numberList('values', initial: const [38, 26], minimum: 0),
+    metadata: k.jsonValue('metadata', initial: const {'source': 'test'}),
     body: k.widgetInstance(
       'body',
       initial: 'test.leaf.body',

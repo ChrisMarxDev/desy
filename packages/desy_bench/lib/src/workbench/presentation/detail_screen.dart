@@ -3,7 +3,6 @@
 
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:desy_design_system/desy_design_system.dart';
 import 'package:state_beacon/state_beacon.dart';
@@ -16,6 +15,7 @@ import 'desy_drag_box.dart';
 import 'detail_extensions_region.dart';
 import 'motion_playback_controls.dart';
 import 'workbench_control_sheet.dart';
+import 'workbench_breadcrumbs.dart';
 import '../../device_preview.dart';
 import '../../motion_playback.dart';
 import '../../registry.dart';
@@ -26,7 +26,7 @@ import '../workbench_annotation.dart';
 import '../workbench_session.dart';
 
 const _minimumBoxExtent = 8.0;
-const _detailToolbarTop = 12.0;
+const _detailToolbarTop = desyWorkbenchCanvasInset;
 const _detailToolbarReservedHeight = 58.0;
 const _toolbarSelectionGap = 8.0;
 const _selectionLabelGap = 6.0;
@@ -45,6 +45,7 @@ class DesyDetailScreen extends StatefulWidget {
     required this.entry,
     this.inspectionContext,
     this.onOpenFolder,
+    this.onOpenCatalogue,
     this.imageSaver = saveDesyImage,
     this.imageExportAction,
   });
@@ -53,6 +54,7 @@ class DesyDetailScreen extends StatefulWidget {
   final DesyRegistryEntry entry;
   final DesyWorkbenchInspectionContext? inspectionContext;
   final ValueChanged<String>? onOpenFolder;
+  final VoidCallback? onOpenCatalogue;
   final DesyImageSaver imageSaver;
   final DesyImageExportAction? imageExportAction;
 
@@ -184,6 +186,7 @@ class _DesyDetailScreenState extends State<DesyDetailScreen>
         device: device,
         accessibility: accessibility,
         onOpenFolder: widget.onOpenFolder,
+        onOpenCatalogue: widget.onOpenCatalogue,
         imageSaver: widget.imageSaver,
         imageExportAction: widget.imageExportAction,
         imageExportController: component == null
@@ -365,6 +368,7 @@ class _DetailInstanceGallery extends StatefulWidget {
     required this.device,
     required this.accessibility,
     required this.onOpenFolder,
+    required this.onOpenCatalogue,
     required this.imageSaver,
     required this.imageExportAction,
     required this.imageExportController,
@@ -378,6 +382,7 @@ class _DetailInstanceGallery extends StatefulWidget {
   final DesyDevicePreset? device;
   final DesyPreviewAccessibilitySettings accessibility;
   final ValueChanged<String>? onOpenFolder;
+  final VoidCallback? onOpenCatalogue;
   final DesyImageSaver imageSaver;
   final DesyImageExportAction? imageExportAction;
   final _DetailImageExportController? imageExportController;
@@ -513,6 +518,7 @@ class _DetailInstanceGalleryState extends State<_DetailInstanceGallery> {
       toolbar: _DetailPreviewToolbar(
         entry: widget.entry,
         onOpenFolder: widget.onOpenFolder,
+        onOpenCatalogue: widget.onOpenCatalogue,
       ),
       showInspectorDrawer: false,
       clearSelectionOnCanvasTap: false,
@@ -753,120 +759,29 @@ class _DetailPreviewToolbar extends StatelessWidget {
   const _DetailPreviewToolbar({
     required this.entry,
     required this.onOpenFolder,
+    required this.onOpenCatalogue,
   });
 
   final DesyRegistryEntry entry;
   final ValueChanged<String>? onOpenFolder;
+  final VoidCallback? onOpenCatalogue;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = context.theme.colors;
-    return Container(
-      key: const ValueKey('detail-preview-toolbar'),
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: colors.secondary,
-        border: Border.all(color: colors.border),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: _DetailBreadcrumbs(entry: entry, onOpenFolder: onOpenFolder),
-    );
-  }
-}
-
-class _DetailBreadcrumbs extends StatefulWidget {
-  const _DetailBreadcrumbs({required this.entry, required this.onOpenFolder});
-
-  final DesyRegistryEntry entry;
-  final ValueChanged<String>? onOpenFolder;
-
-  @override
-  State<_DetailBreadcrumbs> createState() => _DetailBreadcrumbsState();
-}
-
-class _DetailBreadcrumbsState extends State<_DetailBreadcrumbs> {
-  final List<TapGestureRecognizer> _folderRecognizers = [];
-
-  DesyRegistryEntry get entry => widget.entry;
-
-  @override
-  void initState() {
-    super.initState();
-    _syncRecognizers();
-  }
-
-  @override
-  void didUpdateWidget(covariant _DetailBreadcrumbs oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _syncRecognizers();
-  }
-
-  void _syncRecognizers() {
-    while (_folderRecognizers.length > entry.folderIds.length) {
-      _folderRecognizers.removeLast().dispose();
-    }
-    while (_folderRecognizers.length < entry.folderIds.length) {
-      _folderRecognizers.add(TapGestureRecognizer());
-    }
-    for (var index = 0; index < _folderRecognizers.length; index++) {
-      _folderRecognizers[index].onTap = widget.onOpenFolder == null
-          ? null
-          : () => widget.onOpenFolder!(entry.folderIds[index]);
-    }
-  }
-
-  @override
-  void dispose() {
-    for (final recognizer in _folderRecognizers) {
-      recognizer.dispose();
-    }
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final segments = [...entry.folderNames, entry.name];
-    final style = Theme.of(context).textTheme.labelSmall?.copyWith(
-      color: context.theme.colors.mutedForeground,
-    );
-    final linkStyle = style?.copyWith(
-      color: context.theme.colors.foreground,
-      decoration: TextDecoration.underline,
-      decorationColor: context.theme.colors.mutedForeground,
-    );
-    return Semantics(
-      label: 'Breadcrumb: ${segments.join(' / ')}',
-      container: true,
-      explicitChildNodes: true,
-      child: SelectableText.rich(
-        key: const ValueKey('detail-breadcrumbs'),
-        TextSpan(
-          style: style,
-          children: [
-            for (var index = 0; index < segments.length; index++) ...[
-              if (index > 0) const TextSpan(text: ' / '),
-              if (index < entry.folderIds.length)
-                TextSpan(
-                  text: segments[index],
-                  style: widget.onOpenFolder == null ? style : linkStyle,
-                  recognizer: widget.onOpenFolder == null
-                      ? null
-                      : _folderRecognizers[index],
-                  mouseCursor: widget.onOpenFolder == null
-                      ? MouseCursor.defer
-                      : SystemMouseCursors.click,
-                  semanticsLabel: widget.onOpenFolder == null
-                      ? segments[index]
-                      : 'Open ${segments[index]} folder',
-                )
-              else
-                TextSpan(text: segments[index], style: style),
-            ],
-          ],
+  Widget build(BuildContext context) => DesyWorkbenchBreadcrumbs(
+    key: const ValueKey('detail-preview-toolbar'),
+    textKey: const ValueKey('detail-breadcrumbs'),
+    segments: [
+      DesyWorkbenchBreadcrumb(label: 'all/', onOpen: onOpenCatalogue),
+      for (final (index, folderName) in entry.folderNames.indexed)
+        DesyWorkbenchBreadcrumb(
+          label: folderName,
+          onOpen: onOpenFolder == null
+              ? null
+              : () => onOpenFolder!(entry.folderIds[index]),
         ),
-      ),
-    );
-  }
+      DesyWorkbenchBreadcrumb(label: entry.name),
+    ],
+  );
 }
 
 class _DetailInspector extends StatelessWidget {
@@ -1095,7 +1010,11 @@ class DesyPreviewCanvas extends StatelessWidget {
             clipBehavior: Clip.hardEdge,
             children: [
               if (toolbar case final toolbar?)
-                Positioned(top: _detailToolbarTop, left: 12, child: toolbar),
+                Positioned(
+                  top: _detailToolbarTop,
+                  left: desyWorkbenchCanvasInset,
+                  child: toolbar,
+                ),
               DesyDragBox(
                 geometry: DesyDragBoxGeometry(rect: offset & size),
                 clampingRect: Rect.fromLTRB(

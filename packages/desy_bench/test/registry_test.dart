@@ -550,6 +550,54 @@ void main() {
     expect(component.valuesFor('delayed')['startsAt'], delayed);
   });
 
+  test('portable collection and JSON knobs are immutable and validated', () {
+    final labels = <String>['Search', 'Invite'];
+    final values = <double>[38, 26];
+    final metadata = <String, Object>{
+      'source': 'workspace',
+      'flags': <Object>[true],
+    };
+    final component = DesyComponent(
+      id: 'chart.activity',
+      name: 'Activity chart',
+      knobs: (k) => (
+        labels: k.stringList('labels', initial: labels),
+        values: k.numberList('values', initial: values, minimum: 0),
+        metadata: k.jsonValue('metadata', initial: metadata),
+      ),
+      build: (context, knobs) => Text(knobs.labels.value.join(', ')),
+    );
+    labels.add('Template');
+    values[0] = 99;
+    metadata['source'] = 'changed';
+
+    final definitions = component.knobDefinitions;
+    expect(definitions.map((definition) => definition.kind), [
+      DesyKnobKind.stringList,
+      DesyKnobKind.numberList,
+      DesyKnobKind.jsonValue,
+    ]);
+    expect(component.valuesFor('default')['labels'], ['Search', 'Invite']);
+    expect(component.valuesFor('default')['values'], [38.0, 26.0]);
+    final frozenMetadata = component.valuesFor('default')['metadata']! as Map;
+    expect(frozenMetadata['source'], 'workspace');
+    expect(() => frozenMetadata['source'] = 'changed', throwsUnsupportedError);
+    expect(
+      () => (frozenMetadata['flags']! as List).add(false),
+      throwsUnsupportedError,
+    );
+    expect(
+      () => DesyComponent(
+        id: 'chart.invalid',
+        name: 'Invalid chart',
+        knobs: (k) =>
+            (values: k.numberList('values', initial: const [-1], minimum: 0)),
+        build: (context, knobs) => const SizedBox(),
+      ),
+      throwsArgumentError,
+    );
+  });
+
   test('choice knobs default to the first immutable string option', () {
     final options = <String>['Automatic', 'Enabled', 'Disabled'];
     final component = DesyComponent(

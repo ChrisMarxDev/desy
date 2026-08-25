@@ -99,6 +99,64 @@ void main() {
     final editable = tester.widget<EditableText>(find.byType(EditableText));
     expect(editable.focusNode.hasFocus, isTrue);
   });
+
+  testWidgets('local ticket requests update a bound surface without an agent', (
+    tester,
+  ) async {
+    _setDesktopViewport(tester);
+    await tester.pumpWidget(const DesyGenUiExampleApp());
+    await tester.pump();
+
+    await tester.tap(find.text('Load next ticket'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(find.text('APP-1'), findsOneWidget);
+    expect(find.text('APP-2'), findsNothing);
+
+    await tester.tap(find.text('Load next ticket'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('APP-1'), findsOneWidget);
+    expect(find.text('APP-2'), findsOneWidget);
+    expect(
+      find.textContaining('LOCAL TICKET LOADER · request 2'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Codex checkpoints continue a separate generated coding task', (
+    tester,
+  ) async {
+    _setDesktopViewport(tester);
+    await tester.pumpWidget(const DesyGenUiExampleApp());
+    await tester.pump();
+
+    await tester.tap(find.text('Codex checkpoints').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Decide, then let the task continue.'), findsOneWidget);
+    expect(
+      find.text('Should live bindings become a public API?'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Make it public'));
+    await tester.pump();
+    expect(
+      find.textContaining('Plan prepared for public package API'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Run full verification'));
+    await tester.pump();
+    expect(find.text('Accept this implementation?'), findsOneWidget);
+
+    await tester.tap(find.text('Accept implementation'));
+    await tester.pump();
+    expect(find.text('Implementation accepted'), findsOneWidget);
+  });
 }
 
 void _setDesktopViewport(WidgetTester tester) {

@@ -24,6 +24,19 @@ void main() {
     expect(sidebar.component, isA<DesyAnimationComponentBase>());
     expect(contentSwap.component, isA<DesyAnimationComponentBase>());
     expect(screenNavigation.component, isA<DesyAnimationComponentBase>());
+    expect(sidebar.component!.knobDefinitions, hasLength(1));
+    final sidebarInstance = sidebar.component!.knobDefinitions.single;
+    expect(sidebarInstance.id, 'specimen');
+    expect(sidebarInstance.kind, DesyKnobKind.widgetInstance);
+    expect(
+      (sidebarInstance.initial as DesyInstanceId).value,
+      'desy.component.button.primary',
+    );
+    expect(sidebar.component!.instanceIds, ['default', 'sidebar']);
+    expect(
+      sidebar.component!.valuesFor('sidebar')['specimen'],
+      'desy.component.sidebar.default',
+    );
   });
 
   testWidgets(
@@ -68,4 +81,60 @@ void main() {
       expect(find.text('Inspect component'), findsOneWidget);
     },
   );
+
+  testWidgets('sidebar reveal exposes button and sidebar instances', (
+    tester,
+  ) async {
+    final component =
+        desyDesignSystemRegistry
+                .resolve('desy.motion.sidebar-reveal')!
+                .component!
+            as DesyAnimationComponentBase;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FTheme(
+          data: FTheme.neutral.light.desktop,
+          child: SizedBox(
+            width: 280,
+            height: 460,
+            child: Builder(
+              builder: (context) => component.buildInstanceWithPlayback(
+                context,
+                'default',
+                desyDesignSystemRegistry.widgetBuilder,
+                const AlwaysStoppedAnimation(1),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Inspect component'), findsOneWidget);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FTheme(
+          data: FTheme.neutral.light.desktop,
+          child: SizedBox(
+            width: 280,
+            height: 460,
+            child: Builder(
+              builder: (context) => component.buildInstanceWithPlayback(
+                context,
+                'sidebar',
+                desyDesignSystemRegistry.widgetBuilder,
+                const AlwaysStoppedAnimation(1),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('DESY BENCH'), findsOneWidget);
+    expect(find.text('Apps'), findsOneWidget);
+    expect(find.text('Colors'), findsOneWidget);
+  });
 }

@@ -28,7 +28,12 @@ class DesyMotionPlaybackControls extends StatelessWidget {
   final Duration? globalDuration;
   final ValueChanged<Duration>? onGlobalDurationChanged;
 
-  static const _compactControlHeight = 32.0;
+  /// The fixed visual height shared by every compact playback control.
+  ///
+  /// Keep this in sync with the workbench's compact form controls. The button
+  /// size matters here: a surrounding [SizedBox] cannot make a larger button
+  /// render at this height.
+  static const _compactControlHeight = 36.0;
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
@@ -93,28 +98,33 @@ class _CompactMotionPlaybackControls extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _DockControl(
+        SizedBox(
+          height: DesyMotionPlaybackControls._compactControlHeight,
           child: _PlayPauseButton(
             controller: controller,
             iconOnly: true,
-            size: DesyButtonSize.sm,
+            size: DesyButtonSize.md,
           ),
         ),
         if (globalDuration case final duration?) ...[
           const SizedBox(width: 10),
-          _DockControl(
+          SizedBox(
+            width: 80,
             child: _GlobalDurationField(
               duration: duration,
               onChanged: onGlobalDurationChanged,
               compact: true,
+              width: 80,
             ),
           ),
         ],
         const SizedBox(width: 10),
-        _DockControl(
+        SizedBox(
+          height: DesyMotionPlaybackControls._compactControlHeight,
           child: _LoopModeButton(
             controller: controller,
-            size: DesyButtonSize.sm,
+            size: DesyButtonSize.md,
+            iconOnly: true,
           ),
         ),
         const SizedBox(width: 18),
@@ -133,37 +143,37 @@ class _CompactMotionPlaybackControls extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+      SizedBox(
+        key: const ValueKey('motion-playback-toolbar'),
+        height: DesyMotionPlaybackControls._compactControlHeight,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _DockControl(
-              width: DesyMotionPlaybackControls._compactControlHeight,
+            Expanded(
               child: _PlayPauseButton(
                 controller: controller,
                 iconOnly: true,
-                size: DesyButtonSize.sm,
+                size: DesyButtonSize.md,
               ),
             ),
             if (globalDuration case final duration?) ...[
               const SizedBox(width: 8),
-              _DockControl(
-                width: 80,
+              Expanded(
+                flex: 2,
                 child: _GlobalDurationField(
                   duration: duration,
                   onChanged: onGlobalDurationChanged,
                   compact: true,
-                  width: 80,
                 ),
               ),
             ],
             const SizedBox(width: 8),
-            _DockControl(
+            Expanded(
+              flex: 2,
               child: _LoopModeButton(
                 controller: controller,
-                size: DesyButtonSize.sm,
+                size: DesyButtonSize.md,
+                iconOnly: true,
               ),
             ),
           ],
@@ -175,20 +185,6 @@ class _CompactMotionPlaybackControls extends StatelessWidget {
         controller: controller,
       ),
     ],
-  );
-}
-
-class _DockControl extends StatelessWidget {
-  const _DockControl({required this.child, this.width});
-
-  final Widget child;
-  final double? width;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    height: DesyMotionPlaybackControls._compactControlHeight,
-    width: width,
-    child: Align(child: child),
   );
 }
 
@@ -248,19 +244,17 @@ class _GlobalDurationFieldState extends State<_GlobalDurationField> {
     final milliseconds = int.tryParse(_value.trim());
     final isValid = milliseconds != null && milliseconds > 0;
     final field = SizedBox(
-      width: widget.width ?? (widget.compact ? 80 : 76),
+      width: widget.width ?? (widget.compact ? null : 76),
       child: DesyTextField(
         key: const ValueKey('motion-global-duration'),
         label: 'Global duration in milliseconds',
-        floatingLabelText: 'ms',
+        suffix: Text('ms', style: Theme.of(context).textTheme.bodySmall),
         value: _value,
         errorText: widget.compact || isValid
             ? null
             : 'Enter a duration greater than zero.',
         enabled: widget.onChanged != null,
-        height: widget.compact
-            ? DesyMotionPlaybackControls._compactControlHeight
-            : null,
+        textAlign: TextAlign.center,
         keyboardType: const TextInputType.numberWithOptions(
           decimal: false,
           signed: false,
@@ -344,23 +338,37 @@ class _LoopModeButton extends StatelessWidget {
   const _LoopModeButton({
     required this.controller,
     this.size = DesyButtonSize.xs,
+    this.iconOnly = false,
   });
 
   final DesyMotionPlaybackController controller;
   final DesyButtonSize size;
+  final bool iconOnly;
 
   @override
   Widget build(BuildContext context) {
     final current = controller.loopMode;
-    final next = current == DesyMotionLoopMode.once
-        ? DesyMotionLoopMode.loop
-        : DesyMotionLoopMode.once;
+    final next = DesyMotionLoopMode
+        .values[(current.index + 1) % DesyMotionLoopMode.values.length];
+    final semanticsLabel =
+        '${current.label} playback; activate to use ${next.label.toLowerCase()} playback';
+    if (iconOnly) {
+      return DesyButton.icon(
+        key: const ValueKey('motion-loop-mode'),
+        size: size,
+        variant: DesyButtonVariant.outline,
+        semanticsLabel: semanticsLabel,
+        onPress: () => controller.setLoopMode(next),
+        child: Icon(current.icon),
+      );
+    }
     return DesyButton(
       key: const ValueKey('motion-loop-mode'),
       size: size,
       variant: DesyButtonVariant.outline,
       mainAxisSize: MainAxisSize.min,
-      semanticsLabel: 'Use ${next.label.toLowerCase()} playback',
+      prefixIcon: Icon(current.icon),
+      semanticsLabel: semanticsLabel,
       onPress: () => controller.setLoopMode(next),
       child: Text(current.label),
     );
@@ -410,5 +418,12 @@ extension on DesyMotionLoopMode {
   String get label => switch (this) {
     DesyMotionLoopMode.once => 'Once',
     DesyMotionLoopMode.loop => 'Loop',
+    DesyMotionLoopMode.pingPong => 'Ping-pong',
+  };
+
+  IconData get icon => switch (this) {
+    DesyMotionLoopMode.once => DesyIcons.repeatOnce,
+    DesyMotionLoopMode.loop => DesyIcons.repeat,
+    DesyMotionLoopMode.pingPong => DesyIcons.arrowLeftRight,
   };
 }

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GenUI change-impact workbench</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="shell">
+    <nav><a href="index.html">← Planned features</a><span>GenUI exploration · separate Orbit feature</span></nav>
+    <section class="hero">
+      <div class="eyebrow">Value experiment</div>
+      <h1>Turn a code change into a decision-ready review surface.</h1>
+      <p class="lede">The Change Impact Workbench tests GenUI where the question determines the shape of the interface: a code change may need a verification plan, package impact view, migration assessment, or explicit review decision.</p>
+    </section>
+    <section class="grid">
+      <article class="card"><h2>Why it exists</h2><p>Static engineering dashboards either expose every signal at once or require a hand-built page for every investigation. A change-specific review surface should instead prioritize the files, risks, checks, evidence, and decision relevant to one snapshot.</p></article>
+      <article class="card"><h2>User value</h2><p>A developer can see what changed, what may be affected, what has been verified, and what decision remains—without relying on prose alone or treating an LLM as the source of repository truth.</p></article>
+    </section>
+    <section class="card full">
+      <h2>Scope</h2>
+      <div class="flow"><strong>Local sample snapshot</strong><span>→</span><strong>Deterministic review composer</strong><span>→</span><strong>Declared Orbit components</strong><span>→</span><strong>User-owned actions</strong></div>
+      <p>The first slice provides multiple realistic fixture snapshots, a separate navigation destination, a generated review canvas, focused verification state, and an explicit decision card. It deliberately proves composition before local process execution.</p>
+    </section>
+    <section class="grid">
+      <article class="card"><h2>Non-goals</h2><ul><li>No repository write, shell execution, or automated fix.</li><li>No claim that GenUI replaces normal Flutter coding screens.</li><li>No provider, authentication, or agent-runtime architecture change.</li><li>No use of A2UI data-model updates for ordinary app state.</li></ul></article>
+      <article class="card"><h2>Implementation sketch</h2><ul><li>A typed local change snapshot loader owns fixture data and status transitions.</li><li>A local composer turns a snapshot into canonical A2UI component operations.</li><li>The existing catalog renders only registered real Orbit widgets.</li><li>Generated approval and verification actions return to the app, which decides what state may change.</li></ul></article>
+    </section>
+    <section class="card full">
+      <h2>Experience flow</h2>
+      <pre><code>Choose sample change → inspect impact surface → run focused verification → review evidence → accept scope or request another pass</code></pre>
+      <p>The snapshot is application data. The generated portion is the temporary arrangement of summary, metrics, verification rows, evidence, and decision controls.</p>
+    </section>
+    <section class="grid">
+      <article class="card"><h2>Open questions</h2><ul><li>Which local repository signals merit a production adapter first: diff, analyzer, tests, or package graph?</li><li>How should source file navigation be represented without giving the model arbitrary filesystem authority?</li><li>Does deterministic composition remain useful enough before a live Codex driver is connected?</li></ul></article>
+      <article class="card"><h2>Do or don't</h2><p class="decision"><strong>Do the bounded experiment.</strong> Impact is high for validating GenUI’s actual role, while complexity is contained because data and actions remain local fixtures. Do not expand to repository execution until people find the composed review surface more useful than a normal static report.</p><p><span class="pill">Impact 4/5</span><span class="pill">Complexity 3/5</span><span class="pill">Risk: contained</span></p></article>
+    </section>
+    <footer>Offline concept artifact. No remote assets or runtime dependencies.</footer>
+  </main>
+</body>
+</html>

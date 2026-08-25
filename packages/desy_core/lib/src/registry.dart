@@ -1,5 +1,6 @@
 // The consumer-owned registry graph is Desy's Flutter-native core contract.
 import 'dart:collection';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -903,6 +904,9 @@ class DesyRegistryValidator {
           case DesyKnobKind.boolean:
           case DesyKnobKind.dateTime:
           case DesyKnobKind.color:
+          case DesyKnobKind.stringList:
+          case DesyKnobKind.numberList:
+          case DesyKnobKind.jsonValue:
           case DesyKnobKind.event:
             break;
         }
@@ -1379,6 +1383,15 @@ enum DesyKnobKind {
   /// A literal Flutter [Color].
   color,
 
+  /// An ordered collection of string values.
+  stringList,
+
+  /// An ordered collection of finite numeric values.
+  numberList,
+
+  /// A decoded JSON-compatible value supplied by an external author.
+  jsonValue,
+
   /// A stable ID selecting another registered component instance.
   widgetInstance,
 
@@ -1691,6 +1704,32 @@ abstract interface class KnobScope {
     required Color initial,
   });
 
+  /// Declares an ordered string handoff value.
+  Knob<List<String>> stringList(
+    String id, {
+    String? name,
+    String? description,
+    List<String> initial = const [],
+  });
+
+  /// Declares an ordered numeric handoff value.
+  Knob<List<double>> numberList(
+    String id, {
+    String? name,
+    String? description,
+    List<double> initial = const [],
+    double? minimum,
+    double? maximum,
+  });
+
+  /// Declares a decoded JSON handoff value. The root must not be null.
+  Knob<Object> jsonValue(
+    String id, {
+    String? name,
+    String? description,
+    required Object initial,
+  });
+
   /// Declares a widget-instance knob and returns its typed handle.
   WidgetInstanceKnob widgetInstance(
     String id, {
@@ -1850,6 +1889,71 @@ final class DeclarationKnobScope implements KnobScope {
       name: name ?? _humanize(id),
       kind: DesyKnobKind.color,
       initial: initial,
+      description: description,
+    ),
+  );
+
+  @override
+  Knob<List<String>> stringList(
+    String id, {
+    String? name,
+    String? description,
+    List<String> initial = const [],
+  }) => _register(
+    KnobDefinition(
+      id: id,
+      name: name ?? _humanize(id),
+      kind: DesyKnobKind.stringList,
+      initial: List.unmodifiable(initial),
+      description: description,
+    ),
+  );
+
+  @override
+  Knob<List<double>> numberList(
+    String id, {
+    String? name,
+    String? description,
+    List<double> initial = const [],
+    double? minimum,
+    double? maximum,
+  }) {
+    if (minimum != null && maximum != null && minimum > maximum) {
+      throw ArgumentError.value(maximum, 'maximum');
+    }
+    if (initial.any(
+      (value) =>
+          !value.isFinite ||
+          (minimum != null && value < minimum) ||
+          (maximum != null && value > maximum),
+    )) {
+      throw ArgumentError.value(initial, 'initial');
+    }
+    return _register(
+      KnobDefinition(
+        id: id,
+        name: name ?? _humanize(id),
+        kind: DesyKnobKind.numberList,
+        initial: List.unmodifiable(initial),
+        description: description,
+        minimum: minimum,
+        maximum: maximum,
+      ),
+    );
+  }
+
+  @override
+  Knob<Object> jsonValue(
+    String id, {
+    String? name,
+    String? description,
+    required Object initial,
+  }) => _register(
+    KnobDefinition(
+      id: id,
+      name: name ?? _humanize(id),
+      kind: DesyKnobKind.jsonValue,
+      initial: _freezeJsonValue(initial),
       description: description,
     ),
   );
@@ -2023,6 +2127,32 @@ final class ResolvedKnobScope implements KnobScope {
     String? name,
     String? description,
     required Color initial,
+  }) => _resolve(id);
+
+  @override
+  Knob<List<String>> stringList(
+    String id, {
+    String? name,
+    String? description,
+    List<String> initial = const [],
+  }) => _resolve(id);
+
+  @override
+  Knob<List<double>> numberList(
+    String id, {
+    String? name,
+    String? description,
+    List<double> initial = const [],
+    double? minimum,
+    double? maximum,
+  }) => _resolve(id);
+
+  @override
+  Knob<Object> jsonValue(
+    String id, {
+    String? name,
+    String? description,
+    required Object initial,
   }) => _resolve(id);
 
   @override
@@ -2594,6 +2724,9 @@ final class DesyComponent<K> extends DesyRegistryComponent {
         case DesyKnobKind.boolean:
         case DesyKnobKind.dateTime:
         case DesyKnobKind.color:
+        case DesyKnobKind.stringList:
+        case DesyKnobKind.numberList:
+        case DesyKnobKind.jsonValue:
         case DesyKnobKind.event:
           break;
       }
@@ -3276,6 +3409,27 @@ Object _toSettingValue(KnobDefinition<Object> definition, Object value) {
     case DesyKnobKind.color:
       if (value is Color) return value;
       if (value is int) return Color(value);
+    case DesyKnobKind.stringList:
+      if (value is Iterable && value.every((item) => item is String)) {
+        return List<String>.unmodifiable(value.cast<String>());
+      }
+    case DesyKnobKind.numberList:
+      if (value is Iterable && value.every((item) => item is num)) {
+        final items = value
+            .cast<num>()
+            .map((item) => item.toDouble())
+            .toList(growable: false);
+        if (items.every(
+          (item) =>
+              item.isFinite &&
+              (definition.minimum == null || item >= definition.minimum!) &&
+              (definition.maximum == null || item <= definition.maximum!),
+        )) {
+          return List<double>.unmodifiable(items);
+        }
+      }
+    case DesyKnobKind.jsonValue:
+      return _freezeJsonValue(value);
     case DesyKnobKind.widgetInstance:
       if (value is DesyInstanceId) {
         return value;
@@ -3302,6 +3456,35 @@ Object _toSettingValue(KnobDefinition<Object> definition, Object value) {
     definition.id,
     'Expected a ${definition.kind.name} knob value.',
   );
+}
+
+Object _freezeJsonValue(Object value) {
+  try {
+    final decoded = jsonDecode(jsonEncode(value));
+    if (decoded == null) {
+      throw const FormatException('JSON root must not be null.');
+    }
+    return _freezeJsonNode(decoded)!;
+  } on Object catch (error) {
+    throw ArgumentError.value(
+      value,
+      'value',
+      'Expected JSON-compatible value: $error',
+    );
+  }
+}
+
+Object? _freezeJsonNode(Object? value) {
+  return switch (value) {
+    null || String() || num() || bool() => value,
+    List() => List<Object?>.unmodifiable(value.map(_freezeJsonNode)),
+    Map() => Map<String, Object?>.unmodifiable({
+      for (final entry in value.entries)
+        if (entry.key is String)
+          entry.key as String: _freezeJsonNode(entry.value),
+    }),
+    _ => throw const FormatException('Expected JSON-compatible value.'),
+  };
 }
 
 void _validateChoiceOption(

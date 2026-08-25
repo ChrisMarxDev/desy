@@ -17,6 +17,7 @@ dependencies:
     path: ../../packages/desy_bench
   desy_genui:
     path: ../desy_genui
+  fl_chart: ^1.2.0
   flutter:
     sdk: flutter
   genui: ^0.10.1
@@ -24,6 +25,8 @@ dependencies:
     path: ../experiments/genui_codex
   http: ^1.6.0
   mix: ^2.1.0
+  flutter_markdown_plus: ^1.0.12
+  flutter_mermaid: ^0.1.0
 
 dev_dependencies:
   flutter_test:
@@ -31,4 +34,6 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
-  uses-material-design: false
+  # Bundles the icon font required by flutter_mermaid's internal fallback
+  # states. Orbit itself remains a WidgetsApp with Mix-owned controls.
+  uses-material-design: true

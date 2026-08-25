@@ -8,9 +8,6 @@ build/
 .vscode/
 *.iml
 
-# Ephemeral Codex-managed development runtime registration and debounce state.
-.codex/local/
-
 # Local environment secrets. Commit only the documented template.
 .env
 .env.*

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Portable collection knobs</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="shell">
+    <nav><a href="index.html">Desy product direction</a><span>Research · 2026-08-25</span></nav>
+    <section class="hero">
+      <div class="eyebrow">Registry / GenUI boundary</div>
+      <h1>Portable collections without making the registry object-shaped.</h1>
+      <p class="lede">Charts, diagrams, and structured agent output need ordered values and occasional metadata. The registry should declare those inputs once, Bench should edit them locally, and the GenUI adapter should derive their JSON schema from the same declaration.</p>
+    </section>
+    <section class="card full">
+      <h2>Problem</h2>
+      <p>Existing Desy knobs cover scalar values, events, and registered widget composition. A chart needs labels and numbers, but a Dart record-list would make the handoff language-specific. Conversely, encoding everything as a JSON string gives up validation, usable controls, and catalogue schema generation.</p>
+    </section>
+    <section class="card full">
+      <h2>Committed bounded contract</h2>
+      <p>Add three opt-in JSON-shaped inputs: <code>stringList</code>, <code>numberList</code>, and <code>jsonValue</code>. The first two are immutable, typed lists with precise catalogue schemas. <code>jsonValue</code> carries a decoded JSON root for semantic metadata when a consumer genuinely needs it; it is not a JSON string and it is never interpreted as widgets, callbacks, or Dart objects.</p>
+    </section>
+    <section class="card full">
+      <h2>One declaration, three consumers</h2>
+      <ol>
+        <li>The consumer component reads the typed record list to render its real Flutter widget.</li>
+        <li>Bench edits lists as comma-separated values and JSON as validated decoded JSON, preserving changes only as ephemeral preview state.</li>
+        <li><code>desy_genui</code> derives A2UI JSON schemas and validates agent-supplied data before the widget builds.</li>
+      </ol>
+    </section>
+    <section class="card full">
+      <h2>First proof</h2>
+      <p>Orbit exposes bar and pie chart components. Both take parallel <code>labels</code> and non-negative <code>values</code> lists; their consumer builder zips those into its private chart view model. Markdown continues to use an existing string knob. A future diagram can declare separate lists or a <code>jsonValue</code> payload; it does not require a chart-specific Desy feature.</p>
+    </section>
+    <section class="card full">
+      <h2>Non-goals</h2>
+      <p>This does not create a JSON widget editor, persist component state, add generated Dart code, introduce a record-list DSL, or make arbitrary app APIs writable from a chart. It is a small typed declaration and preview-editing capability.</p>
+    </section>
+  </main>
+</body>
+</html>

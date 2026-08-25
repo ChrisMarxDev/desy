@@ -20,6 +20,7 @@ class DesyTextField extends StatefulWidget {
     this.errorText,
     this.prefixIcon,
     this.suffixIcon,
+    this.suffix,
     this.value,
     this.onChanged,
     this.onSubmitted,
@@ -32,9 +33,7 @@ class DesyTextField extends StatefulWidget {
     this.textAlign = TextAlign.start,
     this.maxLines = 1,
     this.minLines,
-    this.height,
-  }) : assert(height == null || height > 0),
-       assert(height == null || maxLines == 1);
+  });
 
   /// An optional accessible label. It is never rendered as field chrome.
   final String? label;
@@ -53,6 +52,9 @@ class DesyTextField extends StatefulWidget {
 
   /// Optional icon after the editable text.
   final Widget? suffixIcon;
+
+  /// Optional compact content displayed after the editable text.
+  final Widget? suffix;
 
   /// An optional externally controlled text value.
   final String? value;
@@ -90,9 +92,6 @@ class DesyTextField extends StatefulWidget {
 
   /// The minimum number of visible text lines.
   final int? minLines;
-
-  /// Optional fixed height for a compact single-line field.
-  final double? height;
 
   @override
   State<DesyTextField> createState() => _DesyTextFieldState();
@@ -192,22 +191,12 @@ class _DesyTextFieldState extends State<DesyTextField> {
             ),
             prefixIcon: widget.prefixIcon,
             suffixIcon: widget.suffixIcon,
+            suffix: widget.suffix,
             errorText: widget.errorText,
             contentPadding: EdgeInsets.symmetric(
               horizontal: DesyDesignSystemTokens.spaceMd,
-              vertical: widget.height != null
-                  ? 0
-                  : singleLine
-                  ? DesyDesignSystemTokens.spaceMd
-                  : DesyDesignSystemTokens.spaceSm,
+              vertical: DesyDesignSystemTokens.spaceMd,
             ),
-            constraints: switch (widget.height) {
-              final height? => BoxConstraints.tightFor(height: height),
-              null when singleLine => const BoxConstraints(
-                minHeight: DesyDesignSystemTokens.textFieldMinHeight,
-              ),
-              null => null,
-            },
             border: standardBorder,
             enabledBorder: standardBorder,
             disabledBorder: standardBorder,

@@ -34,23 +34,36 @@ void main() {
     );
     expect(
       breadcrumb.textSpan?.toPlainText(includeSemanticsLabels: false),
-      'Actions / Primary button',
+      'all/ Actions / Primary button',
     );
-    final folderSpan = breadcrumb.textSpan!.children!.first as TextSpan;
+    final rootSpan = breadcrumb.textSpan!.children!.first as TextSpan;
+    expect(rootSpan.mouseCursor, SystemMouseCursors.click);
+    expect(rootSpan.style?.decoration, TextDecoration.underline);
+    final folderSpan = breadcrumb.textSpan!.children![2] as TextSpan;
     expect(folderSpan.mouseCursor, SystemMouseCursors.click);
     expect(folderSpan.style?.decoration, TextDecoration.underline);
-    expect(find.semantics.byLabel('Open Actions folder'), findsOneWidget);
+    expect(find.semantics.byLabel('Open all/'), findsOneWidget);
+    expect(find.semantics.byLabel('Open Actions'), findsOneWidget);
 
-    tester.semantics.tap(find.semantics.byLabel('Open Actions folder'));
+    tester.semantics.tap(find.semantics.byLabel('Open all/'));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('atlas-search')), findsOneWidget);
-    expect(find.text('COMPONENTS'), findsOneWidget);
+    expect(find.byKey(const ValueKey('atlas-breadcrumbs')), findsOneWidget);
     final headline = tester.widget<Text>(
       find.byKey(const ValueKey('atlas-headline')),
     );
-    expect(headline.textSpan?.toPlainText(), startsWith('Actions'));
+    expect(headline.textSpan?.toPlainText(), startsWith('Components'));
     expect(find.text('Primary button'), findsWidgets);
+
+    await tester.tap(find.byKey(const ValueKey('atlas-card-button.primary')));
+    await tester.pumpAndSettle();
+    tester.semantics.tap(find.semantics.byLabel('Open Actions'));
+    await tester.pumpAndSettle();
+    final folderHeadline = tester.widget<Text>(
+      find.byKey(const ValueKey('atlas-headline')),
+    );
+    expect(folderHeadline.textSpan?.toPlainText(), startsWith('Actions'));
     semantics.dispose();
   });
 }

@@ -691,6 +691,36 @@ final class DesySurfaceValidator {
               ),
             );
           }
+        case DesyKnobKind.stringList:
+          if (value is! List || value.any((item) => item is! String)) {
+            issues.add(
+              DesySurfaceValidationIssue(
+                path: knobPath,
+                message: 'Expected a list of string values.',
+              ),
+            );
+          }
+        case DesyKnobKind.numberList:
+          if (value is! List ||
+              value.any((item) => item is! num) ||
+              value.cast<num>().any(
+                (item) =>
+                    !item.isFinite ||
+                    (definition.minimum != null &&
+                        item < definition.minimum!) ||
+                    (definition.maximum != null && item > definition.maximum!),
+              )) {
+            issues.add(
+              DesySurfaceValidationIssue(
+                path: knobPath,
+                message: 'Expected a valid list of numeric values.',
+              ),
+            );
+          }
+        case DesyKnobKind.jsonValue:
+          // Surface values originate from decoded JSON; the parser already
+          // rejects null knob values before this per-kind validation.
+          break;
         case DesyKnobKind.widgetInstance:
           if (value is! String) {
             issues.add(

@@ -17,11 +17,14 @@ final _darkTheme = DesyDesignSystemFoundation.themeData(
 );
 
 const _badgeDefaultInstanceId = 'desy.component.badge.default';
+const _buttonPrimaryInstanceId = 'desy.component.button.primary';
 const _cardDefaultInstanceId = 'desy.component.card.default';
+const _sidebarDefaultInstanceId = 'desy.component.sidebar.default';
 const _chatComposerReadyInstanceId = 'desy.component.chat-composer.ready';
 const _chatMessageAgentInstanceId = 'desy.component.chat-message.agent';
 const _chatMessageUserInstanceId = 'desy.component.chat-message.user';
 const _shortcutSingleKeyInstanceId = 'desy.component.shortcut-label.single-key';
+const _buttonPrefixIconId = 'desy.icon.component';
 const _missingTileSuffixInstanceId =
     'desy.component.unregistered-tile-suffix.missing';
 
@@ -282,7 +285,6 @@ final DesyRegistry desyDesignSystemRegistry = DesyRegistry(
   ],
   components: [
     ..._motionComponents,
-    _sampleComponent,
     _allKnobsComponent,
     _buttonComponent,
     _actionDockButtonComponent,
@@ -390,16 +392,26 @@ Widget _desyHomePage(BuildContext context) => ListView(
   ],
 );
 
-final _motionComponents = <DesyAnimationComponent<void>>[
-  DesyAnimationComponent<void>(
+final _motionComponents = <DesyAnimationComponentBase>[
+  DesyAnimationComponent<WidgetInstanceKnob>(
     id: 'desy.motion.sidebar-reveal',
     name: 'Sidebar reveal',
     path: '/motion',
     description: 'Fades and eases a persistent sidebar into its workspace.',
     duration: DesyDesignSystemTokens.navigationMotion,
     curve: Curves.easeOutCubic,
-    knobs: (_) {},
+    defaultSize: const Size(280, 460),
+    knobs: (k) => k.widgetInstance(
+      'specimen',
+      name: 'Reveal instance',
+      initial: _buttonPrimaryInstanceId,
+      options: const [_buttonPrimaryInstanceId, _sidebarDefaultInstanceId],
+    ),
     builder: _buildSidebarReveal,
+    instances: (knobs) => {
+      'default': [knobs(_buttonPrimaryInstanceId)],
+      'sidebar': [knobs(_sidebarDefaultInstanceId)],
+    },
   ),
   DesyAnimationComponent<void>(
     id: 'desy.motion.navigation',
@@ -572,23 +584,6 @@ class _RegistrySpineMap extends StatelessWidget {
   );
 }
 
-final _sampleComponent = DesyComponent(
-  id: 'desy.component.sample',
-  name: 'Button',
-  path: '/',
-  icon: DesyIcons.component,
-  knobs: (k) => (
-    label1: k.string('label1', name: 'Label', initial: 'This is a'),
-    label2: k.string('label2', name: 'Label', initial: 'Test'),
-  ),
-  build: (context, knobs) => Row(
-    children: [
-      Expanded(child: Text(knobs.label1.value)),
-      Expanded(child: Text(knobs.label2.value)),
-    ],
-  ),
-);
-
 final _allKnobsComponent = DesyComponent(
   id: 'desy.component.all-knobs',
   name: 'All knobs',
@@ -622,6 +617,26 @@ final _allKnobsComponent = DesyComponent(
       initial: DateTime.utc(2026, 8, 24, 9, 30),
     ),
     accent: k.color('accent', name: 'Accent', initial: const Color(0xFFFF2871)),
+    reviewers: k.stringList(
+      'reviewers',
+      name: 'Reviewers',
+      description: 'People responsible for the release review.',
+      initial: const ['Mina', 'Jonas'],
+    ),
+    milestones: k.numberList(
+      'milestones',
+      name: 'Milestones',
+      description: 'Completion percentages for the release checkpoints.',
+      initial: const [25, 60, 100],
+      minimum: 0,
+      maximum: 100,
+    ),
+    metadata: k.jsonValue(
+      'metadata',
+      name: 'Metadata',
+      description: 'Portable release context for downstream automation.',
+      initial: const {'owner': 'Design systems', 'review': 'Friday'},
+    ),
     leading: k.widgetInstance(
       'leading',
       name: 'Leading instance',
@@ -659,6 +674,9 @@ final _allKnobsComponent = DesyComponent(
     enabled: knobs.enabled.value,
     scheduledAt: knobs.scheduledAt.value,
     accent: knobs.accent.value,
+    reviewers: knobs.reviewers.value,
+    milestones: knobs.milestones.value,
+    metadata: knobs.metadata.value,
     leading: knobs.leading.widget,
     supporting: knobs.supporting.widgets,
     onActivate: knobs.enabled.value
@@ -667,6 +685,9 @@ final _allKnobsComponent = DesyComponent(
             'status': knobs.status.value,
             'scheduledAt': knobs.scheduledAt.value.toIso8601String(),
             'accent': knobs.accent.value.toARGB32(),
+            'reviewers': knobs.reviewers.value,
+            'milestones': knobs.milestones.value,
+            'metadata': knobs.metadata.value,
           })
         : null,
   ),
@@ -678,6 +699,9 @@ final _allKnobsComponent = DesyComponent(
       knobs.inset(16),
       knobs.scheduledAt(DateTime.utc(2026, 8, 24, 14)),
       knobs.accent(const Color(0xFF16A34A)),
+      knobs.reviewers(const ['Mina', 'Owen']),
+      knobs.milestones(const [50, 85, 100]),
+      knobs.metadata(const {'owner': 'Release group', 'risk': 'Low'}),
       knobs.leading('desy.component.badge.outline'),
       knobs.supporting(const [_shortcutSingleKeyInstanceId]),
     ],
@@ -686,6 +710,9 @@ final _allKnobsComponent = DesyComponent(
       knobs.status('Blocked'),
       knobs.enabled(false),
       knobs.accent(const Color(0xFFDC2626)),
+      knobs.reviewers(const ['Mina']),
+      knobs.milestones(const [25, 40, 40]),
+      knobs.metadata(const {'owner': 'Design systems', 'risk': 'Blocked'}),
       knobs.supporting(const ['desy.component.badge.outline']),
     ],
   },
@@ -699,6 +726,9 @@ Widget _buildAllKnobsSpecimen(
   required bool enabled,
   required DateTime scheduledAt,
   required Color accent,
+  required List<String> reviewers,
+  required List<double> milestones,
+  required Object metadata,
   required Widget leading,
   required List<Widget> supporting,
   required VoidCallback? onActivate,
@@ -744,7 +774,26 @@ Widget _buildAllKnobsSpecimen(
         Wrap(
           spacing: DesyDesignSystemTokens.spaceSm,
           runSpacing: DesyDesignSystemTokens.spaceSm,
-          children: supporting,
+          children: [
+            ...supporting,
+            for (final reviewer in reviewers)
+              DesyBadge(
+                variant: DesyBadgeVariant.secondary,
+                child: Text(reviewer),
+              ),
+            DesyBadge(
+              variant: DesyBadgeVariant.outline,
+              child: Text(
+                milestones
+                    .map((milestone) => '${milestone.round()}%')
+                    .join(' · '),
+              ),
+            ),
+            DesyBadge(
+              variant: DesyBadgeVariant.outline,
+              child: Text(_allKnobsMetadataOwner(metadata)),
+            ),
+          ],
         ),
         const SizedBox(height: DesyDesignSystemTokens.spaceLg),
         DesyButton(
@@ -757,6 +806,11 @@ Widget _buildAllKnobsSpecimen(
     ),
   ),
 );
+
+String _allKnobsMetadataOwner(Object metadata) {
+  if (metadata case {'owner': String owner}) return owner;
+  return 'Metadata';
+}
 
 class _SignalRibbon extends StatelessWidget {
   const _SignalRibbon({this.quiet = false});
@@ -795,6 +849,19 @@ final _buttonComponent = DesyComponent(
   source: 'package:desy_design_system/src/desy_button.dart',
   knobs: (k) => (
     label: k.string('label', name: 'Label', initial: 'Inspect component'),
+    prefixIcon: k.widgetInstance(
+      'prefixIcon',
+      name: 'Prefix icon',
+      description: 'Registered icon shown before the action label.',
+      initial: _buttonPrefixIconId,
+      options: const [_buttonPrefixIconId, 'desy.icon.send', 'desy.icon.check'],
+    ),
+    color: k.color(
+      'color',
+      name: 'Color',
+      description: 'Sets the enabled filled-button surface color.',
+      initial: _lightTheme.colors.primary,
+    ),
     outline: k.boolean('outline', name: 'Outline', initial: false),
     enabled: k.boolean('enabled', name: 'Enabled', initial: true),
     onPress: k.event(
@@ -803,19 +870,28 @@ final _buttonComponent = DesyComponent(
       description: 'Action emitted when the enabled button is activated.',
     ),
   ),
-  build: (context, knobs) => DesyButton(
-    variant: knobs.outline.value
-        ? DesyButtonVariant.outline
-        : DesyButtonVariant.primary,
-    mainAxisSize: MainAxisSize.min,
-    onPress: knobs.enabled.value
-        ? () => knobs.onPress.emit({'label': knobs.label.value})
-        : null,
-    child: Text(knobs.label.value),
+  build: (context, knobs) => SizedBox(
+    width: double.infinity,
+    child: DesyButton(
+      variant: knobs.outline.value
+          ? DesyButtonVariant.outline
+          : DesyButtonVariant.primary,
+      color: knobs.outline.value ? null : knobs.color.value,
+      onPress: knobs.enabled.value
+          ? () => knobs.onPress.emit({'label': knobs.label.value})
+          : null,
+      prefixIcon: knobs.prefixIcon.widget,
+      child: Text(knobs.label.value),
+    ),
   ),
   instances: (knobs) => {
     'primary': [knobs.label('Inspect component')],
     'outline': [knobs.label('Open settings'), knobs.outline(true)],
+    'signal': [
+      knobs.label('Send feedback'),
+      knobs.prefixIcon('desy.icon.send'),
+      knobs.color(const Color(0xFFFF2871)),
+    ],
     'disabled': [knobs.label('Unavailable'), knobs.enabled(false)],
   },
 );
@@ -2017,6 +2093,7 @@ final _sidebarComponent = _component(
   description: 'The complete section-and-item workbench navigation pattern.',
   icon: DesyIcons.component,
   source: 'package:desy_design_system/src/desy_sidebar.dart',
+  defaultSize: const Size(280, 460),
   knobs: (k) => (
     title: k.string('title', name: 'Product title', initial: 'DESY BENCH'),
     showAtoms: k.boolean('showAtoms', name: 'Show Atoms', initial: true),
@@ -2439,6 +2516,7 @@ DesyComponent<K> _component<K>({
   required String description,
   required IconData icon,
   required String source,
+  Size? defaultSize,
   required K Function(KnobScope k) knobs,
   required Widget Function(BuildContext context, K knobs) build,
   required Map<String, Iterable<KnobSettingBase>> Function(K knobs) instances,
@@ -2449,6 +2527,7 @@ DesyComponent<K> _component<K>({
   icon: icon,
   description: description,
   source: source,
+  defaultSize: defaultSize,
   knobs: knobs,
   build: build,
   instances: instances,
@@ -2586,12 +2665,12 @@ class _SidebarSpecimen extends StatelessWidget {
 
 Widget _buildSidebarReveal(
   BuildContext context,
-  void _,
+  WidgetInstanceKnob specimen,
   Animation<double> progress,
 ) => DesyMotionReveal(
   progress: progress,
   beginOffset: const Offset(-24, 0),
-  child: _animationButton(),
+  child: specimen.widget,
 );
 
 Widget _buildMotionTransition(
