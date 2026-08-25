@@ -1,9 +1,10 @@
 # Desy Bench development
 
 This is the maintained contributor guide. Keep it about implemented behavior.
-Planned product work and concept ideas belong only in the
-[`concept/features` index](concept/features/index.html); implemented contracts
-belong in `docs/concepts/` and evidence belongs in `docs/research/`.
+User-facing Desy documentation is Markdown in `docs/` and is indexed from the
+root README. Planned product work, internal contracts, and research belong in
+`concept/`; planned features are indexed from
+[`concept/features`](concept/features/index.html).
 
 ## Architecture
 
@@ -66,10 +67,9 @@ Components may be direct sidebar destinations. Desy derives their expandable
 file tree from paths such as `/inputs/text`. A component is either a typed
 bound-record component (`DesyComponent<K>`) or a static catalog
 (`DesyStaticComponent`), both implementing `DesyRegistryComponent`. The full
-contract is described in
-[`docs/concepts/registry-component-contracts.md`](docs/concepts/registry-component-contracts.md);
-the public offline entry point is [`docs/index.html`](docs/index.html), with
-the portable input reference at [`docs/knobs.html`](docs/knobs.html).
+internal contract is described in
+[`concept/registry-component-contracts.md`](concept/registry-component-contracts.md);
+the public portable input reference is [`docs/knobs.md`](docs/knobs.md).
 component contracts, scenarios, and knobs are optional typed metadata, and a
 real widget preview is the primitive requirement.
 
@@ -90,8 +90,8 @@ use. `DesyRegistrySnapshot` contains every declared component—there is no
 agent-specific catalogue configuration or filtered component inventory.
 GenUI/A2UI adapters remain separate packages and continue to invoke the
 registry's real widget builders locally.
-The maintained GenUI exploration lives in `genui/`; its Desy integration
-adapter remains in `genui/desy_genui`.
+The maintained GenUI exploration lives in `experiments/genui/`; its Desy
+integration adapter remains in `experiments/genui/desy_genui`.
 `DesyGenUiCatalog.compile(registry)` produces both an executable Flutter
 `Catalog` and a backend-safe schema/prompt/example artifact with a deterministic
 digest. Its `example/` is intentionally backend-free and feeds typed local

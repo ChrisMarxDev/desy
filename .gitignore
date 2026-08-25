@@ -8,6 +8,9 @@ build/
 .vscode/
 *.iml
 
+# Local Codex planning notes; the maintained roadmap lives in concept/features/.
+.codex/plans/
+
 # Local environment secrets. Commit only the documented template.
 .env
 .env.*

@@ -1,5 +1,6 @@
 import 'package:desy_genui/desy_genui.dart';
 import 'package:desy_genui_example/genui_backend.dart';
+import 'package:desy_genui_example/experiments/calorie_day/meal_interpreter.dart';
 import 'package:desy_genui_example/main.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -127,36 +128,62 @@ void main() {
     );
   });
 
-  testWidgets('Codex checkpoints continue a separate generated coding task', (
-    tester,
-  ) async {
-    _setDesktopViewport(tester);
-    await tester.pumpWidget(const DesyGenUiExampleApp());
-    await tester.pump();
+  testWidgets(
+    'calorie day updates a generated surface from chat meal entries',
+    (tester) async {
+      _setDesktopViewport(tester);
+      final interpreter = _FakeMealInterpreter();
+      await tester.pumpWidget(
+        DesyGenUiExampleApp(mealInterpreterFactory: () => interpreter),
+      );
+      await tester.pump();
 
-    await tester.tap(find.text('Codex checkpoints').first);
-    await tester.pumpAndSettle();
-    expect(find.text('Decide, then let the task continue.'), findsOneWidget);
-    expect(
-      find.text('Should live bindings become a public API?'),
-      findsOneWidget,
+      await tester.tap(find.text('Calorie day').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Your chat is the day.'), findsOneWidget);
+      expect(find.text("Today's calories"), findsOneWidget);
+      expect(find.text('FLOW TRACE'), findsOneWidget);
+
+      await tester.tap(find.text('Oatmeal and berries').first);
+      await tester.tap(find.text('Log meal'));
+      await tester.pumpAndSettle();
+      expect(interpreter.messages, ['Oatmeal and berries']);
+      expect(find.text('AI oatmeal estimate'), findsWidgets);
+      expect(find.text('347 kcal'), findsWidgets);
+      expect(find.text('1 meal logged'), findsOneWidget);
+      expect(find.textContaining('ui.meal.submitted'), findsOneWidget);
+      expect(find.textContaining('a2ui.updateDataModel'), findsWidgets);
+    },
+  );
+}
+
+final class _FakeMealInterpreter implements MealInterpreter {
+  final messages = <String>[];
+
+  @override
+  Stream<MealFlowEvent> get events => const Stream.empty();
+
+  @override
+  Future<MealInterpretation> interpret({
+    required String message,
+    required List<CalorieMeal> daySoFar,
+  }) async {
+    messages.add(message);
+    return const MealInterpretation(
+      logged: true,
+      reply: 'Estimated by the local Codex test double.',
+      meal: CalorieMeal(
+        label: 'AI oatmeal estimate',
+        calories: 347,
+        protein: 11,
+        carbs: 61,
+        fat: 7,
+      ),
     );
+  }
 
-    await tester.tap(find.text('Make it public'));
-    await tester.pump();
-    expect(
-      find.textContaining('Plan prepared for public package API'),
-      findsOneWidget,
-    );
-
-    await tester.tap(find.text('Run full verification'));
-    await tester.pump();
-    expect(find.text('Accept this implementation?'), findsOneWidget);
-
-    await tester.tap(find.text('Accept implementation'));
-    await tester.pump();
-    expect(find.text('Implementation accepted'), findsOneWidget);
-  });
+  @override
+  Future<void> close() async {}
 }
 
 void _setDesktopViewport(WidgetTester tester) {

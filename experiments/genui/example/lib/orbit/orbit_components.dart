@@ -301,6 +301,129 @@ class _OrbitTicketRow extends StatelessWidget {
   );
 }
 
+/// A JSON-safe food entry rendered inside a daily nutrition log.
+class OrbitMealEntry {
+  const OrbitMealEntry({
+    required this.label,
+    required this.calories,
+    required this.protein,
+    required this.carbs,
+    required this.fat,
+  });
+
+  final String label;
+  final double calories;
+  final double protein;
+  final double carbs;
+  final double fat;
+
+  factory OrbitMealEntry.fromJson(Map<Object?, Object?> json) {
+    final label = json['label'];
+    final calories = json['calories'];
+    final protein = json['protein'];
+    final carbs = json['carbs'];
+    final fat = json['fat'];
+    if (label is! String ||
+        calories is! num ||
+        protein is! num ||
+        carbs is! num ||
+        fat is! num) {
+      throw const FormatException(
+        'Meals need a label plus numeric calories, protein, carbs, and fat.',
+      );
+    }
+    return OrbitMealEntry(
+      label: label,
+      calories: calories.toDouble(),
+      protein: protein.toDouble(),
+      carbs: carbs.toDouble(),
+      fat: fat.toDouble(),
+    );
+  }
+}
+
+/// A local nutrition-log component with no database or estimation behaviour.
+class OrbitMealList extends StatelessWidget {
+  const OrbitMealList({super.key, required this.title, required this.meals});
+
+  final String title;
+  final List<OrbitMealEntry> meals;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    label: '$title. ${meals.length} logged meals.',
+    child: OrbitSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(title, style: OrbitType.heading(context))),
+              OrbitBadge(
+                label: '${meals.length} logged',
+                tone: OrbitBadgeTone.info,
+                glyph: OrbitGlyphs.activity,
+              ),
+            ],
+          ),
+          const SizedBox(height: OrbitTokens.spaceSm),
+          if (meals.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: OrbitTokens.spaceMd,
+              ),
+              child: Text(
+                'Nothing logged yet. Add a meal in the day chat below.',
+                style: OrbitType.small(context),
+              ),
+            )
+          else
+            for (var index = 0; index < meals.length; index++) ...[
+              if (index > 0) const OrbitDivider(),
+              _OrbitMealRow(meal: meals[index]),
+            ],
+        ],
+      ),
+    ),
+  );
+}
+
+class _OrbitMealRow extends StatelessWidget {
+  const _OrbitMealRow({required this.meal});
+
+  final OrbitMealEntry meal;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: OrbitTokens.spaceMd),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OrbitBadge(
+          label: '${meal.calories.round()} kcal',
+          tone: OrbitBadgeTone.neutral,
+          glyph: OrbitGlyphs.document,
+        ),
+        const SizedBox(width: OrbitTokens.spaceSm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(meal.label, style: OrbitType.title(context)),
+              const SizedBox(height: 2),
+              Text(
+                'P ${meal.protein.round()}g · C ${meal.carbs.round()}g · F ${meal.fat.round()}g',
+                style: OrbitType.small(context),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class OrbitRecommendationCard extends StatelessWidget {
   const OrbitRecommendationCard({
     super.key,

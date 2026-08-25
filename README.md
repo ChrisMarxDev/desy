@@ -26,6 +26,10 @@ widgets it describes, then run the workbench in a local development entry point.
 The registry remains the source of truth; Desy only presents the real Flutter
 widgets under their real theme.
 
+## Documentation
+
+- [Knobs: portable component inputs](docs/knobs.md)
+
 ## Give this prompt to your coding agent
 
 Copy this into the agent working on your Flutter project:
@@ -54,13 +58,33 @@ Create one consumer-owned DesyRegistry that returns this project’s real widget
 Desy is beta and its APIs are changing. For anything unclear, stop and ask the user before guessing.
 ```
 
+## Run it
+
+With [Task](https://taskfile.dev/) installed, launch the maintained dogfood app
+from the repository root:
+
+```sh
+task dogfood:run
+```
+
+Otherwise, run Flutter directly:
+
+```sh
+cd packages/desy_design_system/example
+flutter run
+```
+
+> **Why “dogfood”?** This app exercises Desy's own public APIs and real design
+> system—the project uses the product it builds.
+
 ## Maintainers and contributors
 
 The maintained dogfood app is the executable reference and integration testbed.
 Its [registry](https://github.com/ChrisMarxDev/desy/blob/main/packages/desy_design_system/example/lib/src/desy_design_system_registry.dart)
 shows a complete real-world declaration. For the source repository, start with
-the [contributor guide](dev.md), [architecture principles](CORE_PRINCIPLES.md),
-and [feature index](concept/features/index.html).
+the [contributor guide](concept/dev.md),
+[architecture principles](CORE_PRINCIPLES.md), and
+[feature index](concept/features/index.html).
 
 Run the complete workspace verification suite with:
 

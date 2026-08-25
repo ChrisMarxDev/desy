@@ -12,7 +12,8 @@ import 'package:mix/mix.dart';
 
 import 'genui_backend.dart';
 import 'experiments/codex/codex_genui_backend.dart';
-import 'experiments/codex_checkpoints/codex_checkpoints_workbench.dart';
+import 'experiments/calorie_day/calorie_day_workbench.dart';
+import 'experiments/calorie_day/meal_interpreter.dart';
 import 'experiments/local_data/sample_ticket_loader.dart';
 import 'orbit/orbit_registry.dart';
 import 'orbit/orbit_theme.dart';
@@ -26,6 +27,9 @@ Future<void> main() async {
   runApp(
     DesyGenUiExampleApp(
       backend: driver == 'codex' ? CodexGenUiBackend() : null,
+      mealInterpreterFactory: driver == 'codex'
+          ? () => CodexMealInterpreter()
+          : null,
     ),
   );
 }
@@ -40,10 +44,12 @@ class DesyGenUiExampleApp extends StatefulWidget {
     super.key,
     this.backend,
     this.shouldForwardAction,
+    this.mealInterpreterFactory,
   });
 
   final GenUiBackend? backend;
   final GenUiActionPolicy? shouldForwardAction;
+  final MealInterpreterFactory? mealInterpreterFactory;
 
   @override
   State<DesyGenUiExampleApp> createState() => _DesyGenUiExampleAppState();
@@ -79,6 +85,7 @@ class _DesyGenUiExampleAppState extends State<DesyGenUiExampleApp> {
       child: _OrbitWorkspace(
         backend: widget.backend,
         shouldForwardAction: widget.shouldForwardAction,
+        mealInterpreterFactory: widget.mealInterpreterFactory,
         onToggleTheme: _toggleTheme,
       ),
     ),
@@ -93,17 +100,19 @@ class _SendComposerIntent extends Intent {
   const _SendComposerIntent();
 }
 
-enum _WorkspaceDestination { agentRoom, codexCheckpoints }
+enum _WorkspaceDestination { agentRoom, calorieDay }
 
 class _OrbitWorkspace extends StatefulWidget {
   const _OrbitWorkspace({
     required this.onToggleTheme,
     this.backend,
     this.shouldForwardAction,
+    this.mealInterpreterFactory,
   });
 
   final GenUiBackend? backend;
   final GenUiActionPolicy? shouldForwardAction;
+  final MealInterpreterFactory? mealInterpreterFactory;
   final VoidCallback onToggleTheme;
 
   @override
@@ -383,7 +392,7 @@ class _OrbitWorkspaceState extends State<_OrbitWorkspace> {
                         _TopBar(
                           title: _destination == _WorkspaceDestination.agentRoom
                               ? 'Agent room'
-                              : 'Codex checkpoints',
+                              : 'Calorie day',
                           catalogId:
                               compiled.catalog.catalogId ?? 'Orbit catalog',
                           generating:
@@ -441,9 +450,11 @@ class _OrbitWorkspaceState extends State<_OrbitWorkspace> {
                           )
                         else
                           Expanded(
-                            child: CodexCheckpointsWorkbench(
+                            child: CalorieDayWorkbench(
                               catalog: compiled,
                               theme: registryTheme,
+                              mealInterpreterFactory:
+                                  widget.mealInterpreterFactory,
                             ),
                           ),
                         if (_destination == _WorkspaceDestination.agentRoom)
@@ -517,10 +528,10 @@ class _OrbitSidebar extends StatelessWidget {
             ),
             _SidebarItem(
               glyph: OrbitGlyphs.document,
-              label: 'Codex checkpoints',
-              selected: destination == _WorkspaceDestination.codexCheckpoints,
+              label: 'Calorie day',
+              selected: destination == _WorkspaceDestination.calorieDay,
               onPressed: () =>
-                  onSelectDestination(_WorkspaceDestination.codexCheckpoints),
+                  onSelectDestination(_WorkspaceDestination.calorieDay),
             ),
             const _SidebarItem(glyph: OrbitGlyphs.grid, label: 'Components'),
             const _SidebarItem(

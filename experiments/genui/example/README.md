@@ -51,7 +51,7 @@ assets. The token roles and neutral defaults follow
 
 ## Configure OpenAI
 
-From `genui/example`, copy `.env.example` to `.env`:
+From `experiments/genui/example`, copy `.env.example` to `.env`:
 
 ```dotenv
 OPENAI_API_KEY=sk-...

@@ -41,7 +41,7 @@ of truth for those platform-sensitive concerns.
 ## Generated component boundary
 
 The registry in
-`genui/example/lib/orbit/orbit_registry.dart` declares
+`experiments/genui/example/lib/orbit/orbit_registry.dart` declares
 stable component IDs and slash paths. It exposes this component vocabulary:
 
 - layout: response stack;

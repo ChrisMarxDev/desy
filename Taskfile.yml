@@ -32,20 +32,20 @@ includes:
     taskfile: ./packages/extensions/desy_screenshot_builder/Taskfile.yml
     dir: ./packages/extensions/desy_screenshot_builder
   genui:
-    taskfile: ./genui/desy_genui/Taskfile.yml
-    dir: ./genui/desy_genui
+    taskfile: ./experiments/genui/desy_genui/Taskfile.yml
+    dir: ./experiments/genui/desy_genui
   codex_app_server:
-    taskfile: ./genui/experiments/codex_app_server/Taskfile.yml
-    dir: ./genui/experiments/codex_app_server
+    taskfile: ./experiments/genui/experiments/codex_app_server/Taskfile.yml
+    dir: ./experiments/genui/experiments/codex_app_server
   genui_codex:
-    taskfile: ./genui/experiments/genui_codex/Taskfile.yml
-    dir: ./genui/experiments/genui_codex
+    taskfile: ./experiments/genui/experiments/genui_codex/Taskfile.yml
+    dir: ./experiments/genui/experiments/genui_codex
   genui_flue:
-    taskfile: ./genui/experiments/genui_flue/Taskfile.yml
-    dir: ./genui/experiments/genui_flue
+    taskfile: ./experiments/genui/experiments/genui_flue/Taskfile.yml
+    dir: ./experiments/genui/experiments/genui_flue
   genui_example:
-    taskfile: ./genui/example/Taskfile.yml
-    dir: ./genui/example
+    taskfile: ./experiments/genui/example/Taskfile.yml
+    dir: ./experiments/genui/example
   goldens_prototype:
     taskfile: ./packages/extensions/desy_goldens_prototype/Taskfile.yml
     dir: ./packages/extensions/desy_goldens_prototype

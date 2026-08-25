@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calorie Day GenUI</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="shell">
+    <nav><a href="index.html">← Planned features</a><span>GenUI exploration · personal tracking</span></nav>
+    <section class="hero">
+      <div class="eyebrow">Value experiment</div>
+      <h1>Let one day of messages become a useful, living nutrition view.</h1>
+      <p class="lede">Calorie Day treats the conversation as a daily food log. Local Codex interprets each food message into one structured estimate, and a fixed GenUI surface keeps calories and macros visible without regenerating the surrounding interface.</p>
+    </section>
+    <section class="grid">
+      <article class="card"><h2>Why it exists</h2><p>Food tracking is naturally conversational: people remember meals in fragments, not as rows in a form. A persistent daily summary prevents the interaction from becoming a stream of unhelpful text confirmations.</p></article>
+      <article class="card"><h2>User value</h2><p>Users can log a meal in plain language and immediately see the cumulative day. The chart and meal list make the consequence visible while the chat remains the primary entry path.</p></article>
+    </section>
+    <section class="card full">
+      <h2>Scope</h2>
+      <div class="flow"><strong>Meal message</strong><span>→</span><strong>Local Codex interpretation</strong><span>→</span><strong>Day snapshot</strong><span>→</span><strong>A2UI data update</strong></div>
+      <p>The app invokes the authenticated local Codex app-server with a constrained JSON schema for one meal entry. Flutter owns the resulting local day state, keeps one component graph alive, and updates that snapshot in one data-model operation.</p>
+    </section>
+    <section class="grid">
+      <article class="card"><h2>Non-goals</h2><ul><li>No dietary, medical, or weight-loss recommendation.</li><li>No claim that free-form nutrition estimates are accurate.</li><li>No cloud food database, account, or health-data integration.</li><li>No model call for normal state refreshes.</li></ul></article>
+      <article class="card"><h2>Implementation sketch</h2><ul><li>Local Codex returns a schema-constrained typed entry and concise estimate notice for each food message.</li><li>A chat transcript and the daily log remain ordinary Flutter state.</li><li>A stable GenUI surface binds the daily aggregate to registered summary, chart, and meal-list components.</li><li>Only the Codex interpreter is provider-specific; another agent can replace it while preserving the handoff.</li></ul></article>
+    </section>
+    <section class="card full">
+      <h2>Acceptance evidence</h2>
+      <pre><code>"Oatmeal and berries" → Codex estimate → breakfast entry → calories and macro bars increase
+"a chicken rice bowl for lunch" → Codex estimate → one updated daily snapshot</code></pre>
+      <p>Every accepted entry must be inspectable in the day list. Ambiguous or non-food text must lead Codex to ask one clarification rather than add a fabricated entry.</p>
+    </section>
+    <section class="grid">
+      <article class="card"><h2>Open questions</h2><ul><li>Should the entry schema include a confidence label or a confirmation step for uncertain portions?</li><li>Should targets be user-configurable, and how can that remain neutral rather than prescriptive?</li><li>Is an end-of-day generated recap more useful than the persistent chart?</li></ul></article>
+      <article class="card"><h2>Do or don't</h2><p class="decision"><strong>Do the constrained tracking sample.</strong> It demonstrates a chat-first workflow with an obvious persistent visual payoff, a real local-provider call, and explicit data ownership. Do not add health advice or pretend model estimates are verified nutrition data.</p><p><span class="pill">Impact 4/5</span><span class="pill">Complexity 3/5</span><span class="pill">Risk: bounded by explicit estimates</span></p></article>
+    </section>
+    <footer>Offline concept artifact. No remote assets or runtime dependencies.</footer>
+  </main>
+</body>
+</html>

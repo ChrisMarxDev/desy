@@ -10,18 +10,21 @@
   integration testbed.
 - `packages/extensions/` contains optional packages that prove narrow extension
   boundaries. They are not part of the core package surface.
-- `dev.md` contains the maintained contributor guide.
+- `concept/dev.md` contains the maintained contributor guide.
 
 ## Documentation ownership
 
+- `docs/` contains only user-facing Desy documentation, written in Markdown.
+  Add a document there only when it helps a Desy consumer use the product; list
+  every document from the root README.
+- `concept/` contains internal project concept work for agents and maintainers:
+  planned features, internal contracts, decisions, and research. It is not
+  consumer documentation.
 - `concept/features/index.html` is the single roadmap and product-idea index.
   Every non-trivial planned feature belongs there and receives one linked,
   offline-safe concept page before implementation begins.
-- `docs/concepts/` explains implemented contracts and decisions. Move shipped
-  base behavior out of the planned-feature index and document its final contract
-  there when explanation is still useful.
-- `docs/research/` holds evidence and investigations, not commitments.
-- Keep `AGENTS.md`, skills, `CORE_PRINCIPLES.md`, and `dev.md` operational:
+- Keep `AGENTS.md`, skills, `CORE_PRINCIPLES.md`, and `concept/dev.md`
+  operational:
   they may point to the planning index but must never become a feature backlog.
 
 ## Design rules

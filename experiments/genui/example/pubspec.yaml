@@ -12,9 +12,9 @@ resolution: workspace
 dependencies:
   a2ui_core: ^0.1.0
   desy_core:
-    path: ../../packages/desy_core
+    path: ../../../packages/desy_core
   desy_bench:
-    path: ../../packages/desy_bench
+    path: ../../../packages/desy_bench
   desy_genui:
     path: ../desy_genui
   fl_chart: ^1.2.0
@@ -23,6 +23,8 @@ dependencies:
   genui: ^0.10.1
   genui_codex:
     path: ../experiments/genui_codex
+  codex_app_server:
+    path: ../experiments/codex_app_server
   http: ^1.6.0
   mix: ^2.1.0
   flutter_markdown_plus: ^1.0.12

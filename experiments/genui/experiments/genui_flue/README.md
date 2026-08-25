@@ -32,7 +32,7 @@ Flutter Conversation
 ## Run the agent
 
 ```sh
-cd genui/experiments/genui_flue/flue
+cd experiments/genui/experiments/genui_flue/flue
 npm install
 cp .env.example .env
 npm run dev
@@ -65,7 +65,7 @@ backend contract.
 ```sh
 task genui_flue:analyze
 task genui_flue:test
-cd genui/experiments/genui_flue/flue && npm run check
+cd experiments/genui/experiments/genui_flue/flue && npm run check
 ```
 
 References: [Flutter GenUI provider integration](https://docs.flutter.dev/ai/genui/get-started), [Flue streaming protocol](https://flueframework.com/docs/reference/streaming-protocol/), and [Flue tools](https://flueframework.com/docs/guide/tools/).

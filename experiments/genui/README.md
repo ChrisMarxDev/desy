@@ -1,7 +1,7 @@
 # GenUI exploration
 
-This top-level workspace area contains all experimental GenUI work. It is kept
-in the repository with Desy, but it is not part of Desy's core product surface.
+This experimental workspace area contains all GenUI work. It is kept in the
+repository with Desy, but it is not part of Desy's core product surface.
 
 - `desy_genui/` is the optional adapter from a consumer-owned `DesyRegistry`
   to a Flutter GenUI catalog.

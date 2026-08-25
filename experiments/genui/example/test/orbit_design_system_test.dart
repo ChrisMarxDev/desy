@@ -15,7 +15,7 @@ void main() {
       orbitRegistry.themes.map((theme) => theme.id),
       containsAll(<String>['orbit.theme.midnight', 'orbit.theme.daylight']),
     );
-    expect(orbitRegistry.components, hasLength(17));
+    expect(orbitRegistry.components, hasLength(18));
     expect(
       orbitRegistry.components.map((component) => component.path),
       containsAll(<String>[
@@ -24,6 +24,7 @@ void main() {
         '/conversation/insights',
         '/agent/approval',
         '/data/tickets',
+        '/data/nutrition',
         '/content/rich-text',
         '/content/diagrams',
         '/data/charts',
@@ -39,6 +40,7 @@ void main() {
         'orbit.component.icon-button',
         'orbit.component.tool-activity',
         'orbit.component.ticket-list',
+        'orbit.component.meal-list',
         'orbit.component.markdown',
         'orbit.component.mermaid',
         'orbit.component.bar-chart',

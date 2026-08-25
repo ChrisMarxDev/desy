@@ -9,6 +9,7 @@ const _taskListDefault = 'orbit.component.task-list.default';
 const _taskRowProgress = 'orbit.component.task-row.progress';
 const _taskRowReady = 'orbit.component.task-row.ready';
 const _ticketListDefault = 'orbit.component.ticket-list.default';
+const _mealListDefault = 'orbit.component.meal-list.default';
 const _recommendationDefault = 'orbit.component.recommendation.default';
 const _approvalDefault = 'orbit.component.approval.default';
 const _toolActivityDefault = 'orbit.component.tool-activity.default';
@@ -109,6 +110,7 @@ final DesyRegistry orbitRegistry = DesyRegistry(
     _taskListComponent,
     _taskRowComponent,
     _ticketListComponent,
+    _mealListComponent,
     _recommendationComponent,
     _approvalComponent,
     _toolActivityComponent,
@@ -238,6 +240,7 @@ final _stackComponent = DesyComponent(
         _approvalDefault,
         _taskListDefault,
         _ticketListDefault,
+        _mealListDefault,
         _toolActivityDefault,
         _sourceDefault,
       ],
@@ -395,6 +398,56 @@ final _ticketListComponent = DesyComponent(
           'key': 'APP-2',
           'summary': 'Clarify the approval handoff',
           'status': 'Ready',
+        },
+      ]),
+    ],
+  },
+);
+
+final _mealListComponent = DesyComponent(
+  id: 'orbit.component.meal-list',
+  name: 'Meal list',
+  path: '/data/nutrition',
+  description:
+      'A daily meal log rendered from portable calorie and macro entries.',
+  source: 'lib/orbit/orbit_components.dart',
+  defaultSize: const Size(640, 380),
+  knobs: (k) => (
+    title: k.string('title', initial: "Today's meals"),
+    meals: k.jsonValue(
+      'meals',
+      initial: const [
+        {
+          'label': 'Oatmeal and berries',
+          'calories': 320,
+          'protein': 9,
+          'carbs': 58,
+          'fat': 6,
+        },
+      ],
+      description:
+          'A JSON array of meals: `{ label, calories, protein, carbs, fat }`. It may be a data-model binding.',
+    ),
+  ),
+  build: (context, knobs) =>
+      OrbitMealList(title: knobs.title.value, meals: _meals(knobs.meals.value)),
+  instances: (knobs) => {
+    'default': const [],
+    'day-log': [
+      knobs.meals(const [
+        {
+          'label': 'Oatmeal and berries',
+          'calories': 320,
+          'protein': 9,
+          'carbs': 58,
+          'fat': 6,
+        },
+        {
+          'label': 'Chicken rice bowl',
+          'calories': 610,
+          'protein': 45,
+          'carbs': 72,
+          'fat': 15,
         },
       ]),
     ],
@@ -779,4 +832,18 @@ List<OrbitTicket> _tickets(Object value) {
     }
   }
   return List.unmodifiable(tickets);
+}
+
+List<OrbitMealEntry> _meals(Object value) {
+  if (value is! List) return const [];
+  final meals = <OrbitMealEntry>[];
+  for (final item in value) {
+    if (item is! Map) continue;
+    try {
+      meals.add(OrbitMealEntry.fromJson(item));
+    } on FormatException {
+      // One malformed external record should not hide the remaining meal log.
+    }
+  }
+  return List.unmodifiable(meals);
 }
