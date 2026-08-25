@@ -1,11 +1,49 @@
 # Desy Bench
 
+> ⚠️ ⚠️ **This project is absolutely messy right now.** It is actively being
+> reorganized and its APIs can change without notice. Treat `main` and this
+> README as the current source of truth.
+
 Desy is a local Flutter workbench for the design system your repository already
 owns. Register real themes, tokens, and widgets once; Desy lets your team browse,
 compare, and evolve them without creating a second component catalogue.
 
-> **Beta:** Desy is moving quickly. Install from `main`, expect APIs to change,
-> and let the current repository guidance take precedence over old examples.
+## Packages
+
+- `packages/desy_core/` — Flutter-native registry contracts and resolution.
+- `packages/desy_bench/` — the reusable workbench for a consumer-owned
+  registry.
+- `packages/desy_design_system/` — Desy's own workbench foundations, including
+  the maintained example app.
+- `packages/object_canvas/` — reusable canvas geometry and interaction
+  primitives.
+
+`packages/extensions/` contains potential future extensions and is not part of
+the core product surface.
+
+## Run the maintained example
+
+The dogfood app at `packages/desy_design_system/example/` is the maintained
+Desy Bench example and integration testbed. You can first explore the running
+[Desy Bench demo](https://desy-bench.web.app) in the browser, then run the same
+example locally.
+
+With [Task](https://taskfile.dev/) installed, run this from the repository
+root:
+
+```sh
+task dogfood:run
+```
+
+Otherwise, use Flutter directly:
+
+```sh
+cd packages/desy_design_system/example
+flutter run
+```
+
+> **Why “dogfood”?** This app exercises Desy's own public APIs and real design
+> system—the project uses the product it builds.
 
 ## Try Desy in your Flutter project
 
@@ -58,25 +96,6 @@ Create one consumer-owned DesyRegistry that returns this project’s real widget
 
 Desy is beta and its APIs are changing. For anything unclear, stop and ask the user before guessing.
 ```
-
-## Run it
-
-With [Task](https://taskfile.dev/) installed, launch the maintained dogfood app
-from the repository root:
-
-```sh
-task dogfood:run
-```
-
-Otherwise, run Flutter directly:
-
-```sh
-cd packages/desy_design_system/example
-flutter run
-```
-
-> **Why “dogfood”?** This app exercises Desy's own public APIs and real design
-> system—the project uses the product it builds.
 
 ## Maintainers and contributors
 
