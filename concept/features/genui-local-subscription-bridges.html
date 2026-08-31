@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local Codex and Claude subscriptions</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="shell">
+    <nav><a href="index.html">← Planned features</a><span>GenUI exploration · macOS only</span></nav>
+    <section class="hero">
+      <div class="eyebrow">Local subscription experiment</div>
+      <h1>Use a person’s existing local agent subscription without copying a key into Orbit.</h1>
+      <p class="lede">Orbit can hand one constrained GenUI turn to either signed-in Codex or signed-in Claude Code. If the CLI is missing, a minimal onboarding screen opens Terminal with the visible official installer and interactive sign-in flow.</p>
+    </section>
+
+    <section class="grid">
+      <article class="card"><h2>Reason and value</h2><p>A desktop GenUI experiment should be easy to try with the subscriptions people already use, while keeping credentials inside the provider-owned CLI and browser login flow.</p></article>
+      <article class="card"><h2>Decision</h2><p>Ship the narrow macOS experiment: one Codex app-server bridge, one Claude Code print-mode bridge, one separate button-only setup component for each provider, and an app-owned controller that selects and owns the active provider backend.</p></article>
+    </section>
+
+    <section class="card full">
+      <h2>Scope</h2>
+      <div class="flow"><strong>Orbit button</strong><span>→</span><strong>Terminal installer + browser sign-in</strong><span>→</span><strong>Provider CLI credential store</strong><span>→</span><strong>Local GenUI bridge</strong></div>
+      <ul>
+        <li>Probe <code>codex</code> or <code>claude</code> through the user’s login shell.</li>
+        <li>Only when absent, open the provider’s official macOS installer in Terminal.</li>
+        <li>Run <code>codex login</code> or start <code>claude</code> so its normal sign-in flow remains visible and interactive.</li>
+        <li>Use Codex app-server or Claude Code structured output to return a constrained GenUI surface.</li>
+        <li>Select the provider inside Orbit; provider identity is reactive app state, not a launch-time environment variable.</li>
+      </ul>
+    </section>
+
+    <section class="grid">
+      <article class="card"><h2>Non-goals</h2><ul><li>No API-key text field, key storage, or account management in Flutter.</li><li>No hidden package-manager install or silent browser authentication.</li><li>No shared provider abstraction that obscures each CLI’s real protocol.</li><li>No mobile, web, Windows, or Linux guarantee in this slice.</li></ul></article>
+      <article class="card"><h2>Open questions</h2><ul><li>Should Claude turns stream A2UI partials after the complete-tree bridge proves useful?</li><li>Should the setup screen re-check availability after the user returns from Terminal?</li><li>What per-turn tool and spend policy should a production local bridge expose?</li></ul></article>
+    </section>
+
+    <section class="card full">
+      <h2>Implementation sketch</h2>
+      <ol><li>Keep platform process and Terminal launching behind a conditional Dart import.</li><li>Give Codex and Claude sibling bridge folders with their own commands and protocol adapters.</li><li>Render two separate, keyboard-accessible onboarding components through Orbit’s real controls.</li><li>Use the state-beacon-backed app controller to select, route to, and dispose the active provider backend through the existing provider-neutral GenUI contract.</li></ol>
+    </section>
+
+    <section class="card full accent">
+      <h2>Do it, narrowly</h2>
+      <p><strong>Impact 4/5 · Complexity 3/5.</strong> The capability removes the largest trial barrier for a local desktop experiment and preserves provider ownership of authentication. It is worth building only as an explicit, user-visible macOS flow; silently changing a machine or storing credentials in Flutter would reverse the safety and trust benefit.</p>
+    </section>
+    <footer>Internal concept artifact. This is experimental Orbit work, not a Desy core product contract.</footer>
+  </main>
+</body>
+</html>

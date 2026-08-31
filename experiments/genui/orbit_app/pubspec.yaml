@@ -1,0 +1,25 @@
+name: orbit_app
+description: Consumer app for mrx_design_system, registered with Desy.
+version: 0.1.0+1
+publish_to: none
+
+environment:
+  sdk: ^3.10.0
+  flutter: '>=3.35.7'
+
+resolution: workspace
+
+dependencies:
+  desy_core:
+    path: ../../../packages/desy_core
+  desy_bench:
+    path: ../../../packages/desy_bench
+  flutter:
+    sdk: flutter
+  mrx_design_system:
+    path: ../mrx_design_system
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

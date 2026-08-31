@@ -1,0 +1,4 @@
+interface:
+  display_name: "State Beacon"
+  short_description: "Reactive Flutter controller patterns"
+  default_prompt: "Use $state-beacon to add clear controller-owned reactive state."

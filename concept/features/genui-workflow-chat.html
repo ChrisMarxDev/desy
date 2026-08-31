@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Generic GenUI workflow chat</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="shell">
+    <nav><a href="index.html">← Planned features</a><span>GenUI exploration · workflow runtime</span></nav>
+    <section class="hero">
+      <div class="eyebrow">Concept reset · 2026-08-27</div>
+      <h1>One chat runtime. Opinionated workflows. Real agent-generated turns.</h1>
+      <p class="lede">Orbit should not ship a bespoke Product Decisions screen. It should prove a local-first GenUI workflow runtime where a named workflow such as <code>/grilling</code> drives one durable conversation and the agent renders each assistant turn as a real, interactive A2UI surface from a constrained catalog.</p>
+    </section>
+
+    <section class="card full accent">
+      <h2>Decision</h2>
+      <p>Build one generic workflow chat host in the GenUI exploration. Treat <code>/grilling</code> as its first workflow declaration and product-discovery proof. Do not continue the current Product Decisions screen or make its hand-authored Flutter cards the reference architecture.</p>
+    </section>
+
+    <section class="grid">
+      <article class="card"><h2>Job to be done</h2><p>A person starts with an open directional prompt, such as “Let’s create a better way to display step data” or “How could we visualize Flutter widgets live?” The workflow uncovers material unknowns, teaches concepts when needed, makes a concrete recommendation when sufficiently clear, and produces a copyable, implementation-agent-ready PRD handover.</p></article>
+      <article class="card"><h2>Anti-goal</h2><p>Do not turn this into generic prose chat, a fixed questionnaire, a static brief below chat, or a workflow-specific Flutter screen. A prose-only “next direction” is not useful progress. If uncertainty remains, ask through an interactive surface; if it does not, make the proposal.</p></article>
+    </section>
+
+    <section class="card full">
+      <h2>Ownership and protocol boundary</h2>
+      <div class="flow"><strong>Workflow declaration</strong><span>→</span><strong>Local agent</strong><span>→</span><strong>A2UI assistant-turn surface</strong><span>→</span><strong>Workflow runtime</strong><span>→</span><strong>Structured continuation</strong></div>
+      <table>
+        <thead><tr><th>Owner</th><th>Responsibility</th></tr></thead>
+        <tbody>
+          <tr><td>Workflow declaration</td><td>Stable ID, display metadata, agent instructions, allowed catalog subset, tools/client functions, turn rules, completion rule, and handover format.</td></tr>
+          <tr><td>Agent</td><td>Chooses whether the next turn should ask, explain, compare, or propose; composes only allowed real catalog components; never emits a prose-only non-turn.</td></tr>
+          <tr><td>Generic workflow runtime</td><td>Owns chat history, A2UI surface lifecycle, form/default state, event routing, local persistence, selected repository context, pending/error state, and copy/save behavior.</td></tr>
+          <tr><td>Catalog</td><td>Defines legal semantic widgets and their data/event contracts. The agent does not invent widgets or callbacks.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card full">
+      <h2>Session model</h2>
+      <ol>
+        <li>The user types a goal or starts a named workflow such as <code>/grilling</code> in the normal composer.</li>
+        <li>The agent returns one assistant-turn A2UI surface. It contains either a useful interactive question batch, an explanation/comparison, or a direct proposal.</li>
+        <li>An active question batch is one form. The user changes choices, writes custom context where needed, and moves through compact cards with previous/next arrows. The final next arrow submits the complete batch.</li>
+        <li>The runtime submits one structured continuation containing all current values. Defaults count when untouched; user edits replace them.</li>
+        <li>The submitted surface freezes into a compact history record. The next agent surface renders directly below it. V1 does not reopen earlier forms; corrections enter through the current composer and become new evidence.</li>
+        <li>The session persists locally across app restarts. Completion yields a compact handover control with Copy, Save, and optional preview; raw Markdown is hidden by default.</li>
+      </ol>
+    </section>
+
+    <section class="card full">
+      <h2>Core workflow catalog</h2>
+      <table>
+        <thead><tr><th>Component</th><th>Contract</th></tr></thead>
+        <tbody>
+          <tr><td><code>workflow.questionnaire</code></td><td>One assistant-turn form with a title, concise context, ordered <code>workflow.question</code> children, local draft state, and one final continuation event. Arrow navigation never emits partial answers.</td></tr>
+          <tr><td><code>workflow.question</code></td><td>Stable <code>id</code>, prompt, optional explanation, optional choices, defaults, <code>allowMultipleAnswers</code>, and always-available custom text. Empty choices make it a free-text-only question.</td></tr>
+          <tr><td><code>workflow.explainAction</code></td><td>Available on each question. Emits the parent turn ID, question ID, current defaults, and edits. It never submits or resets the parent questionnaire.</td></tr>
+          <tr><td><code>workflow.clarificationSlot</code></td><td>Mount point directly below one question for an ephemeral child A2UI surface. That child may compose the allowed catalog, including definitions, comparisons, pros/cons, diagrams, and examples.</td></tr>
+          <tr><td><code>workflow.proposal</code></td><td>A concrete decision, alternatives, trade-offs, and implementation direction. The agent uses it when material uncertainties are resolved rather than asking performative questions.</td></tr>
+          <tr><td><code>workflow.handoff</code></td><td>Client-owned presentation for the full PRD payload: Copy, Save, and on-demand preview. It does not render a giant raw Markdown block in the transcript.</td></tr>
+        </tbody>
+      </table>
+      <p>The runtime can continue to expose generic catalog elements—Markdown, tables, charts, diagrams, code, dates, files, and images—through each workflow’s allowed subset. The bespoke components above define the high-frequency AI decision interaction, not a parallel widget system.</p>
+    </section>
+
+    <section class="grid">
+      <article class="card"><h2>Question payload</h2><pre><code>{
+  "type": "workflow.continue",
+  "turnId": "turn-7",
+  "answers": {
+    "rendering_strategy": {
+      "optionIds": ["native-preview"],
+      "customText": "Keep a browser export for sharing."
+    }
+  },
+  "defaultedQuestionIds": ["scope"]
+}</code></pre><p>The payload preserves which choices were accepted untouched. The agent receives form state, not a guessed transcript.</p></article>
+      <article class="card"><h2>Clarification rule</h2><p>“Explain this” is an inline child turn, not an initial side chat. It leaves the parent form and answers intact, appears under the question that caused confusion, and is only promoted into the main handover when it materially changes the decision. A longer side conversation remains a later option, not a V1 dependency.</p></article>
+    </section>
+
+    <section class="card full">
+      <h2>Guardrails</h2>
+      <ul>
+        <li>The workflow constrains the agent but does not script the next step. The agent decides whether enough context exists for a proposal.</li>
+        <li>Every choice-capable question has defaults. Every question permits custom text.</li>
+        <li>The final next arrow is the only submit action in a question batch. Widget edits are local until then.</li>
+        <li>Conversation order is chronological: user message first, then its generated assistant surface. Question cards are compact, bordered, and reveal the start of the next card where space permits.</li>
+        <li>Each assistant message is a real A2UI surface backed by the declared catalog—not a Flutter renderer that happens to resemble generated UI.</li>
+        <li>Repository root is local workflow context for Codex tools. It is persisted locally and never becomes prompt text by accident.</li>
+        <li>V1 uses subset catalogs. The full catalog can become available to more capable agents later without changing the chat runtime contract.</li>
+      </ul>
+    </section>
+
+    <section class="card full accent">
+      <h2>Implementation sequence</h2>
+      <ol><li>Remove the Product Decisions-specific renderer from the reference path and introduce the generic workflow/session abstractions.</li><li>Define and register the workflow catalog above; validate A2UI output and interaction payloads.</li><li>Teach the local Codex GenUI bridge about per-turn surfaces and the persisted repository working directory.</li><li>Implement <code>/grilling</code> as the first declaration, including inline clarification child turns.</li><li>Add local session persistence and PRD handover export after the live turn loop is reliable.</li></ol>
+    </section>
+    <footer>Internal concept artifact. This remains GenUI exploration work, not Desy core product scope.</footer>
+  </main>
+</body>
+</html>

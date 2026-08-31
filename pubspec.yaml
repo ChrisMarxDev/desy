@@ -17,9 +17,7 @@ workspace:
   - packages/extensions/desy_brand_guide
   - packages/extensions/desy_screenshot_builder
   - experiments/genui/desy_genui
-  - experiments/genui/experiments/codex_app_server
-  - experiments/genui/experiments/genui_codex
-  - experiments/genui/experiments/genui_flue
-  - experiments/genui/example
+  - experiments/genui/mrx_design_system
+  - experiments/genui/orbit_app
   - packages/extensions/desy_goldens_prototype
   - packages/extensions/desy_widget_workshop

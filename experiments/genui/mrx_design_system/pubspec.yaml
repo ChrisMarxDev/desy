@@ -1,0 +1,21 @@
+name: mrx_design_system
+description: MRX's reusable Flutter design system.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.10.0
+  flutter: '>=3.35.7'
+
+resolution: workspace
+
+dependencies:
+  file_picker: ^10.3.8
+  flutter:
+    sdk: flutter
+  mix: ^2.1.0
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter

@@ -1,0 +1,23 @@
+version: '3'
+
+tasks:
+  analyze:
+    desc: Analyze the MRX design system.
+    cmds:
+      - flutter analyze
+
+  test:
+    desc: Run MRX design-system tests.
+    cmds:
+      - flutter test
+
+  format:
+    desc: Format MRX design-system source and tests.
+    cmds:
+      - dart format lib test
+
+  check:
+    desc: Verify the MRX design system.
+    cmds:
+      - task: analyze
+      - task: test

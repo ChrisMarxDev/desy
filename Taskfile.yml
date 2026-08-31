@@ -34,18 +34,12 @@ includes:
   genui:
     taskfile: ./experiments/genui/desy_genui/Taskfile.yml
     dir: ./experiments/genui/desy_genui
-  codex_app_server:
-    taskfile: ./experiments/genui/experiments/codex_app_server/Taskfile.yml
-    dir: ./experiments/genui/experiments/codex_app_server
-  genui_codex:
-    taskfile: ./experiments/genui/experiments/genui_codex/Taskfile.yml
-    dir: ./experiments/genui/experiments/genui_codex
-  genui_flue:
-    taskfile: ./experiments/genui/experiments/genui_flue/Taskfile.yml
-    dir: ./experiments/genui/experiments/genui_flue
-  genui_example:
-    taskfile: ./experiments/genui/example/Taskfile.yml
-    dir: ./experiments/genui/example
+  mrx_design_system:
+    taskfile: ./experiments/genui/mrx_design_system/Taskfile.yml
+    dir: ./experiments/genui/mrx_design_system
+  orbit_app:
+    taskfile: ./experiments/genui/orbit_app/Taskfile.yml
+    dir: ./experiments/genui/orbit_app
   goldens_prototype:
     taskfile: ./packages/extensions/desy_goldens_prototype/Taskfile.yml
     dir: ./packages/extensions/desy_goldens_prototype
@@ -83,10 +77,8 @@ tasks:
       - task: widgetbook:test
       - task: screenshot_builder:test
       - task: genui:test
-      - task: codex_app_server:test
-      - task: genui_codex:test
-      - task: genui_flue:test
-      - task: genui_example:test
+      - task: mrx_design_system:check
+      - task: orbit_app:test
       - task: widget_workshop:test
 
   check:
@@ -97,7 +89,7 @@ tasks:
       - task: test
       - task: dogfood:build:web
       - task: widgetbook:build:web
-      - task: genui_example:build:web
+      - task: orbit_app:build:web
       - task: object_canvas_example:build:web
 
   format:

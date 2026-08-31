@@ -1,0 +1,42 @@
+version: '3'
+
+tasks:
+  run:
+    desc: Run the Orbit consumer app on Chrome.
+    cmds:
+      - flutter run -d chrome 2>&1 | tee flutter_genui.log
+
+  run:macos:
+    desc: Run the Orbit consumer app on macOS.
+    cmds:
+      - flutter run -d macos 2>&1 | tee flutter_genui.log
+
+  run:bench:
+    desc: Run the Orbit consumer app on macOS.
+    cmds:
+      - flutter run -d macos 2>&1 | tee flutter_genui.log
+
+  log:
+    desc: Read the most recent Flutter launch output.
+    cmds:
+      - tail -n 250 flutter_genui.log
+
+  analyze:
+    desc: Analyze the Orbit consumer app.
+    cmds:
+      - flutter analyze
+
+  test:
+    desc: Run Orbit consumer-app tests.
+    cmds:
+      - flutter test
+
+  build:web:
+    desc: Build the Orbit consumer app for web.
+    cmds:
+      - flutter build web
+
+  format:
+    desc: Format Orbit consumer-app source and tests.
+    cmds:
+      - dart format lib test

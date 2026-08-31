@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Orbit AI provider controls</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="shell">
+    <nav><a href="index.html">← Planned features</a><span>Orbit GenUI · local-first desktop</span></nav>
+    <section class="hero">
+      <div class="eyebrow">Provider controls</div>
+      <h1>Choose the active agent and model in one place; manage local runtimes separately.</h1>
+      <p class="lede">Orbit needs one reactive source for the selected provider, model, and runtime status. A compact control keeps the active configuration visible, while a dedicated settings route handles installation and diagnostics without turning setup into a chat-side chore.</p>
+    </section>
+    <section class="grid">
+      <article class="card"><h2>Decision</h2><p>Use GoRouter for the app’s destinations. Keep the active provider and model in the state-beacon-backed AI controller. Provider bridges remain provider-specific and are only responsible for probing, installation, authentication, and generation.</p></article>
+      <article class="card"><h2>Interaction</h2><p>The sidebar footer shows one provider-and-model control. It opens upward: first choose a provider, then choose one of that provider’s models. A Manage providers action opens the settings route.</p></article>
+    </section>
+    <section class="card full">
+      <h2>Settings route</h2>
+      <ul><li>Show OpenAI server, Codex local, and Claude local as runtime rows.</li><li>Each row exposes a clear status: Ready, Installed, Needs sign-in, Needs install, or Unsupported.</li><li>Check again refreshes local command and login probes.</li><li>Install launches the existing visible Terminal flow; no credential is read by Flutter.</li><li>Provider/model configuration is selected through the shared controller, never through launch-time flags.</li></ul>
+    </section>
+    <section class="card full accent">
+      <h2>Boundary</h2>
+      <p><strong>Impact 4/5 · Complexity 3/5.</strong> This is app-shell and experimental Orbit work, not a Desy package contract. The controller is deliberately typed around provider selection, model selection, backend routing, and status—not a generic map of arbitrary provider settings.</p>
+    </section>
+    <footer>Internal concept artifact. Offline-safe; no remote assets or runtime dependencies.</footer>
+  </main>
+</body>
+</html>
