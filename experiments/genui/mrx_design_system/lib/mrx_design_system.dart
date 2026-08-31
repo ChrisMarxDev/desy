@@ -2,4 +2,5 @@
 library;
 
 export 'src/genui/orbit_genui.dart';
+export 'src/mrx/mrx.dart';
 export 'src/orbit_theme.dart';

@@ -6,6 +6,23 @@ void main() {
   test('MRX exposes one canonical theme configuration', () {
     expect(OrbitThemeData.standard.id, 'orbit.theme');
     expect(OrbitThemeData.standard.isDark, isTrue);
+    expect(MrxThemeData.standard.id, 'mrx.midnight');
+  });
+
+  testWidgets('MRX foundation values resolve through its inherited theme', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const Directionality(
+        textDirection: TextDirection.ltr,
+        child: MrxTheme(child: Text('MRX foundation')),
+      ),
+    );
+
+    final context = tester.element(find.text('MRX foundation'));
+    expect(MrxTheme.of(context).colors.surface, MrxPalettes.midnight.surface);
+    expect(MrxTextStyles.body(context).color, MrxPalettes.midnight.text);
+    expect(MrxTokens.radiusLg, 10);
   });
 
   testWidgets('Orbit primitives resolve their visual tokens from context', (
