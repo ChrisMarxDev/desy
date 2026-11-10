@@ -92,10 +92,10 @@ GenUI/A2UI adapters remain separate packages and continue to invoke the
 registry's real widget builders locally.
 The maintained GenUI exploration lives in `experiments/genui/`; its Desy
 integration adapter remains in `experiments/genui/desy_genui`.
-`DesyGenUiCatalog.compile(registry)` produces both an executable Flutter
-`Catalog` and a backend-safe schema/prompt/example artifact with a deterministic
-digest. Its `example/` is intentionally backend-free and feeds typed local
-A2UI v0.9 messages to `SurfaceController`.
+`DesyGenUiCatalog.compile(registry)` produces both an executable
+`a2ui_flutter` `CatalogImplementation` and a backend-safe schema/prompt/example
+artifact with a deterministic digest. Its `example/` is intentionally
+backend-free and feeds typed local A2UI v0.9 messages to `MessageProcessor`.
 
 Every knob kind accepts optional `description` guidance. Use `widgetInstance`
 for one child and `widgetInstances` for an ordered list of real registered

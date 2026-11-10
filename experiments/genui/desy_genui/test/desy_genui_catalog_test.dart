@@ -1,11 +1,11 @@
 import 'dart:convert';
 
 import 'package:a2ui_core/a2ui_core.dart' as a2ui;
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:desy_core/desy_core.dart';
 import 'package:desy_genui/desy_genui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genui/genui.dart';
 
 void main() {
   test('compilation requires identity and includes every component', () {
@@ -21,13 +21,10 @@ void main() {
 
     final registry = _registry(includeAdditionalComponent: true);
     final compiled = DesyGenUiCatalog.compile(registry);
-    expect(compiled.catalog.catalogId, 'dev.desy.test@2.0.0');
+    expect(compiled.catalog.id, 'dev.desy.test@2.0.0');
+    expect(compiled.catalog.components.keys, contains('test.additional'));
     expect(
-      compiled.catalog.items.map((item) => item.name),
-      contains('test.additional'),
-    );
-    expect(
-      compiled.catalog.systemPromptFragments,
+      compiled.catalog.instructions,
       contains(
         'Use only components declared by registry dev.desy.test. '
         'Component IDs are surface-local. Child slots refer to those IDs.',
@@ -54,11 +51,8 @@ void main() {
 
   test('maps every knob kind to a documented A2UI schema', () {
     final compiled = DesyGenUiCatalog.compile(_registry());
-    final item = compiled.catalog.items.singleWhere(
-      (item) => item.name == 'test.panel',
-    );
-    final properties =
-        item.dataSchema.value['properties']! as Map<String, Object?>;
+    final item = compiled.catalog.components['test.panel']!;
+    final properties = item.schema.value['properties']! as Map<String, Object?>;
 
     expect(properties['title'], containsPair('default', 'Default title'));
     expect(jsonEncode(properties['title']), contains('"path"'));
@@ -88,12 +82,9 @@ void main() {
     expect(properties['children'], containsPair('type', 'array'));
     expect(
       properties['submit'],
-      containsPair(
-        r'$ref',
-        r'https://a2ui.org/specification/v0_9/common_types.json#/$defs/Action',
-      ),
+      containsPair('commonTypesRef', r'common_types.json#/$defs/Action'),
     );
-    expect(jsonEncode(item.dataSchema.value), contains('Visible heading'));
+    expect(jsonEncode(item.schema.value), contains('Visible heading'));
   });
 
   test('backend artifact is serializable, complete, and deterministic', () {
@@ -114,8 +105,7 @@ void main() {
     tester,
   ) async {
     final compiled = DesyGenUiCatalog.compile(_registry());
-    final controller = SurfaceController(catalogs: [compiled.catalog]);
-    addTearDown(controller.dispose);
+    final controller = _processor(compiled);
     _send(controller, compiled, const [
       {
         'id': 'root',
@@ -163,8 +153,7 @@ void main() {
     tester,
   ) async {
     final compiled = DesyGenUiCatalog.compile(_registry());
-    final controller = SurfaceController(catalogs: [compiled.catalog]);
-    addTearDown(controller.dispose);
+    final controller = _processor(compiled);
     _send(controller, compiled, const [
       {
         'id': 'root',
@@ -189,26 +178,22 @@ void main() {
     );
     await tester.pump();
 
-    final submitted = controller.onSubmit.first;
+    final actions = <a2ui.A2uiRendererAction>[];
+    final subscription = controller.model.onAction.subscribe(actions.add);
+    addTearDown(subscription.unsubscribe);
     await tester.tap(find.text('Submit'));
     await tester.pump();
-    final message = await submitted;
-    final interaction =
-        jsonDecode(message.parts.first.asUiInteractionPart!.interaction)
-            as Map<String, Object?>;
-    final action = interaction['action']! as Map<String, Object?>;
-    final context = action['context']! as Map<String, Object?>;
-    expect(action['name'], 'submit');
-    expect(action['sourceComponentId'], 'root');
-    expect(context, {'origin': 'fixture', 'label': 'Submit'});
+    final action = actions.single;
+    expect(action.name, 'submit');
+    expect(action.sourceComponentId, 'root');
+    expect(action.context, {'origin': 'fixture', 'label': 'Submit'});
   });
 
   testWidgets('data-bound props update a component without replacing it', (
     tester,
   ) async {
     final compiled = DesyGenUiCatalog.compile(_registry());
-    final controller = SurfaceController(catalogs: [compiled.catalog]);
-    addTearDown(controller.dispose);
+    final controller = _processor(compiled);
     _send(controller, compiled, const [
       {
         'id': 'root',
@@ -229,40 +214,72 @@ void main() {
     await tester.pump();
     expect(find.text('Leaf'), findsOneWidget);
 
-    controller.handleMessage(
-      a2ui.UpdateDataModelMessage(
-        surfaceId: 'test-surface',
-        path: '/tickets/0/key',
-        value: 'APP-1',
-      ),
-    );
+    controller.processMessages({
+      'version': 'v0.9',
+      'updateDataModel': {
+        'surfaceId': 'test-surface',
+        'path': '/tickets/0/key',
+        'value': 'APP-1',
+      },
+    });
     await tester.pump();
     await tester.pump();
     expect(find.text('APP-1'), findsOneWidget);
 
-    controller.handleMessage(
-      a2ui.UpdateDataModelMessage(
-        surfaceId: 'test-surface',
-        path: '/tickets/0/key',
-        value: 'APP-2',
-      ),
-    );
+    controller.processMessages({
+      'version': 'v0.9',
+      'updateDataModel': {
+        'surfaceId': 'test-surface',
+        'path': '/tickets/0/key',
+        'value': 'APP-2',
+      },
+    });
     await tester.pump();
     await tester.pump();
     expect(find.text('APP-2'), findsOneWidget);
+  });
+
+  testWidgets('shows the default builder until the surface exists', (
+    tester,
+  ) async {
+    final compiled = DesyGenUiCatalog.compile(_registry());
+    final controller = _processor(compiled);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DesyGenUiSurface(
+          controller: controller,
+          surfaceId: 'test-surface',
+          theme: _theme,
+          defaultBuilder: (_) => const Text('Waiting'),
+        ),
+      ),
+    );
+    expect(find.text('Waiting'), findsOneWidget);
+
+    _send(controller, compiled, const [
+      {'id': 'root', 'component': 'test.leaf', 'label': 'Ready'},
+    ]);
+    await tester.pump();
+    expect(find.text('Waiting'), findsNothing);
+    expect(find.text('Ready'), findsOneWidget);
+
+    controller.processMessages({
+      'version': 'v0.9',
+      'deleteSurface': {'surfaceId': 'test-surface'},
+    });
+    await tester.pump();
+    expect(find.text('Waiting'), findsOneWidget);
   });
 
   testWidgets('materialized named example is a renderable flat surface', (
     tester,
   ) async {
     final compiled = DesyGenUiCatalog.compile(_registry());
-    final panel = compiled.catalog.items.singleWhere(
-      (item) => item.name == 'test.panel',
-    );
-    final example = (jsonDecode(panel.exampleData.first()) as List)
+    final examples =
+        compiled.backendArtifact['examples']! as Map<String, Object?>;
+    final example = ((examples['test.panel']! as List).first as List)
         .cast<Map<String, dynamic>>();
-    final controller = SurfaceController(catalogs: [compiled.catalog]);
-    addTearDown(controller.dispose);
+    final controller = _processor(compiled);
     _send(controller, compiled, example);
 
     await tester.pumpWidget(
@@ -281,23 +298,38 @@ void main() {
   });
 }
 
+a2ui.MessageProcessor<ComponentImplementation> _processor(
+  DesyGenUiCatalog compiled,
+) {
+  final processor = a2ui.MessageProcessor<ComponentImplementation>(
+    catalogs: [compiled.catalog],
+    validationConfig: a2ui.ValidationConfig.strict,
+  );
+  addTearDown(processor.dispose);
+  return processor;
+}
+
 void _send(
-  SurfaceController controller,
+  a2ui.MessageProcessor<ComponentImplementation> controller,
   DesyGenUiCatalog compiled,
   List<Map<String, dynamic>> components,
 ) {
-  controller.handleMessage(
-    a2ui.CreateSurfaceMessage(
-      surfaceId: 'test-surface',
-      catalogId: compiled.catalog.catalogId!,
-    ),
-  );
-  controller.handleMessage(
-    a2ui.UpdateComponentsMessage(
-      surfaceId: 'test-surface',
-      components: components,
-    ),
-  );
+  controller.processMessages([
+    {
+      'version': 'v0.9',
+      'createSurface': {
+        'surfaceId': 'test-surface',
+        'catalogId': compiled.catalog.id,
+      },
+    },
+    {
+      'version': 'v0.9',
+      'updateComponents': {
+        'surfaceId': 'test-surface',
+        'components': components,
+      },
+    },
+  ]);
 }
 
 const _theme = DesyTheme(id: 'light', name: 'Light', wrap: _wrapTheme);

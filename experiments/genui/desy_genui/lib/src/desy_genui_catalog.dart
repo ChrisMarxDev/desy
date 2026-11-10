@@ -1,13 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:crypto/crypto.dart';
 import 'package:desy_core/desy_core.dart';
 import 'package:flutter/material.dart';
-import 'package:genui/genui.dart';
-import 'package:json_schema_builder/json_schema_builder.dart';
+import 'package:json_schema_builder/json_schema_builder.dart'
+    hide ValidationResult;
 
-/// A real GenUI catalog and its serializable backend contract, both compiled
+/// A real A2UI catalog and its serializable backend contract, both compiled
 /// from one consumer-owned [DesyRegistry].
 final class DesyGenUiCatalog {
   DesyGenUiCatalog._({
@@ -17,8 +19,8 @@ final class DesyGenUiCatalog {
     required this.digest,
   });
 
-  /// Compiles every registered component in [registry] into GenUI catalog
-  /// items.
+  /// Compiles every registered component in [registry] into A2UI catalog
+  /// components.
   factory DesyGenUiCatalog.compile(DesyRegistry registry) {
     final identity = registry.identity;
     if (identity == null) {
@@ -46,15 +48,15 @@ final class DesyGenUiCatalog {
 
     final compiler = _Compiler(registry);
     final prompts = compiler.systemPromptFragments;
-    final items = [
+    final components = [
       for (final component in registry.allComponents)
-        compiler.catalogItem(component),
+        compiler.component(component),
     ];
     final catalogId = '${identity.id}@${identity.version}';
-    final catalog = Catalog(
-      items,
-      catalogId: catalogId,
-      systemPromptFragments: prompts,
+    final catalog = CatalogImplementation(
+      id: catalogId,
+      components: components,
+      instructions: prompts.join('\n'),
     );
     final artifact = <String, Object?>{
       'schemaVersion': 'desy-genui-catalog/0.1',
@@ -64,8 +66,8 @@ final class DesyGenUiCatalog {
         'version': identity.version,
         'catalogId': catalogId,
       },
-      'capabilities': catalog.toCapabilitiesJson(),
-      'fullSchema': catalog.fullSchema.value,
+      'capabilities': catalog.toV09InlineCatalog(),
+      'fullSchema': catalog.toJson(),
       'systemPromptFragments': prompts,
       'examples': {
         for (final component in registry.allComponents)
@@ -85,8 +87,8 @@ final class DesyGenUiCatalog {
   /// The only source registry used for compilation and runtime widget builds.
   final DesyRegistry registry;
 
-  /// The executable Flutter GenUI catalog.
-  final Catalog catalog;
+  /// The executable Flutter A2UI catalog.
+  final CatalogImplementation catalog;
 
   /// JSON-safe schema, prompt, example, and capability data for an agent host.
   final Map<String, Object?> backendArtifact;
@@ -121,11 +123,10 @@ final class _Compiler {
     return List.unmodifiable(result);
   }
 
-  CatalogItem catalogItem(DesyRegistryComponent component) {
-    final examples = examplesFor(component);
-    return CatalogItem(
+  ComponentImplementation component(DesyRegistryComponent component) {
+    return ComponentImplementation(
       name: component.id,
-      dataSchema: S.object(
+      schema: S.object(
         title: component.name,
         description: _descriptionFor(component),
         properties: {
@@ -134,41 +135,35 @@ final class _Compiler {
         },
         additionalProperties: false,
       ),
-      exampleData: [for (final example in examples) () => jsonEncode(example)],
-      widgetBuilder: (itemContext) => _build(component, itemContext),
+      builder: (context, node, props, buildChild) =>
+          _build(component, context, node, props, buildChild),
     );
   }
 
+  // The builder receives each knob already resolved: a2ui_flutter binds the
+  // `{"path": ...}` and `{"call": ...}` values the schemas allow, and reruns
+  // the builder when one of them changes. A binding without data yet resolves
+  // to null, so the knob keeps its declared default until the data arrives.
   Widget _build(
     DesyRegistryComponent component,
-    CatalogItemContext itemContext,
-  ) {
-    final rawData = itemContext.data;
-    if (rawData is! Map) {
-      throw ArgumentError.value(rawData, 'data', 'Expected component data.');
-    }
-    return _BoundDesyComponent(
-      dataContext: itemContext.dataContext,
-      rawData: Map<String, Object?>.from(rawData),
-      reportError: itemContext.reportError,
-      builder: (context, resolvedData) =>
-          _buildResolved(component, itemContext, context, resolvedData),
-    );
-  }
-
-  Widget _buildResolved(
-    DesyRegistryComponent component,
-    CatalogItemContext itemContext,
     BuildContext context,
-    Map<String, Object?> rawData,
+    ComponentNode<ComponentImplementation> node,
+    ComponentProps props,
+    ChildWidgetBuilder buildChild,
   ) {
+    final componentContext = node.context!;
+    final children = <String, ComponentNode<ComponentImplementation>>{};
     final data = <String, Object>{};
     for (final knob in component.knobDefinitions) {
-      final value = rawData[knob.id];
+      // An event knob keeps the raw action rather than its resolved closure,
+      // so the event host can merge the consumer's payload into the context.
+      final value = knob.kind == DesyKnobKind.event
+          ? componentContext.componentModel.properties[knob.id]
+          : props.value(knob.id);
       if (value == null) continue;
       data[knob.id] = switch (knob.kind) {
-        DesyKnobKind.widgetInstance => _surfaceId(knob, value, itemContext),
-        DesyKnobKind.widgetInstances => _surfaceIds(knob, value, itemContext),
+        DesyKnobKind.widgetInstance => _surfaceId(knob, value, children),
+        DesyKnobKind.widgetInstances => _surfaceIds(knob, value, children),
         DesyKnobKind.event => DesyEventBinding(value),
         DesyKnobKind.dateTime => _dateTime(knob, value),
         DesyKnobKind.stringList => _stringList(knob, value),
@@ -180,13 +175,13 @@ final class _Compiler {
 
     final resolver = DesyWidgetResolver.withSurfaceChildren(
       registry,
-      buildSurfaceChild: (_, id) => itemContext.buildChild(id),
+      buildSurfaceChild: (_, id) => buildChild(children[id]!),
     );
     return component.buildWithValues(
       context,
       data,
       widgets: resolver,
-      events: _GenUiEventHost(itemContext),
+      events: _GenUiEventHost(componentContext),
     );
   }
 
@@ -236,45 +231,56 @@ final class _Compiler {
     }
   }
 
+  // a2ui_flutter resolves child references to nodes. [children] collects
+  // them by component ID for the resolver's surface child builder.
   DesyInstanceId _surfaceId(
     KnobDefinition<Object> knob,
     Object value,
-    CatalogItemContext context,
+    Map<String, ComponentNode<ComponentImplementation>> children,
   ) {
-    if (value is! String) {
+    if (value is! ComponentNode<ComponentImplementation>) {
       throw ArgumentError.value(value, knob.id, 'Expected a component ID.');
     }
-    _validateChildType(knob, value, context);
-    return DesyInstanceId.surface(value);
+    _validateChildType(knob, value);
+    children[value.componentId] = value;
+    return DesyInstanceId.surface(value.componentId);
   }
 
   DesyInstanceIds _surfaceIds(
     KnobDefinition<Object> knob,
     Object value,
-    CatalogItemContext context,
+    Map<String, ComponentNode<ComponentImplementation>> children,
   ) {
-    if (value is! List || value.any((element) => element is! String)) {
+    if (value is! List ||
+        value.any(
+          (element) => element is! ComponentNode<ComponentImplementation>,
+        )) {
       throw ArgumentError.value(
         value,
         knob.id,
         'Expected a list of component IDs.',
       );
     }
-    final ids = value.cast<String>();
-    for (final id in ids) {
-      _validateChildType(knob, id, context);
+    final nodes = value.cast<ComponentNode<ComponentImplementation>>();
+    for (final node in nodes) {
+      _validateChildType(knob, node);
+      children[node.componentId] = node;
     }
-    return DesyInstanceIds(ids.map(DesyInstanceId.surface));
+    return DesyInstanceIds(
+      nodes.map((node) => DesyInstanceId.surface(node.componentId)),
+    );
   }
 
   void _validateChildType(
     KnobDefinition<Object> knob,
-    String id,
-    CatalogItemContext context,
+    ComponentNode<ComponentImplementation> child,
   ) {
-    final child = context.getComponent(id);
-    if (child == null) {
-      throw ArgumentError.value(id, knob.id, 'Unknown surface component ID.');
+    if (child.state == NodeState.pending) {
+      throw ArgumentError.value(
+        child.componentId,
+        knob.id,
+        'Unknown surface component ID.',
+      );
     }
     if (knob.options.isEmpty) return;
     final allowedTypes = <String>{
@@ -285,7 +291,7 @@ final class _Compiler {
     };
     if (!allowedTypes.contains(child.type)) {
       throw ArgumentError.value(
-        id,
+        child.componentId,
         knob.id,
         'Child must use one of: ${allowedTypes.join(', ')}.',
       );
@@ -328,14 +334,15 @@ final class _Compiler {
         _numberDescription(knob, description),
       ),
       DesyKnobKind.jsonValue => _jsonValueOrBinding(description),
-      DesyKnobKind.widgetInstance => A2uiSchemas.componentReference(
-        description: _slotDescription(knob, description),
+      DesyKnobKind.widgetInstance => _describe(
+        CommonSchemas.componentId,
+        _slotDescription(knob, description),
       ),
       DesyKnobKind.widgetInstances => S.list(
         description: _slotDescription(knob, description),
-        items: A2uiSchemas.componentReference(),
+        items: CommonSchemas.componentId,
       ),
-      DesyKnobKind.event => A2uiSchemas.action(description: description),
+      DesyKnobKind.event => _describe(CommonSchemas.action, description),
     };
     if (knob.kind == DesyKnobKind.event) return schema;
     return Schema.fromMap({
@@ -348,13 +355,14 @@ final class _Compiler {
       knob.unit == null ? description : '$description Unit: ${knob.unit}.';
 
   Schema _valueOrBinding(Schema literal, String description) => S.combined(
-    oneOf: [
-      literal,
-      A2uiSchemas.dataBindingSchema(),
-      A2uiSchemas.functionCall(),
-    ],
+    oneOf: [literal, CommonSchemas.dataBinding, CommonSchemas.functionCall],
     description: description,
   );
+
+  // Copies keep the `commonTypesRef` marker by which a2ui_core recognizes
+  // child references and actions.
+  Schema _describe(Schema common, String description) =>
+      Schema.fromMap({...common.value, 'description': description});
 
   // `S.any()` also accepts the binding map, so this needs `anyOf` rather than
   // `oneOf`: a raw JSON object can validly have a `path` key, while a top-level
@@ -363,8 +371,8 @@ final class _Compiler {
     'description': description,
     'anyOf': [
       S.any().value,
-      A2uiSchemas.dataBindingSchema().value,
-      A2uiSchemas.functionCall().value,
+      CommonSchemas.dataBinding.value,
+      CommonSchemas.functionCall.value,
     ],
   });
 
@@ -503,100 +511,10 @@ final class _Compiler {
   }
 }
 
-/// Resolves the top-level dynamic properties of a Desy component and rebuilds
-/// only that component when a bound data-model value changes.
-///
-/// Structural slots and action maps remain literal. Consumer components may
-/// bind scalar, list, or JSON-value knobs with `{ "path": "/data/path" }`.
-final class _BoundDesyComponent extends StatefulWidget {
-  const _BoundDesyComponent({
-    required this.dataContext,
-    required this.rawData,
-    required this.reportError,
-    required this.builder,
-  });
-
-  final DataContext dataContext;
-  final Map<String, Object?> rawData;
-  final void Function(Object error, StackTrace? stackTrace) reportError;
-  final Widget Function(BuildContext context, Map<String, Object?> data)
-  builder;
-
-  @override
-  State<_BoundDesyComponent> createState() => _BoundDesyComponentState();
-}
-
-final class _BoundDesyComponentState extends State<_BoundDesyComponent> {
-  final _resolvedData = <String, Object?>{};
-  final _subscriptions = <StreamSubscription<Object?>>[];
-
-  @override
-  void initState() {
-    super.initState();
-    _bind();
-  }
-
-  @override
-  void didUpdateWidget(_BoundDesyComponent oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.dataContext != widget.dataContext ||
-        oldWidget.rawData != widget.rawData) {
-      _bind();
-    }
-  }
-
-  @override
-  void dispose() {
-    _cancelSubscriptions();
-    super.dispose();
-  }
-
-  void _bind() {
-    _cancelSubscriptions();
-    _resolvedData
-      ..clear()
-      ..addAll(widget.rawData);
-    for (final entry in widget.rawData.entries) {
-      if (!_isDynamicValue(entry.value)) continue;
-      // A binding has no literal value to pass into the typed consumer
-      // component while the stream is connecting. Omit it so the component's
-      // declared default stays visible until its first data-model emission.
-      _resolvedData.remove(entry.key);
-      _subscriptions.add(
-        widget.dataContext
-            .resolve(entry.value)
-            .listen(
-              (value) {
-                if (!mounted) return;
-                setState(() => _resolvedData[entry.key] = value);
-              },
-              onError: (Object error, StackTrace stackTrace) {
-                widget.reportError(error, stackTrace);
-              },
-            ),
-      );
-    }
-  }
-
-  void _cancelSubscriptions() {
-    for (final subscription in _subscriptions) {
-      unawaited(subscription.cancel());
-    }
-    _subscriptions.clear();
-  }
-
-  bool _isDynamicValue(Object? value) =>
-      value is Map && (value['path'] is String || value.containsKey('call'));
-
-  @override
-  Widget build(BuildContext context) =>
-      widget.builder(context, Map<String, Object?>.unmodifiable(_resolvedData));
-}
-
 final class _GenUiEventHost implements DesyEventHost {
   const _GenUiEventHost(this.context);
 
-  final CatalogItemContext context;
+  final ComponentContext context;
 
   @override
   void emit(DesyEventInvocation invocation) {
@@ -607,32 +525,42 @@ final class _GenUiEventHost implements DesyEventHost {
     try {
       final action = invocation.action;
       if (action is! Map) return;
+      // A consumer emits from a user gesture, so functions that require user
+      // activation may run.
+      final dataContext = context.dataContext.withUserActivation();
       final event = action['event'];
       if (event is Map) {
-        final name = event['name'];
-        if (name is! String) return;
-        final rawContext = event['context'];
-        final resolved = await resolveContext(
-          context.dataContext,
-          rawContext is Map ? Map<String, Object?>.from(rawContext) : null,
-        );
-        context.dispatchEvent(
-          UserActionEvent(
-            name: name,
-            sourceComponentId: context.id,
-            context: {...resolved, ...invocation.payload},
-          ),
-        );
+        final resolved = await dataContext.resolveActionAsync({'event': event});
+        final resolvedEvent = resolved?['event'];
+        if (resolvedEvent is! Map) return;
+        final resolvedContext = resolvedEvent['context'];
+        await context.dispatchAction({
+          'event': {
+            'name': resolvedEvent['name'],
+            'context': {
+              if (resolvedContext is Map) ...resolvedContext,
+              ...invocation.payload,
+            },
+          },
+        });
         return;
       }
       final functionCall = action['functionCall'];
       if (functionCall is Map) {
-        await context.dataContext
-            .resolve(Map<String, Object?>.from(functionCall))
-            .drain<void>();
+        await dataContext.evaluateFunctionCall(
+          Map<String, Object?>.from(functionCall),
+        );
       }
-    } catch (error, stack) {
-      context.reportError(error, stack);
+    } catch (error) {
+      await context.surface.dispatchError(
+        A2uiRendererError(
+          code: 'EXECUTION_ERROR',
+          surfaceId: context.surface.id,
+          message:
+              "Event of component '${context.componentModel.id}' failed: "
+              '$error',
+        ),
+      );
     }
   }
 }
